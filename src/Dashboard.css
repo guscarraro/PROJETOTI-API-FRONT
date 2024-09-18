@@ -1,0 +1,95 @@
+/* Estilos gerais */
+body {
+  font-family: "Arial", sans-serif;
+  background-color: #f4f4f9;
+  color: #333;
+}
+
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Estilo da tabela por Módulo */
+.table-responsive {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.module-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.module-table th,
+.module-table td {
+  border: 1px solid #ccc;
+  padding: 10px;
+  text-align: center;
+}
+
+.module-table th {
+  background-color: #007bff;
+  color: white;
+}
+
+.module-table td {
+  background-color: #f9f9f9;
+}
+
+/* Estilos do gráfico */
+.chart-container {
+  margin-bottom: 40px;
+  background-color: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+.small-chart {
+  width: 400px;
+  height: 400px;
+  margin: 0 auto;
+}
+
+/* Estilo da tabela detalhada */
+.detailed-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.detailed-table th,
+.detailed-table td {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+
+.detailed-table th {
+  background-color: #007bff;
+  color: white;
+}
+
+.detailed-table td {
+  background-color: #f9f9f9;
+}
+
+/* Estilo responsivo */
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 10px;
+  }
+
+  .module-table th,
+  .module-table td {
+    padding: 5px;
+  }
+
+  .chart-container,
+  .small-chart {
+    width: 100%;
+    height: auto;
+  }
+}
