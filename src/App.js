@@ -113,11 +113,54 @@ function Dashboard() {
   };
 
   // Tabela final com Status, Número, Solicitante, Data, Severidade e Assunto
+  // Função para renderizar ícone e mensagem baseada no Status HD
   const renderStatusIcon = (status) => {
-    if (status === "Ag. Escalasoft") {
-      return <FaCheckCircle color="green" />;
-    } else {
-      return <FaExclamationCircle color="red" />;
+    switch (status) {
+      case "Ag. Escalasoft":
+        return (
+          <div>
+            <FaCheckCircle color="blue" />{" "}
+            <span>Aguardando retorno Escalasoft</span>
+          </div>
+        );
+      case "Ag. Homologacao":
+        return (
+          <div>
+            <FaCheckCircle color="orange" />{" "}
+            <span>Aguardando encerramento</span>
+          </div>
+        );
+      case "Ag. Informacoes Complementares":
+        return (
+          <div>
+            <FaExclamationCircle color="deepskyblue" />{" "}
+            <span>Precisamos de mais informações detalhadas</span>
+          </div>
+        );
+      case "Retorno da Escalasoft":
+        return (
+          <div>
+            <FaCheckCircle color="green" /> <span>Escala respondeu</span>
+          </div>
+        );
+      case "Em Execucao":
+        return (
+          <div>
+            <FaExclamationCircle color="purple" /> <span>Em teste</span>
+          </div>
+        );
+      case "Encerrado":
+        return (
+          <div>
+            <FaCheckCircle color="green" /> <span>Concluído</span>
+          </div>
+        );
+      default:
+        return (
+          <div>
+            <FaExclamationCircle color="red" /> <span>Status desconhecido</span>
+          </div>
+        );
     }
   };
 
