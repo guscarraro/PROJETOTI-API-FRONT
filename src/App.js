@@ -4,6 +4,7 @@ import { Routes, Route } from 'react-router-dom';
 import PrivateRoute from './components/PrivateRoute';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const App = () => {
   return (
