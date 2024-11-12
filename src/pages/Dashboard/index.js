@@ -1,498 +1,240 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
-import { supabase } from '../../supabaseClient';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import { Bar, Pie } from "react-chartjs-2";
-import {
-  FaCheckCircle,
-  FaExclamationCircle,
-  FaCaretDown,
-  FaCaretUp,
-  FaClock,
-  FaTasks,
-} from "react-icons/fa";
-import moment from "moment";
-import { Collapse } from "react-collapse";
-import {
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  Grid,
-  Paper,
-} from "@mui/material";
-import "./style.css";
+import React, { useEffect, useState } from 'react';
+import styled from 'styled-components';
+import { Container, Row, Col } from 'reactstrap';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis } from 'recharts';
+import { FaEye, FaExclamationTriangle, FaClipboardCheck } from 'react-icons/fa';
+import './style.css';
+import { Legend } from 'chart.js';
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  ArcElement,
-  Tooltip,
-  Legend
-);
+const Box = styled.div`
+  background-color: ${(props) => props.bgColor || 'rgba(0, 0, 0, 0.7)'};
+  color: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  margin: 10px;
+  text-align: center;
+  height: auto;
+  opacity: 0.9;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+`;
 
-function Dashboard() {
+const ProgressBar = styled.div`
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  height: 8px;
+  position: relative;
+  margin-top: 10px;
+
+  &::after {
+    content: '';
+    display: block;
+    height: 100%;
+    background-color: #00C49F;
+    width: ${(props) => props.progress}%;
+  }
+`;
+
+const NoteList = styled.div`
+  margin-top: 10px;
+  text-align: left;
+  font-size: 0.9rem;
+`;
+
+const NoteItem = styled.div`
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 5px;
+  border-radius: 5px;
+  margin-bottom: 5px;
+`;
+
+const Dashboard = () => {
   const [data, setData] = useState([]);
-  const [groupedByModule, setGroupedByModule] = useState({});
-  const [filters, setFilters] = useState({});
-  const [searchQuery, setSearchQuery] = useState("");
-  const [expandedModules, setExpandedModules] = useState({});
+  const [counts, setCounts] = useState({
+    today: 0,
+    tomorrow: 0,
+    overdue: 0,
+    noDeliveryDate: 0,
+    completed: 0,
+  });
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.href = '/'; 
+  const fetchData = async () => {
+    const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
+    const jsonData = await response.json();
+    setData(jsonData);
   };
 
   useEffect(() => {
-    axios
-      .get("https://projetoti-api-production.up.railway.app/dados")
-      .then((response) => {
-        setData(response.data);
-        groupDataByModule(response.data);
-      })
-      .catch((error) => {
-        console.error("Erro ao buscar os dados da API:", error);
-      });
+    fetchData();
   }, []);
 
-  const groupDataByModule = (data) => {
-    const modules = {};
-    data.forEach((item) => {
-      const modulo = item.Modulo;
-      if (!modules[modulo]) {
-        modules[modulo] = [];
-      }
-      modules[modulo].push(item);
-    });
-    setGroupedByModule(modules);
-  };
+  useEffect(() => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
 
-  const calculateResolutionTime = (dataItem) => {
-    if (dataItem.Data && dataItem.LogDataAlteracao) {
-      const openingTime = moment(dataItem.Data, "DD/MM/YYYY HH:mm");
-      const closingTime = moment(dataItem.LogDataAlteracao, "DD/MM/YYYY HH:mm");
-      const duration = moment.duration(closingTime.diff(openingTime));
-      return `${Math.floor(duration.asHours())}h ${duration.minutes()}m`;
-    }
-    return "N/A";
-  };
-
-  const renderStatusIcon = (status) => {
-    switch (status) {
-      case "Ag. Escalasoft":
-        return <FaCheckCircle color="blue" />;
-      case "Ag. Homologacao":
-        return <FaCheckCircle color="orange" />;
-      case "Ag. Informacoes Complementares":
-        return <FaExclamationCircle color="deepskyblue" />;
-      case "Retorno da Escalasoft":
-        return <FaCheckCircle color="green" />;
-      case "Em Execucao":
-        return <FaExclamationCircle color="purple" />;
-      case "Encerrado":
-        return <FaCheckCircle color="green" />;
-      default:
-        return <FaExclamationCircle color="red" />;
-    }
-  };
-
-  const calculateModuleStats = (moduleData, status) => {
-    const filteredData = status
-      ? moduleData.filter((item) => item["Status HD"] === status)
-      : moduleData;
-
-    const total = filteredData.length;
-    const resolved = filteredData.filter(
-      (item) => item["Status HD"] === "Encerrado"
-    ).length;
-    const pending = total - resolved;
-    const awaitingClosure = filteredData.filter(
-      (item) => item["Status HD"] === "Retorno da Escalasoft"
-    ).length;
-
-    const totalTime = filteredData.reduce((acc, item) => {
-      if (item.Data && item.LogDataAlteracao) {
-        const time = moment(item.LogDataAlteracao, "DD/MM/YYYY HH:mm").diff(
-          moment(item.Data, "DD/MM/YYYY HH:mm")
-        );
-        return acc + time;
-      }
-      return acc;
-    }, 0);
-
-    const averageTime =
-      totalTime > 0 ? moment.duration(totalTime / filteredData.length) : null;
-
-    return {
-      total,
-      resolved,
-      pending,
-      awaitingClosure,
-      averageResolutionTime: averageTime
-        ? `${Math.floor(averageTime.asHours())}h ${averageTime.minutes()}m`
-        : "N/A",
+    const counts = {
+      today: 0,
+      tomorrow: 0,
+      overdue: 0,
+      noDeliveryDate: 0,
+      completed: 0,
     };
-  };
 
-  const applyStatusFilter = (moduleData, status) => {
-    if (!status) return moduleData;
-    return moduleData.filter((item) => item["Status HD"] === status);
-  };
-
-  const applyTextFilter = (moduleData) => {
-    if (!searchQuery) return moduleData;
-    return moduleData.filter(
-      (item) =>
-        item.Solicitante.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.Data.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  };
-
-  const toggleModuleExpansion = (modulo) => {
-    setExpandedModules((prevState) => ({
-      ...prevState,
-      [modulo]: !prevState[modulo],
-    }));
-  };
-
-  const handleFilterChange = (modulo, status) => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
-      [modulo]: status,
-    }));
-  };
-
-  const countByModule = () => {
-    const moduleCount = {};
     data.forEach((item) => {
-      if (item.Modulo) {
-        moduleCount[item.Modulo] = (moduleCount[item.Modulo] || 0) + 1;
+      const deliveryDate = item.previsao_entrega ? new Date(item.previsao_entrega) : null;
+      const entregue = item.cte_entregue === 1;
+
+      if (entregue) {
+        counts.completed++;
+      } else if (deliveryDate) {
+        if (deliveryDate.toDateString() === today.toDateString()) {
+          counts.today++;
+        } else if (deliveryDate.toDateString() === tomorrow.toDateString()) {
+          counts.tomorrow++;
+        } else if (deliveryDate < today) {
+          counts.overdue++;
+        }
+      } else {
+        counts.noDeliveryDate++;
       }
     });
-    return moduleCount;
+
+    setCounts(counts);
+  }, [data]);
+
+  const totalDeliveries = data.length;
+  const completedPercent = ((counts.completed / totalDeliveries) * 100).toFixed(1);
+
+  const chartData = [
+    { name: 'Hoje', value: counts.today },
+    { name: 'Amanhã', value: counts.tomorrow },
+    { name: 'Atrasadas', value: counts.overdue },
+    { name: 'Sem Previsão', value: counts.noDeliveryDate },
+  ];
+
+  const performanceData = [
+    { name: 'Dia 1', percent: 90 },
+    { name: 'Dia 2', percent: 85 },
+    { name: 'Dia 3', percent: 80 },
+    { name: 'Dia 4', percent: 82 },
+    { name: 'Dia 5', percent: 88 },
+  ];
+
+  const COLORS = ['#00FF7F', '#FFD700', '#FF4500', '#8A2BE2'];
+
+  const boxColors = {
+    today: 'rgba(255, 215, 0, 0.35)',
+    tomorrow: 'rgba(0, 255, 127, 0.35)',
+    overdue: 'rgba(255, 69, 0, 0.35)',
+    noDeliveryDate: 'rgba(138, 43, 226, 0.35)',
   };
 
-  const countByVersion = () => {
-    const versionCount = {};
-    data.forEach((item) => {
-      if (item.Versao && item.Versao !== "N/I") {
-        versionCount[item.Versao] = (versionCount[item.Versao] || 0) + 1;
+  const getGroupedNotesCountByRemetente = (status) => {
+    const notesByStatus = data.filter((item) => {
+      const deliveryDate = item.previsao_entrega ? new Date(item.previsao_entrega) : null;
+      const hoje = new Date().toDateString();
+      const amanha = new Date(Date.now() + 86400000).toDateString();
+
+      switch (status) {
+        case 'today':
+          return deliveryDate && deliveryDate.toDateString() === hoje && item.cte_entregue !== 1;
+        case 'tomorrow':
+          return deliveryDate && deliveryDate.toDateString() === amanha && item.cte_entregue !== 1;
+        case 'overdue':
+          return deliveryDate && deliveryDate < new Date() && item.cte_entregue !== 1;
+        case 'noDeliveryDate':
+          return !deliveryDate && item.cte_entregue !== 1;
+        default:
+          return false;
       }
     });
-    return versionCount;
-  };
 
-  const countByDate = () => {
-    const dateCount = {};
-    data.forEach((item) => {
-      if (
-        item.Data &&
-        (item["Status HD"] === "Encerrado" ||
-          item["Status HD"] === "Retorno da Escalasoft")
-      ) {
-        const date = moment(item.Data, "DD/MM/YYYY").format("DD/MM/YYYY");
-        dateCount[date] = (dateCount[date] || 0) + 1;
+    const grouped = {};
+    notesByStatus.forEach(note => {
+      const remetente = note.remetente;
+      if (!grouped[remetente]) {
+        grouped[remetente] = 0;
       }
+      grouped[remetente]++;
     });
-    return dateCount;
-  };
 
-  const moduleData = {
-    labels: Object.keys(countByModule()),
-    datasets: [
-      {
-        label: "Problemas por Módulo",
-        data: Object.values(countByModule()),
-        backgroundColor: "rgba(75, 192, 192, 0.6)",
-      },
-    ],
+    return grouped;
   };
-
-  const versionData = {
-    labels: Object.keys(countByVersion()),
-    datasets: [
-      {
-        label: "Problemas por Versão",
-        data: Object.values(countByVersion()),
-        backgroundColor: [
-          "#FF6384",
-          "#36A2EB",
-          "#FFCE56",
-          "#4BC0C0",
-          "#9966FF",
-        ],
-      },
-    ],
-  };
-
-  const resolutionData = {
-    labels: Object.keys(countByDate()),
-    datasets: [
-      {
-        label: "Chamados Resolvidos/Respondidos por Data",
-        data: Object.values(countByDate()),
-        backgroundColor: "rgba(153, 102, 255, 0.6)",
-      },
-    ],
-  };
-
-  const pieOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    width: 400,
-    height: 400,
-  };
-
-  const globalStats = calculateModuleStats(data);
 
   return (
-    <div className="dashboard">
-        
-      <div className="fixed-search-bar">
-      <button onClick={handleLogout}>Sair</button>
-        <input
-          type="text"
-          placeholder="Buscar por Solicitante ou Data"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
-        />
-      </div>
-      <div className="content-offset">
-        <Grid container spacing={2} className="global-stats">
-          <Grid item xs={6} sm={3}>
-            <Paper className="stat-card2">
-              <FaTasks size={40} className="card-icon" />
-              <Typography variant="h6">Total de Chamados</Typography>
-              <Typography style={{ fontSize: "30px" }}>
-                {globalStats.total}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Paper className="stat-card2">
-              <FaCheckCircle size={40} className="card-icon" />{" "}
-              <Typography variant="h6">Chamados Resolvidos</Typography>
-              <Typography style={{ fontSize: "30px" }}>
-                {globalStats.resolved}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Paper className="stat-card2">
-              <FaExclamationCircle size={40} className="card-icon" />{" "}
-              
-              <Typography variant="h6">Chamados Pendentes</Typography>
-              <Typography style={{ fontSize: "30px" }}>
-                {globalStats.pending}
-              </Typography>
-            </Paper>
-          </Grid>
-          <Grid item xs={6} sm={3}>
-            <Paper className="stat-card2">
-              <FaClock size={40} className="card-icon" /> 
-              <Typography variant="h6">Média Geral de Resolução</Typography>
-              <Typography style={{ fontSize: "30px" }}>
-                {globalStats.averageResolutionTime}
-              </Typography>
-            </Paper>
-          </Grid>
-        </Grid>
+    <div className='boxGeneral'>
+      <Container fluid>
+      <Row>
+  <Col md="6">
+  <Box style={{ maxHeight: '350px', backgroundColor: 'rgba(0, 0, 0, 0.7)', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)' }}>
+  <h5>Percentual de Entregas Completas</h5>
+  <h2>{completedPercent}%</h2>
+  <ResponsiveContainer width="100%" height={250}>
+    <PieChart>
+      <Pie
+        data={chartData}
+        dataKey="value"
+        nameKey="name"
+        outerRadius={100}
+        fill="#8884d8"
+        label={(entry) => `${entry.name}: ${entry.value}`}
+      >
+        {chartData.map((entry, index) => (
+          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+        ))}
+      </Pie>
+      <Tooltip />
+      <Legend verticalAlign="bottom" height={36} />
+    </PieChart>
+  </ResponsiveContainer>
+</Box>
 
-        <div className="modules-grid">
-          {Object.keys(groupedByModule).map((modulo, index) => {
-            const moduleData = applyTextFilter(groupedByModule[modulo]);
-            const stats = calculateModuleStats(moduleData, filters[modulo]);
-            return (
-              <Card key={index} variant="outlined" className="module-card">
-                <CardContent>
-                  <Typography
-                    variant="h5"
-                    onClick={() => toggleModuleExpansion(modulo)}
-                    className="card-header"
-                  >
-                    {modulo}{" "}
-                    {expandedModules[modulo] ? <FaCaretUp /> : <FaCaretDown />}
-                  </Typography>
+  </Col>
+  <Col md="6">
+    <Box style={{ minHeight: '350px', backgroundColor: 'rgba(0, 0, 0, 0.7)', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)' }}>
+      <h5>Nível de Serviço ao Longo do Tempo</h5>
+      <ResponsiveContainer width="100%" height={250}>
+        <LineChart data={performanceData}>
+          <XAxis dataKey="name" />
+          <YAxis domain={[70, 100]} />
+          <Tooltip />
+          <Line type="monotone" dataKey="percent" stroke="#8884d8" strokeWidth={2} />
+        </LineChart>
+      </ResponsiveContainer>
+    </Box>
+  </Col>
+</Row>
 
-                  <Grid container spacing={2} className="module-stats">
-                    <Grid item xs={6} sm={2}>
-                      <Paper className="stat-card">
-                        <Typography variant="h6">Total de Chamados</Typography>
-                        <Typography style={{ fontSize: "30px" }}>
-                          {stats.total}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Paper className="stat-card">
-                        <Typography variant="h6">
-                          Chamados Resolvidos
-                        </Typography>
-                        <Typography style={{ fontSize: "30px" }}>
-                          {stats.resolved}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Paper className="stat-card">
-                        <Typography variant="h6">Chamados Pendentes</Typography>
-                        <Typography style={{ fontSize: "30px" }}>
-                          {stats.pending}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <Paper className="stat-card">
-                        <Typography variant="h6">
-                          Aguardando Encerramento
-                        </Typography>
-                        <Typography style={{ fontSize: "30px" }}>
-                          {stats.awaitingClosure}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                    <Grid item xs={6} sm={2}>
-                      <Paper className="stat-card">
-                        <Typography variant="h6">Média de Resolução</Typography>
-                        <Typography style={{ fontSize: "30px" }}>
-                          {stats.averageResolutionTime}
-                        </Typography>
-                      </Paper>
-                    </Grid>
-                  </Grid>
-
-                  {expandedModules[modulo] && (
-                    <Box mt={2} className="filter-buttons">
-                      <Button
-                        variant="outlined"
-                        onClick={() => handleFilterChange(modulo, "")}
-                        className="filter-button"
-                      >
-                        Todos
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          handleFilterChange(modulo, "Ag. Escalasoft")
-                        }
-                        className="filter-button"
-                      >
-                        Aguardando Escalasoft
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          handleFilterChange(modulo, "Ag. Homologacao")
-                        }
-                        className="filter-button"
-                      >
-                        Aguardando Homologação
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          handleFilterChange(
-                            modulo,
-                            "Ag. Informacoes Complementares"
-                          )
-                        }
-                        className="filter-button"
-                      >
-                        Aguardando Informações
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          handleFilterChange(modulo, "Em Execucao")
-                        }
-                        className="filter-button"
-                      >
-                        Em Execução
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() =>
-                          handleFilterChange(modulo, "Retorno da Escalasoft")
-                        }
-                        className="filter-button"
-                      >
-                        Retorno Escalasoft
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => handleFilterChange(modulo, "Encerrado")}
-                        className="filter-button"
-                      >
-                        Encerrados
-                      </Button>
-                    </Box>
-                  )}
-
-                  <Collapse isOpened={expandedModules[modulo]}>
-                    <table className="module-table">
-                      <thead>
-                        <tr>
-                          <th>Status HD</th>
-                          <th>Data</th>
-                          <th>Número</th>
-                          <th>Solicitante</th>
-                          <th>Tempo de Resolução</th>
-                          <th>Assunto</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {applyStatusFilter(moduleData, filters[modulo]).map(
-                          (item, idx) => (
-                            <tr key={idx}>
-                              <td>{renderStatusIcon(item["Status HD"])}</td>
-                              <td>{item.Data}</td>
-                              <td>{item.Numero}</td>
-                              <td>{item.Solicitante}</td>
-                              <td>{calculateResolutionTime(item)}</td>
-                              <td>{item.Assunto}</td>
-                            </tr>
-                          )
-                        )}
-                      </tbody>
-                    </table>
-                  </Collapse>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-
-        <h2>Gráfico de Problemas por Módulo</h2>
-        <div className="chart-container">
-          <Bar data={moduleData} />
-        </div>
-
-        <h2>Gráfico de Problemas por Versão</h2>
-        <div
-          className="chart-container large-chart"
-          style={{ height: "600px" }}
-        >
-          <Pie data={versionData} options={pieOptions} />
-        </div>
-
-        <h2>Gráfico de Chamados Resolvidos/Respondidos por Data</h2>
-        <div className="chart-container">
-          <Bar data={resolutionData} />
-        </div>
-      </div>
+        <Row>
+          {['today', 'tomorrow', 'overdue', 'noDeliveryDate'].map((status, index) => (
+            <Col md="6" lg="3" key={index}>
+              <Box bgColor={boxColors[status]}>
+                {status === 'today' && <><FaEye size={30} color="#FFD700" /><h5>Entregas Hoje</h5></>}
+                {status === 'tomorrow' && <><FaClipboardCheck size={30} color="#00FF7F" /><h5>Entregas Amanhã</h5></>}
+                {status === 'overdue' && <><FaExclamationTriangle size={30} color="#FF4500" /><h5>Atrasadas</h5></>}
+                {status === 'noDeliveryDate' && <><FaExclamationTriangle size={30} color="#8A2BE2" /><h5>Sem Previsão</h5></>}
+                <p className="lead">{counts[status]}</p>
+                <ProgressBar progress={(counts[status] / totalDeliveries) * 100} />
+                <NoteList>
+                  {Object.entries(getGroupedNotesCountByRemetente(status)).map(([remetente, count], idx) => (
+                    <NoteItem key={idx}>
+                    {remetente}:<br></br> <span style={{fontSize:'20px', fontWeight:500}}> {count} {count === 1 ? 'nota' : 'notas'}
+                    </span>
+                  </NoteItem>
+                  ))}
+                </NoteList>
+              </Box>
+            </Col>
+          ))}
+        </Row>
+      </Container>
     </div>
   );
-}
+};
 
 export default Dashboard;

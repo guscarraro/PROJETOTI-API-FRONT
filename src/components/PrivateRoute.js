@@ -1,31 +1,27 @@
 // src/components/PrivateRoute.js
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../supabaseClient';
 
 const PrivateRoute = ({ element }) => {
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      if (error) {
-        console.error('Erro ao buscar usuário:', error);
-      } else {
-        setUser(user);
-      }
-      setLoading(false);
+    const checkAuthentication = () => {
+      const token = localStorage.getItem('supabase.auth.token'); // Verifica se o token existe no localStorage
+      setIsAuthenticated(!!token); // Define autenticação com base no token
+      setLoading(false); // Define carregamento como concluído
     };
 
-    fetchUser();
+    checkAuthentication();
   }, []);
 
   if (loading) {
-    return <div>Loading...</div>; 
+    return <div>Carregando...</div>; // Exibe enquanto verifica autenticação
   }
 
-  return user ? element : <Navigate to="/" />;
+  // Redireciona para login caso não autenticado
+  return isAuthenticated ? element : <Navigate to="/" />;
 };
 
 export default PrivateRoute;

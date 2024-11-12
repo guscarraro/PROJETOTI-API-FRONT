@@ -10,7 +10,7 @@ const IconInput = ({ label, icon: Icon, type = "text", placeholder, value, onCha
       <div className="icon-input-wrapper">
         <Icon className="input-icon" />
         <Input
-          style={{border:'none'}}
+          style={{border:'none', color:'#fff'}}
           type={type}
           placeholder={placeholder}
           value={value}
