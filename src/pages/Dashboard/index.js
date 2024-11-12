@@ -1,9 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import styled, { keyframes } from 'styled-components';
+import styled, { keyframes, css } from 'styled-components';
 import { Container, Row, Col } from 'reactstrap';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Legend } from 'recharts';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import './style.css';
+
+const pulseOpacity = keyframes`
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+`;
 
 const Box = styled.div`
   background-color: ${(props) => props.bgColor || 'rgba(0, 0, 0, 0.7)'};
@@ -18,6 +30,9 @@ const Box = styled.div`
   flex-direction: column;
   justify-content: space-between;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  ${(props) => props.isPulsing && css`
+    animation: ${pulseOpacity} 2s infinite;
+  `}
 `;
 
 const ProgressBar = styled.div`
@@ -69,7 +84,7 @@ const Dashboard = () => {
     const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
     const jsonData = await response.json();
     setData(jsonData);
-    setPerformanceData(getPerformanceData(jsonData)); // Atualiza o desempenho com os dados de entregas diárias
+    setPerformanceData(getPerformanceData(jsonData));
   };
 
   useEffect(() => {
@@ -133,25 +148,24 @@ const Dashboard = () => {
     overdue: 'rgba(255, 69, 0, 0.35)',
   };
 
-  // Função para agrupar dados de desempenho de entrega diária (no prazo e atrasadas)
   const getPerformanceData = (data) => {
     const groupedByDate = {};
-  
+
     data.forEach((item) => {
       const date = item.entregue_em ? new Date(item.entregue_em).toLocaleDateString() : null;
       if (!date) return;
-  
+
       if (!groupedByDate[date]) {
         groupedByDate[date] = { onTime: 0, late: 0 };
       }
-      
+
       if (item.cte_no_prazo) {
         groupedByDate[date].onTime += 1;
       } else {
         groupedByDate[date].late += 1;
       }
     });
-  
+
     return Object.keys(groupedByDate)
       .sort((a, b) => new Date(a) - new Date(b))
       .map((date) => ({
@@ -160,7 +174,6 @@ const Dashboard = () => {
         EntregasAtrasadas: groupedByDate[date].late,
       }));
   };
-  
 
   const getGroupedNotesCountByRemetente = (status) => {
     const notesByStatus = data.filter((item) => {
@@ -184,12 +197,12 @@ const Dashboard = () => {
     });
 
     const grouped = {};
-    notesByStatus.forEach(note => {
+    notesByStatus.forEach((note) => {
       const remetente = note.remetente;
       if (!grouped[remetente]) {
         grouped[remetente] = [];
       }
-      grouped[remetente].push(note.NF); // Armazena apenas os números das notas
+      grouped[remetente].push(note.NF);
     });
 
     return grouped;
@@ -246,23 +259,21 @@ const Dashboard = () => {
             </Box>
           </Col>
         </Row>
-
         <Row>
           {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
             <Col md="6" lg="3" key={index}>
-              <Box bgColor={boxColors[status]}>
+              <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
                 {status === 'inTwoDays' && <><FaClipboardCheck size={30} color="#FFA500" /><h5>Entregas em 2 Dias</h5></>}
                 {status === 'today' && <><FaEye size={30} color="#FFD700" /><h5>Entregas Hoje</h5></>}
                 {status === 'tomorrow' && <><FaClipboardCheck size={30} color="#00FF7F" /><h5>Entregas em 1 Dia</h5></>}
                 {status === 'overdue' && <><FaExclamationTriangle size={30} color="#FF4500" /><h5>Atrasadas</h5></>}
                 <p className="lead">{counts[status]}</p>
                 <div style={{ display: 'flex', alignItems: 'center' }}>
-          <ProgressBar progress={(counts[status] / totalPending) * 100} />
-          <span style={{ marginLeft: '8px', fontWeight: 'bold' }}>
-            {Math.round((counts[status] / totalPending) * 100)}%
-          </span>
-        </div>
-
+                  <ProgressBar progress={(counts[status] / totalPending) * 100} />
+                  <span style={{ marginLeft: '8px', fontWeight: 'bold' }}>
+                    {Math.round((counts[status] / totalPending) * 100)}%
+                  </span>
+                </div>
                 <NoteList>
                   {Object.entries(getGroupedNotesCountByRemetente(status)).map(([remetente, notas], idx) => (
                     <NoteItem key={idx} isOpen={dropdownOpen[remetente]}>

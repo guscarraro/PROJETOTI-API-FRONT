@@ -8,19 +8,19 @@ const PrivateRoute = ({ element }) => {
 
   useEffect(() => {
     const checkAuthentication = () => {
-      const token = localStorage.getItem('supabase.auth.token'); // Verifica se o token existe no localStorage
-      setIsAuthenticated(!!token); // Define autenticação com base no token
-      setLoading(false); // Define carregamento como concluído
+      const token = localStorage.getItem('supabase.auth.token'); 
+      setIsAuthenticated(!!token); 
+      setLoading(false); 
     };
 
     checkAuthentication();
   }, []);
 
   if (loading) {
-    return <div>Carregando...</div>; // Exibe enquanto verifica autenticação
+    return <div>Carregando...</div>; 
   }
 
-  // Redireciona para login caso não autenticado
+
   return isAuthenticated ? element : <Navigate to="/" />;
 };
 
