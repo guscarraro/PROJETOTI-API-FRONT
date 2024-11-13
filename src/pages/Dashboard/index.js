@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import styled, { keyframes, css } from 'styled-components';
 import { Container, Row, Col } from 'reactstrap';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import './style.css';
 
@@ -77,14 +77,28 @@ const Dashboard = () => {
     inTwoDays: 0,
     completed: 0,
   });
+  const [serviceLevel, setServiceLevel] = useState(0);
+  const [onTimeCount, setOnTimeCount] = useState(0);
+  const [lateCount, setLateCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState({});
-  const [performanceData, setPerformanceData] = useState([]);
 
   const fetchData = async () => {
     const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
     const jsonData = await response.json();
     setData(jsonData);
-    setPerformanceData(getPerformanceData(jsonData));
+    calculateServiceLevel(jsonData);
+  };
+
+  const calculateServiceLevel = (data) => {
+    const deliveredNotes = data.filter((item) => item.cte_entregue === 1);
+    const onTime = deliveredNotes.filter((item) => item.cte_no_prazo === 1).length;
+    const late = deliveredNotes.filter((item) => item.atraso === 1).length;
+    const totalDelivered = onTime + late;
+
+    const serviceLevel = totalDelivered > 0 ? ((onTime / totalDelivered) * 100).toFixed(1) : 0;
+    setServiceLevel(serviceLevel);
+    setOnTimeCount(onTime);
+    setLateCount(late);
   };
 
   useEffect(() => {
@@ -128,51 +142,20 @@ const Dashboard = () => {
     setCounts(counts);
   }, [data]);
 
-  const totalDeliveries = data.length;
-  const completedPercent = ((counts.completed / totalDeliveries) * 100).toFixed(1);
   const totalPending = counts.today + counts.tomorrow + counts.inTwoDays + counts.overdue;
 
   const chartData = [
-    { name: 'Hoje', value: counts.today },
-    { name: 'Em 1 Dia', value: counts.tomorrow },
-    { name: 'Em 2 Dias', value: counts.inTwoDays },
-    { name: 'Atrasadas', value: counts.overdue },
+    { name: `No Prazo (${onTimeCount})`, value: parseInt(serviceLevel) },
+    { name: `Atrasadas (${lateCount})`, value: 100 - parseInt(serviceLevel) },
   ];
 
-  const COLORS = ['#00FF7F', '#FFD700', '#FFA500', '#FF4500'];
+  const COLORS = ['#00FF7F', '#FF4500'];
 
   const boxColors = {
     today: 'rgba(255, 215, 0, 0.35)',
     tomorrow: 'rgba(0, 255, 127, 0.35)',
     inTwoDays: 'rgba(255, 165, 0, 0.35)',
     overdue: 'rgba(255, 69, 0, 0.35)',
-  };
-
-  const getPerformanceData = (data) => {
-    const groupedByDate = {};
-
-    data.forEach((item) => {
-      const date = item.entregue_em ? new Date(item.entregue_em).toLocaleDateString() : null;
-      if (!date) return;
-
-      if (!groupedByDate[date]) {
-        groupedByDate[date] = { onTime: 0, late: 0 };
-      }
-
-      if (item.cte_no_prazo) {
-        groupedByDate[date].onTime += 1;
-      } else {
-        groupedByDate[date].late += 1;
-      }
-    });
-
-    return Object.keys(groupedByDate)
-      .sort((a, b) => new Date(a) - new Date(b))
-      .map((date) => ({
-        name: date,
-        EntregasNoPrazo: groupedByDate[date].onTime,
-        EntregasAtrasadas: groupedByDate[date].late,
-      }));
   };
 
   const getGroupedNotesCountByRemetente = (status) => {
@@ -221,8 +204,7 @@ const Dashboard = () => {
         <Row>
           <Col md="6">
             <Box style={{ maxHeight: '400px', backgroundColor: 'rgba(0, 0, 0, 0.7)', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)' }}>
-              <h5>Percentual de Entregas Completas</h5>
-              <h2>{completedPercent}%</h2>
+              <h5>Nível de Serviço</h5>
               <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie
@@ -231,7 +213,7 @@ const Dashboard = () => {
                     nameKey="name"
                     outerRadius={100}
                     fill="#8884d8"
-                    label={(entry) => `${entry.name}: ${entry.value}`}
+                    label={({ name, value }) => `${name}: ${value}%`}
                   >
                     {chartData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -244,18 +226,9 @@ const Dashboard = () => {
             </Box>
           </Col>
           <Col md="6">
-            <Box style={{ minHeight: '400px', backgroundColor: 'rgba(0, 0, 0, 0.7)', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)' }}>
-              <h5>Entregas Diárias: No Prazo vs. Atrasadas</h5>
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={performanceData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="stepBefore" dataKey="EntregasNoPrazo" stroke="#00FF7F" />
-                  <Line type="stepBefore" dataKey="EntregasAtrasadas" stroke="#FF4500" />
-                </LineChart>
-              </ResponsiveContainer>
+            <Box style={{ minHeight: '350px', backgroundColor: 'rgba(0, 0, 0, 0.7)', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)' }}>
+              <h5>Nível de Serviço Geral</h5>
+              <h2 style={{ fontSize:'60px' }}>{serviceLevel}%</h2>
             </Box>
           </Col>
         </Row>
