@@ -70,6 +70,7 @@ const NoteItem = styled.div`
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({
     today: 0,
     tomorrow: 0,
@@ -83,64 +84,109 @@ const Dashboard = () => {
   const [dropdownOpen, setDropdownOpen] = useState({});
 
   const fetchData = async () => {
-    const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
-    const jsonData = await response.json();
-    setData(jsonData);
-    calculateServiceLevel(jsonData);
+    setLoading(true); // Inicia o carregamento
+    try {
+      const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
+      const jsonData = await response.json();
+      setData(jsonData);
+      calculateServiceLevel(jsonData);
+    } catch (error) {
+      console.error('Erro ao buscar os dados:', error);
+    } finally {
+      setLoading(false); // Finaliza o carregamento
+    }
   };
+  
 
   const calculateServiceLevel = (data) => {
+    // Filtra apenas as entregas realizadas
     const deliveredNotes = data.filter((item) => item.cte_entregue === 1);
-    const onTime = deliveredNotes.filter((item) => item.cte_no_prazo === 1).length;
-    const late = deliveredNotes.filter((item) => item.atraso === 1).length;
-    const totalDelivered = onTime + late;
-
+  
+    // Entregas no prazo
+    const onTime = deliveredNotes.filter((item) => {
+      const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
+      const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
+  
+      // Checa se a entrega foi feita no prazo
+      return entregaDate && previsaoDate && entregaDate <= previsaoDate;
+    }).length;
+  
+    // Total de entregas realizadas
+    const totalDelivered = deliveredNotes.length;
+  
+    // Cálculo do nível de serviço
     const serviceLevel = totalDelivered > 0 ? ((onTime / totalDelivered) * 100).toFixed(1) : 0;
+  
     setServiceLevel(serviceLevel);
     setOnTimeCount(onTime);
-    setLateCount(late);
+    setLateCount(totalDelivered - onTime); // Total entregas menos no prazo = atrasadas
   };
+  
+  // Função para converter datas no formato DD/MM/YYYY para objetos Date do JavaScript
+  const parseDate = (dateString) => {
+    if (!dateString) return null;
+    const [day, month, year] = dateString.split('/');
+    return new Date(`${year}-${month}-${day}T00:00:00`);
+  };
+  
+
 
   useEffect(() => {
     fetchData();
   }, []);
 
   useEffect(() => {
+    if (loading || data.length === 0) return; // Aguarda o carregamento dos dados
+  
     const today = new Date();
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
+    const endOfToday = new Date(today.setHours(23, 59, 59, 999)).getTime();
+  
     const tomorrow = new Date(today);
-    const inTwoDays = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0)).getTime();
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999)).getTime();
+  
+    const inTwoDays = new Date(today);
     inTwoDays.setDate(today.getDate() + 2);
-
-    const counts = {
+    const startOfInTwoDays = new Date(inTwoDays.setHours(0, 0, 0, 0)).getTime();
+    const endOfInTwoDays = new Date(inTwoDays.setHours(23, 59, 59, 999)).getTime();
+  
+    const updatedCounts = {
       today: 0,
       tomorrow: 0,
       overdue: 0,
       inTwoDays: 0,
       completed: 0,
     };
-
+  
     data.forEach((item) => {
-      const deliveryDate = item.previsao_entrega ? new Date(item.previsao_entrega) : null;
-      const entregue = item.cte_entregue === 1;
-
-      if (entregue) {
-        counts.completed++;
+      const deliveryDate = item.previsao_entrega ? parseDate(item.previsao_entrega).getTime() : null;
+      const isDelivered = item.cte_entregue === 1;
+  
+      if (isDelivered) {
+        updatedCounts.completed++;
       } else if (deliveryDate) {
-        if (deliveryDate.toDateString() === today.toDateString()) {
-          counts.today++;
-        } else if (deliveryDate.toDateString() === tomorrow.toDateString()) {
-          counts.tomorrow++;
-        } else if (deliveryDate.toDateString() === inTwoDays.toDateString()) {
-          counts.inTwoDays++;
-        } else if (deliveryDate < today) {
-          counts.overdue++;
+        if (deliveryDate >= startOfToday && deliveryDate <= endOfToday) {
+          updatedCounts.today++;
+        } else if (deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow) {
+          updatedCounts.tomorrow++;
+        } else if (deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays) {
+          updatedCounts.inTwoDays++;
+        } else if (deliveryDate < startOfToday) {
+          updatedCounts.overdue++;
         }
       }
     });
-
-    setCounts(counts);
-  }, [data]);
+  
+    setCounts(updatedCounts);
+  }, [data, loading]);
+  
+  
+  
+  
+  
+  
 
   const totalPending = counts.today + counts.tomorrow + counts.inTwoDays + counts.overdue;
 
@@ -159,26 +205,38 @@ const Dashboard = () => {
   };
 
   const getGroupedNotesCountByRemetente = (status) => {
+    const today = new Date();
+    const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
+    const endOfToday = new Date(today.setHours(23, 59, 59, 999)).getTime();
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0)).getTime();
+    const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999)).getTime();
+    
+    const inTwoDays = new Date();
+    inTwoDays.setDate(today.getDate() + 2);
+    const startOfInTwoDays = new Date(inTwoDays.setHours(0, 0, 0, 0)).getTime();
+    const endOfInTwoDays = new Date(inTwoDays.setHours(23, 59, 59, 999)).getTime();
+  
     const notesByStatus = data.filter((item) => {
-      const deliveryDate = item.previsao_entrega ? new Date(item.previsao_entrega) : null;
-      const hoje = new Date().toDateString();
-      const amanha = new Date(Date.now() + 86400000).toDateString();
-      const doisDias = new Date(Date.now() + 2 * 86400000).toDateString();
-
+      const deliveryDate = item.previsao_entrega ? parseDate(item.previsao_entrega).getTime() : null;
+      if (!deliveryDate) return false;
+  
       switch (status) {
         case 'today':
-          return deliveryDate && deliveryDate.toDateString() === hoje && item.cte_entregue !== 1;
+          return deliveryDate >= startOfToday && deliveryDate <= endOfToday && item.cte_entregue !== 1;
         case 'tomorrow':
-          return deliveryDate && deliveryDate.toDateString() === amanha && item.cte_entregue !== 1;
+          return deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow && item.cte_entregue !== 1;
         case 'inTwoDays':
-          return deliveryDate && deliveryDate.toDateString() === doisDias && item.cte_entregue !== 1;
+          return deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays && item.cte_entregue !== 1;
         case 'overdue':
-          return deliveryDate && deliveryDate < new Date() && item.cte_entregue !== 1;
+          return deliveryDate < startOfToday && item.cte_entregue !== 1;
         default:
           return false;
       }
     });
-
+  
     const grouped = {};
     notesByStatus.forEach((note) => {
       const remetente = note.remetente;
@@ -187,9 +245,13 @@ const Dashboard = () => {
       }
       grouped[remetente].push(note.NF);
     });
-
+  
     return grouped;
   };
+  
+  
+  
+  
 
   const toggleDropdown = (remetente) => {
     setDropdownOpen((prev) => ({
@@ -201,6 +263,13 @@ const Dashboard = () => {
   return (
     <div className='boxGeneral'>
       <Container fluid>
+      {loading ? (
+  <div className="loading-container">
+    <h5>Carregando dados...</h5>
+  </div>
+) : (
+  // Renderiza os componentes após o carregamento
+<>
         <Row>
           <Col md="6">
             <Box style={{ maxHeight: '400px', backgroundColor: 'rgba(0, 0, 0, 0.7)', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)' }}>
@@ -233,42 +302,81 @@ const Dashboard = () => {
           </Col>
         </Row>
         <Row>
-          {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
-            <Col md="6" lg="3" key={index}>
-              <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
-                {status === 'inTwoDays' && <><FaClipboardCheck size={30} color="#FFA500" /><h5>Entregas em 2 Dias</h5></>}
-                {status === 'today' && <><FaEye size={30} color="#FFD700" /><h5>Entregas Hoje</h5></>}
-                {status === 'tomorrow' && <><FaClipboardCheck size={30} color="#00FF7F" /><h5>Entregas em 1 Dia</h5></>}
-                {status === 'overdue' && <><FaExclamationTriangle size={30} color="#FF4500" /><h5>Atrasadas</h5></>}
-                <p className="lead">{counts[status]}</p>
-                <div style={{ display: 'flex', alignItems: 'center' }}>
-                  <ProgressBar progress={(counts[status] / totalPending) * 100} />
-                  <span style={{ marginLeft: '8px', fontWeight: 'bold' }}>
-                    {Math.round((counts[status] / totalPending) * 100)}%
-                  </span>
-                </div>
-                <NoteList>
-                  {Object.entries(getGroupedNotesCountByRemetente(status)).map(([remetente, notas], idx) => (
-                    <NoteItem key={idx} isOpen={dropdownOpen[remetente]}>
-                      <div onClick={() => toggleDropdown(remetente)} style={{ cursor: 'pointer', display:'flex', flexDirection:'column'}}>
-                        {remetente}:<br />
-                        <span style={{ fontSize: '20px', fontWeight: 500 , display:'flex', justifyContent:'space-between', alignItems:'center'}}> {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
-                        {dropdownOpen[remetente] ? <FaChevronUp /> : <FaChevronDown />}</span>
-                      </div>
-                      {dropdownOpen[remetente] && (
-                        <ul style={{ paddingLeft: '15px' }}>
-                          {notas.map((nf, index) => (
-                            <li key={index}>NF: {nf}</li>
-                          ))}
-                        </ul>
-                      )}
-                    </NoteItem>
+  {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
+    <Col md="6" lg="3" key={index}>
+      <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
+        {status === 'inTwoDays' && (
+          <>
+            <FaClipboardCheck size={30} color="#FFA500" />
+            <h5>Entregas em 2 Dias</h5>
+          </>
+        )}
+        {status === 'today' && (
+          <>
+            <FaEye size={30} color="#FFD700" />
+            <h5>Entregas Hoje</h5>
+          </>
+        )}
+        {status === 'tomorrow' && (
+          <>
+            <FaClipboardCheck size={30} color="#00FF7F" />
+            <h5>Entregas em 1 Dia</h5>
+          </>
+        )}
+        {status === 'overdue' && (
+          <>
+            <FaExclamationTriangle size={30} color="#FF4500" />
+            <h5>Atrasadas</h5>
+          </>
+        )}
+        <p className="lead">{counts[status]}</p>
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <ProgressBar progress={(counts[status] / totalPending) * 100} />
+          <span style={{ marginLeft: '8px', fontWeight: 'bold' }}>
+            {Math.round((counts[status] / totalPending) * 100)}%
+          </span>
+        </div>
+        <NoteList>
+          {Object.entries(getGroupedNotesCountByRemetente(status)).map(([remetente, notas], idx) => (
+            <NoteItem key={idx} isOpen={dropdownOpen[remetente]}>
+              <div
+                onClick={() => toggleDropdown(remetente)}
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                {remetente}:<br />
+                <span
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
+                  {dropdownOpen[remetente] ? <FaChevronUp /> : <FaChevronDown />}
+                </span>
+              </div>
+              {dropdownOpen[remetente] && (
+                <ul style={{ paddingLeft: '15px' }}>
+                  {notas.map((nf, index) => (
+                    <li key={index}>NF: {nf}</li>
                   ))}
-                </NoteList>
-              </Box>
-            </Col>
+                </ul>
+              )}
+            </NoteItem>
           ))}
+        </NoteList>
+      </Box>
+    </Col>
+  ))}
         </Row>
+        </>
+)}
       </Container>
     </div>
   );
