@@ -3,6 +3,7 @@ import { Box, ProgressBar, NoteList, NoteItem } from './styles';
 import { Container, Row, Col } from 'reactstrap';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import Atendentes from './FiltroAtentende/index';
 import './style.css';
 
 const Dashboard = () => {
@@ -20,21 +21,6 @@ const Dashboard = () => {
   const [lateCount, setLateCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState({});
   const [selectedAtendente, setSelectedAtendente] = useState('Todos');
-
-  const atendentes = [
-    { nome: 'BRUNA', remetentes: ['ACIPAR', 'ALBINO', 'ALPAGARTAS', 'BLUE', 'GEORGE', 'DOCES', 'CEPERA', 'EBBA', 'COLLI', 'FABESUL', 'MASSAS', 'NUTRISUL', 'S.S.', 'SELMI', 'ANGELO', 'CHÁ', 'PARATI', 'PETRY', 'MOCSAL', 'SUL', 'ALCA', 'MOR', 'LEKE', 'CONSOLATA', 'JUREIA'] },
-    { nome: 'ALISON (ARMAZENAGEM)', remetentes: ['AGROMED', 'SOMA', 'DELUC', 'ENERGIS', 'AUDAX'] },
-    { nome: 'ANA CAROLINE', remetentes: ['BETTANIN', 'ORDENE', 'PLASVALE', 'SANREMO', 'SUPERPRO', 'BABY', 'LIMPANO', 'BURN', 'FOOD'] },
-    { nome: 'INGRID', remetentes: ['BEBIDAS', 'DOS', 'LA', 'METTA', 'NAT', 'ALMEIDA', 'VITAO', 'POLIBRINQ', 'BISCOTTO', 'SOETO', 'PINDUCA'] },
-    { nome: 'YARA', remetentes: ['DACOLONIA', 'ZAMONER', 'ZHOQS', 'ORIGEN', 'HR', 'ZANETTE', 'MANIACS'] },
-    { nome: 'ANDREIA', remetentes: ['CAFÉ', 'SEMALO'] },
-    { nome: 'ISABELLA', remetentes: ['CIMED', 'CAFÉ'] },
-    { nome: 'GRACIELI', remetentes: ['KARAVAGGIO', 'TW', 'LOVATO', 'ACM'] },
-    { nome: 'SAMARA', remetentes: ['EMBRAST', 'MALKA', 'IRMÃOS', 'JALOTO', 'MASSAS', 'NUTRIMENTAL', 'VALE'] },
-    { nome: 'LUIZ MULLER', remetentes: ['PALETES'] },
-    { nome: 'GABI', remetentes: ['YOKI'] },
-    { nome: 'MICHELE/BRUNO', remetentes: ['M.DIAS'] }
-  ];
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,7 +65,7 @@ const Dashboard = () => {
 
   const filterDataByAtendente = () => {
     if (selectedAtendente === 'Todos') return data;
-    const atendente = atendentes.find((a) => a.nome === selectedAtendente);
+    const atendente = Atendentes.find((a) => a.nome === selectedAtendente);
     return data.filter((item) => {
       return atendente?.remetentes.some((remetente) =>
         item.remetente?.toUpperCase().includes(remetente.toUpperCase())
@@ -162,18 +148,32 @@ const Dashboard = () => {
       <Container fluid>
         <Row>
           <Col>
-            <select
-              value={selectedAtendente}
-              onChange={(e) => setSelectedAtendente(e.target.value)}
-              style={{ margin: '10px 0', padding: '8px', borderRadius: '5px' }}
-            >
-              <option value="Todos">Todos</option>
-              {atendentes.map((atendente) => (
-                <option key={atendente.nome} value={atendente.nome}>
-                  {atendente.nome}
-                </option>
-              ))}
-            </select>
+          <select
+  value={selectedAtendente}
+  onChange={(e) => setSelectedAtendente(e.target.value)}
+  style={{
+    margin: '10px 0',
+    padding: '8px',
+    margin:'10px',
+    borderRadius: '5px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fundo escuro transparente
+    color: '#fff', // Texto branco
+    border: '1px solid rgba(255, 255, 255, 0.2)', // Borda levemente destacada
+    outline: 'none',
+    cursor: 'pointer',
+    fontSize: '14px',
+    appearance: 'none', // Remove o estilo padrão do navegador
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+  }}
+>
+  <option value="Todos">Todos</option>
+  {Atendentes.map((atendente) => (
+    <option key={atendente.nome} value={atendente.nome}>
+      {atendente.nome}
+    </option>
+  ))}
+</select>
           </Col>
         </Row>
 
@@ -226,32 +226,22 @@ const Dashboard = () => {
                     {status === 'overdue' && <><FaExclamationTriangle size={30} color="#FF4500" /><h5>Atrasadas</h5></>}
                     <p className="lead">{Object.values(groupedDataByStatus[status]).reduce((total, notes) => total + notes.length, 0)}</p>
                     <ProgressBar
-  progress={(
-    Object.values(groupedDataByStatus[status]).reduce((total, notes) => total + notes.length, 0) /
-    Object.values(groupedDataByStatus).reduce((sum, group) =>
-      sum + Object.values(group).reduce((count, notes) => count + notes.length, 0), 0)
-  ) * 100}
-/>
+                      progress={(
+                        Object.values(groupedDataByStatus[status]).reduce((total, notes) => total + notes.length, 0) /
+                        Object.values(groupedDataByStatus).reduce((sum, group) =>
+                          sum + Object.values(group).reduce((count, notes) => count + notes.length, 0), 0)
+                      ) * 100}
+                    />
                     <NoteList>
                       {Object.entries(groupedDataByStatus[status]).map(([remetente, notas], idx) => (
                         <NoteItem key={idx} isOpen={dropdownOpen[remetente]}>
                           <div
                             onClick={() => toggleDropdown(remetente)}
-                            style={{
-                              cursor: 'pointer',
-                              display: 'flex',
-                              flexDirection: 'column',
-                            }}
+                            style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
                           >
                             {remetente}:<br />
                             <span
-                              style={{
-                                fontSize: '20px',
-                                fontWeight: 500,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                              }}
+                              style={{ fontSize: '20px', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                             >
                               {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
                               {dropdownOpen[remetente] ? <FaChevronUp /> : <FaChevronDown />}
