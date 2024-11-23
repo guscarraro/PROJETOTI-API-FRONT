@@ -36,12 +36,6 @@ function ComparacaoOrcamentos() {
     months
   );
 
-  const fretefyCosts = calculateCumulativeCosts(
-    Array(5).fill(3400), // 5 parcelas de 3400
-    11000, // Mensalidade de 11000
-    months
-  );
-
   const infoWorkerCosts = calculateCumulativeCosts(
     Array(5).fill(5000), // 5 parcelas de 5000
     1000, // Mensalidade de 1000
@@ -74,7 +68,6 @@ function ComparacaoOrcamentos() {
     legend: {
       data: [
         'Bitys',
-        'Fretefy',
         'InfoWorker',
         'Operação Atual',
         'Operação Com menos 1 emissor',
@@ -100,14 +93,6 @@ function ComparacaoOrcamentos() {
         smooth: true,
         data: bitysCosts,
         color: '#39FF14',
-        lineStyle: { width: 3 },
-      },
-      {
-        name: 'Fretefy',
-        type: 'line',
-        smooth: true,
-        data: fretefyCosts,
-        color: '#00FFFF',
         lineStyle: { width: 3 },
       },
       {
@@ -152,7 +137,7 @@ function ComparacaoOrcamentos() {
         radius: '50%',
         data: [
           { name: 'Bitys', value: bitysCosts[months - 1] },
-          { name: 'Fretefy', value: fretefyCosts[months - 1] },
+          
           { name: 'InfoWorker', value: infoWorkerCosts[months - 1] },
           { name: 'Operação Atual', value: operationCosts[months - 1] },
           { name: 'Operação Com menos 1 emissor', value: operationSmallCosts[months - 1] },
