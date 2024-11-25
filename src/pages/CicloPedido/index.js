@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { FaFolder, FaTruck, FaBoxOpen, FaCheckCircle, FaFileAlt } from "react-icons/fa";
-import { ContainerGeral, Card, Header, Etapas, LinhaCompleta, Etapa, IconWrapper, Box } from "./styles";
+import { ContainerGeral, Card, Header, Etapas, LinhaCompleta, Etapa, IconWrapper, Box, LinhaCompletaBranca } from "./styles";
 import { Col, Row } from "reactstrap";
+import dadosFicticios from "./db/dadosFicticios";
 
 function formatarData(data) {
   if (!data) return "-";
@@ -14,6 +15,7 @@ function calcularDiferenca(dataInicio, dataFim) {
   const inicio = new Date(dataInicio);
   const fim = new Date(dataFim);
   const diffMs = fim - inicio;
+  if (diffMs < 0) return null;
   const diffMin = Math.floor(diffMs / 60000);
   const horas = Math.floor(diffMin / 60);
   const minutos = diffMin % 60;
@@ -32,6 +34,7 @@ const agruparPorRemetenteENF = (dados) => {
         etapas: [],
         dataXml: false,
         dataEmissaoCTE: false,
+        filial: item.filial
       };
     }
     agrupado[chave].documentos.add(item.documento);
@@ -54,59 +57,7 @@ const etapas = [
   { tipo: "ENTREGA CONFIRMADA", label: "Entrega Confirmada", icon: <FaCheckCircle /> },
 ];
 
-const dadosFicticios = [
-  {
-    situacao_nome: "Encerrada",
-    numero: 899039,
-    filial: "MTZ",
-    data_emissao_cte: "2024-04-12T08:05:00",
-    data_xml: "2024-04-11T08:05:00",
-    data: "2024-07-12T16:27:00",
-    tipo: "MERCADORIA SEPARADA/CONFERIDA",
-    responsavel: "Motorista",
-    remetente: "SANREMO SA - MTZ",
-    destinatario: "COPAPEL COM E REPRES DE PAPEL LTDA",
-    documento: 10929,
-    nf: 173918,
-    redespachador: null,
-    prazo_d: 3,
-    entregar_ate: "2024-07-10T14:30:00",
-  },
-  {
-    situacao_nome: "Encerrada",
-    numero: 899039,
-    filial: "MTZ",
-    data_emissao_cte: "2024-04-12T08:05:00",
-    data_xml: "2024-04-11T08:05:00",
-    data: "2024-07-12T16:27:00",
-    tipo: "EM ROTA",
-    responsavel: "Motorista",
-    remetente: "SANREMO SA - MTZ",
-    destinatario: "COPAPEL COM E REPRES DE PAPEL LTDA",
-    documento: 10929,
-    nf: 173918,
-    redespachador: null,
-    prazo_d: 3,
-    entregar_ate: "2024-07-10T14:30:00",
-  },
-  {
-    situacao_nome: "Encerrada",
-    numero: 899039,
-    filial: "MTZ",
-    data_emissao_cte: "2024-04-12T08:05:00",
-    data_xml: "2024-04-11T08:05:00",
-    data: "2024-07-18T16:27:00",
-    tipo: "ENTREGA CONFIRMADA",
-    responsavel: "Motorista",
-    remetente: "SANREMO SA - MTZ",
-    destinatario: "COPAPEL COM E REPRES DE PAPEL LTDA",
-    documento: 10929,
-    nf: 173918,
-    redespachador: null,
-    prazo_d: 3,
-    entregar_ate: "2024-07-10T14:30:00",
-  },
-];
+
 
 function CicloPedido() {
   const [dados, setDados] = useState([]);
@@ -163,35 +114,37 @@ function CicloPedido() {
       },
       entrega: {
         horas: countEntrega > 0 ? Math.floor(totalEntrega / countEntrega / 60) : 0,
-        minutos: countEntrega > 0 ? Math.floor(totalEntrega / countEntrega % 60) : 0,
+        minutos: countEntrega > 0 ? Math.floor(totalEntrega % 60) : 0,
       },
     });
   }, []);
-
   return (
     <ContainerGeral>
       <h1>Ciclo do Pedido</h1>
       <Row style={{ width: "100%", marginBottom: "10px" }}>
         <Col md="4">
-          <Box>
-            <h5>Média geral Emissão de XML</h5>
-            <h2>
+          <Box style={{background:'rgba(255, 215, 0, 0.35)'}}>
+            <h5 >Média geral Emissão de CTE</h5>
+            <FaFileAlt style={{fontSize:30 }}/>
+            <h2 >
               {mediaTempos.xml.horas}h {mediaTempos.xml.minutos}m
             </h2>
           </Box>
         </Col>
         <Col md="4">
-          <Box>
-            <h5>Média geral Separação/Conferência</h5>
-            <h2>
+          <Box style={{background:'rgba(255, 165, 0, 0.35)'}}>
+            <h5 >Média geral Separação/Conferência</h5>
+            <FaBoxOpen style={{fontSize:30}}/>
+            <h2 >
               {mediaTempos.separacao.horas}h {mediaTempos.separacao.minutos}m
             </h2>
           </Box>
         </Col>
         <Col md="4">
-          <Box>
-            <h5>Média geral Entrega</h5>
-            <h2>
+          <Box style={{background:'rgba(0, 255, 127, 0.35)'}}>
+            <h5 >Média geral Entrega</h5>
+            <FaTruck style={{fontSize:30}}/>
+            <h2 >
               {mediaTempos.entrega.horas}h {mediaTempos.entrega.minutos}m
             </h2>
           </Box>
@@ -225,6 +178,7 @@ function CicloPedido() {
                   </div>
                 </Header>
                 <Etapas>
+                  <LinhaCompletaBranca></LinhaCompletaBranca>
                   <LinhaCompleta progresso={progressoReal} duracao={1} />
                   {etapas.map((etapa, idx) => {
                     const etapaConcluida =

@@ -27,10 +27,12 @@ height: auto;
 opacity: 0.9;
 display: flex;
 flex-direction: column;
+align-items: center;
 justify-content: space-between;
 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 min-height: 150px;
  margin-bottom: 10px;
+ gap:5px;
 `;
 
 
@@ -40,6 +42,7 @@ export const Card = styled.div`
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 20px;
+  z-index:10
 `;
 
 export const Header = styled.div`
@@ -72,7 +75,7 @@ export const Etapa = styled.div`
   align-items: center;
   text-align: center;
   position: relative;
-  z-index: 2;
+  z-index: 100 ;
 
   p {
     margin: 5px 0 0;
@@ -91,7 +94,7 @@ const carregarLinha = keyframes`
     width: 0;
   }
   to {
-    width: 100%;
+    width: ${({ progresso }) => progresso}%;
   }
 `;
 
@@ -116,12 +119,22 @@ export const LinhaCompleta = styled.div`
     animation: ${carregarLinha} ${({ duracao }) => duracao}s linear;
   }
 `;
+export const LinhaCompletaBranca = styled.div`
+  position: absolute;
+  top: 25% ;
+  left: 0;
+  background:#fff;
+  height: 4px;
+  min-width: 100%;
+  z-index: 0;
+
+`;
 
 export const IconWrapper = styled.div`
   width: 50px;
   height: 50px;
   border: 2px solid ${(props) => (props.concluido ? "#28a745" : "white")};
-  background-color: ${(props) => (props.concluido ? "#28a745" : "transparent")};
+  background-color: ${(props) => (props.concluido ? "#28a745" : "rgba(0, 0, 0, 1);")};
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -129,4 +142,5 @@ export const IconWrapper = styled.div`
   color: white;
   font-size: 24px;
   transition: background-color 0.3s, border-color 0.3s;
+  z-index:10;
 `;
