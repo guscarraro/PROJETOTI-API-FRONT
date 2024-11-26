@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Box, ProgressBar, NoteList, NoteItem } from './styles';
 import { Container, Row, Col } from 'reactstrap';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import Atendentes from './FiltroAtentende/index';
 import './style.css';
+import DailyDeliveryChart from './DailyDeliveryChart';
+import TopRemetentesChart from './TopRemetentesChart';
+import ServiceLevelChart from './ServiceLevelChart';
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -16,9 +18,6 @@ const Dashboard = () => {
     inTwoDays: 0,
     completed: 0,
   });
-  const [serviceLevel, setServiceLevel] = useState(0);
-  const [onTimeCount, setOnTimeCount] = useState(0);
-  const [lateCount, setLateCount] = useState(0);
   const [dropdownOpen, setDropdownOpen] = useState({});
   const [selectedAtendente, setSelectedAtendente] = useState('Todos');
 
@@ -28,7 +27,6 @@ const Dashboard = () => {
       const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
       const jsonData = await response.json();
       setData(jsonData);
-      calculateServiceLevel(jsonData);
     } catch (error) {
       console.error('Erro ao buscar os dados:', error);
     } finally {
@@ -43,19 +41,7 @@ const Dashboard = () => {
     overdue: 'rgba(255, 69, 0, 0.35)',
   };
 
-  const calculateServiceLevel = (filteredData) => {
-    const deliveredNotes = filteredData.filter((item) => item.cte_entregue === 1);
-    const onTime = deliveredNotes.filter((item) => {
-      const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
-      const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
-      return entregaDate && previsaoDate && entregaDate <= previsaoDate;
-    }).length;
-    const totalDelivered = deliveredNotes.length;
-    const serviceLevel = totalDelivered > 0 ? ((onTime / totalDelivered) * 100).toFixed(1) : 0;
-    setServiceLevel(serviceLevel);
-    setOnTimeCount(onTime);
-    setLateCount(totalDelivered - onTime);
-  };
+ 
 
   const parseDate = (dateString) => {
     if (!dateString) return null;
@@ -123,11 +109,7 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    if (!loading) {
-      calculateServiceLevel(filterDataByAtendente());
-    }
-  }, [selectedAtendente, loading]);
+ 
 
   const toggleDropdown = (remetente) => {
     setDropdownOpen((prev) => ({
@@ -184,37 +166,31 @@ const Dashboard = () => {
         ) : (
           <>
             <Row>
-              <Col md="6">
-                <Box>
-                  <h5>Nível de Serviço</h5>
-                  <ResponsiveContainer width="100%" height={280}>
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: `No Prazo (${onTimeCount})`, value: parseInt(serviceLevel) },
-                          { name: `Atrasadas (${lateCount})`, value: 100 - parseInt(serviceLevel) },
-                        ]}
-                        dataKey="value"
-                        nameKey="name"
-                        outerRadius={100}
-                        label={({ name, value }) => `${name}: ${value}%`}
-                      >
-                        {[{ name: 'No Prazo', value: parseInt(serviceLevel) }, { name: 'Atrasadas', value: 100 - parseInt(serviceLevel) }].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? '#00FF7F' : '#FF4500'} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                      <Legend verticalAlign="bottom" height={36} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </Box>
-              </Col>
-              <Col md="6">
-                <Box>
-                  <h5>Nível de Serviço Geral</h5>
-                  <h2 style={{ fontSize: '60px' }}>{serviceLevel}%</h2>
-                </Box>
-              </Col>
+              <Col md="12">
+              <Box>
+              <ServiceLevelChart
+                  data={data}
+                  selectedAtendente={selectedAtendente}
+                  filterDataByAtendente={filterDataByAtendente}
+                />
+              </Box>
+            </Col>
+              
+            <Col md="12">
+              <Box>
+                <TopRemetentesChart data={data} 
+                selectedAtendente={selectedAtendente}
+                filterDataByAtendente={filterDataByAtendente}/>
+              </Box>
+            </Col>
+            <Col md="12">
+              <Box>
+                <DailyDeliveryChart data={data} 
+                 selectedAtendente={selectedAtendente}
+                 filterDataByAtendente={filterDataByAtendente}/>
+              </Box>
+            </Col>
+          
             </Row>
             <Row>
               {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
