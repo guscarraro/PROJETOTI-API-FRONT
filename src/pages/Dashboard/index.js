@@ -60,7 +60,6 @@ const Dashboard = () => {
 
     return filteredData;
   };
-
   const filterDataByStatus = (filteredData, status) => {
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
@@ -76,55 +75,70 @@ const Dashboard = () => {
     const startOfInTwoDays = new Date(inTwoDays.setHours(0, 0, 0, 0)).getTime();
     const endOfInTwoDays = new Date(inTwoDays.setHours(23, 59, 59, 999)).getTime();
   
-    const result = [];
+    const result = new Set(); // Usa Set para evitar duplicação
+  
     filteredData.forEach((item) => {
       const deliveryDate = item.previsao_entrega ? parseDate(item.previsao_entrega).getTime() : null;
-      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : []; // Trata as notas como uma lista separada por vírgulas
+      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
   
-      notas.forEach(() => {
-        if (!deliveryDate) return;
+      if (!deliveryDate) return;
   
-        const include = (() => {
-          switch (status) {
-            case 'today':
-              return deliveryDate >= startOfToday && deliveryDate <= endOfToday && item.cte_entregue !== 1;
-            case 'tomorrow':
-              return deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow && item.cte_entregue !== 1;
-            case 'inTwoDays':
-              return deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays && item.cte_entregue !== 1;
-            case 'overdue':
-              return deliveryDate < startOfToday && item.cte_entregue !== 1;
-            default:
-              return false;
-          }
-        })();
-  
-        if (include) {
-          result.push(item);
+      const include = (() => {
+        switch (status) {
+          case 'today':
+            return deliveryDate >= startOfToday && deliveryDate <= endOfToday && item.cte_entregue !== 1;
+          case 'tomorrow':
+            return deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow && item.cte_entregue !== 1;
+          case 'inTwoDays':
+            return deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays && item.cte_entregue !== 1;
+          case 'overdue':
+            return deliveryDate < startOfToday && item.cte_entregue !== 1;
+          default:
+            return false;
         }
-      });
+      })();
+  
+      if (include) {
+        notas.forEach((nf) => {
+          // Adiciona ao Set uma combinação única de nota e status
+          result.add(`${item.remetente}-${nf}`);
+        });
+      }
     });
   
-    return result;
+    // Converte o Set de volta para um array de objetos únicos
+    return Array.from(result).map((key) => {
+      const [remetente, nf] = key.split("-");
+      return { remetente, NF: nf };
+    });
   };
+  
 
   const groupByRemetente = (filteredData) => {
     const grouped = {};
     filteredData.forEach((item) => {
       const remetente = item.remetente;
-      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : []; // Divide as notas por vírgula e remove espaços extras
+      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
   
       if (!grouped[remetente]) {
-        grouped[remetente] = [];
+        grouped[remetente] = new Set();
       }
   
-      // Adiciona cada nota separadamente, mas sem quebrar linhas
+      // Adiciona cada nota ao Set para evitar duplicatas
       notas.forEach((nf) => {
-        grouped[remetente].push({ ...item, NF: nf });
+        grouped[remetente].add(nf); // Armazena apenas os números das notas
       });
     });
+  
+    // Converte Sets para arrays
+    for (const remetente in grouped) {
+      grouped[remetente] = Array.from(grouped[remetente]);
+    }
+  
     return grouped;
   };
+  
+  
 
   useEffect(() => {
     fetchData();
@@ -274,12 +288,12 @@ const Dashboard = () => {
                         <h5>Atrasadas</h5>
                       </>
                     )}
-                    <p className="lead">
-                      {Object.values(groupedDataByStatus[status]).reduce(
-                        (total, notes) => total + notes.length,
-                        0
-                      )}
-                    </p>
+           <p className="lead">
+  {Object.values(groupedDataByStatus[status]).reduce(
+    (total, notas) => total + notas.length, // Cada nota agora é única
+    0
+  )}
+</p>
                     <ProgressBar
                       progress={
                         (Object.values(groupedDataByStatus[status]).reduce(
@@ -299,49 +313,50 @@ const Dashboard = () => {
                       }
                     />
                     <NoteList>
-                      {Object.entries(groupedDataByStatus[status]).map(
-                        ([remetente, notas], idx) => (
-                          <NoteItem
-                            key={idx}
-                            isOpen={dropdownOpen[remetente]}
-                          >
-                            <div
-                              onClick={() => toggleDropdown(remetente)}
-                              style={{
-                                cursor: 'pointer',
-                                display: 'flex',
-                                flexDirection: 'column',
-                              }}
-                            >
-                              {remetente}:<br />
-                              <span
-                                style={{
-                                  fontSize: '20px',
-                                  fontWeight: 500,
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
-                                {dropdownOpen[remetente] ? (
-                                  <FaChevronUp />
-                                ) : (
-                                  <FaChevronDown />
-                                )}
-                              </span>
-                            </div>
-                            {dropdownOpen[remetente] && (
-                              <ul style={{ paddingLeft: '15px' }}>
-                                {notas.map((note, noteIdx) => (
-                                  <li key={noteIdx}>NF: {note.NF}</li>
-                                ))}
-                              </ul>
-                            )}
-                          </NoteItem>
-                        )
-                      )}
-                    </NoteList>
+  {Object.entries(groupedDataByStatus[status]).map(
+    ([remetente, notas], idx) => (
+      <NoteItem
+        key={idx}
+        isOpen={dropdownOpen[remetente]}
+      >
+        <div
+          onClick={() => toggleDropdown(remetente)}
+          style={{
+            cursor: 'pointer',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          {remetente}:<br />
+          <span
+            style={{
+              fontSize: '20px',
+              fontWeight: 500,
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
+            {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
+            {dropdownOpen[remetente] ? (
+              <FaChevronUp />
+            ) : (
+              <FaChevronDown />
+            )}
+          </span>
+        </div>
+        {dropdownOpen[remetente] && (
+          <ul style={{ paddingLeft: '15px' }}>
+            {notas.map((nf, noteIdx) => (
+              <li key={noteIdx}>NF: {nf}</li>
+            ))}
+          </ul>
+        )}
+      </NoteItem>
+    )
+  )}
+</NoteList>
+
                   </Box>
                 </Col>
               ))}
