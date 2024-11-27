@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, ProgressBar, NoteList, NoteItem } from './styles';
+import { Box, ProgressBar, NoteList, NoteItem, BtnOcultarGrafico, LoadingContainer, Loader, LoadingText } from './styles';
 import { Container, Row, Col } from 'reactstrap';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import Atendentes from './FiltroAtentende/index';
@@ -11,15 +11,10 @@ import ServiceLevelChart from './ServiceLevelChart';
 const Dashboard = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [counts, setCounts] = useState({
-    today: 0,
-    tomorrow: 0,
-    overdue: 0,
-    inTwoDays: 0,
-    completed: 0,
-  });
+  const [showCharts, setShowCharts] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState({});
   const [selectedAtendente, setSelectedAtendente] = useState('Todos');
+  const [selectedRemetente, setSelectedRemetente] = useState('Todos');
 
   const fetchData = async () => {
     setLoading(true);
@@ -41,22 +36,29 @@ const Dashboard = () => {
     overdue: 'rgba(255, 69, 0, 0.35)',
   };
 
- 
-
   const parseDate = (dateString) => {
     if (!dateString) return null;
     const [day, month, year] = dateString.split('/');
     return new Date(`${year}-${month}-${day}T00:00:00`);
   };
 
-  const filterDataByAtendente = () => {
-    if (selectedAtendente === 'Todos') return data;
-    const atendente = Atendentes.find((a) => a.nome === selectedAtendente);
-    return data.filter((item) => {
-      return atendente?.remetentes.some((remetente) =>
-        item.remetente?.toUpperCase().includes(remetente.toUpperCase())
+  const applyFilters = () => {
+    let filteredData = [...data];
+
+    if (selectedAtendente !== 'Todos') {
+      const atendente = Atendentes.find((a) => a.nome === selectedAtendente);
+      filteredData = filteredData.filter((item) =>
+        atendente?.remetentes.some((remetente) =>
+          item.remetente?.toUpperCase().includes(remetente.toUpperCase())
+        )
       );
-    });
+    }
+
+    if (selectedRemetente !== 'Todos') {
+      filteredData = filteredData.filter((item) => item.remetente === selectedRemetente);
+    }
+
+    return filteredData;
   };
 
   const filterDataByStatus = (filteredData, status) => {
@@ -109,8 +111,6 @@ const Dashboard = () => {
     fetchData();
   }, []);
 
- 
-
   const toggleDropdown = (remetente) => {
     setDropdownOpen((prev) => ({
       ...prev,
@@ -118,120 +118,210 @@ const Dashboard = () => {
     }));
   };
 
+  const filteredData = applyFilters();
   const groupedDataByStatus = {
-    today: groupByRemetente(filterDataByStatus(filterDataByAtendente(), 'today')),
-    tomorrow: groupByRemetente(filterDataByStatus(filterDataByAtendente(), 'tomorrow')),
-    inTwoDays: groupByRemetente(filterDataByStatus(filterDataByAtendente(), 'inTwoDays')),
-    overdue: groupByRemetente(filterDataByStatus(filterDataByAtendente(), 'overdue')),
+    today: groupByRemetente(filterDataByStatus(filteredData, 'today')),
+    tomorrow: groupByRemetente(filterDataByStatus(filteredData, 'tomorrow')),
+    inTwoDays: groupByRemetente(filterDataByStatus(filteredData, 'inTwoDays')),
+    overdue: groupByRemetente(filterDataByStatus(filteredData, 'overdue')),
   };
 
   return (
-    <div className='boxGeneral'>
+    <div className="boxGeneral">
       <Container fluid>
         <Row>
-          <Col>
-          <select
-  value={selectedAtendente}
-  onChange={(e) => setSelectedAtendente(e.target.value)}
+          
+        </Row>
+
+        {loading ? (
+          <LoadingContainer>
+            <LoadingText>Carregando dados . .  .</LoadingText>
+            <Loader />
+        </LoadingContainer>
+        ) : (
+          <>
+            <Row>
+            <Col md="12">
+            <label>Atendente:</label>
+            <select
+              value={selectedAtendente}
+              onChange={(e) => setSelectedAtendente(e.target.value)}
+              style={{
+                margin: '10px',
+                padding: '8px',
+                borderRadius: '5px',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                color: '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                outline: 'none',
+                cursor: 'pointer',
+                fontSize: '14px',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+              }}
+            >
+              <option value="Todos">Todos</option>
+              {Atendentes.map((atendente) => (
+                <option key={atendente.nome} value={atendente.nome}>
+                  {atendente.nome}
+                </option>
+              ))}
+            </select>
+            <label>Remetente:</label>
+            <select
+  value={selectedRemetente}
+  onChange={(e) => setSelectedRemetente(e.target.value)}
   style={{
-    margin: '10px 0',
+    margin: '10px',
     padding: '8px',
-    margin:'10px',
     borderRadius: '5px',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Fundo escuro transparente
-    color: '#fff', // Texto branco
-    border: '1px solid rgba(255, 255, 255, 0.2)', // Borda levemente destacada
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: '#fff',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
     outline: 'none',
     cursor: 'pointer',
     fontSize: '14px',
-    appearance: 'none', // Remove o estilo padrão do navegador
+    appearance: 'none',
     WebkitAppearance: 'none',
     MozAppearance: 'none',
   }}
 >
   <option value="Todos">Todos</option>
-  {Atendentes.map((atendente) => (
-    <option key={atendente.nome} value={atendente.nome}>
-      {atendente.nome}
-    </option>
-  ))}
+  {[...new Set(data.map((item) => item.remetente))]
+    .sort((a, b) => a.localeCompare(b)) // Ordena alfabeticamente
+    .map((remetente, idx) => (
+      <option key={idx} value={remetente}>
+        {remetente}
+      </option>
+    ))}
 </select>
-          </Col>
-        </Row>
 
-        {loading ? (
-          <div className="loading-container">
-            <h5>Carregando dados...</h5>
-          </div>
-        ) : (
-          <>
-            <Row>
+          </Col>
               <Col md="12">
-              <Box>
-              <ServiceLevelChart
-                  data={data}
-                  selectedAtendente={selectedAtendente}
-                  filterDataByAtendente={filterDataByAtendente}
-                />
-              </Box>
-            </Col>
-              
-            <Col md="12">
-              <Box>
-                <TopRemetentesChart data={data} 
-                selectedAtendente={selectedAtendente}
-                filterDataByAtendente={filterDataByAtendente}/>
-              </Box>
-            </Col>
-            <Col md="12">
-              <Box>
-                <DailyDeliveryChart data={data} 
-                 selectedAtendente={selectedAtendente}
-                 filterDataByAtendente={filterDataByAtendente}/>
-              </Box>
-            </Col>
-          
+                <BtnOcultarGrafico
+                  showCharts={showCharts}
+                  onClick={() => setShowCharts(!showCharts)}
+                >
+                  {showCharts ? 'Ocultar Gráficos' : 'Mostrar Gráficos'}
+                </BtnOcultarGrafico>
+              </Col>
             </Row>
+            {showCharts && (
+              <Row>
+                <Col md="12">
+                  <Box>
+                    <ServiceLevelChart data={filteredData} />
+                  </Box>
+                </Col>
+                <Col md="12">
+                  <Box>
+                    <TopRemetentesChart data={filteredData} />
+                  </Box>
+                </Col>
+                <Col md="12">
+                  <Box>
+                    <DailyDeliveryChart data={filteredData} />
+                  </Box>
+                </Col>
+              </Row>
+            )}
+
             <Row>
               {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
                 <Col md="6" lg="3" key={index}>
                   <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
-                    {status === 'inTwoDays' && <><FaClipboardCheck size={30} color="#FFA500" /><h5>Entregas em 2 Dias</h5></>}
-                    {status === 'today' && <><FaEye size={30} color="#FFD700" /><h5>Entregas Hoje</h5></>}
-                    {status === 'tomorrow' && <><FaClipboardCheck size={30} color="#00FF7F" /><h5>Entregas em 1 Dia</h5></>}
-                    {status === 'overdue' && <><FaExclamationTriangle size={30} color="#FF4500" /><h5>Atrasadas</h5></>}
-                    <p className="lead">{Object.values(groupedDataByStatus[status]).reduce((total, notes) => total + notes.length, 0)}</p>
+                    {status === 'inTwoDays' && (
+                      <>
+                        <FaClipboardCheck size={30} color="#FFA500" />
+                        <h5>Entregas em 2 Dias</h5>
+                      </>
+                    )}
+                    {status === 'today' && (
+                      <>
+                        <FaEye size={30} color="#FFD700" />
+                        <h5>Entregas Hoje</h5>
+                      </>
+                    )}
+                    {status === 'tomorrow' && (
+                      <>
+                        <FaClipboardCheck size={30} color="#00FF7F" />
+                        <h5>Entregas em 1 Dia</h5>
+                      </>
+                    )}
+                    {status === 'overdue' && (
+                      <>
+                        <FaExclamationTriangle size={30} color="#FF4500" />
+                        <h5>Atrasadas</h5>
+                      </>
+                    )}
+                    <p className="lead">
+                      {Object.values(groupedDataByStatus[status]).reduce(
+                        (total, notes) => total + notes.length,
+                        0
+                      )}
+                    </p>
                     <ProgressBar
-                      progress={(
-                        Object.values(groupedDataByStatus[status]).reduce((total, notes) => total + notes.length, 0) /
-                        Object.values(groupedDataByStatus).reduce((sum, group) =>
-                          sum + Object.values(group).reduce((count, notes) => count + notes.length, 0), 0)
-                      ) * 100}
+                      progress={
+                        (Object.values(groupedDataByStatus[status]).reduce(
+                          (total, notes) => total + notes.length,
+                          0
+                        ) /
+                          Object.values(groupedDataByStatus).reduce(
+                            (sum, group) =>
+                              sum +
+                              Object.values(group).reduce(
+                                (count, notes) => count + notes.length,
+                                0
+                              ),
+                            0
+                          )) *
+                        100
+                      }
                     />
                     <NoteList>
-                      {Object.entries(groupedDataByStatus[status]).map(([remetente, notas], idx) => (
-                        <NoteItem key={idx} isOpen={dropdownOpen[remetente]}>
-                          <div
-                            onClick={() => toggleDropdown(remetente)}
-                            style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
+                      {Object.entries(groupedDataByStatus[status]).map(
+                        ([remetente, notas], idx) => (
+                          <NoteItem
+                            key={idx}
+                            isOpen={dropdownOpen[remetente]}
                           >
-                            {remetente}:<br />
-                            <span
-                              style={{ fontSize: '20px', fontWeight: 500, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                            <div
+                              onClick={() => toggleDropdown(remetente)}
+                              style={{
+                                cursor: 'pointer',
+                                display: 'flex',
+                                flexDirection: 'column',
+                              }}
                             >
-                              {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
-                              {dropdownOpen[remetente] ? <FaChevronUp /> : <FaChevronDown />}
-                            </span>
-                          </div>
-                          {dropdownOpen[remetente] && (
-                            <ul style={{ paddingLeft: '15px' }}>
-                              {notas.map((note, noteIdx) => (
-                                <li key={noteIdx}>NF: {note.NF}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </NoteItem>
-                      ))}
+                              {remetente}:<br />
+                              <span
+                                style={{
+                                  fontSize: '20px',
+                                  fontWeight: 500,
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
+                                {dropdownOpen[remetente] ? (
+                                  <FaChevronUp />
+                                ) : (
+                                  <FaChevronDown />
+                                )}
+                              </span>
+                            </div>
+                            {dropdownOpen[remetente] && (
+                              <ul style={{ paddingLeft: '15px' }}>
+                                {notas.map((note, noteIdx) => (
+                                  <li key={noteIdx}>NF: {note.NF}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </NoteItem>
+                        )
+                      )}
                     </NoteList>
                   </Box>
                 </Col>

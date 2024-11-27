@@ -1,9 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 
-const ServiceLevelChart = ({ data, selectedAtendente, filterDataByAtendente }) => {
+const ServiceLevelChart = ({ data }) => {
   const [generalServiceLevel, setGeneralServiceLevel] = useState({ onTime: 0, late: 0, level: 0 });
   const [serviceLevelByPraça, setServiceLevelByPraça] = useState([]);
+
+  const parseDate = (dateString) => {
+    if (!dateString) return null;
+    const [day, month, year] = dateString.split('/');
+    return new Date(`${year}-${month}-${day}T00:00:00`);
+  };
 
   const calculateGeneralServiceLevel = (filteredData) => {
     const currentMonth = new Date().getMonth();
@@ -80,22 +86,16 @@ const ServiceLevelChart = ({ data, selectedAtendente, filterDataByAtendente }) =
     setServiceLevelByPraça(serviceLevelData);
   };
 
-  const parseDate = (dateString) => {
-    if (!dateString) return null;
-    const [day, month, year] = dateString.split('/');
-    return new Date(`${year}-${month}-${day}T00:00:00`);
-  };
-
   useEffect(() => {
-    const filteredData = filterDataByAtendente(data);
-    if (filteredData.length > 0) {
-      calculateGeneralServiceLevel(filteredData);
-      calculateServiceLevelByPraça(filteredData);
+    if (data.length > 0) {
+      calculateGeneralServiceLevel(data);
+      calculateServiceLevelByPraça(data);
     }
-  }, [data, selectedAtendente]);
+  }, [data]);
 
   return (
     <>
+      {/* Nível de Serviço Geral */}
       <h5>Nível de Serviço Geral</h5>
       <h2>{generalServiceLevel.level} %</h2>
       <ResponsiveContainer width="100%" height={280}>
@@ -119,6 +119,7 @@ const ServiceLevelChart = ({ data, selectedAtendente, filterDataByAtendente }) =
         </PieChart>
       </ResponsiveContainer>
 
+      {/* Nível de Serviço por Praça */}
       <h5>Nível de Serviço por Praça</h5>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
         {serviceLevelByPraça.map((praçaData, index) => (
@@ -135,9 +136,8 @@ const ServiceLevelChart = ({ data, selectedAtendente, filterDataByAtendente }) =
                     { name: `Atrasadas (${praçaData.late})`, value: praçaData.late },
                   ]}
                   dataKey="value"
-                  nameKey="name"
                   outerRadius={80}
-                  label={({ name, value }) => `${name}: ${value}`}
+                  label={false}
                 >
                   {[{ name: 'No Prazo', value: praçaData.onTime }, { name: 'Atrasadas', value: praçaData.late }].map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={index === 0 ? '#00FF7F' : '#FF4500'} />

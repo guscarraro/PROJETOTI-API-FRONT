@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
-const DailyDeliveryChartByPraça = ({ data, selectedAtendente, filterDataByAtendente }) => {
+const DailyDeliveryChartByPraça = ({ data }) => {
   const [praçaDeliveryData, setPraçaDeliveryData] = useState([]);
-  const colorPalette = ['#32CD32','#FF4500',  '#8A2BE2', '#FFD700', '#FF6347', '#1E90FF', '#f1f', '#4682B4'];
+  const colorPalette = ['#32CD32', '#FF4500', '#8A2BE2', '#FFD700', '#FF6347', '#1E90FF', '#f1f', '#4682B4'];
 
-  const processPraçaDeliveryData = (filteredData) => {
+  const processPraçaDeliveryData = () => {
     const groupedData = {};
     const allDates = new Set();
 
-    // Agrupar os dados por praça_destino e data
-    filteredData.forEach((item) => {
+    data.forEach((item) => {
       if (item.entregue_em && item['praça_destino']) {
         const entregaDate = parseDate(item.entregue_em);
         const formattedDate = entregaDate.toISOString().split('T')[0];
@@ -27,19 +26,17 @@ const DailyDeliveryChartByPraça = ({ data, selectedAtendente, filterDataByAtend
 
         const previsaoDate = parseDate(item.previsao_entrega);
         if (entregaDate > previsaoDate) {
-          groupedData[praça][formattedDate] += 1; // Contabilizar apenas atrasadas
+          groupedData[praça][formattedDate] += 1;
         }
       }
     });
 
-    // Obter todas as datas ordenadas
     const sortedDates = Array.from(allDates).sort((a, b) => new Date(a) - new Date(b));
 
-    // Transformar os dados agrupados em um formato adequado para o gráfico
     const result = sortedDates.map((date) => {
       const entry = { date: formatDate(date) };
       Object.keys(groupedData).forEach((praça) => {
-        entry[praça] = groupedData[praça][date] || 0; // Preencher com 0 caso não haja dados
+        entry[praça] = groupedData[praça][date] || 0;
       });
       return entry;
     });
@@ -62,10 +59,9 @@ const DailyDeliveryChartByPraça = ({ data, selectedAtendente, filterDataByAtend
 
   useEffect(() => {
     if (data.length > 0) {
-      const filteredData = filterDataByAtendente(); // Usar a função de filtro do atendente
-      processPraçaDeliveryData(filteredData);
+      processPraçaDeliveryData();
     }
-  }, [data, selectedAtendente]); // Atualizar quando o atendente selecionado mudar
+  }, [data]);
 
   return (
     <>
@@ -84,7 +80,7 @@ const DailyDeliveryChartByPraça = ({ data, selectedAtendente, filterDataByAtend
                 key={praça}
                 type="monotone"
                 dataKey={praça}
-                stroke={colorPalette[index % colorPalette.length]} // Escolha de cores da paleta
+                stroke={colorPalette[index % colorPalette.length]}
                 name={`Praça: ${praça}`}
               />
             ))}
