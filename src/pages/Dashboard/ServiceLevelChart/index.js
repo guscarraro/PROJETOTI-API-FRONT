@@ -14,40 +14,62 @@ const ServiceLevelChart = ({ data }) => {
   const calculateGeneralServiceLevel = (filteredData) => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-
-    const deliveredNotes = filteredData.filter((item) => {
+  
+    let totalOnTime = 0;
+    let totalLate = 0;
+  
+    filteredData.forEach((item) => {
       const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
-      return (
+      const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
+  
+      if (
         item.cte_entregue === 1 &&
         entregaDate &&
         entregaDate.getMonth() === currentMonth &&
         entregaDate.getFullYear() === currentYear
-      );
+      ) {
+        // Verifique se 'NF' é uma string válida antes de dividir
+        const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
+  
+        notas.forEach(() => {
+          if (
+            item.atraso_cliente === 1 || // Culpa do cliente conta como no prazo
+            (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
+          ) {
+            totalOnTime += 1;
+          } else if (
+            entregaDate &&
+            previsaoDate &&
+            entregaDate > previsaoDate &&
+            item.atraso_cliente === 0 // Apenas atrasos reais
+          ) {
+            totalLate += 1;
+          }
+        });
+      }
     });
-
-    const onTime = deliveredNotes.filter((item) => {
-      const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
-      const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
-      return entregaDate && previsaoDate && entregaDate <= previsaoDate;
-    }).length;
-
-    const late = deliveredNotes.length - onTime;
-
+  
+    const total = totalOnTime + totalLate;
+  
     setGeneralServiceLevel({
-      onTime,
-      late,
-      level: deliveredNotes.length > 0 ? ((onTime / deliveredNotes.length) * 100).toFixed(1) : 0,
+      onTime: totalOnTime,
+      late: totalLate,
+      level: total > 0 ? ((totalOnTime / total) * 100).toFixed(1) : 0,
     });
   };
-
+  
+  
+  
   const calculateServiceLevelByPraça = (filteredData) => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-
+  
     const dataByPraça = {};
-
+  
     filteredData.forEach((item) => {
       const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
+      const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
+  
       if (
         item.cte_entregue === 1 &&
         entregaDate &&
@@ -55,37 +77,57 @@ const ServiceLevelChart = ({ data }) => {
         entregaDate.getFullYear() === currentYear
       ) {
         const praça = item['praça_destino'];
-        if (!praça) return; // Ignorar caso a praça seja nula
+        if (!praça) return;
+  
         if (!dataByPraça[praça]) {
-          dataByPraça[praça] = { onTime: 0, late: 0, total: 0 };
+          dataByPraça[praça] = { onTime: 0, late: 0 };
         }
-        const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
-        if (entregaDate && previsaoDate) {
-          if (entregaDate <= previsaoDate) {
+  
+        const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
+  
+        notas.forEach(() => {
+          if (
+            item.atraso_cliente === 1 || // Culpa do cliente conta como "No Prazo"
+            (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
+          ) {
             dataByPraça[praça].onTime += 1;
-          } else {
+          } else if (
+            entregaDate &&
+            previsaoDate &&
+            entregaDate > previsaoDate &&
+            item.atraso_cliente === 0
+          ) {
             dataByPraça[praça].late += 1;
           }
-          dataByPraça[praça].total += 1;
-        }
+        });
       }
     });
-
+  
     const serviceLevelData = Object.keys(dataByPraça)
-      .filter((praça) => dataByPraça[praça].total > 0) // Filtrar praças com total > 0
-      .map((praça) => ({
-        praça,
-        onTime: dataByPraça[praça].onTime,
-        late: dataByPraça[praça].late,
-        level:
-          dataByPraça[praça].total > 0
-            ? ((dataByPraça[praça].onTime / dataByPraça[praça].total) * 100).toFixed(1)
-            : 0,
-      }));
-
+      .filter((praça) => dataByPraça[praça].onTime + dataByPraça[praça].late > 0)
+      .map((praça) => {
+        const onTime = dataByPraça[praça].onTime;
+        const late = dataByPraça[praça].late;
+        const total = onTime + late;
+  
+        return {
+          praça,
+          onTime,
+          late,
+          level: total > 0 ? ((onTime / total) * 100).toFixed(1) : 0,
+        };
+      });
+  
     setServiceLevelByPraça(serviceLevelData);
   };
-
+  
+  
+  
+  
+  
+  
+  
+  
   useEffect(() => {
     if (data.length > 0) {
       calculateGeneralServiceLevel(data);
@@ -95,7 +137,6 @@ const ServiceLevelChart = ({ data }) => {
 
   return (
     <>
-      {/* Nível de Serviço Geral */}
       <h5>Nível de Serviço Geral</h5>
       <h2>{generalServiceLevel.level} %</h2>
       <ResponsiveContainer width="100%" height={280}>
@@ -118,8 +159,6 @@ const ServiceLevelChart = ({ data }) => {
           <Legend verticalAlign="bottom" height={36} />
         </PieChart>
       </ResponsiveContainer>
-
-      {/* Nível de Serviço por Praça */}
       <h5>Nível de Serviço por Praça</h5>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
         {serviceLevelByPraça.map((praçaData, index) => (

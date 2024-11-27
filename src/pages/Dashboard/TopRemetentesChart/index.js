@@ -31,28 +31,40 @@ const TopRemetentesChart = ({ data }) => {
       const entregaDate = parseDate(item.entregue_em);
       const previsaoDate = parseDate(item.previsao_entrega);
       return (
-        item.cte_entregue === 1 && entregaDate && previsaoDate && entregaDate > previsaoDate
+        item.cte_entregue === 1 &&
+        entregaDate &&
+        previsaoDate &&
+        entregaDate > previsaoDate &&
+        item.atraso_cliente === 0 // Verifica se o atraso não é culpa do cliente
       );
     });
-
+  
     const remetenteCount = {};
     const remetenteDetails = {};
-
+  
     overdueNotes.forEach((item) => {
       const remetente = item.remetente;
+  
+      // Dividir o campo NF em notas individuais
+      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
+  
       if (!remetenteCount[remetente]) {
         remetenteCount[remetente] = 0;
         remetenteDetails[remetente] = [];
       }
-      remetenteCount[remetente] += 1;
-      remetenteDetails[remetente].push({
-        NF: item.NF,
-        destinatario: item.destinatario,
-        entregue_em: item.entregue_em,
-        previsao_entrega: item.previsao_entrega,
+  
+      // Incrementar o contador e armazenar detalhes para cada nota
+      notas.forEach((nota) => {
+        remetenteCount[remetente] += 1;
+        remetenteDetails[remetente].push({
+          NF: nota,
+          destinatario: item.destinatario,
+          entregue_em: item.entregue_em,
+          previsao_entrega: item.previsao_entrega,
+        });
       });
     });
-
+  
     const sortedRemetentes = Object.entries(remetenteCount)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 7)
@@ -61,9 +73,10 @@ const TopRemetentesChart = ({ data }) => {
         count,
         details: remetenteDetails[remetente],
       }));
-
+  
     setTopRemetentes(sortedRemetentes);
   };
+  
 
   const toggleModal = (remetenteData) => {
     setModalData(remetenteData);

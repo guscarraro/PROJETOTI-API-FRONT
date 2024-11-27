@@ -65,44 +65,63 @@ const Dashboard = () => {
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
     const endOfToday = new Date(today.setHours(23, 59, 59, 999)).getTime();
-
+  
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
     const startOfTomorrow = new Date(tomorrow.setHours(0, 0, 0, 0)).getTime();
     const endOfTomorrow = new Date(tomorrow.setHours(23, 59, 59, 999)).getTime();
-
+  
     const inTwoDays = new Date();
     inTwoDays.setDate(today.getDate() + 2);
     const startOfInTwoDays = new Date(inTwoDays.setHours(0, 0, 0, 0)).getTime();
     const endOfInTwoDays = new Date(inTwoDays.setHours(23, 59, 59, 999)).getTime();
-
-    return filteredData.filter((item) => {
+  
+    const result = [];
+    filteredData.forEach((item) => {
       const deliveryDate = item.previsao_entrega ? parseDate(item.previsao_entrega).getTime() : null;
-      if (!deliveryDate) return false;
-
-      switch (status) {
-        case 'today':
-          return deliveryDate >= startOfToday && deliveryDate <= endOfToday && item.cte_entregue !== 1;
-        case 'tomorrow':
-          return deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow && item.cte_entregue !== 1;
-        case 'inTwoDays':
-          return deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays && item.cte_entregue !== 1;
-        case 'overdue':
-          return deliveryDate < startOfToday && item.cte_entregue !== 1;
-        default:
-          return false;
-      }
+      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : []; // Trata as notas como uma lista separada por vírgulas
+  
+      notas.forEach(() => {
+        if (!deliveryDate) return;
+  
+        const include = (() => {
+          switch (status) {
+            case 'today':
+              return deliveryDate >= startOfToday && deliveryDate <= endOfToday && item.cte_entregue !== 1;
+            case 'tomorrow':
+              return deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow && item.cte_entregue !== 1;
+            case 'inTwoDays':
+              return deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays && item.cte_entregue !== 1;
+            case 'overdue':
+              return deliveryDate < startOfToday && item.cte_entregue !== 1;
+            default:
+              return false;
+          }
+        })();
+  
+        if (include) {
+          result.push(item);
+        }
+      });
     });
+  
+    return result;
   };
 
   const groupByRemetente = (filteredData) => {
     const grouped = {};
     filteredData.forEach((item) => {
       const remetente = item.remetente;
+      const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : []; // Divide as notas por vírgula e remove espaços extras
+  
       if (!grouped[remetente]) {
         grouped[remetente] = [];
       }
-      grouped[remetente].push(item);
+  
+      // Adiciona cada nota separadamente, mas sem quebrar linhas
+      notas.forEach((nf) => {
+        grouped[remetente].push({ ...item, NF: nf });
+      });
     });
     return grouped;
   };
