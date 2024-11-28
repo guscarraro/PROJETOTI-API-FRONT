@@ -83,9 +83,7 @@ const Atendentes = [
 'BEER MANIACS COMERCIO E DISTRIBUIDORA DE BEBIDAS LTDA',
 'BEER MANIACS COMERCIO E DISTRIBUIDORA DE BEBIDAS L'
 ] },
-    { nome: 'ANDREIA', remetentes: ['CAFE TRES CORACOES',
-      'CAFE TRES CORACOES S.A',
-      'Cafe Tres Coracoes S.A',
+    { nome: 'ANDREIA', remetentes: [
       'SEMALO IND E COMERCIO DE ALIMENTOS LTDA SJP',
       'SEMALO IND E COMERCIO DE ALIMENTOS LTDA',
       'SEMALO INDUSTRIA E COMERCIO DE ALIMENTOS'
@@ -93,6 +91,9 @@ const Atendentes = [
     { nome: 'ISABELLA', remetentes: ['CIMED & CO. S.A.',
       'CIMED INDUSTRIA S.A',
       'CIMED &amp; CO. S.A.',
+      'CAFE TRES CORACOES',
+      'CAFE TRES CORACOES S.A',
+      'Cafe Tres Coracoes S.A',
       'CAFE RANCHEIRO AGRO INDUSTRIAL LTDA'
       ] },
     { nome: 'GRACIELI', remetentes: ['TRANSPORTADORA KARAVAGGIO',

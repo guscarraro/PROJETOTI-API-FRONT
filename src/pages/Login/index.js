@@ -17,15 +17,38 @@ function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (error) {
-      toast.error('Usuário ou senha inválidos!');
-    } else {
-      localStorage.setItem('supabase.auth.token', JSON.stringify(data.session)); // Armazena token no localStorage
-      navigate('/dashboard');
+  
+    try {
+      // Consulta o banco de dados Supabase para buscar o usuário pelo email
+      const { data: user, error } = await supabase
+        .from('usuarios') // Nome da tabela
+        .select('*')
+        .eq('email', email)
+        .single();
+  
+      if (error || !user) {
+        throw new Error('Usuário ou senha inválidos!');
+      }
+  
+      // Verificar se a senha informada corresponde ao hash armazenado
+      const bcrypt = await import('bcryptjs'); // Biblioteca para verificar hash
+      const isPasswordValid = await bcrypt.compare(password, user.senha);
+  
+      if (!isPasswordValid) {
+        throw new Error('Usuário ou senha inválidos!');
+      }
+  
+      // Armazena os dados do usuário no localStorage
+      localStorage.setItem('user', JSON.stringify({ setor: user.setor, tipo: user.tipo }));
+  
+      toast.success('Login realizado com sucesso!');
+      navigate('/SAC'); // Redireciona para o dashboard
+    } catch (error) {
+      toast.error(error.message || 'Erro ao fazer login');
     }
   };
+  
+  
 
   return (
     <Container fluid className="ContainerPagina d-flex align-items-center justify-content-center">
