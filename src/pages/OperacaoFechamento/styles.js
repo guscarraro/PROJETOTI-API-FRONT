@@ -24,10 +24,17 @@ opacity: 0.9;
 display: flex;
 flex-direction: column;
 justify-content: space-between;
+gap:10px;
 box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 ${(props) => props.isPulsing && css`
   animation: ${pulseOpacity} 2s infinite;
 `}
+
+.customCard{
+background: rgba(0, 0, 0, 0.2);
+margin: 10 0px;
+color: #fff;
+}
 `;
 export const BtnOcultarGrafico = styled.button`
   margin: 10px;

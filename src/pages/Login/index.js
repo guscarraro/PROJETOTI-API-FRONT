@@ -39,14 +39,39 @@ function Login() {
       }
   
       // Armazena os dados do usuário no localStorage
-      localStorage.setItem('user', JSON.stringify({ setor: user.setor, tipo: user.tipo }));
+      localStorage.setItem(
+        'user',
+        JSON.stringify({ setor: user.setor, tipo: user.tipo })
+      );
+  
+      // Define o redirecionamento com base no setor ou tipo do usuário
+      const redirectPath = (() => {
+        if (user.setor === '43350e26-12f4-4094-8cfb-2a66f250838d') {
+          return '/SAC'; // SAC
+        }
+        if (user.setor === '442ec24d-4c7d-4b7e-b1dd-8261c9376d0f') {
+          return '/Operacao'; // Operação
+        }
+        if (user.setor === '37edd156-ba95-4864-8247-642ff20d8587') {
+          return '/Financeiro'; // Financeiro
+        }
+        if (user.setor === '958db54e-add5-45f6-8aef-739d6ba7cb4c') {
+          return '/Frete'; // Frete
+        }
+        // Para outros setores ou Admin (tipo de usuário)
+        if (user.tipo === 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c') {
+          return '/Admin'; // Admin ou dashboard padrão
+        }
+        return '/'; // Redireciona para login se nenhum setor/tipo for identificado
+      })();
   
       toast.success('Login realizado com sucesso!');
-      navigate('/SAC'); // Redireciona para o dashboard
+      navigate(redirectPath); // Redireciona dinamicamente
     } catch (error) {
       toast.error(error.message || 'Erro ao fazer login');
     }
   };
+  
   
   
 

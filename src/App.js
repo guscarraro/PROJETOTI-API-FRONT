@@ -18,52 +18,49 @@ const App = () => {
       {user?.tipo === 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c' && <AdminNavbar />}
       
       <Routes>
-        <Route path="/" element={<Login />} />
+  <Route path="/" element={<Login />} />
 
-        {/* SAC */}
-        <Route
-          path="/SAC"
-          element={
-            <PrivateRoute
-              element={<Dashboard />}
-              allowedSectors={['43350e26-12f4-4094-8cfb-2a66f250838d']} // UUID do SAC
-            />
-          }
-        />
+  <Route
+    path="/SAC"
+    element={
+      <PrivateRoute
+        element={<Dashboard />}
+        allowedSectors={['43350e26-12f4-4094-8cfb-2a66f250838d']}
+      />
+    }
+  />
 
-        {/* Operação */}
-        <Route
-          path="/Operacao"
-          element={
-            <PrivateRoute
-              element={<OperacaoFechamento />}
-              allowedSectors={['442ec24d-4c7d-4b7e-b1dd-8261c9376d0f']} // UUID do Operação
-            />
-          }
-        />
+  <Route
+    path="/Operacao"
+    element={
+      <PrivateRoute
+        element={<OperacaoFechamento />}
+        allowedSectors={['442ec24d-4c7d-4b7e-b1dd-8261c9376d0f']}
+      />
+    }
+  />
 
-        {/* Financeiro */}
-        <Route
-          path="/Financeiro"
-          element={
-            <PrivateRoute
-              element={<Dashboard />}
-              allowedSectors={['37edd156-ba95-4864-8247-642ff20d8587']} // UUID do Financeiro
-            />
-          }
-        />
+  <Route
+    path="/Financeiro"
+    element={
+      <PrivateRoute
+        element={<Dashboard />}
+        allowedSectors={['37edd156-ba95-4864-8247-642ff20d8587']}
+      />
+    }
+  />
 
-        {/* Frete */}
-        <Route
-          path="/Frete"
-          element={
-            <PrivateRoute
-              element={<ProjetoFrota />}
-              allowedSectors={['958db54e-add5-45f6-8aef-739d6ba7cb4c']} // UUID do Frete
-            />
-          }
-        />
-      </Routes>
+  <Route
+    path="/Frete"
+    element={
+      <PrivateRoute
+        element={<ProjetoFrota />}
+        allowedSectors={['958db54e-add5-45f6-8aef-739d6ba7cb4c']}
+      />
+    }
+  />
+</Routes>
+
     </>
   );
 };
