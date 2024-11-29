@@ -87,7 +87,7 @@ const LineChartToneladas = ({ data }) => {
         <Line
           type="monotone"
           dataKey="toneladas"
-          stroke="#ffcc00"
+          stroke="#329835"
           activeDot={{ r: 8 }}
         />
       </LineChart>

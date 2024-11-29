@@ -51,7 +51,7 @@ const SummaryBox = ({ title, icon: Icon, bgColor, data, documentData }) => {
       <h4>
         {title} {Icon && <Icon style={{ float: "left" }} />}
       </h4>
-      <h3>Qtde CTEs: {totalDocuments}</h3>
+      <h3>Qtde documentos: {totalDocuments}</h3>
       <Card className="customCard">
         <h5>Total Faturamento</h5>
         <h1>{formatCurrency(data.valorBruto)}</h1>

@@ -10,8 +10,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
 
 const App = () => {
-  const user = JSON.parse(localStorage.getItem('user')); // Pega o usuário logado
-  console.log(user)
+  const user = JSON.parse(localStorage.getItem('user'));
   return (
     <>
       {/* Renderiza a Navbar apenas para o Admin */}
@@ -26,6 +25,15 @@ const App = () => {
       <PrivateRoute
         element={<Dashboard />}
         allowedSectors={['43350e26-12f4-4094-8cfb-2a66f250838d']}
+      />
+    }
+  />
+  <Route
+    path="/CicloPedido"
+    element={
+      <PrivateRoute
+        element={<CicloPedido />}
+        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
       />
     }
   />

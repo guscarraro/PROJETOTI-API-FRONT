@@ -60,7 +60,7 @@ function Login() {
         }
         // Para outros setores ou Admin (tipo de usuário)
         if (user.tipo === 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c') {
-          return '/Admin'; // Admin ou dashboard padrão
+          return '/CicloPedido'; // Admin ou dashboard padrão
         }
         return '/'; // Redireciona para login se nenhum setor/tipo for identificado
       })();
