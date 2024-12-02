@@ -4,9 +4,12 @@ import { Container, Row, Col } from 'reactstrap';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import Atendentes from './FiltroAtentende/index';
 import './style.css';
+import { LuMonitorX } from "react-icons/lu";
 import DailyDeliveryChart from './DailyDeliveryChart';
 import TopRemetentesChart from './TopRemetentesChart';
 import ServiceLevelChart from './ServiceLevelChart';
+import TelevisaoLayout from './TelevisaoLayout';
+import { MdOutlineScreenshotMonitor } from 'react-icons/md';
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -15,6 +18,10 @@ const Dashboard = () => {
   const [dropdownOpen, setDropdownOpen] = useState({});
   const [selectedAtendente, setSelectedAtendente] = useState('Todos');
   const [selectedRemetente, setSelectedRemetente] = useState('Todos');
+  const [selectedDateFilter, setSelectedDateFilter] = useState('last15Days'); // Filtro padrão: últimos 15 dias
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+
 
   const fetchData = async () => {
     setLoading(true);
@@ -29,6 +36,50 @@ const Dashboard = () => {
     }
   };
 
+  const exitFullScreen = () => {
+    if (document.fullscreenElement) {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen();
+      } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen();
+      } else if (document.msExitFullscreen) {
+        document.msExitFullscreen();
+      }
+    } else {
+      console.warn("Documento não está em modo fullscreen.");
+    }
+  };
+  
+  
+  const handleFullScreen = () => {
+    const element = document.documentElement; // Seleciona a página inteira
+    if (element.requestFullscreen) {
+      element.requestFullscreen();
+    } else if (element.webkitRequestFullscreen) {
+      // Para navegadores baseados no WebKit, como Safari
+      element.webkitRequestFullscreen();
+    } else if (element.mozRequestFullScreen) {
+      // Para Firefox
+      element.mozRequestFullScreen();
+    } else if (element.msRequestFullscreen) {
+      // Para IE/Edge
+      element.msRequestFullscreen();
+    }
+  };
+  const toggleFullScreen = () => {
+    if (!isFullScreen) {
+      handleFullScreen();
+    } else {
+      exitFullScreen();
+    }
+    setIsFullScreen(!isFullScreen);
+  };
+  
+  
+  
+  
   const boxColors = {
     today: 'rgba(255, 215, 0, 0.35)',
     tomorrow: 'rgba(0, 255, 127, 0.35)',
@@ -44,7 +95,8 @@ const Dashboard = () => {
 
   const applyFilters = () => {
     let filteredData = [...data];
-
+  
+    // Aplicar filtro de atendente
     if (selectedAtendente !== 'Todos') {
       const atendente = Atendentes.find((a) => a.nome === selectedAtendente);
       filteredData = filteredData.filter((item) =>
@@ -53,13 +105,49 @@ const Dashboard = () => {
         )
       );
     }
-
+  
+    // Aplicar filtro de remetente
     if (selectedRemetente !== 'Todos') {
       filteredData = filteredData.filter((item) => item.remetente === selectedRemetente);
     }
-
+  
+    // Aplicar filtro de data
+    filteredData = filterDataByDate(filteredData);
+  
     return filteredData;
   };
+  
+  const filterDataByDate = (data) => {
+  const today = new Date();
+  let startDate;
+
+  switch (selectedDateFilter) {
+    case 'currentMonth': // Mês atual
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      break;
+
+    case 'lastMonth': // Mês passado
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      break;
+
+    case 'last30Days': // Últimos 30 dias
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 30);
+      break;
+
+    case 'last15Days': // Últimos 15 dias
+    default:
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 15);
+      break;
+  }
+
+  return data.filter((item) => {
+    const itemDate = parseDate(item.data_emissao); // Função já existente
+    return itemDate >= startDate && itemDate <= today;
+  });
+};
+
   const filterDataByStatus = (filteredData, status) => {
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
@@ -138,6 +226,17 @@ const Dashboard = () => {
     return grouped;
   };
   
+  useEffect(() => {
+    const handleFullScreenChange = () => {
+      setIsFullScreen(!!document.fullscreenElement);
+    };
+  
+    document.addEventListener("fullscreenchange", handleFullScreenChange);
+  
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullScreenChange);
+    };
+  }, []);
   
 
   useEffect(() => {
@@ -161,10 +260,33 @@ const Dashboard = () => {
 
   return (
     <div className="boxGeneral">
+      {isFullScreen ? (
+        <>
+  <TelevisaoLayout data={filteredData} />
+  <button
+    onClick={toggleFullScreen}
+    style={{
+      position: "fixed",
+      top: "10px",
+      left: "10px",
+      zIndex: 1000,
+      background: "none",
+      border: "none",
+      color: "#fff",
+      cursor: "pointer",
+      fontSize: "18px",
+      display: "flex",
+      alignItems: "center",
+    }}
+  >
+    <LuMonitorX  size={24} style={{ marginRight: "5px" }} />
+    Sair fullscreen
+  </button>
+
+  </>
+) : (
+
       <Container fluid>
-        <Row>
-          
-        </Row>
 
         {loading ? (
           <LoadingContainer>
@@ -229,6 +351,51 @@ const Dashboard = () => {
       </option>
     ))}
 </select>
+<label>Filtrar por data:</label>
+<select
+  value={selectedDateFilter}
+  onChange={(e) => setSelectedDateFilter(e.target.value)}
+  style={{
+    margin: '10px',
+    padding: '8px',
+    borderRadius: '5px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: '#fff',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    outline: 'none',
+    cursor: 'pointer',
+    fontSize: '14px',
+    appearance: 'none',
+    WebkitAppearance: 'none',
+    MozAppearance: 'none',
+  }}
+>
+  <option value="currentMonth">Mês Atual</option>
+  <option value="lastMonth">Mês Passado</option>
+  <option value="last30Days">Últimos 30 Dias</option>
+  <option value="last15Days">Últimos 15 Dias</option>
+</select>
+<Col md="12" style={{ textAlign: "right", marginBottom: "10px" }}>
+<button
+  onClick={handleFullScreen}
+  style={{
+    background: "none",
+    border: "none",
+    color: "#fff",
+    cursor: "pointer",
+    fontSize: "18px",
+    display: "flex",
+    alignItems: "center",
+  }}
+>
+  <MdOutlineScreenshotMonitor size={24} style={{ marginRight: "5px" }} />
+  Tela Cheia
+</button>
+
+</Col>
+
+
+
 
           </Col>
               <Col md="12">
@@ -364,6 +531,7 @@ const Dashboard = () => {
           </>
         )}
       </Container>
+  )}
     </div>
   );
 };

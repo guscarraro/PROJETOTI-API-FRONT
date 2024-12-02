@@ -30,3 +30,13 @@ export const formatTomadorName = (tomador) => {
     // Caso contrário, retorna os dois primeiros nomes
     return names.slice(0, 2).join(' ');
   };
+
+
+  export const formatCurrency = (value) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      minimumFractionDigits: 2,
+    }).format(value);
+  };
+  

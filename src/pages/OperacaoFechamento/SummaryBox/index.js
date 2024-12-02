@@ -1,26 +1,14 @@
 import React from "react";
 import { Card } from "reactstrap";
 import { Box } from "../styles";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
 
-// Paleta de cores para o gráfico de barras
-const BAR_COLORS = [
-  "#ffffff", // Branco Neon
-  "#ffcc00", // Amarelo Neon
-  "#d633ff", // Roxo Neon
-  "#00e6e6", // Ciano Neon
-  "#ff99cc", // Rosa claro Neon
-  "#ff6347", // Vermelho Neon
-  "#b3ff00", // Verde Neon claro
-];
+// Função de formatação de números grandes
+const formatLargeNumber = (value) => {
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
 
 // Função de formatação de moeda
 const formatCurrency = (value) => {
@@ -37,14 +25,33 @@ const countDocuments = (documentData) => {
   return documentData.reduce((total, item) => total + (item.numero ? 1 : 0), 0);
 };
 
+// Calcula o peso total
+const calculateTotalWeight = (documentData) => {
+  if (!documentData || documentData.length === 0) return 0;
+  return documentData.reduce((total, item) => total + (item.peso || 0), 0) / 1000; // Convertendo para toneladas
+};
+
+// Calcula a quantidade total de volumes
+const calculateTotalVolumes = (documentData) => {
+  if (!documentData || documentData.length === 0) return 0;
+  return documentData.reduce(
+    (total, item) => total + (item.quantidade_volume || 0),
+    0
+  );
+};
+
+// Calcula a quantidade total de Qtd
+const calculateTotalQtd = (documentData) => {
+  if (!documentData || documentData.length === 0) return 0;
+  return documentData.reduce((total, item) => total + (item.qtd || 0), 0);
+};
+
 // Componente SummaryBox
 const SummaryBox = ({ title, icon: Icon, bgColor, data, documentData }) => {
-  // Calcula o total de documentos
   const totalDocuments = countDocuments(documentData);
-
-  // Extraindo os dados para o gráfico de barras e percentuais
-  const barData = data.barData || [];
-  const percentages = data.percentages || [];
+  const totalWeight = calculateTotalWeight(documentData);
+  const totalVolumes = calculateTotalVolumes(documentData);
+  const totalQtd = calculateTotalQtd(documentData);
 
   return (
     <Box bgColor={bgColor}>
@@ -61,44 +68,16 @@ const SummaryBox = ({ title, icon: Icon, bgColor, data, documentData }) => {
         <h1>{formatCurrency(data.valorMercadoria)}</h1>
       </Card>
       <Card className="customCard">
-        <h5>Faturamento por base/redespachador</h5>
-        {barData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={barData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 10, fill: "#fff" }}
-              />
-              <YAxis
-                tickFormatter={(value) => formatCurrency(value)}
-                tick={{ fontSize: 9, fill: "#fff" }}
-              />
-              <Tooltip
-                formatter={(value, name, props) =>
-                  [`${formatCurrency(value)}`, `Filial: ${props.payload.name}`]
-                } // Personaliza o valor e o nome da filial
-              />
-              <Bar dataKey="value" fill={BAR_COLORS[1]} />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p>Sem dados disponíveis.</p>
-        )}
+        <h5>Total Peso (toneladas)</h5>
+        <h1>{formatLargeNumber(totalWeight)} t</h1>
       </Card>
       <Card className="customCard">
-        <h5>Percentual de Faturamento por Filial</h5>
-        {percentages.length > 0 ? (
-          <ul>
-            {percentages.map(({ name, percent }) => (
-              <li key={name}>
-                {name}: {percent.toFixed(1)}%
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>Sem dados disponíveis.</p>
-        )}
+        <h5>Total Volumes</h5>
+        <h1>{formatLargeNumber(totalVolumes)}</h1>
+      </Card>
+      <Card className="customCard">
+        <h5>Total Qtde</h5>
+        <h1>{formatLargeNumber(totalQtd)}</h1>
       </Card>
     </Box>
   );

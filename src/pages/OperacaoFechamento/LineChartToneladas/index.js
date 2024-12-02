@@ -28,37 +28,57 @@ const generateOctoberDates = () => {
 };
 
 // Componente LineChartToneladas
-const LineChartToneladas = ({ data }) => {
-  const processLineChartData = (data) => {
+const LineChartToneladas = ({ data, selectedTomadores }) => {
+  const processLineChartData = (data, selectedTomadores) => {
+    const allDates = generateOctoberDates();
     const grouped = {};
 
-    // Filtrar apenas coletas no mês de outubro
+    // Filtrar apenas coletas no mês de outubro e pelos tomadores selecionados
     const filteredData = data.filter((item) => {
       const date = new Date(item.coletado_em);
-      return date.getMonth() === 9 && date.getFullYear() === 2024; // Outubro é o mês 9 (índice zero-based)
+      const isInOctober = date.getMonth() === 9 && date.getFullYear() === 2024;
+      const isSelectedTomador =
+        selectedTomadores.length === 0 ||
+        selectedTomadores.includes(item.tomador_servico);
+      return isInOctober && isSelectedTomador;
     });
 
-    // Agrupando os dados por data
+    // Agrupando os dados por tomador e data
     filteredData.forEach((item) => {
       const date = new Date(item.coletado_em).toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
       });
-      if (!grouped[date]) {
-        grouped[date] = 0;
+      const tomador = selectedTomadores.length > 0 ? item.tomador_servico : "Total Geral";
+
+      if (!grouped[tomador]) {
+        grouped[tomador] = {};
       }
-      grouped[date] += item.peso || 0;
+      if (!grouped[tomador][date]) {
+        grouped[tomador][date] = 0;
+      }
+      grouped[tomador][date] += item.peso || 0;
     });
 
-    // Gerar todas as datas de outubro e preencher valores ausentes com 0
-    const allDates = generateOctoberDates();
-    return allDates.map((date) => ({
-      date,
-      toneladas: (grouped[date] || 0) / 1000, // Convertendo para toneladas
-    }));
+    // Gerar os dados finais para o gráfico
+    const finalData = allDates.map((date) => {
+      const entry = { date };
+
+      Object.keys(grouped).forEach((tomador) => {
+        entry[tomador] = (grouped[tomador][date] || 0) / 1000; // Convertendo para toneladas
+      });
+
+      return entry;
+    });
+
+    return finalData;
   };
 
-  const lineChartData = processLineChartData(data);
+  const lineChartData = processLineChartData(data, selectedTomadores);
+
+  const tomadoresKeys = selectedTomadores.length > 0
+    ? selectedTomadores
+    : ["Total Geral"];
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -80,16 +100,18 @@ const LineChartToneladas = ({ data }) => {
             fill: "#fff",
           }}
         />
-        <Tooltip
-          formatter={(value) => [`${value.toFixed(2)}t`, "Toneladas"]}
-        />
-        <Legend />
-        <Line
-          type="monotone"
-          dataKey="toneladas"
-          stroke="#329835"
-          activeDot={{ r: 8 }}
-        />
+        <Tooltip formatter={(value) => [`${value.toFixed(2)}t`, "Toneladas"]} />
+        {selectedTomadores.length > 0 && <Legend />} {/* Mostrar a legenda apenas com seleção */}
+        {tomadoresKeys.map((tomador, index) => (
+          <Line
+            key={tomador}
+            type="monotone"
+            dataKey={tomador}
+            name={tomador}
+            stroke={`hsl(${(index * 360) / tomadoresKeys.length}, 70%, 50%)`}
+            activeDot={{ r: 8 }}
+          />
+        ))}
       </LineChart>
     </ResponsiveContainer>
   );

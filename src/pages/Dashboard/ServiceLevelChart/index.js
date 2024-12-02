@@ -12,9 +12,6 @@ const ServiceLevelChart = ({ data }) => {
   };
 
   const calculateGeneralServiceLevel = (filteredData) => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
-  
     let totalOnTime = 0;
     let totalLate = 0;
   
@@ -22,18 +19,12 @@ const ServiceLevelChart = ({ data }) => {
       const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
       const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
   
-      if (
-        item.cte_entregue === 1 &&
-        entregaDate &&
-        entregaDate.getMonth() === currentMonth &&
-        entregaDate.getFullYear() === currentYear
-      ) {
-        // Verifique se 'NF' é uma string válida antes de dividir
+      if (item.cte_entregue === 1 && entregaDate) {
         const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
   
         notas.forEach(() => {
           if (
-            item.atraso_cliente === 1 || // Culpa do cliente conta como no prazo
+            item.atraso_cliente === 1 || // Culpa do cliente conta como "No Prazo"
             (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
           ) {
             totalOnTime += 1;
@@ -41,7 +32,7 @@ const ServiceLevelChart = ({ data }) => {
             entregaDate &&
             previsaoDate &&
             entregaDate > previsaoDate &&
-            item.atraso_cliente === 0 // Apenas atrasos reais
+            item.atraso_cliente === 0
           ) {
             totalLate += 1;
           }
@@ -60,22 +51,15 @@ const ServiceLevelChart = ({ data }) => {
   
   
   
-  const calculateServiceLevelByPraça = (filteredData) => {
-    const currentMonth = new Date().getMonth();
-    const currentYear = new Date().getFullYear();
   
+  const calculateServiceLevelByPraça = (filteredData) => {
     const dataByPraça = {};
   
     filteredData.forEach((item) => {
       const entregaDate = item.entregue_em ? parseDate(item.entregue_em) : null;
       const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
   
-      if (
-        item.cte_entregue === 1 &&
-        entregaDate &&
-        entregaDate.getMonth() === currentMonth &&
-        entregaDate.getFullYear() === currentYear
-      ) {
+      if (item.cte_entregue === 1 && entregaDate) {
         const praça = item['praça_destino'];
         if (!praça) return;
   

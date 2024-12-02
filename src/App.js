@@ -5,6 +5,7 @@ import AdminNavbar from './components/AdminNavbar'; // Importa a Navbar do Admin
 import Dashboard from './pages/Dashboard';
 import CicloPedido from './pages/CicloPedido';
 import ProjetoFrota from './pages/ProjetoFrota';
+import TesteApi from './pages/TesteApi';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
@@ -54,6 +55,15 @@ const App = () => {
       <PrivateRoute
         element={<Dashboard />}
         allowedSectors={['37edd156-ba95-4864-8247-642ff20d8587']}
+      />
+    }
+  />
+  <Route
+    path="/Test"
+    element={
+      <PrivateRoute
+        element={<TesteApi />}
+        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
       />
     }
   />

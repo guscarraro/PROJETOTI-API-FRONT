@@ -1,25 +1,12 @@
 import React, { useState, useEffect } from "react";
+import Select from "react-select"; // Importa o Select
 import {
   Container,
   Row,
   Col,
-  Card,
 } from "reactstrap";
-import { MdOutlineCancelPresentation, MdOutlineDomainVerification  } from "react-icons/md";
-import { VscVerifiedFilled } from "react-icons/vsc";
 import { FaBoxes } from "react-icons/fa";
-
-
-import { MdRemoveDone, MdDoneOutline, MdCancel   } from "react-icons/md";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-} from "recharts";
+import { MdDoneOutline, MdCancel } from "react-icons/md";
 import {
   Box,
   LoadingContainer,
@@ -29,10 +16,16 @@ import {
 import PizzaTopDezDistrib from './PizzaTopDezDistrib';
 import SummaryBox from "./SummaryBox"; 
 import LineChartToneladas from "./LineChartToneladas";
+import { formatTomadorName } from "../../helpers";
+import TopTomadores from "./TopTomadores";
+import TopTomadoresQuantidade from "./TopTomadoresQuantidade";
+import FilialChart from "./FilialChart";
+import { StyledSelect } from "../../components/StyledSelect";
 
 const OperacaoFechamento = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTomadores, setSelectedTomadores] = useState([]); // Armazena os tomadores selecionados
 
   useEffect(() => {
     fetchData();
@@ -53,41 +46,34 @@ const OperacaoFechamento = () => {
     }
   };
 
+  // Filtro baseado nos tomadores selecionados
+  const filteredData = data.filter(
+    (item) =>
+      item.status === "Encerrado" &&
+      item.tipo_servico === "Normal" &&
+      (selectedTomadores.length === 0 || 
+        selectedTomadores.some((t) => t.value === item.tomador_servico))
+  );
+
+  const tomadorOptions = [
+    ...new Set(data.map((item) => item.tomador_servico))
+  ].map((tomador) => ({
+    value: tomador,
+    label: formatTomadorName(tomador),
+  }));
+
   const groupByField = (field) => {
-    return data.reduce((acc, item) => {
+    const grouped = {};
+    for (let i = 0; i < filteredData.length; i++) {
+      const item = filteredData[i];
       const key = item[field];
-      if (!acc[key]) acc[key] = { totalPeso: 0, totalQtd: 0 };
-      acc[key].totalPeso += (item.peso || 0) / 1000;
-      acc[key].totalQtd += item.qtd || 0;
-      return acc;
-    }, {});
-  };
-
-  const formatTomadorName = (tomador) => {
-    if (!tomador) return '';
-
-    const names = tomador.split(' ');
-    const stopWords = ['de', 'da', 'do', '-'];
-
-    if (stopWords.includes(names[1]?.toLowerCase())) {
-      let filteredNames = [names[0]];
-
-      for (let i = 1; i < names.length; i++) {
-        if (!stopWords.includes(names[i]?.toLowerCase())) {
-          filteredNames.push(names[i]);
-          if (filteredNames.length === 2) break;
-        }
+      if (!grouped[key]) {
+        grouped[key] = { totalPeso: 0, totalQtd: 0 };
       }
-
-      const lastName = names[names.length - 1];
-      if (!filteredNames.includes(lastName)) {
-        filteredNames.push(lastName);
-      }
-
-      return filteredNames.join(' ');
+      grouped[key].totalPeso += (item.peso || 0) / 1000; // Convertendo para toneladas
+      grouped[key].totalQtd += item.qtd || item.quantidade_volume || 0;
     }
-
-    return names.slice(0, 2).join(' ');
+    return grouped;
   };
 
   const groupedByTomador = Object.entries(groupByField("tomador_servico"))
@@ -99,100 +85,48 @@ const OperacaoFechamento = () => {
     .sort((a, b) => b.totalPeso - a.totalPeso)
     .slice(0, 10);
 
-  const groupedByQtd = Object.entries(groupByField("tomador_servico"))
-    .map(([tomador, values]) => ({
-      tomador,
-      tomadorFormatado: formatTomadorName(tomador),
-      ...values,
-    }))
-    .sort((a, b) => b.totalQtd - a.totalQtd)
-    .slice(0, 10);
-
     const totalsByStatus = (status) => {
-      const filtered = data.filter((item) => item.status === status);
+      const filtered = data.filter(
+        (item) =>
+          item.status === status &&
+          item.tipo_servico === "Normal" &&
+          (selectedTomadores.length === 0 ||
+            selectedTomadores.some((t) => t.value === item.tomador_servico))
+      );
+    
       const grouped = filtered.reduce(
         (totals, item) => {
           totals.valorBruto += item.valor_bruto || 0;
           totals.valorMercadoria += item.valor_mercadoria || 0;
-          const key = item.fil_dest;
+          const key = item.fil_dest || "Não especificado";
           if (!totals.pieData[key]) totals.pieData[key] = 0;
           totals.pieData[key] += item.valor_bruto || 0;
           return totals;
         },
         { valorBruto: 0, valorMercadoria: 0, pieData: {} }
       );
+    
+      const barData = Object.entries(grouped.pieData).map(([key, value]) => ({
+        name: key,
+        value,
+      }));
+    
+      const percentages = barData.map(({ name, value }) => ({
+        name,
+        percent: grouped.valorBruto > 0 ? (value / grouped.valorBruto) * 100 : 0,
+      }));
+    
       return {
         valorBruto: grouped.valorBruto,
         valorMercadoria: grouped.valorMercadoria,
-        pieData: Object.entries(grouped.pieData).map(([key, value]) => ({
-          name: key,
-          value,
-        })),
+        barData,
+        percentages,
       };
     };
-    const getBarChartData = (data, status) => {
-      const filteredData = data.filter((item) => item.status === status);
-      const grouped = {};
     
-      for (const item of filteredData) {
-        const key = item.fil_dest;
-        if (!grouped[key]) {
-          grouped[key] = 0;
-        }
-        grouped[key] += item.valor_bruto || 0;
-      }
-    
-      const result = [];
-      for (const key in grouped) {
-        result.push({ name: key, value: grouped[key] });
-      }
-    
-      return result;
-    };
-    
-    const getPercentages = (barData) => {
-      let total = 0;
-    
-      for (const item of barData) {
-        total += item.value;
-      }
-    
-      const percentages = [];
-      for (const { name, value } of barData) {
-        percentages.push({ name, percent: (value / total) * 100 });
-      }
-    
-      return percentages;
-    };
-    
-    
-    
-    const pieDataEncerrado = getBarChartData(data, "Encerrado");
-    const pieDataCancelado = getBarChartData(data, "Cancelado");
-    const pieDataGeral = pieDataEncerrado.concat(pieDataCancelado);
-    
-    const percentagesEncerrado = getPercentages(pieDataEncerrado);
-    const percentagesCancelado = getPercentages(pieDataCancelado);
-    const percentagesGeral = getPercentages(pieDataGeral);
-    
-  
-    const totalsEncerrado = totalsByStatus("Encerrado");
-    const totalsCancelado = totalsByStatus("Cancelado");
-    const totalsGeral = {
-      valorBruto: totalsEncerrado.valorBruto + totalsCancelado.valorBruto,
-      valorMercadoria:
-        totalsEncerrado.valorMercadoria + totalsCancelado.valorMercadoria,
-      pieData: [...totalsEncerrado.pieData, ...totalsCancelado.pieData],
-    };
-  
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      minimumFractionDigits: 2,
-    }).format(value);
-  };
+  const totalsEncerrado = totalsByStatus("Encerrado");
+
   return (
     <div className="boxGeneral">
       <Container fluid>
@@ -203,94 +137,59 @@ const OperacaoFechamento = () => {
           </LoadingContainer>
         ) : (
           <>
+            <Row >
+  <Col md="4">
+  <StyledSelect
+      isMulti
+      options={tomadorOptions}
+      placeholder="Selecione os tomadores..."
+      onChange={setSelectedTomadores}
+      value={selectedTomadores}
+      style={{padding:0}}
+    />
+  </Col>
+</Row>
+
+
             <Row style={{ marginTop: 40 }}>
-            <Col md="4">
-            <SummaryBox
-      title="Concluídos"
-      icon={MdDoneOutline}
-      bgColor="rgba(0, 255, 127, 0.35)"
-      data={{
-        valorBruto: totalsEncerrado.valorBruto,
-        valorMercadoria: totalsEncerrado.valorMercadoria,
-        barData: pieDataEncerrado,
-        percentages: percentagesEncerrado,
-      }}
-      documentData={data.filter((item) => item.status === "Encerrado")}
-    />
+              <Col md="4">
+                <SummaryBox
+                  title="Concluídos"
+                  icon={MdDoneOutline}
+                  bgColor="rgba(0, 255, 127, 0.35)"
+                  data={{
+                    valorBruto: totalsEncerrado.valorBruto,
+                    valorMercadoria: totalsEncerrado.valorMercadoria,
+                  }}
+                  documentData={filteredData.filter(
+                    (item) => item.status === "Encerrado"
+                  )}
+                />
+              </Col>
+              <Col md="8">
+              <FilialChart
+                barData={totalsEncerrado.barData}
+                percentages={totalsEncerrado.percentages}
+              />
             </Col>
-            <Col md="4">
-            <SummaryBox
-      title="Cancelados"
-      icon={MdCancel}
-      bgColor="rgba(255, 69, 0, 0.35)"
-      data={{
-        valorBruto: totalsCancelado.valorBruto,
-        valorMercadoria: totalsCancelado.valorMercadoria,
-        barData: pieDataCancelado,
-        percentages: percentagesCancelado,
-      }}
-      documentData={data.filter((item) => item.status === "Cancelado")}
-    />
-            </Col>
-            <Col md="4">
-            <SummaryBox
-      title="Total Geral"
-      icon={FaBoxes}
-      bgColor="rgba(255, 165, 0, 0.35)"
-      data={{
-        valorBruto: totalsGeral.valorBruto,
-        valorMercadoria: totalsGeral.valorMercadoria,
-        barData: pieDataGeral,
-        percentages: percentagesGeral,
-      }}
-      documentData={data}
-    />
-            </Col>
-          </Row>
+            </Row>
+
             <Row>
-            <Col md="12">
+              <Col md="12">
                 <Box>
                   <h5>Toneladas Carregadas por Dia</h5>
-                  <LineChartToneladas data={data} />
+                  <LineChartToneladas
+  data={filteredData}
+  selectedTomadores={selectedTomadores.map((t) => t.value)}
+/>
+
                 </Box>
               </Col>
             </Row>
 
             <Row>
               <Col md="6">
-                <Box>
-                  <h5>Top 10 Tomadores por Peso</h5>
-                  <ResponsiveContainer width="100%" height={390}>
-                    <BarChart
-                      data={groupedByTomador}
-                      layout="vertical"
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        type="number"
-                        tickFormatter={(value) => `${Math.round(value)}`}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="tomadorFormatado"
-                        tick={{
-                          angle: 0,
-                          fontSize: 12,
-                          textAnchor: "end",
-                        }}
-                        tickLine={false}
-                        width={150}
-                        position="outside"
-                      />
-                      <Tooltip
-                        formatter={(value, name, props) =>
-                          `${Math.round(value)}t (${props.payload.tomador})`
-                        }
-                      />
-                      <Bar dataKey="totalPeso" fill="#82ca9d" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </Box>
+                <TopTomadores data={groupedByTomador} />
               </Col>
 
               <Col md="6">
@@ -308,47 +207,10 @@ const OperacaoFechamento = () => {
             </Row>
 
             <Row>
-  <Col md="6">
-    <Box>
-      <h5>Top 10 Tomadores por Quantidade</h5>
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart
-          data={groupedByQtd.map((item) => ({
-            ...item,
-            tomadorFormatado: formatTomadorName(item.tomador),
-          }))}
-          layout="vertical"
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            type="number"
-            tickFormatter={(value) => `${Math.round(value)}`} // Exibe números inteiros no eixo X
-          />
-          <YAxis
-            type="category"
-            dataKey="tomadorFormatado"
-            tick={{
-              fontSize: 12, // Ajusta o tamanho da fonte
-              textAnchor: "end", // Alinha o texto no fim
-            }}
-            tickLine={false} // Remove a linha de marcação no eixo Y
-            width={200} // Define uma largura suficiente para os nomes
-            position="outside" // Garante que o rótulo fique fora do gráfico
-          />
-          <Tooltip
-            formatter={(value, name, props) =>
-              `${Math.round(value)} (${props.payload.tomador})`
-            } // Mostra o valor e o nome completo no tooltip
-          />
-          <Bar dataKey="totalQtd" fill="#ffc658" />
-        </BarChart>
-      </ResponsiveContainer>
-    </Box>
-  </Col>
-</Row>
-
-
-           
+              <Col md="6">
+                <TopTomadoresQuantidade data={filteredData} />
+              </Col>
+            </Row>
           </>
         )}
       </Container>

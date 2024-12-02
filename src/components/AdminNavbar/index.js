@@ -1,73 +1,73 @@
-import React, { useState } from 'react';
-import './style.css';
-import { useNavigate } from 'react-router-dom'; // Importa o hook useNavigate
-import { FaBars, FaTimes, FaTruck, FaBoxOpen } from 'react-icons/fa';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaBars, FaTimes, FaTruck, FaBoxOpen } from "react-icons/fa";
 import { HiChatBubbleLeftRight } from "react-icons/hi2";
 import { GrMoney } from "react-icons/gr";
 import { SlGraph } from "react-icons/sl";
+import {
+  RadialMenuContainer,
+  MenuButton,
+  MenuItems,
+  MenuItem,
+} from "./styles";
 
 const RadialMenu = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const navigate = useNavigate(); // Inicializa o hook useNavigate
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
   };
 
   return (
-    <div className="radial-menu">
-      <button className="menu-button" onClick={toggleMenu}>
+    <RadialMenuContainer>
+      <MenuButton onClick={toggleMenu}>
         {isOpen ? <FaTimes color="white" size={24} /> : <FaBars color="white" size={24} />}
-      </button>
+      </MenuButton>
       {isOpen && (
-        <div className="menu-items">
+        <MenuItems>
           {/* Frete */}
-          <button
-            className="menu-item"
-            style={{ '--angle': '0deg' }}
-            onClick={() => navigate('/Frete')}
+          <MenuItem
+            style={{ "--angle": "0deg" }}
+            onClick={() => navigate("/Frete")}
           >
             <FaTruck color="white" />
-          </button>
-          
+          </MenuItem>
+
           {/* Financeiro */}
-          <button
-            className="menu-item"
-            style={{ '--angle': '45deg' }}
-            onClick={() => navigate('/Financeiro')}
+          <MenuItem
+            style={{ "--angle": "45deg" }}
+            onClick={() => navigate("/Financeiro")}
           >
             <GrMoney color="white" />
-          </button>
+          </MenuItem>
 
           {/* SAC */}
-          <button
-            className="menu-item"
-            style={{ '--angle': '90deg' }}
-            onClick={() => navigate('/SAC')}
+          <MenuItem
+            style={{ "--angle": "90deg" }}
+            onClick={() => navigate("/SAC")}
           >
             <HiChatBubbleLeftRight color="white" />
-          </button>
+          </MenuItem>
 
           {/* Operacional */}
-          <button
-            className="menu-item"
-            style={{ '--angle': '135deg' }}
-            onClick={() => navigate('/Operacao')}
+          <MenuItem
+            style={{ "--angle": "135deg" }}
+            onClick={() => navigate("/Operacao")}
           >
             <FaBoxOpen color="white" />
-          </button>
+          </MenuItem>
 
           {/* CicloPedido */}
-          <button
-            className="menu-item"
-            style={{ '--angle': '180deg' }}
-            onClick={() => navigate('/CicloPedido')}
+          <MenuItem
+            style={{ "--angle": "180deg" }}
+            onClick={() => navigate("/CicloPedido")}
           >
             <SlGraph color="white" />
-          </button>
-        </div>
+          </MenuItem>
+        </MenuItems>
       )}
-    </div>
+    </RadialMenuContainer>
   );
 };
 
