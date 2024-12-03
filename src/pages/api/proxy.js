@@ -9,12 +9,12 @@ export default async function handler(req, res) {
 
   // Monta a URL da API com os parâmetros de consulta
   const targetUrl = `${API_BASE_URL}/${path}`;
-  
+
   try {
     const response = await axios({
       url: targetUrl,
-      method: method || 'GET', // Usar o método recebido (padrão: GET)
-      data: body, // Corpo da requisição (se houver)
+      method: method || 'GET', // Usa o método recebido (POST, GET, etc.)
+      data: body, // Corpo da requisição (para POST/PUT)
       params: queryParams, // Parâmetros de consulta
       headers: req.headers, // Encaminha os headers do cliente
     });
