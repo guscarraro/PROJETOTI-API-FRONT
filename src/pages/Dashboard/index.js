@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Box, ProgressBar, NoteList, NoteItem, BtnOcultarGrafico, LoadingContainer, Loader, LoadingText } from './styles';
 import { Container, Row, Col } from 'reactstrap';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
@@ -10,6 +10,8 @@ import TopRemetentesChart from './TopRemetentesChart';
 import ServiceLevelChart from './ServiceLevelChart';
 import TelevisaoLayout from './TelevisaoLayout';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
+import { loadIndiceAtendimento } from '../../services/indiceService';
+import { formatDate } from '../../helpers';
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -19,6 +21,10 @@ const Dashboard = () => {
   const [selectedAtendente, setSelectedAtendente] = useState('Todos');
   const [selectedRemetente, setSelectedRemetente] = useState('Todos');
   const [selectedDateFilter, setSelectedDateFilter] = useState('last15Days'); // Filtro padrão: últimos 15 dias
+  const [dataInicial, setDataInicial] = useState(''); // Estado para armazenar a data inicial
+  const [dataFinal, setDataFinal] = useState('');
+  const prevDataInicial = useRef(dataInicial);
+  const prevDataFinal = useRef(dataFinal);
   const [isFullScreen, setIsFullScreen] = useState(false);
 
 
@@ -26,15 +32,77 @@ const Dashboard = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await fetch('https://projetoti-api-production.up.railway.app/dados-otimizados');
-      const jsonData = await response.json();
-      setData(jsonData);
+     console.log(dataInicial, dataFinal)
+      const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
+      setData(indiceData);
     } catch (error) {
-      console.error('Erro ao buscar os dados:', error);
+      console.error('Erro ao carregar os dados:', error.message);
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => {
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() - 15);
+  
+    setDataInicial(formatDate(startDate));
+    setDataFinal(formatDate(today));
+  }, []);
+  
+
+  // Atualiza os dados quando `dataInicial` ou `dataFinal` são alterados
+  useEffect(() => {
+    if (dataInicial && dataFinal) {
+      // Verifica se as datas mudaram antes de chamar o fetchData
+      if (dataInicial !== prevDataInicial.current || dataFinal !== prevDataFinal.current) {
+        fetchData();
+      }
+
+      // Atualiza as refs com as novas datas
+      prevDataInicial.current = dataInicial;
+      prevDataFinal.current = dataFinal;
+    }
+  }, [dataInicial, dataFinal]);
+
+  
+
+const handleDateFilterChange = (filter) => {
+  setSelectedDateFilter(filter);
+  const today = new Date();
+  let startDate, endDate;
+
+  switch (filter) {
+    case 'currentMonth': // Mês atual
+      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = today;
+      break;
+
+    case 'lastMonth': // Mês anterior
+      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+      endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+      break;
+
+    case 'last30Days': // Últimos 30 dias
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 30);
+      endDate = today;
+      break;
+
+    case 'last15Days': // Últimos 15 dias
+    default:
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() - 15);
+      endDate = today;
+      break;
+  }
+
+  setDataInicial(formatDate(startDate));
+  setDataFinal(formatDate(endDate));
+};
+
+
+
 
   const exitFullScreen = () => {
     if (document.fullscreenElement) {
@@ -111,42 +179,10 @@ const Dashboard = () => {
       filteredData = filteredData.filter((item) => item.remetente === selectedRemetente);
     }
   
-    // Aplicar filtro de data
-    filteredData = filterDataByDate(filteredData);
-  
     return filteredData;
   };
   
-  const filterDataByDate = (data) => {
-  const today = new Date();
-  let startDate;
-
-  switch (selectedDateFilter) {
-    case 'currentMonth': // Mês atual
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      break;
-
-    case 'lastMonth': // Mês passado
-      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      break;
-
-    case 'last30Days': // Últimos 30 dias
-      startDate = new Date(today);
-      startDate.setDate(today.getDate() - 30);
-      break;
-
-    case 'last15Days': // Últimos 15 dias
-    default:
-      startDate = new Date(today);
-      startDate.setDate(today.getDate() - 15);
-      break;
-  }
-
-  return data.filter((item) => {
-    const itemDate = parseDate(item.data_emissao); // Função já existente
-    return itemDate >= startDate && itemDate <= today;
-  });
-};
+  
 
   const filterDataByStatus = (filteredData, status) => {
     const today = new Date();
@@ -239,9 +275,7 @@ const Dashboard = () => {
   }, []);
   
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+
 
   const toggleDropdown = (remetente) => {
     setDropdownOpen((prev) => ({
@@ -352,29 +386,30 @@ const Dashboard = () => {
     ))}
 </select>
 <label>Filtrar por data:</label>
-<select
-  value={selectedDateFilter}
-  onChange={(e) => setSelectedDateFilter(e.target.value)}
-  style={{
-    margin: '10px',
-    padding: '8px',
-    borderRadius: '5px',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    color: '#fff',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    outline: 'none',
-    cursor: 'pointer',
-    fontSize: '14px',
-    appearance: 'none',
-    WebkitAppearance: 'none',
-    MozAppearance: 'none',
-  }}
->
-  <option value="currentMonth">Mês Atual</option>
-  <option value="lastMonth">Mês Passado</option>
-  <option value="last30Days">Últimos 30 Dias</option>
-  <option value="last15Days">Últimos 15 Dias</option>
-</select>
+<label>Filtrar por data:</label>
+            <select
+              value={selectedDateFilter}
+              onChange={(e) => handleDateFilterChange(e.target.value)}
+              style={{
+                margin: '10px',
+                padding: '8px',
+                borderRadius: '5px',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                color: '#fff',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                outline: 'none',
+                cursor: 'pointer',
+                fontSize: '14px',
+                appearance: 'none',
+                WebkitAppearance: 'none',
+                MozAppearance: 'none',
+              }}
+            >
+              <option value="currentMonth">Mês Atual</option>
+              <option value="lastMonth">Mês Passado</option>
+              <option value="last30Days">Últimos 30 Dias</option>
+              <option value="last15Days">Últimos 15 Dias</option>
+            </select>
 <Col md="12" style={{ textAlign: "right", marginBottom: "10px" }}>
 <button
   onClick={handleFullScreen}
