@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Atualize as URLs para HTTPS
-const API_AUTH_URL = 'https://cloud.escalasoft.com.br:8051/escalasoft/authorization';
-const API_INDICE_URL = 'https://cloud.escalasoft.com.br:8051/escalasoft/operacional/painel/IndiceAtendimentoPraca';
+const API_AUTH_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/authorization';
+const API_INDICE_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/painel/IndiceAtendimentoPraca';
 
 let token = null;
 let tokenExpiration = null;
