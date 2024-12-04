@@ -385,8 +385,7 @@ const handleDateFilterChange = (filter) => {
       </option>
     ))}
 </select>
-<label>Filtrar por data:</label>
-<label>Filtrar por data:</label>
+<label> Filtrar por data:</label>
             <select
               value={selectedDateFilter}
               onChange={(e) => handleDateFilterChange(e.target.value)}
