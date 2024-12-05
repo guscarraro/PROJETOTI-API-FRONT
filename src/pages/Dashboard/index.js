@@ -26,21 +26,51 @@ const Dashboard = () => {
   const prevDataInicial = useRef(dataInicial);
   const prevDataFinal = useRef(dataFinal);
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [updating, setUpdating] = useState(false); // Indica atualização silenciosa
+  const reconnectInterval = useRef(null);
 
 
 
-  const fetchData = async () => {
-    setLoading(true);
+
+  const fetchData = async (silentUpdate = false) => {
+    if (!silentUpdate) setLoading(true);
+    setUpdating(silentUpdate); // Atualiza o estado de "atualização silenciosa"
+  
     try {
-     console.log(dataInicial, dataFinal)
+      console.log(dataInicial, dataFinal);
       const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
-      setData(indiceData);
+      setData(indiceData); // Atualiza os dados com sucesso
+  
+      // Se o intervalo de reconexão estiver ativo, limpa-o após o sucesso
+      if (reconnectInterval.current) {
+        clearInterval(reconnectInterval.current);
+        reconnectInterval.current = null;
+      }
     } catch (error) {
       console.error('Erro ao carregar os dados:', error.message);
+  
+      // Configura o intervalo de reconexão para tentar novamente a cada 1 minuto
+      if (!reconnectInterval.current) {
+        reconnectInterval.current = setInterval(async () => {
+          console.log("Tentando reconectar...");
+          try {
+            const retryData = await loadIndiceAtendimento(dataInicial, dataFinal);
+            setData(retryData); // Atualiza os dados com sucesso na reconexão
+  
+            // Limpa o intervalo após a reconexão bem-sucedida
+            clearInterval(reconnectInterval.current);
+            reconnectInterval.current = null;
+          } catch (retryError) {
+            console.error("Nova tentativa falhou:", retryError.message);
+          }
+        }, 60000); // 1 minuto
+      }
     } finally {
-      setLoading(false);
+      if (!silentUpdate) setLoading(false);
+      setUpdating(false);
     }
   };
+  
   useEffect(() => {
     const today = new Date();
     const startDate = new Date(today);
@@ -49,6 +79,7 @@ const Dashboard = () => {
     setDataInicial(formatDate(startDate));
     setDataFinal(formatDate(today));
   }, []);
+  
   
 
   // Atualiza os dados quando `dataInicial` ou `dataFinal` são alterados
@@ -66,6 +97,23 @@ const Dashboard = () => {
   }, [dataInicial, dataFinal]);
 
   
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchData(true); // Atualiza silenciosamente
+    }, 20 * 60000); // 20 minutos
+  
+    return () => {
+      clearInterval(interval); // Limpa o intervalo ao desmontar o componente
+    };
+  }, []);
+  
+  useEffect(() => {
+    return () => {
+      if (reconnectInterval.current) {
+        clearInterval(reconnectInterval.current);
+      }
+    };
+  }, []);
 
 const handleDateFilterChange = (filter) => {
   setSelectedDateFilter(filter);

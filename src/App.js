@@ -5,6 +5,7 @@ import AdminNavbar from './components/AdminNavbar'; // Importa a Navbar do Admin
 import Dashboard from './pages/Dashboard';
 import CicloPedido from './pages/CicloPedido';
 import ProjetoFrota from './pages/ProjetoFrota';
+import Fiscal from './pages/Fiscal';
 import TesteApi from './pages/TesteApi';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -53,7 +54,7 @@ const App = () => {
     path="/Financeiro"
     element={
       <PrivateRoute
-        element={<Dashboard />}
+        element={<Fiscal />}
         allowedSectors={['37edd156-ba95-4864-8247-642ff20d8587']}
       />
     }
