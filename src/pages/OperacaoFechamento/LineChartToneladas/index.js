@@ -13,59 +13,74 @@ import {
 // Função para formatar toneladas
 const formatToneladas = (value) => `${value.toFixed(2)}t`;
 
-// Função para gerar todas as datas do mês de outubro
-const generateOctoberDates = () => {
-  const dates = [];
-  const start = new Date(2024, 9, 1); // Outubro começa no índice 9
-  const end = new Date(2024, 9, 31);
-
-  while (start <= end) {
-    dates.push(start.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }));
-    start.setDate(start.getDate() + 1);
-  }
-
-  return dates;
-};
+// Função para gerar os dias do mês
+const generateDays = () => Array.from({ length: 31 }, (_, i) => (i + 1).toString());
 
 // Componente LineChartToneladas
-const LineChartToneladas = ({ data, selectedTomadores }) => {
-  const processLineChartData = (data, selectedTomadores) => {
-    const allDates = generateOctoberDates();
+const LineChartToneladas = ({ data, selectedTomadores, selectedMonths }) => {
+  const processLineChartData = (data, selectedTomadores, selectedMonths) => {
+    const days = generateDays();
     const grouped = {};
 
-    // Filtrar apenas coletas no mês de outubro e pelos tomadores selecionados
+    // Filtrar dados com base em meses e tomadores selecionados
     const filteredData = data.filter((item) => {
-      const date = new Date(item.coletado_em);
-      const isInOctober = date.getMonth() === 9 && date.getFullYear() === 2024;
-      const isSelectedTomador =
+      const [year, month, day] = item.emissao.split("-");
+      const itemMonth = `${year}-${month}`;
+      const isMonthSelected =
+        selectedMonths.length === 0 || selectedMonths.includes(itemMonth);
+      const isTomadorSelected =
         selectedTomadores.length === 0 ||
         selectedTomadores.includes(item.tomador_servico);
-      return isInOctober && isSelectedTomador;
+
+      return isMonthSelected && isTomadorSelected;
     });
 
-    // Agrupando os dados por tomador e data
-    filteredData.forEach((item) => {
-      const date = new Date(item.coletado_em).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
+    // Agrupar os dados por mês e dia (se nenhum tomador for selecionado)
+    if (selectedTomadores.length === 0) {
+      filteredData.forEach((item) => {
+        const [year, month, day] = item.emissao.split("-");
+        const dayNumber = parseInt(day, 10);
+        const monthLabel = `${month}/${year}`;
+        const lineKey = `Total (${monthLabel})`;
+
+        if (!grouped[lineKey]) {
+          grouped[lineKey] = {};
+        }
+
+        if (!grouped[lineKey][dayNumber]) {
+          grouped[lineKey][dayNumber] = 0;
+        }
+
+        grouped[lineKey][dayNumber] += item.peso || 0;
       });
-      const tomador = selectedTomadores.length > 0 ? item.tomador_servico : "Total Geral";
+    } else {
+      // Agrupar os dados por tomador, mês e dia (quando tomadores são selecionados)
+      filteredData.forEach((item) => {
+        const [year, month, day] = item.emissao.split("-");
+        const dayNumber = parseInt(day, 10);
+        const monthLabel = `${month}/${year}`;
+        const tomador = item.tomador_servico || "Total Geral";
+        const lineKey = `${tomador} (${monthLabel})`;
 
-      if (!grouped[tomador]) {
-        grouped[tomador] = {};
-      }
-      if (!grouped[tomador][date]) {
-        grouped[tomador][date] = 0;
-      }
-      grouped[tomador][date] += item.peso || 0;
-    });
+        if (!grouped[lineKey]) {
+          grouped[lineKey] = {};
+        }
+
+        if (!grouped[lineKey][dayNumber]) {
+          grouped[lineKey][dayNumber] = 0;
+        }
+
+        grouped[lineKey][dayNumber] += item.peso || 0;
+      });
+    }
 
     // Gerar os dados finais para o gráfico
-    const finalData = allDates.map((date) => {
-      const entry = { date };
+    const finalData = days.map((day) => {
+      const dayNumber = parseInt(day, 10);
+      const entry = { day };
 
-      Object.keys(grouped).forEach((tomador) => {
-        entry[tomador] = (grouped[tomador][date] || 0) / 1000; // Convertendo para toneladas
+      Object.keys(grouped).forEach((lineKey) => {
+        entry[lineKey] = (grouped[lineKey][dayNumber] || 0) / 1000; // Convertendo para toneladas
       });
 
       return entry;
@@ -74,20 +89,25 @@ const LineChartToneladas = ({ data, selectedTomadores }) => {
     return finalData;
   };
 
-  const lineChartData = processLineChartData(data, selectedTomadores);
+  const lineChartData = processLineChartData(data, selectedTomadores, selectedMonths);
 
-  const tomadoresKeys = selectedTomadores.length > 0
-    ? selectedTomadores
-    : ["Total Geral"];
+  // Obter todas as combinações de linhas (mês ou tomador + mês)
+  const lineKeys = Object.keys(lineChartData[0] || {}).filter((key) => key !== "day");
 
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={lineChartData}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
-          dataKey="date"
+          dataKey="day"
           tick={{ fontSize: 12, fill: "#fff" }}
           interval={0} // Exibir todos os rótulos
+          label={{
+            value: "Dias do Mês",
+            position: "insideBottom",
+            offset: -5,
+            fill: "#fff",
+          }}
         />
         <YAxis
           tickFormatter={(value) => formatToneladas(value)}
@@ -101,14 +121,16 @@ const LineChartToneladas = ({ data, selectedTomadores }) => {
           }}
         />
         <Tooltip formatter={(value) => [`${value.toFixed(2)}t`, "Toneladas"]} />
-        {selectedTomadores.length > 0 && <Legend />} {/* Mostrar a legenda apenas com seleção */}
-        {tomadoresKeys.map((tomador, index) => (
+        {(lineKeys.length > 0) && (
+  <Legend />
+)} {/* Mostrar a legenda apenas se tomadores forem selecionados */}
+        {lineKeys.map((lineKey, index) => (
           <Line
-            key={tomador}
+            key={lineKey}
             type="monotone"
-            dataKey={tomador}
-            name={tomador}
-            stroke={`hsl(${(index * 360) / tomadoresKeys.length}, 70%, 50%)`}
+            dataKey={lineKey}
+            name={lineKey} // Nome formatado (Tomador + Mês ou Total Geral)
+            stroke={`hsl(${(index * 360) / lineKeys.length}, 70%, 50%)`}
             activeDot={{ r: 8 }}
           />
         ))}

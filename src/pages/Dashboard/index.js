@@ -100,7 +100,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData(true); // Atualiza silenciosamente
-    }, 20 * 60000); // 20 minutos
+    }, 5 * 60000); // 20 minutos
   
     return () => {
       clearInterval(interval); // Limpa o intervalo ao desmontar o componente

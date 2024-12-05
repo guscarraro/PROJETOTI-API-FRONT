@@ -5,8 +5,7 @@ import {
   Row,
   Col,
 } from "reactstrap";
-import { FaBoxes } from "react-icons/fa";
-import { MdDoneOutline, MdCancel } from "react-icons/md";
+import { MdDoneOutline } from "react-icons/md";
 import {
   Box,
   LoadingContainer,
@@ -26,11 +25,24 @@ const OperacaoFechamento = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTomadores, setSelectedTomadores] = useState([]); // Armazena os tomadores selecionados
+  const [selectedMonths, setSelectedMonths] = useState([]); // Armazena os meses selecionados
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const monthOptions = [
+    { value: "2024-01", label: "Janeiro 2024" },
+    { value: "2024-02", label: "Fevereiro 2024" },
+    { value: "2024-03", label: "Março 2024" },
+    { value: "2024-04", label: "Abril 2024" },
+    { value: "2024-05", label: "Maio 2024" },
+    { value: "2024-06", label: "Junho 2024" },
+    { value: "2024-07", label: "Julho 2024" },
+    { value: "2024-08", label: "Agosto 2024" },
+    { value: "2024-09", label: "Setembro 2024" },
+    { value: "2024-10", label: "Outubro 2024" },
+    { value: "2024-11", label: "Novembro 2024" },
+    { value: "2024-12", label: "Dezembro 2024" },
+  ];
 
+  // Função para buscar dados
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -46,17 +58,30 @@ const OperacaoFechamento = () => {
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   // Filtro baseado nos tomadores selecionados
-  const filteredData = data.filter(
-    (item) =>
+  const filteredData = data.filter((item) => {
+    const itemMonth = item.emissao.split("-").slice(0, 2).join("-");
+    const isMonthSelected =
+      selectedMonths.length === 0 ||
+      selectedMonths.some((month) => month.value === itemMonth);
+    const isTomadorSelected =
+      selectedTomadores.length === 0 ||
+      selectedTomadores.some((t) => t.value === item.tomador_servico);
+
+    return (
       item.status === "Encerrado" &&
       item.tipo_servico === "Normal" &&
-      (selectedTomadores.length === 0 || 
-        selectedTomadores.some((t) => t.value === item.tomador_servico))
-  );
+      isMonthSelected &&
+      isTomadorSelected
+    );
+  });
 
   const tomadorOptions = [
-    ...new Set(data.map((item) => item.tomador_servico))
+    ...new Set(data.map((item) => item.tomador_servico)),
   ].map((tomador) => ({
     value: tomador,
     label: formatTomadorName(tomador),
@@ -85,45 +110,51 @@ const OperacaoFechamento = () => {
     .sort((a, b) => b.totalPeso - a.totalPeso)
     .slice(0, 10);
 
-    const totalsByStatus = (status) => {
-      const filtered = data.filter(
-        (item) =>
-          item.status === status &&
-          item.tipo_servico === "Normal" &&
-          (selectedTomadores.length === 0 ||
-            selectedTomadores.some((t) => t.value === item.tomador_servico))
+  const totalsByStatus = (status) => {
+    const filtered = data.filter((item) => {
+      const itemMonth = item.emissao.split("-").slice(0, 2).join("-");
+      const isMonthSelected =
+        selectedMonths.length === 0 ||
+        selectedMonths.some((month) => month.value === itemMonth);
+
+      return (
+        item.status === status &&
+        item.tipo_servico === "Normal" &&
+        isMonthSelected &&
+        (selectedTomadores.length === 0 ||
+          selectedTomadores.some((t) => t.value === item.tomador_servico))
       );
-    
-      const grouped = filtered.reduce(
-        (totals, item) => {
-          totals.valorBruto += item.valor_bruto || 0;
-          totals.valorMercadoria += item.valor_mercadoria || 0;
-          const key = item.fil_dest || "Não especificado";
-          if (!totals.pieData[key]) totals.pieData[key] = 0;
-          totals.pieData[key] += item.valor_bruto || 0;
-          return totals;
-        },
-        { valorBruto: 0, valorMercadoria: 0, pieData: {} }
-      );
-    
-      const barData = Object.entries(grouped.pieData).map(([key, value]) => ({
-        name: key,
-        value,
-      }));
-    
-      const percentages = barData.map(({ name, value }) => ({
-        name,
-        percent: grouped.valorBruto > 0 ? (value / grouped.valorBruto) * 100 : 0,
-      }));
-    
-      return {
-        valorBruto: grouped.valorBruto,
-        valorMercadoria: grouped.valorMercadoria,
-        barData,
-        percentages,
-      };
+    });
+
+    const grouped = filtered.reduce(
+      (totals, item) => {
+        totals.valorBruto += item.valor_bruto || 0;
+        totals.valorMercadoria += item.valor_mercadoria || 0;
+        const key = item.fil_dest || "Não especificado";
+        if (!totals.pieData[key]) totals.pieData[key] = 0;
+        totals.pieData[key] += item.valor_bruto || 0;
+        return totals;
+      },
+      { valorBruto: 0, valorMercadoria: 0, pieData: {} }
+    );
+
+    const barData = Object.entries(grouped.pieData).map(([key, value]) => ({
+      name: key,
+      value,
+    }));
+
+    const percentages = barData.map(({ name, value }) => ({
+      name,
+      percent: grouped.valorBruto > 0 ? (value / grouped.valorBruto) * 100 : 0,
+    }));
+
+    return {
+      valorBruto: grouped.valorBruto,
+      valorMercadoria: grouped.valorMercadoria,
+      barData,
+      percentages,
     };
-    
+  };
 
   const totalsEncerrado = totalsByStatus("Encerrado");
 
@@ -137,19 +168,27 @@ const OperacaoFechamento = () => {
           </LoadingContainer>
         ) : (
           <>
-            <Row >
-  <Col md="4">
-  <StyledSelect
-      isMulti
-      options={tomadorOptions}
-      placeholder="Selecione os tomadores..."
-      onChange={setSelectedTomadores}
-      value={selectedTomadores}
-      style={{padding:0}}
-    />
-  </Col>
-</Row>
-
+            <Row>
+              <Col md="4">
+                <StyledSelect
+                  isMulti
+                  options={tomadorOptions}
+                  placeholder="Selecione os tomadores..."
+                  onChange={setSelectedTomadores}
+                  value={selectedTomadores}
+                  style={{ padding: 0 }}
+                />
+              </Col>
+              <Col md="4">
+                <StyledSelect
+                  isMulti
+                  options={monthOptions}
+                  placeholder="Selecione os meses..."
+                  onChange={setSelectedMonths}
+                  value={selectedMonths}
+                />
+              </Col>
+            </Row>
 
             <Row style={{ marginTop: 40 }}>
               <Col md="4">
@@ -167,11 +206,11 @@ const OperacaoFechamento = () => {
                 />
               </Col>
               <Col md="8">
-              <FilialChart
-                barData={totalsEncerrado.barData}
-                percentages={totalsEncerrado.percentages}
-              />
-            </Col>
+                <FilialChart
+                  barData={totalsEncerrado.barData}
+                  percentages={totalsEncerrado.percentages}
+                />
+              </Col>
             </Row>
 
             <Row>
@@ -179,10 +218,10 @@ const OperacaoFechamento = () => {
                 <Box>
                   <h5>Toneladas Carregadas por Dia</h5>
                   <LineChartToneladas
-  data={filteredData}
-  selectedTomadores={selectedTomadores.map((t) => t.value)}
-/>
-
+                    data={filteredData}
+                    selectedTomadores={selectedTomadores.map((t) => t.value)}
+                    selectedMonths={selectedMonths.map((m) => m.value)}
+                  />
                 </Box>
               </Col>
             </Row>
