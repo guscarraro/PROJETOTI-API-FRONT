@@ -4,6 +4,12 @@ export const loadIndiceAtendimento = async (dataInicial, dataFinal) => {
   try {
     const data = await fetchIndiceAtendimento(dataInicial, dataFinal);
 
+    // Retorna o array processado ou vazio (se a API retornar algo inválido)
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      console.warn('Nenhum dado válido foi retornado do endpoint.');
+      return [];
+    }
+
     return data.map((item) => ({
       data_emissao: item.dataEmissao,
       CTE: item.numeroDocTransporte,
@@ -26,6 +32,6 @@ export const loadIndiceAtendimento = async (dataInicial, dataFinal) => {
     }));
   } catch (error) {
     console.error('Erro ao carregar índice de atendimento:', error.message);
-    throw error;
+    throw error; // Deixa o erro ser tratado no nível superior
   }
 };

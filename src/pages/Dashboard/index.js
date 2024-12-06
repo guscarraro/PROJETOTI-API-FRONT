@@ -34,14 +34,23 @@ const Dashboard = () => {
 
   const fetchData = async (silentUpdate = false) => {
     if (!silentUpdate) setLoading(true);
-    setUpdating(silentUpdate); // Atualiza o estado de "atualização silenciosa"
+    setUpdating(silentUpdate);
   
     try {
       console.log(dataInicial, dataFinal);
-      const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
-      setData(indiceData); // Atualiza os dados com sucesso
   
-      // Se o intervalo de reconexão estiver ativo, limpa-o após o sucesso
+      // Chamada ao endpoint
+      const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
+  
+      // Garante que só atualiza se os dados retornados não forem vazios
+      if (indiceData && indiceData.length > 0) {
+        setData(indiceData); // Atualiza com os novos dados
+        console.log('Dados atualizados com sucesso');
+      } else {
+        console.warn('Dados retornados estão vazios. Mantendo os dados atuais.');
+      }
+  
+      // Se reconexão estava ativa, limpa-a após sucesso
       if (reconnectInterval.current) {
         clearInterval(reconnectInterval.current);
         reconnectInterval.current = null;
@@ -49,19 +58,24 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Erro ao carregar os dados:', error.message);
   
-      // Configura o intervalo de reconexão para tentar novamente a cada 1 minuto
+      // Configura o intervalo de reconexão
       if (!reconnectInterval.current) {
         reconnectInterval.current = setInterval(async () => {
-          console.log("Tentando reconectar...");
+          console.log('Tentando reconectar...');
           try {
             const retryData = await loadIndiceAtendimento(dataInicial, dataFinal);
-            setData(retryData); // Atualiza os dados com sucesso na reconexão
   
-            // Limpa o intervalo após a reconexão bem-sucedida
-            clearInterval(reconnectInterval.current);
-            reconnectInterval.current = null;
+            // Atualiza apenas se os dados forem válidos e não vazios
+            if (retryData && retryData.length > 0) {
+              setData(retryData);
+              console.log('Reconexão bem-sucedida. Dados atualizados.');
+              clearInterval(reconnectInterval.current); // Limpa após sucesso
+              reconnectInterval.current = null;
+            } else {
+              console.warn('Reconexão falhou ou os dados retornados estão vazios.');
+            }
           } catch (retryError) {
-            console.error("Nova tentativa falhou:", retryError.message);
+            console.error('Nova tentativa falhou:', retryError.message);
           }
         }, 60000); // 1 minuto
       }
@@ -70,6 +84,7 @@ const Dashboard = () => {
       setUpdating(false);
     }
   };
+  
   
   useEffect(() => {
     const today = new Date();
@@ -100,7 +115,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData(true); // Atualiza silenciosamente
-    }, 5 * 60000); // 20 minutos
+    }, 2 * 60000); // 20 minutos
   
     return () => {
       clearInterval(interval); // Limpa o intervalo ao desmontar o componente
