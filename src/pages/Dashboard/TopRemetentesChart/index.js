@@ -153,10 +153,10 @@ const TopRemetentesChart = ({ data }) => {
   return (
     <>
       <h5>Top 7 Clientes com maior atraso</h5>
-      <ResponsiveContainer width="100%" height={330}>
+      <ResponsiveContainer width="100%" height={350}>
         <BarChart
           data={topRemetentes}
-          margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+          margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
           onClick={(e) => {
             if (e && e.activePayload && e.activePayload.length) {
               const remetenteData = e.activePayload[0].payload;
@@ -166,7 +166,7 @@ const TopRemetentesChart = ({ data }) => {
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="remetente" interval={0} style={{ fontSize: 12}} tick={{ fill: '#fff' }} />
-          <YAxis />
+          <YAxis style={{ fontSize: 15, fill:'#fff'}}/>
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="count" fill="#FF4500" />
         </BarChart>

@@ -81,11 +81,11 @@ const DailyDeliveryChartByPraça = ({ data, dataInicial, dataFinal }) => {
   return (
     <>
       <h5>Entregas Atrasadas por Praça</h5>
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={420}>
         <LineChart data={praçaDeliveryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" interval={0} tickFormatter={(value) => value} style={{ fontSize: 15 }} />
-          <YAxis />
+          <XAxis dataKey="date" interval={0} tickFormatter={(value) => value} style={{ fontSize: 15, fill:'#fff'}} />
+          <YAxis style={{ fontSize: 15, fill:'#fff'}}/>
           <Tooltip />
           <Legend />
           {Object.keys(praçaDeliveryData[0] || {})
