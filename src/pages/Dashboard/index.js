@@ -12,6 +12,7 @@ import TelevisaoLayout from './TelevisaoLayout';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
 import { loadIndiceAtendimento } from '../../services/indiceService';
 import { formatDate } from '../../helpers';
+import { getAuthToken } from '../../services/api';
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -34,54 +35,31 @@ const Dashboard = () => {
 
   const fetchData = async (silentUpdate = false) => {
     if (!silentUpdate) setLoading(true);
-    setUpdating(silentUpdate);
-  
+
     try {
-      console.log(dataInicial, dataFinal);
-  
-      // Chamada ao endpoint
-      const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
-  
-      // Garante que só atualiza se os dados retornados não forem vazios
-      if (indiceData && indiceData.length > 0) {
-        setData(indiceData); // Atualiza com os novos dados
-        console.log('Dados atualizados com sucesso');
-      } else {
-        console.warn('Dados retornados estão vazios. Mantendo os dados atuais.');
-      }
-  
-      // Se reconexão estava ativa, limpa-a após sucesso
-      if (reconnectInterval.current) {
-        clearInterval(reconnectInterval.current);
-        reconnectInterval.current = null;
+      console.log('Fetching data for:', dataInicial, dataFinal);
+
+      // Verifique se o token está prestes a expirar ou é inválido, e renove se necessário
+      const validToken = await getAuthToken();
+
+      if (validToken) {
+        // Chama a API com o token válido
+        const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
+
+        // Garante que só atualiza se os dados retornados não forem vazios
+        if (indiceData && indiceData.length > 0) {
+          setData(indiceData); // Atualiza com os novos dados
+          console.log('Dados atualizados com sucesso');
+        } else {
+          console.warn('Dados retornados estão vazios. Mantendo os dados atuais.');
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar os dados:', error.message);
-  
-      // Configura o intervalo de reconexão
-      if (!reconnectInterval.current) {
-        reconnectInterval.current = setInterval(async () => {
-          console.log('Tentando reconectar...');
-          try {
-            const retryData = await loadIndiceAtendimento(dataInicial, dataFinal);
-  
-            // Atualiza apenas se os dados forem válidos e não vazios
-            if (retryData && retryData.length > 0) {
-              setData(retryData);
-              console.log('Reconexão bem-sucedida. Dados atualizados.');
-              clearInterval(reconnectInterval.current); // Limpa após sucesso
-              reconnectInterval.current = null;
-            } else {
-              console.warn('Reconexão falhou ou os dados retornados estão vazios.');
-            }
-          } catch (retryError) {
-            console.error('Nova tentativa falhou:', retryError.message);
-          }
-        }, 60000); // 1 minuto
-      }
+      // Caso haja erro, mantemos os dados antigos
+      console.warn('Falha na atualização. Mantendo dados antigos.');
     } finally {
       if (!silentUpdate) setLoading(false);
-      setUpdating(false);
     }
   };
   
@@ -114,13 +92,14 @@ const Dashboard = () => {
   
   useEffect(() => {
     const interval = setInterval(() => {
-      fetchData(true); // Atualiza silenciosamente
-    }, 2 * 60000); // 20 minutos
+      fetchData(true); // Atualiza silenciosamente a cada 20 minutos
+    }, 1 * 60000); // 20 minutos em milissegundos
   
+    // Limpa o intervalo quando o componente desmontar ou as dependências mudarem
     return () => {
-      clearInterval(interval); // Limpa o intervalo ao desmontar o componente
+      clearInterval(interval); // Limpa o intervalo
     };
-  }, []);
+  }, [dataInicial, dataFinal]); // Adicionando dataInicial e dataFinal como dependências
   
   useEffect(() => {
     return () => {
@@ -130,39 +109,39 @@ const Dashboard = () => {
     };
   }, []);
 
-const handleDateFilterChange = (filter) => {
-  setSelectedDateFilter(filter);
-  const today = new Date();
-  let startDate, endDate;
+  const handleDateFilterChange = (filter) => {
+    setSelectedDateFilter(filter);
+    const today = new Date();
+    let startDate, endDate;
 
-  switch (filter) {
-    case 'currentMonth': // Mês atual
-      startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = today;
-      break;
+    switch (filter) {
+      case 'currentMonth': // Mês atual
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = today;
+        break;
 
-    case 'lastMonth': // Mês anterior
-      startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-      endDate = new Date(today.getFullYear(), today.getMonth(), 0);
-      break;
+      case 'lastMonth': // Mês anterior
+        startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+        break;
 
-    case 'last30Days': // Últimos 30 dias
-      startDate = new Date(today);
-      startDate.setDate(today.getDate() - 30);
-      endDate = today;
-      break;
+      case 'last30Days': // Últimos 30 dias
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 30);
+        endDate = today;
+        break;
 
-    case 'last15Days': // Últimos 15 dias
-    default:
-      startDate = new Date(today);
-      startDate.setDate(today.getDate() - 15);
-      endDate = today;
-      break;
-  }
+      case 'last15Days': // Últimos 15 dias
+      default:
+        startDate = new Date(today);
+        startDate.setDate(today.getDate() - 15);
+        endDate = today;
+        break;
+    }
 
-  setDataInicial(formatDate(startDate));
-  setDataFinal(formatDate(endDate));
-};
+    setDataInicial(formatDate(startDate));
+    setDataFinal(formatDate(endDate));
+  };
 
 
 
@@ -251,6 +230,7 @@ const handleDateFilterChange = (filter) => {
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
     const endOfToday = new Date(today.setHours(23, 59, 59, 999)).getTime();
+    
   
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
@@ -336,6 +316,24 @@ const handleDateFilterChange = (filter) => {
       document.removeEventListener("fullscreenchange", handleFullScreenChange);
     };
   }, []);
+  useEffect(() => {
+    // Só inicia o intervalo de atualização automática se estiver no modo fullscreen
+    if (isFullScreen) {
+      const interval = setInterval(() => {
+        fetchData(true); // Atualiza silenciosamente a cada 20 minutos
+      }, 5 * 60000); // 20 minutos em milissegundos
+  
+      // Limpa o intervalo quando o componente desmontar ou a tela sair do modo fullscreen
+      return () => {
+        clearInterval(interval); // Limpa o intervalo
+      };
+    }
+  
+    // Caso não esteja em fullscreen, não faz nada.
+    return () => {};
+  }, [isFullScreen]); // O efeito depende do estado de fullscreen
+  
+  
   
 
 
@@ -359,7 +357,7 @@ const handleDateFilterChange = (filter) => {
     <div className="boxGeneral">
       {isFullScreen ? (
         <>
-  <TelevisaoLayout data={filteredData} />
+  <TelevisaoLayout data={filteredData} dataFinal={dataFinal} dataInicial={dataInicial}/>
   <button
     onClick={toggleFullScreen}
     style={{
@@ -518,7 +516,7 @@ const handleDateFilterChange = (filter) => {
                 </Col>
                 <Col md="12">
                   <Box>
-                    <DailyDeliveryChart data={filteredData} />
+                    <DailyDeliveryChart data={filteredData} dataFinal={dataFinal} dataInicial={dataInicial}/>
                   </Box>
                 </Col>
               </Row>

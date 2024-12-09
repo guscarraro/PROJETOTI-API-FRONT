@@ -165,7 +165,7 @@ const TopRemetentesChart = ({ data }) => {
           }}
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="remetente" interval={0} style={{ fontSize: 10 }} tick={{ fill: '#fff' }} />
+          <XAxis dataKey="remetente" interval={0} style={{ fontSize: 12}} tick={{ fill: '#fff' }} />
           <YAxis />
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="count" fill="#FF4500" />

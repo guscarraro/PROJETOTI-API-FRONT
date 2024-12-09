@@ -4,7 +4,7 @@ import ServiceLevelChart from "../ServiceLevelChart";
 import TopRemetentesChart from "../TopRemetentesChart";
 import DailyDeliveryChartByPraça from "../DailyDeliveryChart";
 
-const TelevisaoLayout = ({ data }) => {
+const TelevisaoLayout = ({ data,dataFinal,dataInicial  }) => {
   const [currentChart, setCurrentChart] = useState(0); // 0 para ServiceLevelChart, 1 para outros gráficos
 
   useEffect(() => {
@@ -16,7 +16,7 @@ const TelevisaoLayout = ({ data }) => {
   }, []);
 
   return (
-    <div style={{ width: "95%", height: "95%",  color: "#fff" }}>
+    <div style={{ width: "99%", height: "99%",  color: "#fff" }}>
       {currentChart === 0 ? (
         <div style={{ padding: "20px" }}>
           <Box>
@@ -29,7 +29,7 @@ const TelevisaoLayout = ({ data }) => {
             <TopRemetentesChart data={data} />
           </Box>
           <Box>
-            <DailyDeliveryChartByPraça data={data} />
+            <DailyDeliveryChartByPraça data={data} dataFinal={dataFinal} dataInicial={dataInicial}/>
           </Box>
         </div>
       )}

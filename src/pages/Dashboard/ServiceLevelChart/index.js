@@ -143,12 +143,12 @@ const ServiceLevelChart = ({ data }) => {
           <Legend verticalAlign="bottom" height={36} />
         </PieChart>
       </ResponsiveContainer>
-      <h5>Nível de Serviço por Praça</h5>
+      {/* <h5>Nível de Serviço por Praça</h5> */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-around' }}>
         {serviceLevelByPraça.map((praçaData, index) => (
           <div key={index} style={{ width: '300px', marginBottom: '20px', textAlign: 'center' }}>
-            <h6>{praçaData.praça}</h6>
-            <p style={{ margin: 0, fontWeight: 'bold', color: '#00FF7F' }}>
+            <h6  style={{  fontSize:'20px' ,fontWeight: 'bold'}}>{praçaData.praça}</h6>
+            <p style={{ margin: 0, fontWeight: 'bold', color: '#00FF7F', fontSize:'20px' }}>
               {praçaData.level} %
             </p>
             <ResponsiveContainer width="100%" height={200}>
