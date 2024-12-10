@@ -80,7 +80,7 @@ const DailyDeliveryChartByPraça = ({ data, dataInicial, dataFinal }) => {
 
   return (
     <>
-      <h5>Entregas Atrasadas por Praça</h5>
+      <h5>Notas Atrasadas por Praça</h5>
       <ResponsiveContainer width="100%" height={420}>
         <LineChart data={praçaDeliveryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
