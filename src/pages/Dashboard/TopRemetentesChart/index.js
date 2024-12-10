@@ -143,6 +143,22 @@ const TopRemetentesChart = ({ data }) => {
 
     document.body.removeChild(tempDiv);
   };
+  const colors = [
+    '#FF4500', // Laranja bem escuro
+    '#FF5400', // Laranja intenso
+    '#FF6500', // Laranja intermediário
+    '#FF7500', // Laranja médio
+    '#FF8500', // Laranja um pouco mais claro
+    '#FF9400', // Laranja claro médio
+    '#FF9900', // Laranja claro médio
+  ];
+  
+  
+  
+  
+  const getBarColor = (index) => {
+    return colors[index % colors.length]; // Retorna uma cor com base no índice
+  };
 
   useEffect(() => {
     if (data.length > 0) {
@@ -154,22 +170,60 @@ const TopRemetentesChart = ({ data }) => {
     <>
       <h5>Top 7 Clientes com maior atraso</h5>
       <ResponsiveContainer width="100%" height={350}>
-        <BarChart
-          data={topRemetentes}
-          margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-          onClick={(e) => {
-            if (e && e.activePayload && e.activePayload.length) {
-              const remetenteData = e.activePayload[0].payload;
-              toggleModal(remetenteData);
-            }
-          }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="remetente" interval={0} style={{ fontSize: 12}} tick={{ fill: '#fff' }} />
-          <YAxis style={{ fontSize: 15, fill:'#fff'}}/>
-          <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="count" fill="#FF4500" />
-        </BarChart>
+      <BarChart
+  data={topRemetentes}
+  margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
+  onClick={(e) => {
+    if (e && e.activePayload && e.activePayload.length) {
+      const remetenteData = e.activePayload[0].payload;
+      toggleModal(remetenteData);
+    }
+  }}
+>
+  <CartesianGrid strokeDasharray="3 3" />
+  <XAxis
+    dataKey="remetente"
+    interval={0}
+    style={{ fontSize: 16 }}
+    tick={{
+      fill: '#fff',
+      dy: (tick, index) => (index % 2 === 0 ? 0 : 15), // Adiciona margem para itens ímpares
+    }}
+    tickFormatter={(tick, index) => {
+      const maxLength = 15; // Define o tamanho máximo do nome
+      return tick.length > maxLength ? `${tick.substring(0, maxLength)}...` : tick;
+    }}
+  />
+  <YAxis style={{ fontSize: 16, fill: '#fff' }} />
+  <Tooltip content={<CustomTooltip />} />
+  <Bar
+  dataKey="count"
+  label={{
+    position: 'insideTop',
+    fill: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  }}
+  shape={(props) => {
+    const { x, y, width, height, index } = props;
+    const color = getBarColor(index);
+    return (
+      <rect
+        x={x}
+        y={y}
+        width={width}
+        height={height}
+        fill={color}
+        stroke="#000"
+        strokeWidth={1}
+      />
+    );
+  }}
+/>
+
+
+</BarChart>
+
       </ResponsiveContainer>
 
       {modalData && (

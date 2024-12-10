@@ -84,7 +84,7 @@ const DailyDeliveryChartByPraça = ({ data, dataInicial, dataFinal }) => {
       <ResponsiveContainer width="100%" height={420}>
         <LineChart data={praçaDeliveryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" interval={0} tickFormatter={(value) => value} style={{ fontSize: 15, fill:'#fff'}} />
+          <XAxis dataKey="date" interval={0} tickFormatter={(value) => value} style={{ fontSize: 16, fill:'#fff'}} />
           <YAxis style={{ fontSize: 15, fill:'#fff'}}/>
           <Tooltip />
           <Legend />

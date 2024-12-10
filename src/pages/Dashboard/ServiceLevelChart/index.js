@@ -10,7 +10,6 @@ const ServiceLevelChart = ({ data }) => {
     const [day, month, year] = dateString.split('/');
     return new Date(`${year}-${month}-${day}T00:00:00`);
   };
-
   const calculateGeneralServiceLevel = (filteredData) => {
     let totalOnTime = 0;
     let totalLate = 0;
@@ -20,23 +19,19 @@ const ServiceLevelChart = ({ data }) => {
       const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
   
       if (item.cte_entregue === 1 && entregaDate) {
-        const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
-  
-        notas.forEach(() => {
-          if (
-            item.atraso_cliente === 1 || // Culpa do cliente conta como "No Prazo"
-            (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
-          ) {
-            totalOnTime += 1;
-          } else if (
-            entregaDate &&
-            previsaoDate &&
-            entregaDate > previsaoDate &&
-            item.atraso_cliente === 0
-          ) {
-            totalLate += 1;
-          }
-        });
+        if (
+          item.atraso_cliente === 1 || // Culpa do cliente conta como "No Prazo"
+          (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
+        ) {
+          totalOnTime += 1;
+        } else if (
+          entregaDate &&
+          previsaoDate &&
+          entregaDate > previsaoDate &&
+          item.atraso_cliente === 0
+        ) {
+          totalLate += 1;
+        }
       }
     });
   
@@ -48,6 +43,7 @@ const ServiceLevelChart = ({ data }) => {
       level: total > 0 ? ((totalOnTime / total) * 100).toFixed(1) : 0,
     });
   };
+  
   
   
   
@@ -67,23 +63,19 @@ const ServiceLevelChart = ({ data }) => {
           dataByPraça[praça] = { onTime: 0, late: 0 };
         }
   
-        const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
-  
-        notas.forEach(() => {
-          if (
-            item.atraso_cliente === 1 || // Culpa do cliente conta como "No Prazo"
-            (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
-          ) {
-            dataByPraça[praça].onTime += 1;
-          } else if (
-            entregaDate &&
-            previsaoDate &&
-            entregaDate > previsaoDate &&
-            item.atraso_cliente === 0
-          ) {
-            dataByPraça[praça].late += 1;
-          }
-        });
+        if (
+          item.atraso_cliente === 1 || // Culpa do cliente conta como "No Prazo"
+          (entregaDate && previsaoDate && entregaDate <= previsaoDate && item.atraso_cliente === 0)
+        ) {
+          dataByPraça[praça].onTime += 1;
+        } else if (
+          entregaDate &&
+          previsaoDate &&
+          entregaDate > previsaoDate &&
+          item.atraso_cliente === 0
+        ) {
+          dataByPraça[praça].late += 1;
+        }
       }
     });
   
@@ -104,6 +96,7 @@ const ServiceLevelChart = ({ data }) => {
   
     setServiceLevelByPraça(serviceLevelData);
   };
+  
   
   
   

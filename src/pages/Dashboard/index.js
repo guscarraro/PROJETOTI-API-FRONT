@@ -21,7 +21,7 @@ const Dashboard = () => {
   const [dropdownOpen, setDropdownOpen] = useState({});
   const [selectedAtendente, setSelectedAtendente] = useState('Todos');
   const [selectedRemetente, setSelectedRemetente] = useState('Todos');
-  const [selectedDateFilter, setSelectedDateFilter] = useState('last15Days'); // Filtro padrão: últimos 15 dias
+  const [selectedDateFilter, setSelectedDateFilter] = useState('currentMonth'); // Filtro padrão: últimos 15 dias
   const [dataInicial, setDataInicial] = useState(''); // Estado para armazenar a data inicial
   const [dataFinal, setDataFinal] = useState('');
   const prevDataInicial = useRef(dataInicial);
@@ -66,12 +66,13 @@ const Dashboard = () => {
   
   useEffect(() => {
     const today = new Date();
-    const startDate = new Date(today);
-    startDate.setDate(today.getDate() - 15);
-  
+    const startDate = new Date(today.getFullYear(), today.getMonth(), 1); // Primeiro dia do mês atual
+    const endDate = today; // Hoje
+    
     setDataInicial(formatDate(startDate));
-    setDataFinal(formatDate(today));
+    setDataFinal(formatDate(endDate));
   }, []);
+  
   
   
 
@@ -113,35 +114,39 @@ const Dashboard = () => {
     setSelectedDateFilter(filter);
     const today = new Date();
     let startDate, endDate;
-
+  
     switch (filter) {
       case 'currentMonth': // Mês atual
         startDate = new Date(today.getFullYear(), today.getMonth(), 1);
         endDate = today;
         break;
-
+  
       case 'lastMonth': // Mês anterior
         startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         endDate = new Date(today.getFullYear(), today.getMonth(), 0);
         break;
-
+  
       case 'last30Days': // Últimos 30 dias
         startDate = new Date(today);
         startDate.setDate(today.getDate() - 30);
         endDate = today;
         break;
-
+  
       case 'last15Days': // Últimos 15 dias
-      default:
         startDate = new Date(today);
         startDate.setDate(today.getDate() - 15);
         endDate = today;
         break;
+  
+      default:
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1); // Padrão: Mês atual
+        endDate = today;
     }
-
+  
     setDataInicial(formatDate(startDate));
     setDataFinal(formatDate(endDate));
   };
+  
 
 
 
