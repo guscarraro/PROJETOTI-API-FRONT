@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from "react";
 import { FaFolder, FaTruck, FaBoxOpen, FaCheckCircle, FaFileAlt } from "react-icons/fa";
-import { ContainerGeral, Card, Header, Etapas, LinhaCompleta, Etapa, IconWrapper, Box, LinhaCompletaBranca } from "./styles";
+import {
+  ContainerGeral,
+  Card,
+  Header,
+  Etapas,
+  LinhaCompleta,
+  Etapa,
+  IconWrapper,
+  Box,
+  LinhaCompletaBranca,
+} from "./styles";
 import { Col, Row } from "reactstrap";
-import dadosFicticios from "./db/dadosFicticios";
+import { fetchOcorrencias } from "../../services/api"; // API criada para consumir as ocorrências
 
 function formatarData(data) {
   if (!data) return "-";
@@ -22,30 +32,25 @@ function calcularDiferenca(dataInicio, dataFim) {
   return { horas, minutos };
 }
 
-const agruparPorRemetenteENF = (dados) => {
+const agruparPorDocTransporte = (dados) => {
   const agrupado = {};
   dados.forEach((item) => {
-    const chave = `${item.remetente}-${item.nf}`;
+    const chave = item.docTransporte;
     if (!agrupado[chave]) {
       agrupado[chave] = {
         remetente: item.remetente,
-        nf: item.nf,
-        documentos: new Set(),
+        docTransporte: item.docTransporte,
+        notasFiscais: new Set(),
         etapas: [],
-        dataXml: false,
-        dataEmissaoCTE: false,
-        filial: item.filial
       };
     }
-    agrupado[chave].documentos.add(item.documento);
+    agrupado[chave].notasFiscais.add(item.notaFiscal);
     agrupado[chave].etapas.push(item);
-
-    if (item.data_xml) agrupado[chave].dataXml = true;
-    if (item.data_emissao_cte) agrupado[chave].dataEmissaoCTE = true;
   });
+
   return Object.values(agrupado).map((item) => ({
     ...item,
-    documentos: Array.from(item.documentos),
+    notasFiscais: Array.from(item.notasFiscais),
   }));
 };
 
@@ -57,8 +62,6 @@ const etapas = [
   { tipo: "ENTREGA CONFIRMADA", label: "Entrega Confirmada", icon: <FaCheckCircle /> },
 ];
 
-
-
 function CicloPedido() {
   const [dados, setDados] = useState([]);
   const [mediaTempos, setMediaTempos] = useState({
@@ -68,9 +71,27 @@ function CicloPedido() {
   });
 
   useEffect(() => {
-    const dadosAgrupados = agruparPorRemetenteENF(dadosFicticios);
-    setDados(dadosAgrupados);
+    async function carregarDados() {
+      try {
+        const dataInicial = "2024-12-01"; // Ajuste conforme necessário
+        const ocorrencias = await fetchOcorrencias(dataInicial);
+  
+        console.log("Ocorrências carregadas:", ocorrencias);
+        const dadosAgrupados = agruparPorDocTransporte(ocorrencias);
+        setDados(dadosAgrupados);
+  
+        calcularMediaTempos(dadosAgrupados);
+      } catch (error) {
+        console.error("Erro ao carregar dados:", error);
+      }
+    }
+  
+    carregarDados();
+  }, []);
+  
+  
 
+  function calcularMediaTempos(dados) {
     let totalXml = 0,
       totalSeparacao = 0,
       totalEntrega = 0,
@@ -78,28 +99,28 @@ function CicloPedido() {
       countSeparacao = 0,
       countEntrega = 0;
 
-    dadosFicticios.forEach((dado) => {
-      const diffXml = calcularDiferenca(dado.data_xml, dado.data_emissao_cte);
+    dados.forEach((pedido) => {
+      const xml = pedido.etapas.find((e) => e.tipo === "DATA XML IMPORTADO")?.data;
+      const cte = pedido.etapas.find((e) => e.tipo === "EMISSAO DE CTE")?.data;
+      const separacao = pedido.etapas.find((e) => e.tipo === "MERCADORIA SEPARADA/CONFERIDA")?.data;
+      const entrega = pedido.etapas.find((e) => e.tipo === "ENTREGA CONFIRMADA")?.data;
+
+      const diffXml = calcularDiferenca(xml, cte);
       if (diffXml) {
         totalXml += diffXml.horas * 60 + diffXml.minutos;
         countXml++;
       }
 
-      const diffSeparacao = calcularDiferenca(dado.data_emissao_cte, dado.data);
+      const diffSeparacao = calcularDiferenca(cte, separacao);
       if (diffSeparacao) {
         totalSeparacao += diffSeparacao.horas * 60 + diffSeparacao.minutos;
         countSeparacao++;
       }
 
-      const separacao = dadosFicticios.find((d) => d.tipo === "MERCADORIA SEPARADA/CONFERIDA")?.data;
-      const entrega = dadosFicticios.find((d) => d.tipo === "ENTREGA CONFIRMADA")?.data;
-
-      if (separacao && entrega) {
-        const diffEntrega = calcularDiferenca(separacao, entrega);
-        if (diffEntrega) {
-          totalEntrega += diffEntrega.horas * 60 + diffEntrega.minutos;
-          countEntrega++;
-        }
+      const diffEntrega = calcularDiferenca(separacao, entrega);
+      if (diffEntrega) {
+        totalEntrega += diffEntrega.horas * 60 + diffEntrega.minutos;
+        countEntrega++;
       }
     });
 
@@ -117,100 +138,74 @@ function CicloPedido() {
         minutos: countEntrega > 0 ? Math.floor(totalEntrega % 60) : 0,
       },
     });
-  }, []);
+  }
+
   return (
     <ContainerGeral>
       <h1>Ciclo do Pedido</h1>
       <Row style={{ width: "100%", marginBottom: "10px" }}>
         <Col md="4">
-          <Box style={{background:'rgba(255, 215, 0, 0.35)'}}>
-            <h5 >Média geral Emissão de CTE</h5>
-            <FaFileAlt style={{fontSize:30 }}/>
-            <h2 >
+          <Box style={{ background: "rgba(255, 215, 0, 0.35)" }}>
+            <h5>Média geral Emissão de CTE</h5>
+            <FaFileAlt style={{ fontSize: 30 }} />
+            <h2>
               {mediaTempos.xml.horas}h {mediaTempos.xml.minutos}m
             </h2>
           </Box>
         </Col>
         <Col md="4">
-          <Box style={{background:'rgba(255, 165, 0, 0.35)'}}>
-            <h5 >Média geral Separação/Conferência</h5>
-            <FaBoxOpen style={{fontSize:30}}/>
-            <h2 >
+          <Box style={{ background: "rgba(255, 165, 0, 0.35)" }}>
+            <h5>Média geral Separação/Conferência</h5>
+            <FaBoxOpen style={{ fontSize: 30 }} />
+            <h2>
               {mediaTempos.separacao.horas}h {mediaTempos.separacao.minutos}m
             </h2>
           </Box>
         </Col>
         <Col md="4">
-          <Box style={{background:'rgba(0, 255, 127, 0.35)'}}>
-            <h5 >Média geral Entrega</h5>
-            <FaTruck style={{fontSize:30}}/>
-            <h2 >
+          <Box style={{ background: "rgba(0, 255, 127, 0.35)" }}>
+            <h5>Média geral Entrega</h5>
+            <FaTruck style={{ fontSize: 30 }} />
+            <h2>
               {mediaTempos.entrega.horas}h {mediaTempos.entrega.minutos}m
             </h2>
           </Box>
         </Col>
       </Row>
 
-      {dados.map((pedido, index) => {
-        const etapasConcluidas = etapas.filter((etapa) => {
-          if (etapa.tipo === "DATA XML IMPORTADO" && pedido.dataXml) return true;
-          if (etapa.tipo === "EMISSAO DE CTE" && pedido.dataEmissaoCTE) return true;
-          if (etapa.tipo === "ENTREGA CONFIRMADA" && pedido.etapas.find((d) => d.tipo === "ENTREGA CONFIRMADA")) return true;
-          if (pedido.etapas.find((d) => d.tipo === etapa.tipo)) return true;
-          return false;
-        }).length;
-
-        const progressoReal = (etapasConcluidas / etapas.length) * 100;
-
-        return (
-          <Row style={{ width: "100%" }} key={index}>
-            <Col md="12">
-              <Card>
-                <Header>
-                  <div>
-                    <h5>{pedido.remetente}</h5>
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
-                      <h5>NF: </h5>
-                      <p>{pedido.nf}</p>
-                      <h5>CTE: </h5>
-                      <p>{pedido.documentos.join(", ")}</p>
-                    </div>
+      {dados.map((pedido, index) => (
+        <Row style={{ width: "100%" }} key={index}>
+          <Col md="12">
+            <Card>
+              <Header>
+                <div>
+                  <h5>{pedido.remetente}</h5>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
+                    <h5>Notas Fiscais: </h5>
+                    <p>{pedido.notasFiscais.join(", ")}</p>
                   </div>
-                </Header>
-                <Etapas>
-                  <LinhaCompletaBranca></LinhaCompletaBranca>
-                  <LinhaCompleta progresso={progressoReal} duracao={1} />
-                  {etapas.map((etapa, idx) => {
-                    const etapaConcluida =
-                      (etapa.tipo === "DATA XML IMPORTADO" && pedido.dataXml) ||
-                      (etapa.tipo === "EMISSAO DE CTE" && pedido.dataEmissaoCTE) ||
-                      (etapa.tipo === "ENTREGA CONFIRMADA" && pedido.etapas.find((d) => d.tipo === "ENTREGA CONFIRMADA")) ||
-                      pedido.etapas.find((d) => d.tipo === etapa.tipo);
-
-                    return (
-                      <Etapa key={idx}>
-                        <IconWrapper concluido={etapaConcluida}>{etapa.icon}</IconWrapper>
-                        <p>{etapa.label}</p>
-                        <small>
-                          {formatarData(
-                            etapa.tipo === "DATA XML IMPORTADO"
-                              ? pedido.etapas[0]?.data_xml
-                              : etapa.tipo === "EMISSAO DE CTE"
-                              ? pedido.etapas[0]?.data_emissao_cte
-                              : etapa.tipo === "ENTREGA CONFIRMADA"
-                              ? pedido.etapas.find((d) => d.tipo === "ENTREGA CONFIRMADA")?.data
-                              : pedido.etapas.find((d) => d.tipo === etapa.tipo)?.data
-                          )}
-                        </small>
-                      </Etapa>
-                    );
-                  })}
-                </Etapas>
-              </Card>
-            </Col>
-          </Row>
-        );
-      })}
+                </div>
+              </Header>
+              <Etapas>
+                <LinhaCompletaBranca></LinhaCompletaBranca>
+                <LinhaCompleta progresso={(pedido.etapas.length / etapas.length) * 100} duracao={1} />
+                {etapas.map((etapa, idx) => {
+                  const etapaConcluida = pedido.etapas.some((e) => e.tipo === etapa.tipo);
+                  return (
+                    <Etapa key={idx}>
+                      <IconWrapper concluido={etapaConcluida}>{etapa.icon}</IconWrapper>
+                      <p>{etapa.label}</p>
+                      <small>
+                        {formatarData(pedido.etapas.find((e) => e.tipo === etapa.tipo)?.data)}
+                      </small>
+                    </Etapa>
+                  );
+                })}
+              </Etapas>
+            </Card>
+          </Col>
+        </Row>
+      ))}
     </ContainerGeral>
   );
 }
