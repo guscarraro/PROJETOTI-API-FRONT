@@ -201,7 +201,7 @@ const TopRemetentesChart = ({ data }) => {
   label={{
     position: 'insideTop',
     fill: '#fff',
-    fontSize: 15,
+    fontSize: 20,
     fontWeight: 'bold',
   }}
   shape={(props) => {

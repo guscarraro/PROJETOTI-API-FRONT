@@ -207,6 +207,23 @@ const Dashboard = () => {
     const [day, month, year] = dateString.split('/');
     return new Date(`${year}-${month}-${day}T00:00:00`);
   };
+  const calculateTotalNotesByStatus = (group) => {
+    let total = 0;
+    group.forEach((item) => {
+      total += item.count || 0; // Soma a contagem de notas
+    });
+    return total;
+  };
+  
+  const calculateOverallNotes = (dataByStatus) => {
+    let overallTotal = 0;
+    Object.keys(dataByStatus).forEach((key) => {
+      const group = dataByStatus[key];
+      overallTotal += calculateTotalNotesByStatus(group);
+    });
+    return overallTotal;
+  };
+  
 
   const applyFilters = () => {
     let filteredData = [...data];
@@ -235,7 +252,6 @@ const Dashboard = () => {
     const today = new Date();
     const startOfToday = new Date(today.setHours(0, 0, 0, 0)).getTime();
     const endOfToday = new Date(today.setHours(23, 59, 59, 999)).getTime();
-    
   
     const tomorrow = new Date();
     tomorrow.setDate(today.getDate() + 1);
@@ -247,47 +263,60 @@ const Dashboard = () => {
     const startOfInTwoDays = new Date(inTwoDays.setHours(0, 0, 0, 0)).getTime();
     const endOfInTwoDays = new Date(inTwoDays.setHours(23, 59, 59, 999)).getTime();
   
-    const result = new Set(); // Usa Set para evitar duplicação
+    const result = [];
   
     filteredData.forEach((item) => {
-      const deliveryDate = item.previsao_entrega ? parseDate(item.previsao_entrega).getTime() : null;
+      const deliveryDate = item.previsao_entrega
+        ? parseDate(item.previsao_entrega).getTime()
+        : null;
       const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
   
       if (!deliveryDate) return;
   
-      const include = (() => {
-        switch (status) {
-          case 'today':
-            return deliveryDate >= startOfToday && deliveryDate <= endOfToday && item.cte_entregue !== 1;
-          case 'tomorrow':
-            return deliveryDate >= startOfTomorrow && deliveryDate <= endOfTomorrow && item.cte_entregue !== 1;
-          case 'inTwoDays':
-            return deliveryDate >= startOfInTwoDays && deliveryDate <= endOfInTwoDays && item.cte_entregue !== 1;
-          case 'overdue':
-            return deliveryDate < startOfToday && item.cte_entregue !== 1;
-          default:
-            return false;
-        }
-      })();
+      let include = false;
+  
+      switch (status) {
+        case 'today':
+          include =
+            deliveryDate >= startOfToday &&
+            deliveryDate <= endOfToday &&
+            item.cte_entregue !== 1;
+          break;
+        case 'tomorrow':
+          include =
+            deliveryDate >= startOfTomorrow &&
+            deliveryDate <= endOfTomorrow &&
+            item.cte_entregue !== 1;
+          break;
+        case 'inTwoDays':
+          include =
+            deliveryDate >= startOfInTwoDays &&
+            deliveryDate <= endOfInTwoDays &&
+            item.cte_entregue !== 1;
+          break;
+        case 'overdue':
+          include =
+            deliveryDate < startOfToday && item.cte_entregue !== 1;
+          break;
+        default:
+          break;
+      }
   
       if (include) {
         notas.forEach((nf) => {
-          // Adiciona ao Set uma combinação única de nota e status
-          result.add(`${item.remetente}-${nf}`);
+          result.push({ remetente: item.remetente, NF: nf });
         });
       }
     });
   
-    // Converte o Set de volta para um array de objetos únicos
-    return Array.from(result).map((key) => {
-      const [remetente, nf] = key.split("-");
-      return { remetente, NF: nf };
-    });
+    return result;
   };
+  
   
 
   const groupByRemetente = (filteredData) => {
     const grouped = {};
+  
     filteredData.forEach((item) => {
       const remetente = item.remetente;
       const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
@@ -298,17 +327,23 @@ const Dashboard = () => {
   
       // Adiciona cada nota ao Set para evitar duplicatas
       notas.forEach((nf) => {
-        grouped[remetente].add(nf); // Armazena apenas os números das notas
+        grouped[remetente].add(nf);
       });
     });
   
-    // Converte Sets para arrays
-    for (const remetente in grouped) {
-      grouped[remetente] = Array.from(grouped[remetente]);
-    }
+    // Converte o objeto para um array ordenado por número de notas (decrescente)
+    const groupedArray = Object.entries(grouped)
+      .map(([remetente, notas]) => ({
+        remetente,
+        notas: Array.from(notas),
+        count: Array.from(notas).length, // Adiciona a contagem de notas
+      }))
+      .sort((a, b) => b.count - a.count); // Ordena de forma decrescente pelo número de notas
   
-    return grouped;
+    return groupedArray;
   };
+  
+  
   
   useEffect(() => {
     const handleFullScreenChange = () => {
@@ -357,6 +392,8 @@ const Dashboard = () => {
     inTwoDays: groupByRemetente(filterDataByStatus(filteredData, 'inTwoDays')),
     overdue: groupByRemetente(filterDataByStatus(filteredData, 'overdue')),
   };
+  
+  
 
   return (
     <div className="boxGeneral">
@@ -527,107 +564,90 @@ const Dashboard = () => {
               </Row>
             )}
 
-            <Row>
-              {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
-                <Col md="6" lg="3" key={index}>
-                  <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
-                    {status === 'inTwoDays' && (
-                      <>
-                        <FaClipboardCheck size={30} color="#FFA500" />
-                        <h5>Entregas em 2 Dias</h5>
-                      </>
-                    )}
-                    {status === 'today' && (
-                      <>
-                        <FaEye size={30} color="#FFD700" />
-                        <h5>Entregas Hoje</h5>
-                      </>
-                    )}
-                    {status === 'tomorrow' && (
-                      <>
-                        <FaClipboardCheck size={30} color="#00FF7F" />
-                        <h5>Entregas em 1 Dia</h5>
-                      </>
-                    )}
-                    {status === 'overdue' && (
-                      <>
-                        <FaExclamationTriangle size={30} color="#FF4500" />
-                        <h5>Atrasadas</h5>
-                      </>
-                    )}
-           <p className="lead">
-  {Object.values(groupedDataByStatus[status]).reduce(
-    (total, notas) => total + notas.length, // Cada nota agora é única
-    0
-  )}
-</p>
-                    <ProgressBar
-                      progress={
-                        (Object.values(groupedDataByStatus[status]).reduce(
-                          (total, notes) => total + notes.length,
-                          0
-                        ) /
-                          Object.values(groupedDataByStatus).reduce(
-                            (sum, group) =>
-                              sum +
-                              Object.values(group).reduce(
-                                (count, notes) => count + notes.length,
-                                0
-                              ),
-                            0
-                          )) *
-                        100
-                      }
-                    />
-                    <NoteList>
-  {Object.entries(groupedDataByStatus[status]).map(
-    ([remetente, notas], idx) => (
-      <NoteItem
-        key={idx}
-        isOpen={dropdownOpen[remetente]}
-      >
-        <div
-          onClick={() => toggleDropdown(remetente)}
-          style={{
-            cursor: 'pointer',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {remetente}:<br />
-          <span
-            style={{
-              fontSize: '20px',
-              fontWeight: 500,
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            {notas.length} {notas.length === 1 ? 'nota' : 'notas'}
-            {dropdownOpen[remetente] ? (
-              <FaChevronUp />
-            ) : (
-              <FaChevronDown />
-            )}
-          </span>
-        </div>
-        {dropdownOpen[remetente] && (
-          <ul style={{ paddingLeft: '15px' }}>
-            {notas.map((nf, noteIdx) => (
-              <li key={noteIdx}>NF: {nf}</li>
-            ))}
-          </ul>
+<Row>
+  {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
+    <Col md="6" lg="3" key={index}>
+      <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
+        {status === 'inTwoDays' && (
+          <>
+            <FaClipboardCheck size={30} color="#FFA500" />
+            <h5>Entregas em 2 Dias</h5>
+          </>
         )}
-      </NoteItem>
-    )
-  )}
-</NoteList>
+        {status === 'today' && (
+          <>
+            <FaEye size={30} color="#FFD700" />
+            <h5>Entregas Hoje</h5>
+          </>
+        )}
+        {status === 'tomorrow' && (
+          <>
+            <FaClipboardCheck size={30} color="#00FF7F" />
+            <h5>Entregas em 1 Dia</h5>
+          </>
+        )}
+        {status === 'overdue' && (
+          <>
+            <FaExclamationTriangle size={30} color="#FF4500" />
+            <h5>Atrasadas</h5>
+          </>
+        )}
+        <p className="lead">
+          {calculateTotalNotesByStatus(groupedDataByStatus[status])}
+        </p>
+        <ProgressBar
+  progress={
+    groupedDataByStatus[status].length > 0
+      ? (calculateTotalNotesByStatus(groupedDataByStatus[status]) /
+          calculateOverallNotes(groupedDataByStatus)) *
+        100
+      : 0
+  }
+/>
+        <NoteList>
+          {groupedDataByStatus[status].map((item, idx) => (
+            <NoteItem key={idx} isOpen={dropdownOpen[item.remetente]}>
+              <div
+                onClick={() => toggleDropdown(item.remetente)}
+                style={{
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                {item.remetente}:<br />
+                <span
+                  style={{
+                    fontSize: '20px',
+                    fontWeight: 500,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  {item.count} {item.count === 1 ? 'nota' : 'notas'}
+                  {dropdownOpen[item.remetente] ? (
+                    <FaChevronUp />
+                  ) : (
+                    <FaChevronDown />
+                  )}
+                </span>
+              </div>
+              {dropdownOpen[item.remetente] && (
+                <ul style={{ paddingLeft: '15px' }}>
+                  {item.notas.map((nf, noteIdx) => (
+                    <li key={noteIdx}>NF: {nf}</li>
+                  ))}
+                </ul>
+              )}
+            </NoteItem>
+          ))}
+        </NoteList>
+      </Box>
+    </Col>
+  ))}
+</Row>
 
-                  </Box>
-                </Col>
-              ))}
-            </Row>
           </>
         )}
       </Container>
