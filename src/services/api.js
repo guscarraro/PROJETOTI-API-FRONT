@@ -1,32 +1,48 @@
-
 import axios from 'axios';
+import { createClient } from '@supabase/supabase-js';
 
-// Atualize as URLs para HTTPS
+const SUPABASE_URL = 'https://sakcwetcknulwugphhft.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNha2N3ZXRja251bHd1Z3BoaGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI4MDIzNDMsImV4cCI6MjA0ODM3ODM0M30.Qjm_-RaDZuUxkxmuJglZ-y5h-fM3PAqTzhnpIzfBgY0';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const API_AUTH_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/authorization';
 const API_INDICE_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/painel/IndiceAtendimentoPraca';
 const API_OCORRENCIAS_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/ocorrencia/ExportarOcorrencias';
 
-let token = localStorage.getItem('token') || null;
-let tokenExpiration = localStorage.getItem('tokenExpiration') || null;
+const SHARED_TOKEN_ID = 'shared-token'; // ID fixo para o token compartilhado
 
 export const getAuthToken = async () => {
   try {
-    // Verifica se o token existe no localStorage e se ainda é válido
-    if (!token || !tokenExpiration) {
-      console.log("Token inexistente. Gerando um novo...");
-      return await generateNewToken();
+    // Busca o token do Supabase
+    const { data, error } = await supabase
+      .from('auth_api')
+      .select('token, expiration')
+      .eq('id', SHARED_TOKEN_ID)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao buscar token do Supabase:', error.message);
+      throw error;
     }
 
-    console.log("Reutilizando token existente:", token);
-    return token;
+    // Verifica se o token existe e é válido
+    if (data && data.token && data.token !== 'placeholder-token' && new Date(data.expiration) > new Date()) {
+      console.log('Reutilizando token válido do Supabase:', data.token);
+      return data.token;
+    }
+
+    // Gera um novo token se o atual for inválido
+    console.warn('Token inválido ou expirado. Gerando um novo...');
+    return await generateAndSaveToken();
   } catch (error) {
-    console.error('Erro ao obter token:', error.response?.data || error.message);
-    throw new Error('Falha na autenticação. Não foi possível obter o token.');
+    console.error('Erro ao obter token do Supabase:', error.message);
+    throw new Error('Falha ao obter o token.');
   }
 };
 
-const generateNewToken = async () => {
+const generateAndSaveToken = async () => {
   try {
+    // Gera o token via API de autenticação
     const credentials = btoa('gustavo.carraro:hatuna10');
     const response = await axios.post(
       API_AUTH_URL,
@@ -40,28 +56,41 @@ const generateNewToken = async () => {
 
     const tokenData = response.data?.retorno?.[0]?.token;
     if (!tokenData) {
-      throw new Error('Token não encontrado na resposta da API');
+      throw new Error('Token não encontrado na resposta da API.');
     }
 
-    // Atualiza o token e sua validade no localStorage
-    token = tokenData;
-    tokenExpiration = new Date(Date.now() + 60 * 60 * 1000); // 1 hora de validade
-    localStorage.setItem('token', token);
-    localStorage.setItem('tokenExpiration', tokenExpiration.toISOString());
+    const expiration = new Date(Date.now() + 60 * 60 * 1000).toISOString(); // 1 hora de validade
 
-    console.log("Novo token gerado:", token);
-    return token;
+    // Salva o novo token no Supabase
+    const { error } = await supabase
+      .from('auth_api')
+      .upsert(
+        {
+          id: SHARED_TOKEN_ID,
+          token: tokenData,
+          expiration: expiration,
+          criado_em: new Date().toISOString(),
+        },
+        { onConflict: ['id'] }
+      );
+
+    if (error) {
+      console.error('Erro ao salvar token no Supabase:', error.message);
+      throw error;
+    }
+
+    console.log('Novo token gerado e salvo no Supabase:', tokenData);
+    return tokenData;
   } catch (error) {
-    console.error('Erro ao gerar novo token:', error.response?.data || error.message);
+    console.error('Erro ao gerar e salvar novo token:', error.message);
     throw new Error('Não foi possível gerar um novo token.');
   }
 };
 
-
-
+// Funções de API usando o token
 export const fetchIndiceAtendimento = async (dataInicial, dataFinal) => {
   try {
-    let token = await getAuthToken(); // Obtém um token válido
+    const token = await getAuthToken();
 
     const response = await axios.get(API_INDICE_URL, {
       params: { dataInicial, dataFinal },
@@ -79,7 +108,7 @@ export const fetchIndiceAtendimento = async (dataInicial, dataFinal) => {
       console.warn('Token vencido. Tentando renovar o token...');
 
       try {
-        const newToken = await generateNewToken(); // Gera um novo token
+        const newToken = await generateAndSaveToken();
         const retryResponse = await axios.get(API_INDICE_URL, {
           params: { dataInicial, dataFinal },
           headers: {
@@ -89,27 +118,20 @@ export const fetchIndiceAtendimento = async (dataInicial, dataFinal) => {
 
         return retryResponse.data.indiceAtendimentoPraca || [];
       } catch (retryError) {
-        console.error(
-          'Erro ao buscar índice de atendimento após renovar token:',
-          retryError.response?.data || retryError.message
-        );
+        console.error('Erro ao buscar índice após renovar token:', retryError.message);
         return [];
       }
     }
 
-    console.error('Erro ao buscar índice de atendimento:', error.response?.data || error.message);
+    console.error('Erro ao buscar índice de atendimento:', error.message);
     return [];
   }
 };
 
 
-
-
-
-
 export const fetchOcorrencias = async (dataInicial) => {
   try {
-    let token = await getAuthToken(); // Obtém um token válido
+    const token = await getAuthToken();
 
     const response = await axios.get(API_OCORRENCIAS_URL, {
       params: { dataInicial },
@@ -120,36 +142,7 @@ export const fetchOcorrencias = async (dataInicial) => {
 
     return response.data.ocorrencia || [];
   } catch (error) {
-    if (
-      error.response?.status === 401 &&
-      error.response?.data?.retorno?.[0]?.mensagem === 'Token vencido'
-    ) {
-      console.warn('Token vencido. Tentando renovar o token...');
-
-      try {
-        const newToken = await generateNewToken(); // Gera um novo token
-        const retryResponse = await axios.get(API_OCORRENCIAS_URL, {
-          params: { dataInicial },
-          headers: {
-            Authorization: `Bearer ${newToken}`,
-          },
-        });
-
-        return retryResponse.data.ocorrencia || [];
-      } catch (retryError) {
-        console.error(
-          'Erro ao buscar ocorrências após renovar token:',
-          retryError.response?.data || retryError.message
-        );
-        return [];
-      }
-    }
-
-    console.error('Erro ao buscar ocorrências:', error.response?.data || error.message);
+    console.error('Erro ao buscar ocorrências:', error.message);
     return [];
   }
 };
-
-
-
-

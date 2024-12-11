@@ -86,7 +86,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData(true); // Atualiza silenciosamente a cada 20 minutos
-    }, 5 * 60000); // 20 minutos em milissegundos
+    }, 2 * 60000); // 20 minutos em milissegundos
   
     // Limpa o intervalo quando o componente desmontar ou as dependências mudarem
     return () => {
@@ -353,7 +353,7 @@ const Dashboard = () => {
     if (isFullScreen) {
       const interval = setInterval(() => {
         fetchData(true); // Atualiza silenciosamente a cada 20 minutos
-      }, 5 * 60000); // 20 minutos em milissegundos
+      }, 2 * 60000); // 20 minutos em milissegundos
   
       // Limpa o intervalo quando o componente desmontar ou a tela sair do modo fullscreen
       return () => {
