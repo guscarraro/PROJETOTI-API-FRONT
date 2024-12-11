@@ -28,11 +28,11 @@ const DailyDeliveryChartByPraça = ({ data, dataInicial, dataFinal }) => {
   
     // Agora usa o adjustedFinalDate em vez de dataFinal
     data.forEach((item) => {
-      if (item.entregue_em && item['praça_destino'] && item.cte_entregue === 1) {
+      if (item.entregue_em && item['praca_destino'] && item.cte_entregue === 1) {
         const entregaDate = parseDate(item.entregue_em);
         const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
         const formattedDate = entregaDate.toISOString().split('T')[0];
-        const praça = item['praça_destino'];
+        const praça = item['praca_destino'];
         const notas = item.NF ? item.NF.split(',').map((nf) => nf.trim()) : [];
   
         // Filtro de data: Só processa os itens dentro do intervalo

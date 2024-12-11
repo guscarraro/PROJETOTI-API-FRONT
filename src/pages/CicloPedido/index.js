@@ -73,7 +73,7 @@ function CicloPedido() {
   useEffect(() => {
     async function carregarDados() {
       try {
-        const dataInicial = "2024-12-01"; // Ajuste conforme necessário
+        const dataInicial = "2024-12-10"; // Ajuste conforme necessário
         const ocorrencias = await fetchOcorrencias(dataInicial);
   
         console.log("Ocorrências carregadas:", ocorrencias);

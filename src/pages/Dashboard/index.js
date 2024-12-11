@@ -10,9 +10,8 @@ import TopRemetentesChart from './TopRemetentesChart';
 import ServiceLevelChart from './ServiceLevelChart';
 import TelevisaoLayout from './TelevisaoLayout';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
-import { loadIndiceAtendimento } from '../../services/indiceService';
 import { formatDate } from '../../helpers';
-import { getAuthToken } from '../../services/api';
+import { fetchIndiceAtendimento } from '../../services/api';
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -39,7 +38,7 @@ const Dashboard = () => {
     try {
       console.log('Fetching data for:', dataInicial, dataFinal);
   
-      const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
+      const indiceData = await fetchIndiceAtendimento(dataInicial, dataFinal);
   
       if (indiceData && indiceData.length > 0) {
         setData(indiceData);

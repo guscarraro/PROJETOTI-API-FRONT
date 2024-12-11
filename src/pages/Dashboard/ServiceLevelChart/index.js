@@ -56,7 +56,7 @@ const ServiceLevelChart = ({ data }) => {
       const previsaoDate = item.previsao_entrega ? parseDate(item.previsao_entrega) : null;
   
       if (item.cte_entregue === 1 && entregaDate) {
-        const praça = item['praça_destino'];
+        const praça = item['praca_destino'];
         if (!praça) return;
   
         if (!dataByPraça[praça]) {
