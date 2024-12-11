@@ -35,33 +35,25 @@ const Dashboard = () => {
 
   const fetchData = async (silentUpdate = false) => {
     if (!silentUpdate) setLoading(true);
-
+  
     try {
       console.log('Fetching data for:', dataInicial, dataFinal);
-
-      // Verifique se o token está prestes a expirar ou é inválido, e renove se necessário
-      const validToken = await getAuthToken();
-
-      if (validToken) {
-        // Chama a API com o token válido
-        const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
-
-        // Garante que só atualiza se os dados retornados não forem vazios
-        if (indiceData && indiceData.length > 0) {
-          setData(indiceData); // Atualiza com os novos dados
-          console.log('Dados atualizados com sucesso');
-        } else {
-          console.warn('Dados retornados estão vazios. Mantendo os dados atuais.');
-        }
+  
+      const indiceData = await loadIndiceAtendimento(dataInicial, dataFinal);
+  
+      if (indiceData && indiceData.length > 0) {
+        setData(indiceData);
+        console.log('Dados atualizados com sucesso:', indiceData);
+      } else {
+        console.warn('Nenhum dado foi retornado pela API. Mantendo os dados antigos.');
       }
     } catch (error) {
       console.error('Erro ao carregar os dados:', error.message);
-      // Caso haja erro, mantemos os dados antigos
-      console.warn('Falha na atualização. Mantendo dados antigos.');
     } finally {
       if (!silentUpdate) setLoading(false);
     }
   };
+  
   
   
   useEffect(() => {
@@ -94,7 +86,7 @@ const Dashboard = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       fetchData(true); // Atualiza silenciosamente a cada 20 minutos
-    }, 10 * 60000); // 20 minutos em milissegundos
+    }, 5 * 60000); // 20 minutos em milissegundos
   
     // Limpa o intervalo quando o componente desmontar ou as dependências mudarem
     return () => {
@@ -361,7 +353,7 @@ const Dashboard = () => {
     if (isFullScreen) {
       const interval = setInterval(() => {
         fetchData(true); // Atualiza silenciosamente a cada 20 minutos
-      }, 10 * 60000); // 20 minutos em milissegundos
+      }, 5 * 60000); // 20 minutos em milissegundos
   
       // Limpa o intervalo quando o componente desmontar ou a tela sair do modo fullscreen
       return () => {
