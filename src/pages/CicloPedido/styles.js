@@ -14,6 +14,7 @@ export const ContainerGeral = styled.div`
   align-items: center;
   justify-content: center;
   color: #fff;
+  z-index: 100;
 }
 `;
 
@@ -43,6 +44,7 @@ export const Card = styled.div`
   padding: 20px;
   margin-bottom: 20px;
   z-index:10
+  max-width: 100%;
 `;
 
 export const Header = styled.div`
@@ -63,29 +65,7 @@ export const Header = styled.div`
   }
 `;
 
-export const Etapas = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  position: relative;
-`;
-export const Etapa = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  position: relative;
-  z-index: 100 ;
 
-  p {
-    margin: 5px 0 0;
-    color: #ccc;
-  }
-
-  small {
-    color: #aaa;
-  }
-`;
 
 
 // Animação de progressão da linha
@@ -133,8 +113,9 @@ export const LinhaCompletaBranca = styled.div`
 export const IconWrapper = styled.div`
   width: 50px;
   height: 50px;
-  border: 2px solid ${(props) => (props.concluido ? "#28a745" : "white")};
-  background-color: ${(props) => (props.concluido ? "#28a745" : "rgba(0, 0, 0, 1);")};
+  border: 2px solid ${(props) => (props.$erro ? "#dc3545" : props.$concluido ? "#28a745" : "white")};
+  background-color: ${(props) =>
+    props.$erro ? "#dc3545" : props.$concluido ? "#28a745" : "black"};
   border-radius: 50%;
   display: flex;
   justify-content: center;
@@ -142,5 +123,45 @@ export const IconWrapper = styled.div`
   color: white;
   font-size: 24px;
   transition: background-color 0.3s, border-color 0.3s;
-  z-index:10;
+  z-index: 10;
 `;
+
+export const Etapas = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: relative;
+`;
+
+export const Etapa = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  z-index: 100;
+
+  p {
+    margin: 5px 0 0;
+    color: #ccc;
+  }
+
+  small {
+    color: #aaa;
+  }
+`;
+
+// Ajuste da Linha para ter largura diferente para a última etapa
+export const Linha = styled.div`
+  position: absolute;
+  top: 25%;
+  right: -250px;
+  height: 4px;
+  background-color: ${(props) => props.cor || "#ccc"};
+  width: ${(props) => (props.isLast ? "90%" : "320%")}; /* 40% menor na última linha */
+  border-radius: 10px;
+  z-index: -1;
+  transition: background-color 0.3s ease;
+  left: ${(props) => (props.isLast ? "0" : "")}; /* Ajusta para o máximo à esquerda */
+`;
+

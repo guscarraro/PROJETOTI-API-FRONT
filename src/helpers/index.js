@@ -47,3 +47,22 @@ export const formatTomadorName = (tomador) => {
     const year = date.getFullYear();
     return `${day}/${month}/${year}`;
   };
+
+  export const formatarData = (data)=>{
+    if (!data) return "-";
+  
+    // Converte a string para o formato ISO caso necessário
+    const dataFormatada = new Date(data.replace(/(\d{2})\/(\d{2})\/(\d{4})/, '$3-$2-$1'));
+  
+    if (isNaN(dataFormatada)) return "Data inválida";
+    
+    const options = { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" };
+    return dataFormatada.toLocaleString("pt-BR", options);
+  }
+  export const formatarHorasMinutos = (horas, minutos) => {
+    const hh = String(horas).padStart(2, "0");
+    const mm = String(minutos).padStart(2, "0");
+    return `${hh}:${mm}`;
+  };
+  
+  
