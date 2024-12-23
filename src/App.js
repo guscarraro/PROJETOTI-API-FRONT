@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import CicloPedido from './pages/CicloPedido';
 import ProjetoFrota from './pages/ProjetoFrota';
 import Fiscal from './pages/Fiscal';
+import Frete from './pages/Frete';
 import TesteApi from './pages/TesteApi';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -70,10 +71,19 @@ const App = () => {
   />
 
   <Route
-    path="/Frete"
+    path="/ProjetoFrota"
     element={
       <PrivateRoute
         element={<ProjetoFrota />}
+        allowedSectors={['958db54e-add5-45f6-8aef-739d6ba7cb4c']}
+      />
+    }
+  />
+  <Route
+    path="/Frete"
+    element={
+      <PrivateRoute
+        element={<Frete />}
         allowedSectors={['958db54e-add5-45f6-8aef-739d6ba7cb4c']}
       />
     }
