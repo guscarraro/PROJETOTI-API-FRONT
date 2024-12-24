@@ -4,126 +4,107 @@ import Motorista from "./Motorista";
 import Cliente from "./Cliente";
 import TipoOcorren from "./TipoOcorren";
 import LancarOcorren from "./LancarOcorren";
+import OcorrenAbertas from "./OcorrenAbertas";
+import Dashboard from "./Dashboard";
+import { ContainerGeralFrete, NavbarContainer, NavButton, NavIcon } from "./styles";
+import { ToastContainer } from "react-toastify";
+import {
+  FaTachometerAlt,
+  FaClipboardList,
+  FaTruck,
+  FaUsers,
+  FaFileAlt,
+  FaPlusCircle,
+} from "react-icons/fa";
 
-// Componente Navbar
 const Navbar = ({ currentTab, setCurrentTab }) => {
   return (
-    <nav style={styles.navbar}>
-      <button
-        style={currentTab === "ocorrencias" ? styles.activeButton : styles.button}
+    <NavbarContainer>
+      <NavButton
+        active={currentTab === "dashboard"}
+        onClick={() => setCurrentTab("dashboard")}
+      >
+        <NavIcon>
+          <FaTachometerAlt />
+        </NavIcon>
+        Dashboard
+      </NavButton>
+      <NavButton
+        active={currentTab === "ocorrencias"}
         onClick={() => setCurrentTab("ocorrencias")}
       >
+        <NavIcon>
+          <FaClipboardList />
+        </NavIcon>
         Ocorrências em Aberto
-      </button>
-      <button
-        style={currentTab === "motoristas" ? styles.activeButton : styles.button}
-        onClick={() => setCurrentTab("motoristas")}
-      >
-        Motoristas
-      </button>
-      <button
-        style={currentTab === "clientes" ? styles.activeButton : styles.button}
-        onClick={() => setCurrentTab("clientes")}
-      >
-        Clientes
-      </button>
-      <button
-        style={currentTab === "tiposOcorrencias" ? styles.activeButton : styles.button}
-        onClick={() => setCurrentTab("tiposOcorrencias")}
-      >
-        Tipos de Ocorrências
-      </button>
-      <button
-        style={currentTab === "novaOcorrencia" ? styles.activeButton : styles.button}
+      </NavButton>
+      <NavButton
+        active={currentTab === "novaOcorrencia"}
         onClick={() => setCurrentTab("novaOcorrencia")}
       >
+        <NavIcon>
+          <FaPlusCircle />
+        </NavIcon>
         Lançar Nova Ocorrência
-      </button>
-    </nav>
+      </NavButton>
+      <NavButton
+        active={currentTab === "tiposOcorrencias"}
+        onClick={() => setCurrentTab("tiposOcorrencias")}
+      >
+        <NavIcon>
+          <FaFileAlt />
+        </NavIcon>
+        Tipos de Ocorrências
+      </NavButton>
+      <NavButton
+        active={currentTab === "motoristas"}
+        onClick={() => setCurrentTab("motoristas")}
+      >
+        <NavIcon>
+          <FaTruck />
+        </NavIcon>
+        Motoristas
+      </NavButton>
+      <NavButton
+        active={currentTab === "clientes"}
+        onClick={() => setCurrentTab("clientes")}
+      >
+        <NavIcon>
+          <FaUsers />
+        </NavIcon>
+        Clientes
+      </NavButton>
+      
+      
+    </NavbarContainer>
   );
 };
 
-// Componente Ocorrências em Aberto
-const OcorrenciasAbertas = () => {
-  const [ocorrencias, setOcorrencias] = useState([]);
-
-  useEffect(() => {
-    const fetchOcorrencias = async () => {
-      try {
-        const response = await apiLocal.getOcorrencias();
-        setOcorrencias(response.data.filter((oc) => oc.status === "Aberto"));
-      } catch (error) {
-        console.error("Erro ao buscar ocorrências:", error);
-      }
-    };
-
-    fetchOcorrencias();
-  }, []);
-
-  return (
-    <div style={styles.content}>
-      <h2>Ocorrências em Aberto</h2>
-      {ocorrencias.length > 0 ? (
-        <ul>
-          {ocorrencias.map((ocorrencia) => (
-            <li key={ocorrencia.id}>
-              <strong>NF:</strong> {ocorrencia.nf} | <strong>Cliente:</strong>{" "}
-              {ocorrencia.cliente_id} | <strong>Status:</strong> {ocorrencia.status}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>Nenhuma ocorrência em aberto.</p>
-      )}
-    </div>
-  );
-};
-
-// Página Principal Frete
 const Frete = () => {
-  const [currentTab, setCurrentTab] = useState("ocorrencias"); // Aba inicial
+  const [currentTab, setCurrentTab] = useState("ocorrencias");
+  const [updateFlag, setUpdateFlag] = useState(false); // Flag para atualização
+
+  const handleActionComplete = () => {
+    setUpdateFlag(!updateFlag); // Alterna a flag para forçar re-renderizações
+  };
 
   return (
-    <div>
+    <ContainerGeralFrete>
       <Navbar currentTab={currentTab} setCurrentTab={setCurrentTab} />
-      <div>
-        {currentTab === "ocorrencias" && <OcorrenciasAbertas />}
+      <div style={{ width: "100%", height: "auto" }}>
+        {currentTab === "dashboard" && <Dashboard />}
+        {currentTab === "ocorrencias" && <OcorrenAbertas />}
+        {currentTab === "novaOcorrencia" && (
+          <LancarOcorren onActionComplete={handleActionComplete} />
+        )}
+        {currentTab === "tiposOcorrencias" && <TipoOcorren />}
         {currentTab === "motoristas" && <Motorista />}
         {currentTab === "clientes" && <Cliente />}
-        {currentTab === "tiposOcorrencias" && <TipoOcorren />}
-        {currentTab === "novaOcorrencia" && <LancarOcorren />}
       </div>
-    </div>
+      <ToastContainer position="top-right" autoClose={3000} />
+    </ContainerGeralFrete>
   );
 };
 
-// Estilos inline (pode ser substituído por CSS separado)
-const styles = {
-  navbar: {
-    display: "flex",
-    justifyContent: "space-around",
-    backgroundColor: "#282c34",
-    padding: "10px",
-  },
-  button: {
-    color: "#fff",
-    backgroundColor: "#444",
-    border: "none",
-    padding: "10px 15px",
-    cursor: "pointer",
-    borderRadius: "5px",
-  },
-  activeButton: {
-    color: "#fff",
-    backgroundColor: "#007bff",
-    border: "none",
-    padding: "10px 15px",
-    cursor: "pointer",
-    borderRadius: "5px",
-  },
-  content: {
-    padding: "20px",
-  },
-};
 
 export default Frete;

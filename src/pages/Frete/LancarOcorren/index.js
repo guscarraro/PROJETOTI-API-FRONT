@@ -1,11 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { Form, FormGroup, Label, Input, Button } from "reactstrap";
 import { toast, ToastContainer } from "react-toastify";
 import apiLocal from "../../../services/apiLocal";
+import {
+  Container,
+  Title,
+  StyledForm,
+  FormGroup,
+  Label,
+  Input,
+  Select,
+  TextArea,
+  SubmitButton,
+} from "./style";
+
+import {
+  FaFileInvoice,
+  FaUser,
+  FaTruck,
+  FaCalendar,
+  FaMapMarkerAlt,
+  FaCity,
+  FaBuilding,
+  FaRoad,
+} from "react-icons/fa";
 
 const LancarOcorren = () => {
   const [motoristas, setMotoristas] = useState([]);
   const [clientes, setClientes] = useState([]);
+  const [tiposOcorrencia, setTiposOcorrencia] = useState([]);
   const [ocorrencia, setOcorrencia] = useState({
     nf: "",
     cliente_id: "",
@@ -14,12 +36,15 @@ const LancarOcorren = () => {
     endereco: "",
     cidade: "",
     horario_chegada: "",
+    tipoocorrencia_id: "",
     obs: "",
+    status: "Pendente",
   });
 
   useEffect(() => {
     fetchMotoristas();
     fetchClientes();
+    fetchTiposOcorrencia();
   }, []);
 
   const fetchMotoristas = async () => {
@@ -42,15 +67,53 @@ const LancarOcorren = () => {
     }
   };
 
+  const fetchTiposOcorrencia = async () => {
+    try {
+      const response = await apiLocal.getNomesOcorrencias();
+      setTiposOcorrencia(response.data);
+    } catch (error) {
+      toast.error("Erro ao buscar tipos de ocorrência.");
+      console.error(error);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setOcorrencia({ ...ocorrencia, [name]: value });
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e) => {
+    e.preventDefault(); // Impede comportamento padrão do formulário
+  
     try {
-      await apiLocal.createOrUpdateOcorrencia(ocorrencia);
+      if (
+        !ocorrencia.nf ||
+        !ocorrencia.cliente_id ||
+        !ocorrencia.motorista_id ||
+        !ocorrencia.tipoocorrencia_id ||
+        !ocorrencia.horario_chegada ||
+        !ocorrencia.destino_id ||
+        !ocorrencia.endereco ||
+        !ocorrencia.cidade
+      ) {
+        toast.error("Por favor, preencha todos os campos obrigatórios.");
+        return;
+      }
+  
+      const ocorrenciaFormatada = {
+        ...ocorrencia,
+        destino_id: parseInt(ocorrencia.destino_id, 10),
+        tipoocorrencia_id: parseInt(ocorrencia.tipoocorrencia_id, 10),
+        status: "Pendente",
+      };
+  
+      // Chame a API e aguarde a resposta
+      await apiLocal.createOrUpdateOcorrencia(ocorrenciaFormatada);
+  
+      // Garante que o toast é exibido imediatamente após o sucesso
       toast.success("Ocorrência lançada com sucesso!");
+  
+      // Resetando o formulário
       setOcorrencia({
         nf: "",
         cliente_id: "",
@@ -59,23 +122,27 @@ const LancarOcorren = () => {
         endereco: "",
         cidade: "",
         horario_chegada: "",
+        tipoocorrencia_id: "",
         obs: "",
+        status: "Pendente",
       });
     } catch (error) {
+      console.error("Erro ao salvar a ocorrência:", error);
       toast.error("Erro ao lançar a ocorrência.");
-      console.error(error);
     }
   };
+  
 
   return (
-    <div>
-      <h2>Lançar Ocorrência</h2>
-      <Form>
+    <Container>
+      <Title>Lançar Ocorrência</Title>
+      <StyledForm onSubmit={handleSave}>
         <FormGroup>
-          <Label for="nf">Nota Fiscal</Label>
+          <Label>
+            <FaFileInvoice /> Nota Fiscal
+          </Label>
           <Input
             type="text"
-            id="nf"
             name="nf"
             value={ocorrencia.nf}
             onChange={handleInputChange}
@@ -83,10 +150,10 @@ const LancarOcorren = () => {
           />
         </FormGroup>
         <FormGroup>
-          <Label for="cliente_id">Cliente</Label>
-          <Input
-            type="select"
-            id="cliente_id"
+          <Label>
+            <FaUser /> Cliente
+          </Label>
+          <Select
             name="cliente_id"
             value={ocorrencia.cliente_id}
             onChange={handleInputChange}
@@ -97,13 +164,13 @@ const LancarOcorren = () => {
                 {cliente.nome}
               </option>
             ))}
-          </Input>
+          </Select>
         </FormGroup>
         <FormGroup>
-          <Label for="motorista_id">Motorista</Label>
-          <Input
-            type="select"
-            id="motorista_id"
+          <Label>
+            <FaTruck /> Motorista
+          </Label>
+          <Select
             name="motorista_id"
             value={ocorrencia.motorista_id}
             onChange={handleInputChange}
@@ -114,13 +181,31 @@ const LancarOcorren = () => {
                 {motorista.nome}
               </option>
             ))}
-          </Input>
+          </Select>
         </FormGroup>
         <FormGroup>
-          <Label for="destino_id">Destinatário</Label>
+          <Label>
+            <FaMapMarkerAlt /> Tipo de Ocorrência
+          </Label>
+          <Select
+            name="tipoocorrencia_id"
+            value={ocorrencia.tipoocorrencia_id}
+            onChange={handleInputChange}
+          >
+            <option value="">Selecione um tipo de ocorrência</option>
+            {tiposOcorrencia.map((tipo) => (
+              <option key={tipo.id} value={tipo.id}>
+                {tipo.nome}
+              </option>
+            ))}
+          </Select>
+        </FormGroup>
+        <FormGroup>
+          <Label>
+            <FaBuilding /> Destinatário
+          </Label>
           <Input
             type="text"
-            id="destino_id"
             name="destino_id"
             value={ocorrencia.destino_id}
             onChange={handleInputChange}
@@ -128,10 +213,11 @@ const LancarOcorren = () => {
           />
         </FormGroup>
         <FormGroup>
-          <Label for="endereco">Endereço</Label>
+          <Label>
+            <FaRoad /> Endereço
+          </Label>
           <Input
             type="text"
-            id="endereco"
             name="endereco"
             value={ocorrencia.endereco}
             onChange={handleInputChange}
@@ -139,10 +225,11 @@ const LancarOcorren = () => {
           />
         </FormGroup>
         <FormGroup>
-          <Label for="cidade">Cidade</Label>
+          <Label>
+            <FaCity /> Cidade
+          </Label>
           <Input
             type="text"
-            id="cidade"
             name="cidade"
             value={ocorrencia.cidade}
             onChange={handleInputChange}
@@ -150,32 +237,30 @@ const LancarOcorren = () => {
           />
         </FormGroup>
         <FormGroup>
-          <Label for="horario_chegada">Data e Hora de Chegada</Label>
+          <Label>
+            <FaCalendar /> Data e Hora de Chegada
+          </Label>
           <Input
             type="datetime-local"
-            id="horario_chegada"
             name="horario_chegada"
             value={ocorrencia.horario_chegada}
             onChange={handleInputChange}
           />
         </FormGroup>
         <FormGroup>
-          <Label for="obs">Descrição</Label>
-          <Input
-            type="textarea"
-            id="obs"
+          <Label>
+            <FaFileInvoice /> Descrição (opcional)
+          </Label>
+          <TextArea
             name="obs"
             value={ocorrencia.obs}
             onChange={handleInputChange}
             placeholder="Descrição"
           />
         </FormGroup>
-        <Button color="primary" onClick={handleSave}>
-          Adicionar Ocorrência
-        </Button>
-      </Form>
-      <ToastContainer />
-    </div>
+        <SubmitButton type="submit">Adicionar Ocorrência</SubmitButton>
+      </StyledForm>
+    </Container>
   );
 };
 
