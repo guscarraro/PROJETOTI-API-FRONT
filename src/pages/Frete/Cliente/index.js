@@ -1,16 +1,30 @@
 import React, { useEffect, useState } from "react";
-import { Table, Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button
+} from "reactstrap";
 import { toast, ToastContainer } from "react-toastify";
-import apiLocal from "../../../services/apiLocal";
 import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
+
+import apiLocal from "../../../services/apiLocal";
+import {
+  HeaderContainer,
+  StyledTable,
+  AddButton,
+  FilterInput
+} from "./style";
 
 const Cliente = () => {
   const [clientes, setClientes] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCliente, setSelectedCliente] = useState({
-    id: null,
-    nome: "",
-  });
+
+  // Em vez de { id: null, nome: "" }, também pode começar assim:
+  const [selectedCliente, setSelectedCliente] = useState({ id: null, nome: "" });
+
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchClientes();
@@ -26,23 +40,39 @@ const Cliente = () => {
     }
   };
 
+  // Filtra por nome
+  const filteredClientes = clientes.filter((cliente) =>
+    cliente.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Abre/fecha modal de edição/criação
   const toggleModal = () => setModalOpen(!modalOpen);
 
+  // Ao clicar em "Editar"
   const handleEdit = (cliente) => {
     setSelectedCliente(cliente);
     toggleModal();
   };
 
+  // Ao clicar em "Adicionar"
   const handleAddNew = () => {
     setSelectedCliente({ id: null, nome: "" });
     toggleModal();
   };
 
+  // SALVAR (create ou update)
   const handleSave = async () => {
     try {
-      await apiLocal.createOrUpdateCliente(selectedCliente);
+      // Se tiver um id válido, enviamos { id, nome }. 
+      // Se não tiver, enviamos somente { nome }.
+      const { id, nome } = selectedCliente;
+      const dataToSend = id ? { id, nome } : { nome };
+
+      await apiLocal.createOrUpdateCliente(dataToSend);
       toast.success(
-        selectedCliente.id ? "Cliente atualizado com sucesso!" : "Cliente criado com sucesso!"
+        id
+          ? "Cliente atualizado com sucesso!"
+          : "Cliente criado com sucesso!"
       );
       toggleModal();
       fetchClientes();
@@ -52,6 +82,7 @@ const Cliente = () => {
     }
   };
 
+  // Excluir
   const handleDelete = async (id) => {
     if (window.confirm("Tem certeza que deseja excluir este cliente?")) {
       try {
@@ -66,43 +97,57 @@ const Cliente = () => {
   };
 
   return (
-    <div>
-      <div style={styles.headerContainer}>
-        <h2>Clientes</h2>
-        <Button color="success" onClick={handleAddNew} style={styles.addButton}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        minHeight: "100vh"
+      }}
+    >
+      <HeaderContainer>
+        <FilterInput
+          type="text"
+          placeholder="Filtrar por nome..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        <AddButton color="success" onClick={handleAddNew}>
           <FaPlus /> Adicionar Cliente
-        </Button>
-      </div>
-      <Table bordered style={styles.table}>
+        </AddButton>
+      </HeaderContainer>
+
+      <StyledTable bordered>
         <thead>
           <tr>
-            <th style={styles.header}>Editar</th>
-            <th style={styles.header}>Nome</th>
-            <th style={styles.header}>Excluir</th>
+            <th>Editar</th>
+            <th>Nome</th>
+            {/* <th>Excluir</th> */}
           </tr>
         </thead>
         <tbody>
-          {clientes.map((cliente) => (
+          {filteredClientes.map((cliente) => (
             <tr key={cliente.id}>
-              <td style={styles.cell}>
+              <td style={{ width: "10px", textAlign: "center" }}>
                 <FaPen
-                  style={styles.icon}
+                  style={{ color: "rgb(0, 123, 255)" }}
                   onClick={() => handleEdit(cliente)}
                 />
               </td>
-              <td style={styles.cell}>{cliente.nome}</td>
-              <td style={styles.cell}>
+              <td style={{ textAlign: "start" }}>{cliente.nome}</td>
+              {/* <td style={{ width: "10px", textAlign: "center" }}>
                 <FaTrash
-                  style={{ ...styles.icon, color: "red" }}
+                  style={{ color: "red" }}
                   onClick={() => handleDelete(cliente.id)}
                 />
-              </td>
+              </td> */}
             </tr>
           ))}
         </tbody>
-      </Table>
+      </StyledTable>
 
-      {/* Modal para edição ou criação */}
+      {/* Modal para edição/criação */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>
         <ModalHeader toggle={toggleModal}>
           {selectedCliente.id ? "Editar Cliente" : "Adicionar Cliente"}
@@ -133,38 +178,6 @@ const Cliente = () => {
       <ToastContainer />
     </div>
   );
-};
-
-const styles = {
-  headerContainer: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  table: {
-    marginTop: "20px",
-    borderRadius: "10px",
-    overflow: "hidden",
-  },
-  header: {
-    backgroundColor: "#007bff",
-    color: "#fff",
-    textAlign: "center",
-    padding: "10px",
-  },
-  cell: {
-    textAlign: "center",
-    padding: "10px",
-  },
-  icon: {
-    cursor: "pointer",
-  },
-  addButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-  },
 };
 
 export default Cliente;

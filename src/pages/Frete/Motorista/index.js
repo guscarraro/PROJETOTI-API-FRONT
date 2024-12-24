@@ -1,18 +1,45 @@
 import React, { useEffect, useState } from "react";
-import { Table, Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+} from "reactstrap";
 import { toast, ToastContainer } from "react-toastify";
-import apiLocal from "../../../services/apiLocal";
 import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
 
+import apiLocal from "../../../services/apiLocal";
+
+// Importa os componentes estilizados do arquivo styleMotorista.js
+import {
+  HeaderContainer,
+  StyledTable,
+  AddButton,
+  FilterInput
+} from "./style";
+
 const Motorista = () => {
+  // Lista de motoristas
   const [motoristas, setMotoristas] = useState([]);
+  
+  // Controle do modal de edição/criação
   const [modalOpen, setModalOpen] = useState(false);
+  
+  // Dados do motorista selecionado (para edição ou criação)
   const [selectedMotorista, setSelectedMotorista] = useState({
     id: null,
     nome: "",
     placa: "",
     antt: "",
   });
+
+  // Filtro de busca
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Modal de confirmação de exclusão
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [motoristaToDelete, setMotoristaToDelete] = useState(null);
 
   useEffect(() => {
     fetchMotoristas();
@@ -28,23 +55,50 @@ const Motorista = () => {
     }
   };
 
+  // Filtra os motoristas com base no 'searchTerm'
+  const filteredMotoristas = motoristas.filter((m) =>
+    m.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Controla o modal de edição/criação
   const toggleModal = () => setModalOpen(!modalOpen);
 
+  // Clicou em editar
   const handleEdit = (motorista) => {
     setSelectedMotorista(motorista);
     toggleModal();
   };
 
+  // Clicou em adicionar
   const handleAddNew = () => {
     setSelectedMotorista({ id: null, nome: "", placa: "", antt: "" });
     toggleModal();
   };
 
+  // Salvar (criar ou atualizar)
   const handleSave = async () => {
+    // Verifica se os campos estão preenchidos
+    if (
+      !selectedMotorista.nome.trim() ||
+      !selectedMotorista.placa.trim() ||
+      !selectedMotorista.antt.trim()
+    ) {
+      toast.error("Por favor, preencha todos os campos.");
+      return;
+    }
+
+    // Omitimos o "id" caso seja null, para não dar erro 422 no FastAPI
+    const { id, nome, placa, antt } = selectedMotorista;
+    const dataToSend = id
+      ? { id, nome, placa, antt } // update
+      : { nome, placa, antt };   // create
+
     try {
-      await apiLocal.createOrUpdateMotorista(selectedMotorista);
+      await apiLocal.createOrUpdateMotorista(dataToSend);
       toast.success(
-        selectedMotorista.id ? "Motorista atualizado com sucesso!" : "Motorista criado com sucesso!"
+        id
+          ? "Motorista atualizado com sucesso!"
+          : "Motorista criado com sucesso!"
       );
       toggleModal();
       fetchMotoristas();
@@ -54,59 +108,90 @@ const Motorista = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este motorista?")) {
-      try {
-        await apiLocal.deleteMotorista(id);
-        toast.success("Motorista excluído com sucesso!");
-        fetchMotoristas();
-      } catch (error) {
-        toast.error("Erro ao excluir motorista.");
-        console.error(error);
-      }
+  // Abre o modal de confirmação de exclusão
+  const openDeleteModal = (id) => {
+    setMotoristaToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  // Confirma a exclusão no modal
+  const confirmDelete = async () => {
+    try {
+      await apiLocal.deleteMotorista(motoristaToDelete);
+      toast.success("Motorista excluído com sucesso!");
+      setDeleteModalOpen(false);
+      setMotoristaToDelete(null);
+      fetchMotoristas();
+    } catch (error) {
+      toast.error("Erro ao excluir motorista.");
+      console.error(error);
     }
   };
 
+  // Cancela a exclusão
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setMotoristaToDelete(null);
+  };
+
   return (
-    <div>
-      <div style={styles.headerContainer}>
-        <h2>Motoristas</h2>
-        <Button color="success" onClick={handleAddNew} style={styles.addButton}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        width: "100%",
+        minHeight: "100vh",
+      }}
+    >
+      <HeaderContainer>
+        {/* Campo de texto para filtrar pelo nome do motorista */}
+        <FilterInput
+          type="text"
+          placeholder="Filtrar por nome..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        {/* Botão de adicionar novo motorista */}
+        <AddButton color="success" onClick={handleAddNew}>
           <FaPlus /> Adicionar Motorista
-        </Button>
-      </div>
-      <Table bordered style={styles.table}>
+        </AddButton>
+      </HeaderContainer>
+
+      <StyledTable bordered>
         <thead>
           <tr>
-            <th style={styles.header}>Editar</th>
-            <th style={styles.header}>Nome</th>
-            <th style={styles.header}>Placa</th>
-            <th style={styles.header}>ANTT</th>
-            <th style={styles.header}>Excluir</th>
+            <th>Editar</th>
+            <th>Nome</th>
+            <th>Placa</th>
+            <th>ANTT</th>
+            {/* <th>Excluir</th> */}
           </tr>
         </thead>
         <tbody>
-          {motoristas.map((motorista) => (
+          {filteredMotoristas.map((motorista) => (
             <tr key={motorista.id}>
-              <td style={styles.cell}>
+              <td style={{ textAlign: "center", width: "10px" }}>
                 <FaPen
-                  style={styles.icon}
+                  style={{ color: "rgb(0, 123, 255)" }}
                   onClick={() => handleEdit(motorista)}
                 />
               </td>
-              <td style={styles.cell}>{motorista.nome}</td>
-              <td style={styles.cell}>{motorista.placa}</td>
-              <td style={styles.cell}>{motorista.antt}</td>
-              <td style={styles.cell}>
+              <td>{motorista.nome}</td>
+              <td>{motorista.placa}</td>
+              <td>{motorista.antt}</td>
+              {/* <td style={{ textAlign: "center", width: "10px" }}>
                 <FaTrash
-                  style={{ ...styles.icon, color: "red" }}
-                  onClick={() => handleDelete(motorista.id)}
+                  style={{ color: "red" }}
+                  onClick={() => openDeleteModal(motorista.id)}
                 />
-              </td>
+              </td> */}
             </tr>
           ))}
         </tbody>
-      </Table>
+      </StyledTable>
 
       {/* Modal para edição ou criação */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>
@@ -114,7 +199,7 @@ const Motorista = () => {
           {selectedMotorista.id ? "Editar Motorista" : "Adicionar Motorista"}
         </ModalHeader>
         <ModalBody>
-          <div>
+          <div className="mb-3">
             <label>Nome:</label>
             <input
               type="text"
@@ -125,7 +210,7 @@ const Motorista = () => {
               }
             />
           </div>
-          <div>
+          <div className="mb-3">
             <label>Placa:</label>
             <input
               type="text"
@@ -136,7 +221,7 @@ const Motorista = () => {
               }
             />
           </div>
-          <div>
+          <div className="mb-3">
             <label>ANTT:</label>
             <input
               type="text"
@@ -158,41 +243,27 @@ const Motorista = () => {
         </ModalFooter>
       </Modal>
 
+      {/* Modal de confirmação de exclusão */}
+      <Modal isOpen={deleteModalOpen} toggle={cancelDelete}>
+        <ModalHeader toggle={cancelDelete}>
+          Confirmar Exclusão
+        </ModalHeader>
+        <ModalBody>
+          Tem certeza que deseja excluir este motorista?
+        </ModalBody>
+        <ModalFooter>
+          <Button color="danger" onClick={confirmDelete}>
+            Excluir
+          </Button>
+          <Button color="secondary" onClick={cancelDelete}>
+            Cancelar
+          </Button>
+        </ModalFooter>
+      </Modal>
+
       <ToastContainer />
     </div>
   );
-};
-
-const styles = {
-  headerContainer: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  table: {
-    marginTop: "20px",
-    borderRadius: "10px",
-    overflow: "hidden",
-  },
-  header: {
-    backgroundColor: "#007bff",
-    color: "#fff",
-    textAlign: "center",
-    padding: "10px",
-  },
-  cell: {
-    textAlign: "center",
-    padding: "10px",
-  },
-  icon: {
-    cursor: "pointer",
-  },
-  addButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-  },
 };
 
 export default Motorista;

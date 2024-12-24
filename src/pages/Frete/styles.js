@@ -15,7 +15,7 @@ export const ContainerGeralFrete = styled.div`
     justify-content: space-between;
   color: #fff;
   z-index: 100;
-}
+
 `;
 export const NavbarContainer = styled.nav`
   display: flex;

@@ -1,16 +1,40 @@
 import React, { useEffect, useState } from "react";
-import { Table, Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+} from "reactstrap";
 import { toast, ToastContainer } from "react-toastify";
-import apiLocal from "../../../services/apiLocal";
 import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
+
+import apiLocal from "../../../services/apiLocal";
+// Importa os componentes estilizados
+import {
+  HeaderContainer,
+  StyledTable,
+  AddButton,
+  FilterInput
+} from "./style";
 
 const TipoOcorren = () => {
   const [tiposOcorrencia, setTiposOcorrencia] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Dados do tipo que está sendo criado/editado
   const [selectedTipo, setSelectedTipo] = useState({
     id: null,
-    nome: "",
+    nome: ""
   });
+
+  // Texto do filtro de busca
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Estado para controlar modal de exclusão
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  // Estado para guardar o ID do item a excluir
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   useEffect(() => {
     fetchTiposOcorrencia();
@@ -26,23 +50,37 @@ const TipoOcorren = () => {
     }
   };
 
+  // Filtra as ocorrências com base no 'searchTerm'
+  const filteredOcorrencias = tiposOcorrencia.filter((tipo) =>
+    tipo.nome.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Abre/fecha o modal de edição/criação
   const toggleModal = () => setModalOpen(!modalOpen);
 
+  // Ao clicar em "Editar"
   const handleEdit = (tipo) => {
     setSelectedTipo(tipo);
     toggleModal();
   };
 
+  // Ao clicar em "Adicionar"
   const handleAddNew = () => {
     setSelectedTipo({ id: null, nome: "" });
     toggleModal();
   };
 
+  // SALVAR (cria ou atualiza)
   const handleSave = async () => {
+    const { id, nome } = selectedTipo;
+    const dataToSend = id ? { id, nome } : { nome };
+
     try {
-      await apiLocal.createOrUpdateNomeOcorrencia(selectedTipo);
+      await apiLocal.createOrUpdateNomeOcorrencia(dataToSend);
       toast.success(
-        selectedTipo.id ? "Tipo de ocorrência atualizado com sucesso!" : "Tipo de ocorrência criado com sucesso!"
+        id
+          ? "Tipo de ocorrência atualizada com sucesso!"
+          : "Tipo de ocorrência criada com sucesso!"
       );
       toggleModal();
       fetchTiposOcorrencia();
@@ -52,60 +90,94 @@ const TipoOcorren = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este tipo de ocorrência?")) {
-      try {
-        await apiLocal.deleteNomeOcorrencia(id);
-        toast.success("Tipo de ocorrência excluído com sucesso!");
-        fetchTiposOcorrencia();
-      } catch (error) {
-        toast.error("Erro ao excluir tipo de ocorrência.");
-        console.error(error);
-      }
+  // Ao clicar em "Excluir" no ícone de lixeira (FaTrash)
+  // Em vez de excluir diretamente, abrimos um modal de confirmação
+  const openDeleteModal = (id) => {
+    setItemToDelete(id);
+    setDeleteModalOpen(true);
+  };
+
+  // Usuário confirma a exclusão no modal
+  const confirmDelete = async () => {
+    try {
+      await apiLocal.deleteNomeOcorrencia(itemToDelete);
+      toast.success("Tipo de ocorrência excluída com sucesso!");
+      setDeleteModalOpen(false);
+      setItemToDelete(null);
+      fetchTiposOcorrencia();
+    } catch (error) {
+      toast.error("Erro ao excluir tipo de ocorrência.");
+      console.error(error);
     }
   };
 
+  // Usuário cancela a exclusão
+  const cancelDelete = () => {
+    setDeleteModalOpen(false);
+    setItemToDelete(null);
+  };
+
   return (
-    <div>
-      <div style={styles.headerContainer}>
-        <h2>Tipos de Ocorrências</h2>
-        <Button color="success" onClick={handleAddNew} style={styles.addButton}>
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        width: "100%",
+        minHeight: "100vh"
+      }}
+    >
+      <HeaderContainer>
+        {/* Campo de texto para filtrar pelo nome */}
+        <FilterInput
+          type="text"
+          placeholder="Filtrar por nome..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        {/* Botão de adicionar nova ocorrência */}
+        <AddButton color="success" onClick={handleAddNew}>
           <FaPlus /> Adicionar Tipo de Ocorrência
-        </Button>
-      </div>
-      <Table bordered style={styles.table}>
+        </AddButton>
+      </HeaderContainer>
+
+      <StyledTable bordered>
         <thead>
           <tr>
-            <th style={styles.header}>Editar</th>
-            <th style={styles.header}>Nome</th>
-            <th style={styles.header}>Excluir</th>
+            <th>Editar</th>
+            <th>Nome</th>
+            {/* <th>Excluir</th> */}
           </tr>
         </thead>
         <tbody>
-          {tiposOcorrencia.map((tipo) => (
+          {filteredOcorrencias.map((tipo) => (
             <tr key={tipo.id}>
-              <td style={styles.cell}>
+              <td style={{ width: "10px", textAlign: "center" }}>
                 <FaPen
-                  style={styles.icon}
                   onClick={() => handleEdit(tipo)}
+                  style={{ color: "rgb(0, 123, 255)" }}
                 />
               </td>
-              <td style={styles.cell}>{tipo.nome}</td>
-              <td style={styles.cell}>
+              <td>{tipo.nome}</td>
+              {/* <td style={{ width: "10px", textAlign: "center" }}>
                 <FaTrash
-                  style={{ ...styles.icon, color: "red" }}
-                  onClick={() => handleDelete(tipo.id)}
+                  style={{ color: "rgba(255, 69, 0, 0.8)" }}
+                  onClick={() => openDeleteModal(tipo.id)}
                 />
-              </td>
+              </td> */}
             </tr>
           ))}
         </tbody>
-      </Table>
+      </StyledTable>
 
       {/* Modal para edição ou criação */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>
         <ModalHeader toggle={toggleModal}>
-          {selectedTipo.id ? "Editar Tipo de Ocorrência" : "Adicionar Tipo de Ocorrência"}
+          {selectedTipo.id
+            ? "Editar Tipo de Ocorrência"
+            : "Adicionar Tipo de Ocorrência"}
         </ModalHeader>
         <ModalBody>
           <div>
@@ -130,41 +202,27 @@ const TipoOcorren = () => {
         </ModalFooter>
       </Modal>
 
+      {/* Modal de confirmação de exclusão */}
+      <Modal isOpen={deleteModalOpen} toggle={cancelDelete}>
+        <ModalHeader toggle={cancelDelete}>
+          Confirmar Exclusão
+        </ModalHeader>
+        <ModalBody>
+          Tem certeza que deseja excluir este tipo de ocorrência?
+        </ModalBody>
+        <ModalFooter>
+          <Button color="danger" onClick={confirmDelete}>
+            Excluir
+          </Button>
+          <Button color="secondary" onClick={cancelDelete}>
+            Cancelar
+          </Button>
+        </ModalFooter>
+      </Modal>
+
       <ToastContainer />
     </div>
   );
-};
-
-const styles = {
-  headerContainer: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  table: {
-    marginTop: "20px",
-    borderRadius: "10px",
-    overflow: "hidden",
-  },
-  header: {
-    backgroundColor: "#007bff",
-    color: "#fff",
-    textAlign: "center",
-    padding: "10px",
-  },
-  cell: {
-    textAlign: "center",
-    padding: "10px",
-  },
-  icon: {
-    cursor: "pointer",
-  },
-  addButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "5px",
-  },
 };
 
 export default TipoOcorren;

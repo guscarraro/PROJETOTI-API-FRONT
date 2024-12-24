@@ -15,7 +15,7 @@ export const ContainerGeral = styled.div`
   justify-content: center;
   color: #fff;
   z-index: 100;
-}
+
 `;
 
 export const Box = styled.div`
@@ -43,8 +43,8 @@ export const Card = styled.div`
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 20px;
-  z-index:10
-  max-width: 100%;
+  z-index:10;
+  max-width:100%;
 `;
 
 export const Header = styled.div`

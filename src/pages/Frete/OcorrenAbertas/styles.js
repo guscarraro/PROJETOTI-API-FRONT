@@ -12,10 +12,10 @@ export const Container = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
   color: #fff;
   z-index: 100;
-}
+
 `;
 export const ContainerCards = styled.div`
  max-width: 90%;
@@ -26,5 +26,5 @@ export const ContainerCards = styled.div`
     justify-content: center;
   color: #fff;
   z-index: 100;
-}
+
 `;
