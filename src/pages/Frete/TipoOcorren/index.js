@@ -6,7 +6,7 @@ import {
   ModalFooter,
   Button,
 } from "reactstrap";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
 
 import apiLocal from "../../../services/apiLocal";
@@ -220,7 +220,6 @@ const TipoOcorren = () => {
         </ModalFooter>
       </Modal>
 
-      <ToastContainer />
     </div>
   );
 };

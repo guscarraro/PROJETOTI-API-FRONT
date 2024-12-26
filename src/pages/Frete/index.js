@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
-import apiLocal from "../../services/apiLocal";
+import {  toast } from "react-toastify";
 import Motorista from "./Motorista";
 import Cliente from "./Cliente";
 import TipoOcorren from "./TipoOcorren";
 import LancarOcorren from "./LancarOcorren";
 import OcorrenAbertas from "./OcorrenAbertas";
+import RastreioMot from "./RastreioMot";
 import Dashboard from "./Dashboard";
 import { ContainerGeralFrete, NavbarContainer, NavButton, NavIcon } from "./styles";
-import { ToastContainer } from "react-toastify";
+import { SiGooglemaps } from "react-icons/si";
 import {
   FaTachometerAlt,
   FaClipboardList,
@@ -16,77 +17,92 @@ import {
   FaFileAlt,
   FaPlusCircle,
 } from "react-icons/fa";
+import RastreioMotorista from "./RastreioMot";
 
-const Navbar = ({ currentTab, setCurrentTab }) => {
-  return (
-    <NavbarContainer>
-      <NavButton
-        active={currentTab === "dashboard"}
-        onClick={() => setCurrentTab("dashboard")}
-      >
-        <NavIcon>
-          <FaTachometerAlt />
-        </NavIcon>
-        Dashboard
-      </NavButton>
-      <NavButton
-        active={currentTab === "ocorrencias"}
-        onClick={() => setCurrentTab("ocorrencias")}
-      >
-        <NavIcon>
-          <FaClipboardList />
-        </NavIcon>
-        Ocorrências em Aberto
-      </NavButton>
-      <NavButton
-        active={currentTab === "novaOcorrencia"}
-        onClick={() => setCurrentTab("novaOcorrencia")}
-      >
-        <NavIcon>
-          <FaPlusCircle />
-        </NavIcon>
-        Lançar Nova Ocorrência
-      </NavButton>
-      <NavButton
-        active={currentTab === "tiposOcorrencias"}
-        onClick={() => setCurrentTab("tiposOcorrencias")}
-      >
-        <NavIcon>
-          <FaFileAlt />
-        </NavIcon>
-        Tipos de Ocorrências
-      </NavButton>
-      <NavButton
-        active={currentTab === "motoristas"}
-        onClick={() => setCurrentTab("motoristas")}
-      >
-        <NavIcon>
-          <FaTruck />
-        </NavIcon>
-        Motoristas
-      </NavButton>
-      <NavButton
-        active={currentTab === "clientes"}
-        onClick={() => setCurrentTab("clientes")}
-      >
-        <NavIcon>
-          <FaUsers />
-        </NavIcon>
-        Clientes
-      </NavButton>
-      
-      
-    </NavbarContainer>
-  );
-};
+const Navbar = ({ currentTab, setCurrentTab }) => (
+  <NavbarContainer>
+    <NavButton
+      active={currentTab === "dashboard"}
+      onClick={() => setCurrentTab("dashboard")}
+    >
+      <NavIcon>
+        <FaTachometerAlt />
+      </NavIcon>
+      Dashboard
+    </NavButton>
+    <NavButton
+      active={currentTab === "ocorrencias"}
+      onClick={() => setCurrentTab("ocorrencias")}
+    >
+      <NavIcon>
+        <FaClipboardList />
+      </NavIcon>
+      Ocorrências em Aberto
+    </NavButton>
+    <NavButton
+      active={currentTab === "novaOcorrencia"}
+      onClick={() => setCurrentTab("novaOcorrencia")}
+    >
+      <NavIcon>
+        <FaPlusCircle />
+      </NavIcon>
+      Lançar Nova Ocorrência
+    </NavButton>
+    <NavButton
+      active={currentTab === "rastreio"}
+      onClick={() => setCurrentTab("rastreio")}
+    >
+      <NavIcon>
+        <SiGooglemaps />
+      </NavIcon>
+      Rastreio motorista
+    </NavButton>
+    <NavButton
+      active={currentTab === "tiposOcorrencias"}
+      onClick={() => setCurrentTab("tiposOcorrencias")}
+    >
+      <NavIcon>
+        <FaFileAlt />
+      </NavIcon>
+      Tipos de Ocorrências
+    </NavButton>
+    <NavButton
+      active={currentTab === "motoristas"}
+      onClick={() => setCurrentTab("motoristas")}
+    >
+      <NavIcon>
+        <FaTruck />
+      </NavIcon>
+      Motoristas
+    </NavButton>
+    <NavButton
+      active={currentTab === "clientes"}
+      onClick={() => setCurrentTab("clientes")}
+    >
+      <NavIcon>
+        <FaUsers />
+      </NavIcon>
+      Clientes
+    </NavButton>
+  </NavbarContainer>
+);
 
 const Frete = () => {
   const [currentTab, setCurrentTab] = useState("ocorrencias");
   const [updateFlag, setUpdateFlag] = useState(false); // Flag para atualização
+  const [successMessage, setSuccessMessage] = useState(null); // Mensagem de sucesso
 
-  const handleActionComplete = () => {
+  const handleActionComplete = (message) => {
     setUpdateFlag(!updateFlag); // Alterna a flag para forçar re-renderizações
+    setSuccessMessage(message); // Atualiza mensagem de sucesso
   };
+
+  useEffect(() => {
+    if (successMessage) {
+      toast.success(successMessage);
+      setSuccessMessage(null); // Reseta mensagem após o toast
+    }
+  }, [successMessage]);
 
   return (
     <ContainerGeralFrete>
@@ -95,16 +111,15 @@ const Frete = () => {
         {currentTab === "dashboard" && <Dashboard />}
         {currentTab === "ocorrencias" && <OcorrenAbertas />}
         {currentTab === "novaOcorrencia" && (
-          <LancarOcorren onActionComplete={handleActionComplete} />
+          <LancarOcorren onActionComplete={(message) => handleActionComplete(message)} />
         )}
+        {currentTab === "rastreio" && <RastreioMotorista />}
         {currentTab === "tiposOcorrencias" && <TipoOcorren />}
         {currentTab === "motoristas" && <Motorista />}
         {currentTab === "clientes" && <Cliente />}
       </div>
-      <ToastContainer position="top-right" autoClose={3000} />
     </ContainerGeralFrete>
   );
 };
-
 
 export default Frete;

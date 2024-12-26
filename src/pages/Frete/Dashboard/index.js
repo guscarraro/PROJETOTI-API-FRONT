@@ -1,165 +1,239 @@
 import React, { useEffect, useState } from "react";
-import { Card, CardBody, CardTitle } from "reactstrap";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { toast, ToastContainer } from "react-toastify";
+import ChartMotoristas from "./ChartMotoristas";
+import ChartClientes from "./ChartClientes";
+import ChartOcorrencias from "./ChartOcorrencias";
+import LineOcorrenDias from "./LineOcorrenDias";
 import apiLocal from "../../../services/apiLocal";
+import { Box, CardStyle } from "./style";
+import { FaChartLine, FaClock, FaExclamationTriangle } from "react-icons/fa";
+import { Col, Row } from "reactstrap";
 
 const Dashboard = () => {
-  return (
-    <div>
-      <h2>Dashboard</h2>
-      <GraficoEscadaOcorren />
-      <GraficoTopClientes />
-      <div style={styles.cardContainer}>
-        <CardTempoMedio nome="Ocorrências Resolvidas" status="Resolvido" />
-        <CardTempoMedio nome="Ocorrências Não Entregues" status="Não entregue" />
-      </div>
-      <ToastContainer />
-    </div>
-  );
-};
+  const [motoristasData, setMotoristasData] = useState([]);
+  const [clientesData, setClientesData] = useState([]);
+  const [ocorrenciasTipoData, setOcorrenciasTipoData] = useState([]);
+  const [todasOcorrencias, setTodasOcorrencias] = useState([]);
 
-// Gráfico de Escada para Ocorrências por Tipo
-const GraficoEscadaOcorren = () => {
-  const [data, setData] = useState([]);
+  const [qtdOcorrenciasAbertas, setQtdOcorrenciasAbertas] = useState(0);
+  const [tempoMedioEntrega, setTempoMedioEntrega] = useState(0);
+  const [mediaOcorrenciasPorDia, setMediaOcorrenciasPorDia] = useState(0);
+
+  // Para exibir nomes de motorista/cliente no modal:
+  const [motoristasMap, setMotoristasMap] = useState({});
+  const [clientesMap, setClientesMap] = useState({});
 
   useEffect(() => {
-    fetchData();
+    fetchDashboardData();
   }, []);
 
-  const fetchData = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const response = await apiLocal.getOcorrencias();
-      const ocorrenciasPorTipo = response.data.reduce((acc, curr) => {
-        const tipo = curr.tipoocorrencia_id || "Desconhecido";
-        acc[tipo] = (acc[tipo] || 0) + 1;
-        return acc;
-      }, {});
-
-      const formattedData = Object.keys(ocorrenciasPorTipo).map((key) => ({
-        tipo: `Tipo ${key}`,
-        quantidade: ocorrenciasPorTipo[key],
+      // Carrega todas as ocorrências
+      const respOcorrencias = await apiLocal.getOcorrencias();
+      const { data: ocorrencias } = respOcorrencias;
+      setTodasOcorrencias(ocorrencias);
+  
+      // Carrega motoristas
+      const respMotoristas = await apiLocal.getMotoristas();
+      const motoristasList = respMotoristas.data;
+  
+      // Carrega clientes
+      const respClientes = await apiLocal.getClientes();
+      const clientesList = respClientes.data;
+  
+      // Carrega tipos de ocorrência
+      const respTipos = await apiLocal.getNomesOcorrencias();
+      const tiposList = respTipos.data;
+  
+      // Mapear motoristas e clientes
+      const tempMotoristasMap = {};
+      motoristasList.forEach((m) => (tempMotoristasMap[m.id] = m.nome));
+      setMotoristasMap(tempMotoristasMap);
+  
+      const tempClientesMap = {};
+      clientesList.forEach((c) => (tempClientesMap[c.id] = c.nome));
+      setClientesMap(tempClientesMap);
+  
+      // Monta dados para gráfico de Motoristas
+      const motoristasCountMap = {};
+      ocorrencias.forEach((oc) => {
+        const mId = oc.motorista_id;
+        if (!motoristasCountMap[mId]) motoristasCountMap[mId] = 0;
+        motoristasCountMap[mId]++;
+      });
+  
+      const motoristasDataFinal = motoristasList.map((m) => {
+        const details = ocorrencias
+          .filter((oc) => oc.motorista_id === m.id)
+          .map((oc) => ({
+            NF: oc.nf,
+            cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
+            tipo: tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+            data: new Date(oc.datainclusao).toLocaleDateString(),
+          }));
+  
+        return {
+          id: m.id,
+          nome: m.nome,
+          total: motoristasCountMap[m.id] || 0,
+          details: details,
+        };
+      });
+  
+      setMotoristasData(motoristasDataFinal);
+  
+      // Monta dados para gráfico de Clientes
+      const clientesCountMap = {};
+      ocorrencias.forEach((oc) => {
+        const cId = oc.cliente_id;
+        if (!clientesCountMap[cId]) clientesCountMap[cId] = 0;
+        clientesCountMap[cId]++;
+      });
+  
+      const clientesDataFinal = clientesList.map((c) => ({
+        id: c.id,
+        nome: c.nome,
+        valor: clientesCountMap[c.id] || 0,
       }));
-
-      setData(formattedData);
+      setClientesData(clientesDataFinal);
+  
+      // Monta dados para gráfico de Ocorrências por Tipo
+      const tipoCountMap = {};
+      const tipoDetailsMap = {};
+  
+      ocorrencias.forEach((oc) => {
+        const tId = oc.tipoocorrencia_id;
+        if (!tipoCountMap[tId]) {
+          tipoCountMap[tId] = 0;
+          tipoDetailsMap[tId] = [];
+        }
+        tipoCountMap[tId]++;
+  
+        tipoDetailsMap[tId].push({
+          NF: oc.nf,
+          motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
+          cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
+        });
+      });
+  
+      const ocorrenciasTipoFinal = tiposList.map((t) => ({
+        nome: t.nome,
+        quantidade: tipoCountMap[t.id] || 0,
+        details: tipoDetailsMap[t.id] || [],
+      })).filter((item) => item.quantidade !== 0);
+  
+      setOcorrenciasTipoData(ocorrenciasTipoFinal);
+  
+      // Calcula métricas adicionais
+      const pendentes = ocorrencias.filter((oc) => oc.status === "Pendente");
+      setQtdOcorrenciasAbertas(pendentes.length);
+  
+      const resolvidas = ocorrencias.filter((oc) => oc.status === "Resolvido");
+      if (resolvidas.length > 0) {
+        let somaTempos = 0;
+        resolvidas.forEach((oc) => {
+          const horaChegada = new Date(oc.horario_chegada);
+          const horaSaida = oc.horario_saida
+            ? new Date(oc.horario_saida)
+            : horaChegada;
+          somaTempos += horaSaida - horaChegada;
+        });
+        const mediaMs = somaTempos / resolvidas.length;
+        setTempoMedioEntrega(Math.floor(mediaMs / 60000)); // em minutos
+      } else {
+        setTempoMedioEntrega(0);
+      }
+  
+      if (ocorrencias.length > 0) {
+        const distinctDays = new Set();
+        ocorrencias.forEach((oc) => {
+          const dayString = new Date(oc.datainclusao).toISOString().split("T")[0];
+          distinctDays.add(dayString);
+        });
+  
+        const totalDays = distinctDays.size || 1;
+        setMediaOcorrenciasPorDia((ocorrencias.length / totalDays).toFixed(0));
+      } else {
+        setMediaOcorrenciasPorDia(0);
+      }
     } catch (error) {
-      toast.error("Erro ao carregar dados para o gráfico de ocorrências.");
-      console.error(error);
+      console.error("Erro ao buscar dados para o dashboard", error);
     }
   };
+  
 
   return (
-    <div>
-      <h3>Gráfico de Ocorrências por Tipo</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="tipo" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="quantidade" fill="#8884d8" />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
+    <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20 }}>
+      {/* <h2>Dashboard</h2> */}
+
+      {/* Cards de métricas */}
+      <Row >
+        {/* Card 1: Ocorrências em Aberto */}
+        <Col  md={4}>
+        <CardStyle bgColor="rgba(255, 99, 71, 0.2)" iconColor="#FF6347">
+          {/* Exemplo: ícone de atenção */}
+          <h3>
+            <FaExclamationTriangle /> Ocorrências em Aberto
+          </h3>
+          <p style={{ fontSize: 28 }}>{qtdOcorrenciasAbertas}</p>
+        </CardStyle>
+        </Col>
+        <Col  md={4}>
+        {/* Card 2: Tempo Médio de Entrega */}
+        <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
+          {/* Exemplo: ícone de relógio */}
+          <h3>
+            <FaClock /> Tempo Médio de Entrega
+          </h3>
+          <p style={{ fontSize: 28 }}>{tempoMedioEntrega} min</p>
+        </CardStyle>
+        </Col>
+        {/* Card 3: Média Ocorrências/Dia */}
+        <Col  md={4}>
+        <CardStyle bgColor="rgba(154, 205, 50, 0.2)" iconColor="#9ACD32">
+          {/* Exemplo: ícone de gráfico */}
+          <h3>
+            <FaChartLine /> Média Ocorrências/Dia
+          </h3>
+          <p style={{ fontSize: 28 }}>{mediaOcorrenciasPorDia}</p>
+        </CardStyle>
+        </Col>
+      </Row>
+
+      {/* Graficos */}
+      <Col  md={12}>
+        <Box >
+          <h3>Ocorrências por Motorista</h3>
+          <ChartMotoristas data={motoristasData} />
+        </Box>
+        </Col>
+        <Row>
+        <Col  md={7}>
+        <Box >
+          <h3>Ocorrências resolvidas/Não resolvidas por dia</h3>
+          <LineOcorrenDias data={todasOcorrencias} />
+        </Box>
+        </Col>
+        <Col  md={5}>
+        <Box >
+          <h3>Top 7 Clientes com mais ocorrências</h3>
+          <ChartClientes data={clientesData} />
+        </Box>
+        </Col>
+        </Row>
+      
+
+      {/* Gráfico de Escadas por Tipo de Ocorrência */}
+      <Col  md={12}>
+      <Box >
+        <h3>Quantidade ocorrências por Tipo</h3>
+        <ChartOcorrencias data={ocorrenciasTipoData} />
+      </Box>
+      </Col>
+    </Row>
   );
 };
 
-// Gráfico de Escada para Top 10 Clientes
-const GraficoTopClientes = () => {
-  const [data, setData] = useState([]);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const response = await apiLocal.getOcorrencias();
-      const ocorrenciasPorCliente = response.data.reduce((acc, curr) => {
-        const cliente = curr.cliente_id || "Desconhecido";
-        acc[cliente] = (acc[cliente] || 0) + 1;
-        return acc;
-      }, {});
-
-      const sortedClientes = Object.entries(ocorrenciasPorCliente)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([cliente, quantidade]) => ({ cliente: `Cliente ${cliente}`, quantidade }));
-
-      setData(sortedClientes);
-    } catch (error) {
-      toast.error("Erro ao carregar dados para o gráfico de clientes.");
-      console.error(error);
-    }
-  };
-
-  return (
-    <div>
-      <h3>Top 10 Clientes com Mais Ocorrências</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="cliente" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="quantidade" fill="#82ca9d" />
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
-
-// Card para Tempo Médio de Permanência
-const CardTempoMedio = ({ nome, status }) => {
-  const [tempoMedio, setTempoMedio] = useState(null);
-
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const response = await apiLocal.getOcorrencias();
-      const ocorrencias = response.data.filter((ocorrencia) => ocorrencia.status === status);
-
-      const totalTempo = ocorrencias.reduce((acc, curr) => {
-        const chegada = new Date(curr.horario_chegada);
-        const saida = new Date(curr.horario_saida);
-        const diferenca = (saida - chegada) / (1000 * 60); // Diferença em minutos
-        return acc + diferenca;
-      }, 0);
-
-      const media = ocorrencias.length > 0 ? totalTempo / ocorrencias.length : 0;
-      setTempoMedio(media.toFixed(2)); // Formata para 2 casas decimais
-    } catch (error) {
-      toast.error("Erro ao calcular o tempo médio.");
-      console.error(error);
-    }
-  };
-
-  return (
-    <Card style={styles.card}>
-      <CardBody>
-        <CardTitle tag="h5">{nome}</CardTitle>
-        <p>{tempoMedio ? `${tempoMedio} minutos` : "Carregando..."}</p>
-      </CardBody>
-    </Card>
-  );
-};
-
-const styles = {
-  cardContainer: {
-    display: "flex",
-    justifyContent: "space-between",
-    marginTop: "20px",
-  },
-  card: {
-    width: "45%",
-    borderRadius: "10px",
-    boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
-    textAlign: "center",
-    padding: "20px",
-  },
-};
 
 export default Dashboard;

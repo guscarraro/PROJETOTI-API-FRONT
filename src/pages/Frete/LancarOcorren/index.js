@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import apiLocal from "../../../services/apiLocal";
 import {
   Container,
@@ -12,7 +12,6 @@ import {
   TextArea,
   SubmitButton,
 } from "./style";
-
 import {
   FaFileInvoice,
   FaUser,
@@ -24,7 +23,7 @@ import {
   FaRoad,
 } from "react-icons/fa";
 
-const LancarOcorren = () => {
+const LancarOcorren = ({ onActionComplete }) => {
   const [motoristas, setMotoristas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [tiposOcorrencia, setTiposOcorrencia] = useState([]);
@@ -83,7 +82,7 @@ const LancarOcorren = () => {
   };
 
   const handleSave = async (e) => {
-    e.preventDefault(); // Impede comportamento padrão do formulário
+    e.preventDefault();
   
     try {
       if (
@@ -107,13 +106,9 @@ const LancarOcorren = () => {
         status: "Pendente",
       };
   
-      // Chame a API e aguarde a resposta
       await apiLocal.createOrUpdateOcorrencia(ocorrenciaFormatada);
   
-      // Garante que o toast é exibido imediatamente após o sucesso
-      toast.success("Ocorrência lançada com sucesso!");
-  
-      // Resetando o formulário
+      // Reseta o formulário
       setOcorrencia({
         nf: "",
         cliente_id: "",
@@ -126,6 +121,11 @@ const LancarOcorren = () => {
         obs: "",
         status: "Pendente",
       });
+  
+      // Envia mensagem ao componente pai
+      if (onActionComplete) {
+        onActionComplete("Ocorrência lançada com sucesso!");
+      }
     } catch (error) {
       console.error("Erro ao salvar a ocorrência:", error);
       toast.error("Erro ao lançar a ocorrência.");

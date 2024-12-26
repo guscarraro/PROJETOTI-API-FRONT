@@ -13,7 +13,7 @@ import {
   FormGroup,
   Label,
 } from "reactstrap";
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 import { FaCheckCircle, FaEye, FaExclamationTriangle } from "react-icons/fa";
 import apiLocal from "../../../services/apiLocal";
 import { Container, ContainerCards } from "./styles";
@@ -259,7 +259,6 @@ const OcorrenAbertas = () => {
         </ModalFooter>
       </Modal>
 
-      <ToastContainer />
     </Container>
   );
 };

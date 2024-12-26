@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabaseClient';
 import { useNavigate } from 'react-router-dom';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 import { Button, Form, Container, Row, Col } from 'reactstrap';
 import { FaEnvelope, FaLock } from 'react-icons/fa';
 import LogoCarraro from '../../images/logologin.png';
@@ -102,7 +102,6 @@ function Login() {
           </Form>
         </Col>
       </Row>
-      <ToastContainer />
     </Container>
   );
 }

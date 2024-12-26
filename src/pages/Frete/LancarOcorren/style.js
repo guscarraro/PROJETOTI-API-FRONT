@@ -10,6 +10,7 @@ export const Container = styled.div`
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra suave */
  display: flex;
     flex-direction: column;
+    justify-content: flex-start;
 `;
 
 export const Title = styled.h2`
