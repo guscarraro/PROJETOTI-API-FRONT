@@ -75,7 +75,7 @@ const App = () => {
     element={
       <PrivateRoute
         element={<ProjetoFrota />}
-        allowedSectors={['958db54e-add5-45f6-8aef-739d6ba7cb4c']}
+        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
       />
     }
   />

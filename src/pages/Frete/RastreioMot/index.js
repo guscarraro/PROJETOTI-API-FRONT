@@ -13,7 +13,7 @@ const RastreamentoMotorista = () => {
   };
 
   return (
-    <LoadScript googleMapsApiKey="SUA_CHAVE_DE_API">
+    <LoadScript googleMapsApiKey="AIzaSyB9rnohWQ4xTuPSt3SBFe1o67jsDGKHiEw">
       <GoogleMap
         mapContainerStyle={containerStyle}
         center={center}
