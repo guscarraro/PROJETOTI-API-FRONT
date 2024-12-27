@@ -27,6 +27,12 @@ const apiLocal = {
   getOcorrencias: () => api.get("/ocorrencias"),
   createOrUpdateOcorrencia: (data) => api.post("/ocorrencias", data),
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
+  
+  // Destinos
+  getDestinos: () => api.get("/destinos"),
+  createOrUpdateDestino: (data) => api.post("/destinos", data),
+  deleteDestino: (id) => api.delete(`/destinos/${id}`),
+
 
   getDadosNota: (nf) => api.get(`/dados-nota`, { params: { nf } }),
   // Outros endpoints (dados otimizados, ciclo pedido, etc.)

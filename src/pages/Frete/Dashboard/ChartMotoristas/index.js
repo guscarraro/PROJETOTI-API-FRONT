@@ -7,6 +7,9 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
+  defs,
+  linearGradient,
+  stop,
 } from "recharts";
 import { Button } from "reactstrap";
 import MotoristaPieChart from "./MotoristaPieChart"; // Import do novo componente
@@ -72,6 +75,13 @@ const ChartMotoristas = ({ data }) => {
           barCategoryGap="10%"
           onClick={handleBarClick}
         >
+          {/* Define o gradiente */}
+          <defs>
+            <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#002D62" />
+              <stop offset="100%" stopColor="#00509E" />
+            </linearGradient>
+          </defs>
           <CartesianGrid stroke="#fff" strokeDasharray="3 3" />
           <XAxis
             type="number"
@@ -92,7 +102,8 @@ const ChartMotoristas = ({ data }) => {
             }
           />
           <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="total" fill="#8884d8" />
+          {/* Aplicação do gradiente */}
+          <Bar dataKey="total" fill="url(#blueGradient)" />
         </BarChart>
       </ResponsiveContainer>
 

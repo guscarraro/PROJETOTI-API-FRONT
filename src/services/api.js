@@ -27,7 +27,7 @@ export const getAuthToken = async () => {
 
     // Verifica se o token existe e é válido
     if (data && data.token && data.token !== 'placeholder-token' && new Date(data.expiration) > new Date()) {
-      console.log('Reutilizando token válido do Supabase:', data.token);
+      
       return data.token;
     }
 
@@ -79,7 +79,6 @@ const generateAndSaveToken = async () => {
       throw error;
     }
 
-    console.log('Novo token gerado e salvo no Supabase:', tokenData);
     return tokenData;
   } catch (error) {
     console.error('Erro ao gerar e salvar novo token:', error.message);

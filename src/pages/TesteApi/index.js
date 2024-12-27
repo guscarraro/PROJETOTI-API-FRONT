@@ -21,7 +21,6 @@ const App = () => {
       }
 
       const authData = await authResponse.json();
-      console.log("Token recebido no frontend:", authData);
 
       // Extrair o token do campo "retorno"
       const token = authData.retorno?.[0]?.token;
@@ -53,7 +52,6 @@ const App = () => {
       }
 
       const jsonData = await response.json();
-      console.log("Dados recebidos da API protegida:", jsonData);
 
       setData(jsonData); // Atualiza os dados no estado
     } catch (error) {

@@ -9,6 +9,7 @@ import { FaChartLine, FaClock, FaDollarSign, FaExclamationTriangle, FaTimesCircl
 import { Button, Col, Row } from "reactstrap";
 import ChartEscadaClientes from "./ChartEscadaClientes";
 import ModalNaoCobranca from "./ModalNaocobranca";
+import ModalNaoEntregue from "./ModalNaoEntregue";
 
 const Dashboard = () => {
   const [motoristasData, setMotoristasData] = useState([]);
@@ -31,6 +32,11 @@ const Dashboard = () => {
 
 const handleOpenModalNaoCobranca = () => setShowModalNaoCobranca(true);
 const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
+
+const [showModalNaoEntregue, setShowModalNaoEntregue] = useState(false);
+
+const handleOpenModalNaoEntregue = () => setShowModalNaoEntregue(true);
+const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
 
 
   useEffect(() => {
@@ -64,7 +70,6 @@ const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
       const tempClientesMap = {};
       clientesList.forEach((c) => (tempClientesMap[c.id] = c.nome));
       setClientesMap(tempClientesMap);
-      console.log(ocorrencias);
       
       const ocorrenciasSemCobrancaData = ocorrencias.filter(
         (oc) => oc.status === "Resolvido" && oc.cobranca_adicional === "N"
@@ -198,7 +203,7 @@ const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
   
 
   return (
-    <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20 }}>
+    <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20, width:'100%' }}>
       {/* <h2>Dashboard</h2> */}
       {showModalNaoCobranca && (
   <ModalNaoCobranca
@@ -210,6 +215,21 @@ const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
       motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
     }))}
     onClose={handleCloseModalNaoCobranca}
+  />
+)}
+{showModalNaoEntregue && (
+  <ModalNaoEntregue
+    data={todasOcorrencias
+      .filter((oc) => oc.status === "Não entregue")
+      .map((oc) => ({
+        nf: oc.nf,
+        cliente: clientesMap[oc.cliente_id] || "Desconhecido",
+        destinatario: motoristasMap[oc.motorista_id] || "Desconhecido",
+        horario_chegada: oc.horario_chegada,
+        horario_saida: oc.horario_saida,
+        motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+      }))}
+    onClose={handleCloseModalNaoEntregue}
   />
 )}
 
@@ -246,46 +266,45 @@ const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
         </CardStyle>
         </Col>
         <Col md={6}>
-  <CardStyle
-    bgColor="rgba(72, 201, 176, 0.2)"
-    iconColor="#48C9B0"
-    onClick={handleOpenModalNaoCobranca}
-    style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
-  >
-    <h3>
-      <FaDollarSign /> Ocorrências sem Cobrança
-    </h3>
-    <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasSemCobranca}</p>
-    <p style={{ fontSize: 12, fontStyle: 'italic' }}>Clique para mais informações</p>
+          <CardStyle
+            bgColor="rgba(72, 201, 176, 0.2)"
+            iconColor="#48C9B0"
+            onClick={handleOpenModalNaoCobranca}
+            style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
+          >
+            <h3>
+              <FaDollarSign /> Ocorrências sem Cobrança
+            </h3>
+            <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasSemCobranca}</p>
+            <p style={{ fontSize: 12, fontStyle: 'italic' }}>Clique para mais informações</p>
 
-  </CardStyle>
-</Col>
+          </CardStyle>
+        </Col>
 
         {/* Card 5: Chamados Não Entregues */}
         <Col md={6}>
-          <CardStyle bgColor="rgba(231, 76, 60, 0.2)" iconColor="#E74C3C">
+          <CardStyle
+            bgColor="rgba(255, 69, 0, 0.2)"
+            iconColor="#FF4500"
+            onClick={handleOpenModalNaoEntregue}
+            style={{ cursor: "pointer" }}
+          >
             <h3>
-              <FaTimesCircle /> Chamados Encerrados Não Entregues
+              <FaTimesCircle /> Chamados Não Entregues
             </h3>
-            <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasNaoEntregues}</p>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {qtdOcorrenciasNaoEntregues}
+            </p>
+            <p style={{ fontSize: 12, fontStyle: "italic" }}>
+              Clique para mais informações
+            </p>
           </CardStyle>
         </Col>
+
       </Row>
 
       {/* Graficos */}
-      <Col  md={12}>
-        <Box >
-          <h3>Ocorrências por Motorista</h3>
-          <ChartMotoristas data={motoristasData} />
-        </Box>
-        </Col>
-      <Col  md={12}>
-        <Box >
-          <h3>Ocorrências por Cliente</h3>
-          <ChartEscadaClientes data={clientesData} />
-        </Box>
-        </Col>
-        <Row>
+      <Row>
         <Col  md={7}>
         <Box >
           <h3>Ocorrências resolvidas/Não resolvidas por dia</h3>
@@ -299,6 +318,19 @@ const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
         </Box>
         </Col>
         </Row>
+      <Col  md={12}>
+        <Box >
+          <h3>Ocorrências por Motorista</h3>
+          <ChartMotoristas data={motoristasData} />
+        </Box>
+        </Col>
+      <Col  md={12}>
+        <Box >
+          <h3>Ocorrências por Cliente</h3>
+          <ChartEscadaClientes data={clientesData} />
+        </Box>
+        </Col>
+       
       
 
       {/* Gráfico de Escadas por Tipo de Ocorrência */}

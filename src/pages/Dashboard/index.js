@@ -12,6 +12,7 @@ import TelevisaoLayout from './TelevisaoLayout';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
 import { formatDate } from '../../helpers';
 import { fetchIndiceAtendimento } from '../../services/api';
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -28,7 +29,7 @@ const Dashboard = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [updating, setUpdating] = useState(false); // Indica atualização silenciosa
   const reconnectInterval = useRef(null);
-
+  const navigate = useNavigate();
 
 
 
@@ -36,13 +37,11 @@ const Dashboard = () => {
     if (!silentUpdate) setLoading(true);
   
     try {
-      console.log('Fetching data for:', dataInicial, dataFinal);
   
       const indiceData = await fetchIndiceAtendimento(dataInicial, dataFinal);
   
       if (indiceData && indiceData.length > 0) {
         setData(indiceData);
-        console.log('Dados atualizados com sucesso:', indiceData);
       } else {
         console.warn('Nenhum dado foi retornado pela API. Mantendo os dados antigos.');
       }
@@ -424,7 +423,24 @@ const Dashboard = () => {
         ) : (
           <>
             <Row>
+           
             <Col md="12">
+            <button
+        onClick={() => navigate("/Frete")} // Navegar para Frete
+        style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          padding: "10px 20px",
+          backgroundColor: "#007bff",
+          color: "#fff",
+          border: "none",
+          borderRadius: "5px",
+          cursor: "pointer",
+        }}
+      >
+        Ir para Ocorrências
+      </button>
             <label>Atendente:</label>
             <select
               value={selectedAtendente}

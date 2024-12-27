@@ -6,7 +6,7 @@ export const Container = styled.div`
   background-color: #202722; 
   background-image: radial-gradient(#333 1px, transparent 1px);
   background-size: 20px 20px;
-  max-width: 90%;
+  width: 90%;
   min-height: 100vh;
   height: auto;
   display: flex;
@@ -15,10 +15,11 @@ export const Container = styled.div`
     justify-content: flex-start;
   color: #fff;
   z-index: 100;
+  padding-bottom: 5%;
 
 `;
 export const ContainerCards = styled.div`
- max-width: 90%;
+ width: 100%;
   height: auto;
   display: flex;
   flex-direction: row;

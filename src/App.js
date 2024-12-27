@@ -22,15 +22,35 @@ const App = () => {
       <Routes>
   <Route path="/" element={<Login />} />
 
+  {/* SAC */}
   <Route
     path="/SAC"
     element={
       <PrivateRoute
         element={<Dashboard />}
-        allowedSectors={['43350e26-12f4-4094-8cfb-2a66f250838d']}
+        allowedSectors={[
+          '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
+          '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
+        ]}
       />
     }
   />
+
+  {/* Frete */}
+  <Route
+    path="/Frete"
+    element={
+      <PrivateRoute
+        element={<Frete />}
+        allowedSectors={[
+          '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
+          '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
+        ]}
+      />
+    }
+  />
+
+  {/* Outras rotas */}
   <Route
     path="/CicloPedido"
     element={
@@ -40,7 +60,6 @@ const App = () => {
       />
     }
   />
-
   <Route
     path="/Operacao"
     element={
@@ -50,7 +69,6 @@ const App = () => {
       />
     }
   />
-
   <Route
     path="/Financeiro"
     element={
@@ -69,22 +87,12 @@ const App = () => {
       />
     }
   />
-
   <Route
     path="/ProjetoFrota"
     element={
       <PrivateRoute
         element={<ProjetoFrota />}
         allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
-      />
-    }
-  />
-  <Route
-    path="/Frete"
-    element={
-      <PrivateRoute
-        element={<Frete />}
-        allowedSectors={['958db54e-add5-45f6-8aef-739d6ba7cb4c']}
       />
     }
   />

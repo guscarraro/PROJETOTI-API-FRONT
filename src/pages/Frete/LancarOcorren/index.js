@@ -139,67 +139,105 @@ const LancarOcorren = ({ onActionComplete }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-
+  
     try {
-        if (!clienteNome || !ocorrencia.nf) {
-            toast.error("Por favor, preencha todos os campos obrigatórios.");
-            return;
-        }
-
-        let clienteID;
-        const clienteExistente = clientes.find(cliente => cliente.nome === clienteNome);
-
-        if (!clienteExistente) {
-            // Cadastrar cliente caso não exista
-            const novoCliente = { nome: clienteNome };
-            const response = await apiLocal.createOrUpdateCliente(novoCliente);
-
-            if (response.data && response.data.data) {
-                clienteID = response.data.data.id; // Obtém o ID do cliente criado
-                toast.success("Cliente cadastrado automaticamente.");
-            } else {
-                throw new Error(response.data?.error || "Erro ao cadastrar cliente.");
-            }
+      if (!clienteNome || !ocorrencia.nf) {
+        toast.error("Por favor, preencha todos os campos obrigatórios.");
+        return;
+      }
+  
+      let clienteID, destinoID;
+  
+      // Verifica se o cliente já existe
+      const clienteExistente = clientes.find(
+        (cliente) => cliente.nome === clienteNome
+      );
+  
+      if (!clienteExistente) {
+        // Cadastrar cliente caso não exista
+        const novoCliente = { nome: clienteNome };
+        const responseCliente = await apiLocal.createOrUpdateCliente(novoCliente);
+  
+        if (responseCliente.data && responseCliente.data.data) {
+          clienteID = responseCliente.data.data.id; // Obtém o ID do cliente criado
+          toast.success("Cliente cadastrado automaticamente.");
         } else {
-            // Usa o ID do cliente existente
-            clienteID = clienteExistente.id;
+          throw new Error(
+            responseCliente.data?.error || "Erro ao cadastrar cliente."
+          );
         }
-
-        // Formatar e salvar a ocorrência
-        const ocorrenciaFormatada = {
-            ...ocorrencia,
-            cliente_id: clienteID,
-            destino_id: parseInt(ocorrencia.destino_id, 10),
-            tipoocorrencia_id: parseInt(ocorrencia.tipoocorrencia_id, 10),
-            endereco: null,
-            status: "Pendente",
+      } else {
+        // Usa o ID do cliente existente
+        clienteID = clienteExistente.id;
+      }
+  
+      // Verifica se o destinatário já existe
+      const destinoExistente = await apiLocal.getDestinos().then((response) =>
+        response.data.find(
+          (destino) =>
+            destino.nome === ocorrencia.destino_id && destino.cidade === ocorrencia.cidade
+        )
+      );
+      
+      if (!destinoExistente) {
+        // Cadastrar destinatário caso não exista
+        const novoDestino = {
+          nome: ocorrencia.destino_id, // Nome do destinatário vem do campo destino_id
+          endereco: null,             // Endereço opcional (pode ser null)
+          cidade: ocorrencia.cidade,  // Cidade do campo cidade
         };
-
-        const ocorrenciaResponse = await apiLocal.createOrUpdateOcorrencia(ocorrenciaFormatada);
-
-        if (ocorrenciaResponse.data) {
-            setOcorrencia({
-                nf: "",
-                cliente_id: "",
-                motorista_id: "",
-                destino_id: "",
-                cidade: "",
-                horario_chegada: "",
-                tipoocorrencia_id: "",
-                obs: "",
-                status: "Pendente",
-            });
-            setClienteNome("");
-            if (onActionComplete) onActionComplete("Ocorrência lançada com sucesso!");
+        const responseDestino = await apiLocal.createOrUpdateDestino(novoDestino);
+      
+        if (responseDestino.data && responseDestino.data.data) {
+          destinoID = responseDestino.data.data.id; // Obtém o ID do destino criado
+          toast.success("Destinatário cadastrado automaticamente.");
         } else {
-            throw new Error("Erro ao salvar a ocorrência.");
+          throw new Error(
+            responseDestino.data?.error || "Erro ao cadastrar destinatário."
+          );
         }
+      } else {
+        // Usa o ID do destino existente
+        destinoID = destinoExistente.id;
+      }
+  
+      // Formatar e salvar a ocorrência
+      const ocorrenciaFormatada = {
+        ...ocorrencia,
+        cliente_id: clienteID,
+        destino_id: destinoID,
+        tipoocorrencia_id: parseInt(ocorrencia.tipoocorrencia_id, 10),
+        endereco: null,
+        status: "Pendente",
+      };
+  
+      const ocorrenciaResponse = await apiLocal.createOrUpdateOcorrencia(
+        ocorrenciaFormatada
+      );
+  
+      if (ocorrenciaResponse.data) {
+        setOcorrencia({
+          nf: "",
+          cliente_id: "",
+          motorista_id: "",
+          destino_id: "",
+          cidade: "",
+          horario_chegada: "",
+          tipoocorrencia_id: "",
+          obs: "",
+          status: "Pendente",
+        });
+        setClienteNome("");
+        if (onActionComplete) onActionComplete("Ocorrência lançada com sucesso!");
+      } else {
+        throw new Error("Erro ao salvar a ocorrência.");
+      }
     } catch (error) {
-        console.error("Erro ao salvar a ocorrência:", error);
-        toast.error(error.message || "Erro ao lançar a ocorrência.");
+      console.error("Erro ao salvar a ocorrência:", error);
+      toast.error(error.message || "Erro ao lançar a ocorrência.");
     }
-};
-
+  };
+  
 
   
   

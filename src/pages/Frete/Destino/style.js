@@ -1,28 +1,20 @@
 import styled from "styled-components";
 import { Table, Button } from "reactstrap";
 
-/**
- * Header principal que envolve
- * - o título (Clientes)
- * - o botão de adicionar
- */
 export const HeaderContainer = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
   margin-top: 30px;
-  width: 100%;
+  width: 50%;
 `;
 
-/**
- * Tabela estilizada (usa Table do reactstrap)
- */
 export const StyledTable = styled(Table)`
   margin-top: 20px;
   border-radius: 10px;
   overflow: hidden;
-  width: 100%;
+  width: 80%;
 
   thead tr th {
     background-color: #007bff;
@@ -32,21 +24,16 @@ export const StyledTable = styled(Table)`
   }
 
   tbody tr td {
-    text-align: center;
+    text-align: start;
     padding: 10px;
     background: transparent;
     color: #fff;
-
-    /* Ícones */
     svg {
       cursor: pointer;
     }
   }
 `;
 
-/**
- * Botão de adicionar (usa Button do reactstrap)
- */
 export const AddButton = styled(Button)`
   display: flex;
   align-items: center;
