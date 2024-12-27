@@ -28,11 +28,12 @@ const apiLocal = {
   createOrUpdateOcorrencia: (data) => api.post("/ocorrencias", data),
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
 
-//   // Outros endpoints (dados otimizados, ciclo pedido, etc.)
-//   getDadosOtimizados: () => api.get("/dados-otimizados"),
-//   getCicloPedido: () => api.get("/ciclo-pedido"),
-//   getBalanceteCarraro: () => api.get("/balancete-carraro"),
-//   getFechamentoOperacao: () => api.get("/fechamento-operacao"),
+  getDadosNota: (nf) => api.get(`/dados-nota`, { params: { nf } }),
+  // Outros endpoints (dados otimizados, ciclo pedido, etc.)
+  // getDadosOtimizados: () => api.get("/dados-otimizados"),
+  // getCicloPedido: () => api.get("/ciclo-pedido"),
+  // getBalanceteCarraro: () => api.get("/balancete-carraro"),
+  // getFechamentoOperacao: () => api.get("/fechamento-operacao"),
 };
 
 export default apiLocal;

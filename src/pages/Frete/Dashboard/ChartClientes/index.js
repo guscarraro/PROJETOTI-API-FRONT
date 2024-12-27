@@ -1,5 +1,3 @@
-// ChartClientes.jsx
-
 import React from "react";
 import {
   PieChart,
@@ -22,25 +20,30 @@ const COLORS = [
 ];
 
 const ChartClientes = ({ data }) => {
-  // 1) Filtra clientes com valor > 0, ordena desc, pega top 7
+  // 1) Filtra clientes com quantidade > 0, ordena desc, pega top 7
   const top7Data = data
-    .filter((item) => item.valor > 0)
-    .sort((a, b) => b.valor - a.valor)
+    .filter((item) => item.quantidade > 0)
+    .sort((a, b) => b.quantidade - a.quantidade)
     .slice(0, 7);
 
-  // 2) Soma total p/ cálculo de porcentagem
-  const total = top7Data.reduce((acc, item) => acc + item.valor, 0);
+  // 2) Soma total para cálculo de porcentagem
+  const total = top7Data.reduce((acc, item) => acc + item.quantidade, 0);
 
-  // 3) Função para Legend customizada, mostrando "nome: valor (xx%)"
+  // 3) Função para Legend customizada, mostrando "nome: quantidade (xx%)"
   const renderCustomLegend = ({ payload }) => {
     return (
       <ul style={{ listStyle: "none", margin: 0, padding: 0, color: "#fff" }}>
         {payload.map((entry, index) => {
           // Cada 'entry' tem `color` e `payload: { name, value }`
           const { color } = entry;
-          const nome = entry.payload?.nome ?? "??";
-          const valor = entry.payload?.valor ?? 0;
-          const percent = total > 0 ? ((valor / total) * 100).toFixed(1) : 0;
+          let nome = entry.payload?.nome ?? "??";
+          const quantidade = entry.payload?.quantidade ?? 0;
+          const percent = total > 0 ? ((quantidade / total) * 100).toFixed(1) : 0;
+
+          // Limitar o nome a 16 caracteres
+          if (nome.length > 16) {
+            nome = nome.slice(0, 16) + "...";
+          }
 
           return (
             <li key={`legend-${index}`} style={{ marginBottom: 4 }}>
@@ -53,7 +56,7 @@ const ChartClientes = ({ data }) => {
                   marginRight: 6
                 }}
               />
-              {`${nome}: ${valor} (${percent}%)`}
+              {`${nome}: ${quantidade} (${percent}%)`}
             </li>
           );
         })}
@@ -90,7 +93,7 @@ const ChartClientes = ({ data }) => {
 
           <Pie
             data={top7Data}
-            dataKey="valor"
+            dataKey="quantidade" // Alterado para refletir o novo campo
             nameKey="nome"
             outerRadius={100}
             label={false}

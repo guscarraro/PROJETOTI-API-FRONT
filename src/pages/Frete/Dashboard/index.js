@@ -5,8 +5,10 @@ import ChartOcorrencias from "./ChartOcorrencias";
 import LineOcorrenDias from "./LineOcorrenDias";
 import apiLocal from "../../../services/apiLocal";
 import { Box, CardStyle } from "./style";
-import { FaChartLine, FaClock, FaExclamationTriangle } from "react-icons/fa";
-import { Col, Row } from "reactstrap";
+import { FaChartLine, FaClock, FaDollarSign, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
+import { Button, Col, Row } from "reactstrap";
+import ChartEscadaClientes from "./ChartEscadaClientes";
+import ModalNaoCobranca from "./ModalNaocobranca";
 
 const Dashboard = () => {
   const [motoristasData, setMotoristasData] = useState([]);
@@ -18,9 +20,18 @@ const Dashboard = () => {
   const [tempoMedioEntrega, setTempoMedioEntrega] = useState(0);
   const [mediaOcorrenciasPorDia, setMediaOcorrenciasPorDia] = useState(0);
 
+  const [qtdOcorrenciasSemCobranca, setQtdOcorrenciasSemCobranca] = useState(0);
+  const [qtdOcorrenciasNaoEntregues, setQtdOcorrenciasNaoEntregues] = useState(0);
+  const [ocorrenciasSemCobranca, setOcorrenciasSemCobranca] = useState([]);
+
   // Para exibir nomes de motorista/cliente no modal:
   const [motoristasMap, setMotoristasMap] = useState({});
   const [clientesMap, setClientesMap] = useState({});
+  const [showModalNaoCobranca, setShowModalNaoCobranca] = useState(false);
+
+const handleOpenModalNaoCobranca = () => setShowModalNaoCobranca(true);
+const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
+
 
   useEffect(() => {
     fetchDashboardData();
@@ -53,7 +64,19 @@ const Dashboard = () => {
       const tempClientesMap = {};
       clientesList.forEach((c) => (tempClientesMap[c.id] = c.nome));
       setClientesMap(tempClientesMap);
-  
+      console.log(ocorrencias);
+      
+      const ocorrenciasSemCobrancaData = ocorrencias.filter(
+        (oc) => oc.status === "Resolvido" && oc.cobranca_adicional === "N"
+      );
+      setQtdOcorrenciasSemCobranca(ocorrenciasSemCobrancaData.length);
+      setOcorrenciasSemCobranca(ocorrenciasSemCobrancaData);
+      
+      const ocorrenciasNaoEntregues = ocorrencias.filter(
+        (oc) => oc.status === "Não entregue" // Corrige a capitalização para coincidir com os dados recebidos
+      );
+      setQtdOcorrenciasNaoEntregues(ocorrenciasNaoEntregues.length);
+      
       // Monta dados para gráfico de Motoristas
       const motoristasCountMap = {};
       ocorrencias.forEach((oc) => {
@@ -90,11 +113,23 @@ const Dashboard = () => {
         clientesCountMap[cId]++;
       });
   
-      const clientesDataFinal = clientesList.map((c) => ({
-        id: c.id,
-        nome: c.nome,
-        valor: clientesCountMap[c.id] || 0,
-      }));
+      const clientesDataFinal = clientesList.map((c) => {
+        const ocorrenciasCliente = ocorrencias.filter((oc) => oc.cliente_id === c.id);
+        const details = ocorrenciasCliente.map((oc) => ({
+          NF: oc.nf,
+          motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
+          tipo: tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+          data: new Date(oc.datainclusao).toLocaleDateString(),
+        }));
+      
+        return {
+          id: c.id,
+          nome: c.nome,
+          quantidade: ocorrenciasCliente.length, // Número total de ocorrências
+          details: details, // Detalhes das ocorrências
+        };
+      });
+      
       setClientesData(clientesDataFinal);
   
       // Monta dados para gráfico de Ocorrências por Tipo
@@ -165,6 +200,18 @@ const Dashboard = () => {
   return (
     <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20 }}>
       {/* <h2>Dashboard</h2> */}
+      {showModalNaoCobranca && (
+  <ModalNaoCobranca
+    data={ocorrenciasSemCobranca.map((oc) => ({
+      nf: oc.nf,
+      cliente: clientesMap[oc.cliente_id] || "Desconhecido",
+      horario_chegada: oc.horario_chegada,
+      horario_saida: oc.horario_saida,
+      motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+    }))}
+    onClose={handleCloseModalNaoCobranca}
+  />
+)}
 
       {/* Cards de métricas */}
       <Row >
@@ -175,7 +222,7 @@ const Dashboard = () => {
           <h3>
             <FaExclamationTriangle /> Ocorrências em Aberto
           </h3>
-          <p style={{ fontSize: 28 }}>{qtdOcorrenciasAbertas}</p>
+          <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasAbertas}</p>
         </CardStyle>
         </Col>
         <Col  md={4}>
@@ -185,7 +232,7 @@ const Dashboard = () => {
           <h3>
             <FaClock /> Tempo Médio de Entrega
           </h3>
-          <p style={{ fontSize: 28 }}>{tempoMedioEntrega} min</p>
+          <p style={{ fontSize: 32, fontWeight:700 }}>{tempoMedioEntrega} min</p>
         </CardStyle>
         </Col>
         {/* Card 3: Média Ocorrências/Dia */}
@@ -195,8 +242,33 @@ const Dashboard = () => {
           <h3>
             <FaChartLine /> Média Ocorrências/Dia
           </h3>
-          <p style={{ fontSize: 28 }}>{mediaOcorrenciasPorDia}</p>
+          <p style={{ fontSize: 32, fontWeight:700 }}>{mediaOcorrenciasPorDia}</p>
         </CardStyle>
+        </Col>
+        <Col md={6}>
+  <CardStyle
+    bgColor="rgba(72, 201, 176, 0.2)"
+    iconColor="#48C9B0"
+    onClick={handleOpenModalNaoCobranca}
+    style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
+  >
+    <h3>
+      <FaDollarSign /> Ocorrências sem Cobrança
+    </h3>
+    <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasSemCobranca}</p>
+    <p style={{ fontSize: 12, fontStyle: 'italic' }}>Clique para mais informações</p>
+
+  </CardStyle>
+</Col>
+
+        {/* Card 5: Chamados Não Entregues */}
+        <Col md={6}>
+          <CardStyle bgColor="rgba(231, 76, 60, 0.2)" iconColor="#E74C3C">
+            <h3>
+              <FaTimesCircle /> Chamados Encerrados Não Entregues
+            </h3>
+            <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasNaoEntregues}</p>
+          </CardStyle>
         </Col>
       </Row>
 
@@ -205,6 +277,12 @@ const Dashboard = () => {
         <Box >
           <h3>Ocorrências por Motorista</h3>
           <ChartMotoristas data={motoristasData} />
+        </Box>
+        </Col>
+      <Col  md={12}>
+        <Box >
+          <h3>Ocorrências por Cliente</h3>
+          <ChartEscadaClientes data={clientesData} />
         </Box>
         </Col>
         <Row>

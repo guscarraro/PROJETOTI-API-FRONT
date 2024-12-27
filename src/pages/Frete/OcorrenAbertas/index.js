@@ -12,6 +12,7 @@ import {
   Input,
   FormGroup,
   Label,
+  Select,
 } from "reactstrap";
 import { toast } from "react-toastify";
 import { FaCheckCircle, FaEye, FaExclamationTriangle } from "react-icons/fa";
@@ -27,13 +28,12 @@ const OcorrenAbertas = () => {
   const [obsModalOpen, setObsModalOpen] = useState(false);
   const [selectedOcorrencia, setSelectedOcorrencia] = useState(null);
   const [horarioSaida, setHorarioSaida] = useState("");
+  const [cobrancaAdicional, setCobrancaAdicional] = useState("");
 
-  // Estado para a busca
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchData();
-    // Atualiza a cada 60s
     const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
   }, []);
@@ -41,7 +41,6 @@ const OcorrenAbertas = () => {
   const fetchData = async () => {
     try {
       const ocorrenciasResponse = await apiLocal.getOcorrencias();
-      // Filtra apenas as ocorrências Pendentes
       const abertas = ocorrenciasResponse.data.filter(
         (ocorrencia) => ocorrencia.status === "Pendente"
       );
@@ -49,13 +48,11 @@ const OcorrenAbertas = () => {
       const clientesResponse = await apiLocal.getClientes();
       const motoristasResponse = await apiLocal.getMotoristas();
 
-      // Monta mapa de ID -> Nome (clientes)
       const clientesMap = {};
       clientesResponse.data.forEach((cliente) => {
         clientesMap[cliente.id] = cliente.nome;
       });
 
-      // Monta mapa de ID -> Nome (motoristas)
       const motoristasMap = {};
       motoristasResponse.data.forEach((motorista) => {
         motoristasMap[motorista.id] = motorista.nome;
@@ -70,7 +67,6 @@ const OcorrenAbertas = () => {
     }
   };
 
-  // Função para definir estilo do card (cores e ícones)
   const calculateCardStyle = (horarioChegada) => {
     const now = new Date();
     const chegada = new Date(horarioChegada);
@@ -97,13 +93,11 @@ const OcorrenAbertas = () => {
     };
   };
 
-  // Filtra as ocorrências pelo searchTerm (buscando em motorista, cliente ou nf)
   const filteredOcorrencias = ocorrencias.filter((occ) => {
     const nomeMotorista = motoristas[occ.motorista_id] || "";
     const nomeCliente = clientes[occ.cliente_id] || "";
     const nf = occ.nf?.toString() || "";
 
-    // Converte para minúsculas para comparação
     const termo = searchTerm.toLowerCase();
     return (
       nomeMotorista.toLowerCase().includes(termo) ||
@@ -115,6 +109,7 @@ const OcorrenAbertas = () => {
   const toggleModal = () => {
     setModalOpen(!modalOpen);
     setHorarioSaida("");
+    setCobrancaAdicional("");
   };
 
   const toggleObsModal = () => {
@@ -137,6 +132,11 @@ const OcorrenAbertas = () => {
       return;
     }
 
+    if (!cobrancaAdicional) {
+      toast.error("Por favor, selecione se houve cobrança adicional.");
+      return;
+    }
+
     const horarioSaidaDate = new Date(horarioSaida);
     const horarioChegadaDate = new Date(selectedOcorrencia.horario_chegada);
 
@@ -150,6 +150,7 @@ const OcorrenAbertas = () => {
         ...selectedOcorrencia,
         status,
         horario_saida: horarioSaida,
+        cobranca_adicional: cobrancaAdicional,
       });
       toast.success(`Ocorrência marcada como "${status}" com sucesso!`);
       toggleModal();
@@ -162,8 +163,7 @@ const OcorrenAbertas = () => {
 
   return (
     <Container>
-      {/* Campo de filtro para pesquisar Motorista, Cliente ou NF */}
-      <div style={{ marginBottom: 20, marginTop:20, display: "flex", flexDirection:'column',alignItems: "center", gap: "10px" }}>
+      <div style={{ marginBottom: 20, marginTop: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
         <Label style={{ color: "#fff", margin: 0 }}>Filtrar:</Label>
         <Input
           type="text"
@@ -194,12 +194,10 @@ const OcorrenAbertas = () => {
                   {icon} Nota Fiscal: {ocorrencia.nf}
                 </CardTitle>
                 <CardText>
-                  Motorista:{" "}
-                  <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong>
+                  Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong>
                 </CardText>
                 <CardText>
-                  Hora de Chegada:{" "}
-                  <strong>{new Date(ocorrencia.horario_chegada).toLocaleString()}</strong>
+                  Hora de Chegada: <strong>{new Date(ocorrencia.horario_chegada).toLocaleString()}</strong>
                 </CardText>
                 <CardText>
                   Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong>
@@ -207,7 +205,7 @@ const OcorrenAbertas = () => {
                 <Button
                   color="primary"
                   onClick={(e) => {
-                    e.stopPropagation(); // Impede de abrir obsModal
+                    e.stopPropagation();
                     handleEncerrar(ocorrencia);
                   }}
                 >
@@ -219,7 +217,6 @@ const OcorrenAbertas = () => {
         })}
       </ContainerCards>
 
-      {/* Modal para encerrar ocorrência */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>
         <ModalHeader toggle={toggleModal}>Encerrar Ocorrência</ModalHeader>
         <ModalBody>
@@ -232,33 +229,36 @@ const OcorrenAbertas = () => {
               onChange={(e) => setHorarioSaida(e.target.value)}
             />
           </FormGroup>
-          A entrega foi concluída com sucesso?
+          <FormGroup>
+            <Label for="cobranca_adicional">Cobrança Adicional</Label>
+            <Input
+              type="select"
+              id="cobranca_adicional"
+              value={cobrancaAdicional}
+              onChange={(e) => setCobrancaAdicional(e.target.value)}
+            >
+              <option value="">Selecione</option>
+              <option value="S">Sim</option>
+              <option value="N">Não</option>
+            </Input>
+          </FormGroup>
         </ModalBody>
         <ModalFooter>
-          <Button color="success" onClick={() => handleStatusUpdate("Resolvido")}>
-            Sim
-          </Button>
-          <Button color="danger" onClick={() => handleStatusUpdate("Não entregue")}>
-            Não
-          </Button>
+        <Label>A nota foi entregue com sucesso?</Label>
+          <Button color="success" onClick={() => handleStatusUpdate("Resolvido")}>Sim</Button>
+          <Button color="danger" onClick={() => handleStatusUpdate("Não entregue")}>Não</Button>
         </ModalFooter>
       </Modal>
 
-      {/* Modal de observação */}
       <Modal isOpen={obsModalOpen} toggle={toggleObsModal}>
         <ModalHeader toggle={toggleObsModal}>Observações da Ocorrência</ModalHeader>
         <ModalBody>
-          {selectedOcorrencia?.obs
-            ? selectedOcorrencia.obs
-            : "Nenhuma observação foi adicionada."}
+          {selectedOcorrencia?.obs ? selectedOcorrencia.obs : "Nenhuma observação foi adicionada."}
         </ModalBody>
         <ModalFooter>
-          <Button color="secondary" onClick={toggleObsModal}>
-            Fechar
-          </Button>
+          <Button color="secondary" onClick={toggleObsModal}>Fechar</Button>
         </ModalFooter>
       </Modal>
-
     </Container>
   );
 };
