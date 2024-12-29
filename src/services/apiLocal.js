@@ -28,6 +28,16 @@ const apiLocal = {
   createOrUpdateOcorrencia: (data) => api.post("/ocorrencias", data),
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
   
+  // Ocorrências STH
+  getOcorrenciasSTH: () => api.get("/ocorren-sth"), // Listar todas as ocorrências STH
+  createOrUpdateOcorrenciaSTH: (data) => api.post("/ocorren-sth", data), // Criar ou atualizar uma ocorrência STH
+  deleteOcorrenciaSTH: (id) => api.delete(`/ocorren-sth/${id}`), // Excluir uma ocorrência STH pelo ID
+
+  // Faltas
+  getFaltas: () => api.get("/faltas"),
+  createOrUpdateFalta: (data) => api.post("/faltas", data),
+  deleteFalta: (id) => api.delete(`/faltas/${id}`),
+
   // Destinos
   getDestinos: () => api.get("/destinos"),
   createOrUpdateDestino: (data) => api.post("/destinos", data),

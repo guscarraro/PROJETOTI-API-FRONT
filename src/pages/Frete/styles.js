@@ -25,6 +25,7 @@ export const NavbarContainer = styled.nav`
 `;
 
 export const NavButton = styled.button`
+  position: relative; /* Necessário para posicionar o dropdown */
   color: #fff;
   background-color: ${(props) => (props.active ? "#007bff" : "transparent")};
   border: 0;
@@ -35,7 +36,7 @@ export const NavButton = styled.button`
   display: flex;
   align-items: center;
   transition: background-color 0.3s;
-  width:100%;
+  width: 100%;
   &:hover {
     background-color: ${(props) => (props.active ? "#0056b3" : "#555")};
   }
@@ -43,4 +44,31 @@ export const NavButton = styled.button`
 
 export const NavIcon = styled.span`
   margin-right: 8px;
+`;
+
+
+
+export const Dropdown = styled.div`
+  position: absolute;
+  background: #202722;
+  text-align: start;
+  border-left: 3px solid #444;
+  border-right: 3px solid #444;
+  border-bottom: 3px solid #444;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  border-radius: 0px 0px 10px 10px;
+  z-index: 1000;
+  top: calc(100% ); /* Ajuste dinâmico para aparecer abaixo do botão */
+  left: 0;
+  width: 100%;
+`;
+
+export const DropdownItem = styled.div`
+  padding: 10px 15px;
+  color: #fff;
+  cursor: pointer;
+  background: transparent;
+  &:hover {
+    background: #333;
+  }
 `;

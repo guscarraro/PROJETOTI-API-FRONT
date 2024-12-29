@@ -39,6 +39,20 @@ export const formatTomadorName = (tomador) => {
       minimumFractionDigits: 2,
     }).format(value);
   };
+
+  export const formatCurrency2 = (value) => {
+    if (!value) return "";
+  
+    // Remove qualquer caractere não numérico
+    const numericValue = value.replace(/\D/g, "");
+  
+    // Converte para número e divide por 100 para exibir centavos
+    const formattedValue = (Number(numericValue) / 100).toFixed(2);
+  
+    // Retorna o valor formatado como moeda Real (R$)
+    return `R$ ${formattedValue.replace(".", ",")}`;
+  };
+  
   
 
   export const formatDate = (date) => {
