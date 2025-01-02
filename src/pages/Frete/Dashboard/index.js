@@ -215,6 +215,7 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
       motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
     }))}
     onClose={handleCloseModalNaoCobranca}
+    onRefresh={fetchDashboardData}
   />
 )}
 {showModalNaoEntregue && (

@@ -22,11 +22,13 @@ import {
 } from "react-icons/fa";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from "reactstrap";
 import apiLocal from "../../../services/apiLocal";
+import LoadingDots from "../../../components/Loading";
 
 const LancarOcorren = ({ onActionComplete }) => {
   const [motoristas, setMotoristas] = useState([]);
   const [clienteNome, setClienteNome] = useState("");
   const [clientes, setClientes] = useState([]);
+  const [destinos, setDestinos] = useState([]);
   const [tiposOcorrencia, setTiposOcorrencia] = useState([]);
   const [ocorrencia, setOcorrencia] = useState({
     nf: "",
@@ -48,6 +50,7 @@ const LancarOcorren = ({ onActionComplete }) => {
     fetchMotoristas();
     fetchClientes();
     fetchTiposOcorrencia();
+    fetchDestinos(); 
   }, []);
 
   const fetchMotoristas = async () => {
@@ -56,6 +59,15 @@ const LancarOcorren = ({ onActionComplete }) => {
       setMotoristas(response.data);
     } catch (error) {
       toast.error("Erro ao buscar motoristas.");
+      console.error(error);
+    }
+  };
+  const fetchDestinos = async () => {
+    try {
+      const response = await apiLocal.getDestinos();
+      setDestinos(response.data);
+    } catch (error) {
+      toast.error("Erro ao buscar destinos.");
       console.error(error);
     }
   };
@@ -154,52 +166,63 @@ const LancarOcorren = ({ onActionComplete }) => {
       );
   
       if (!clienteExistente) {
-        // Cadastrar cliente caso não exista
         const novoCliente = { nome: clienteNome };
         const responseCliente = await apiLocal.createOrUpdateCliente(novoCliente);
   
         if (responseCliente.data && responseCliente.data.data) {
-          clienteID = responseCliente.data.data.id; // Obtém o ID do cliente criado
+          clienteID = responseCliente.data.data.id;
           toast.success("Cliente cadastrado automaticamente.");
         } else {
-          throw new Error(
-            responseCliente.data?.error || "Erro ao cadastrar cliente."
-          );
+          throw new Error(responseCliente.data?.error || "Erro ao cadastrar cliente.");
         }
       } else {
-        // Usa o ID do cliente existente
         clienteID = clienteExistente.id;
       }
   
-      // Verifica se o destinatário já existe
-      const destinoExistente = await apiLocal.getDestinos().then((response) =>
-        response.data.find(
-          (destino) =>
-            destino.nome === ocorrencia.destino_id && destino.cidade === ocorrencia.cidade
-        )
+      // Verifica se o destino já existe
+      const destinoExistente = destinos.find(
+        (destino) =>
+          destino.nome.trim() === ocorrencia.destino_id.trim() &&
+          destino.cidade.trim() === ocorrencia.cidade.trim()
       );
-      
+  
       if (!destinoExistente) {
-        // Cadastrar destinatário caso não exista
         const novoDestino = {
-          nome: ocorrencia.destino_id, // Nome do destinatário vem do campo destino_id
-          endereco: null,             // Endereço opcional (pode ser null)
-          cidade: ocorrencia.cidade,  // Cidade do campo cidade
+          nome: ocorrencia.destino_id,
+          endereco: null,
+          cidade: ocorrencia.cidade,
         };
         const responseDestino = await apiLocal.createOrUpdateDestino(novoDestino);
-      
+  
         if (responseDestino.data && responseDestino.data.data) {
-          destinoID = responseDestino.data.data.id; // Obtém o ID do destino criado
+          destinoID = responseDestino.data.data.id;
           toast.success("Destinatário cadastrado automaticamente.");
         } else {
-          throw new Error(
-            responseDestino.data?.error || "Erro ao cadastrar destinatário."
-          );
+          throw new Error(responseDestino.data?.error || "Erro ao cadastrar destinatário.");
         }
       } else {
-        // Usa o ID do destino existente
         destinoID = destinoExistente.id;
       }
+  
+      // Atualiza `destino_id` no estado
+      setOcorrencia((prev) => ({
+        ...prev,
+        destino_id: destinoID,
+      }));
+  
+      // **Formatar `horario_chegada` para o formato correto no fuso horário local**
+      const formatToLocalDateTime = (dateString) => {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hours = String(date.getHours()).padStart(2, "0");
+        const minutes = String(date.getMinutes()).padStart(2, "0");
+        const seconds = String(date.getSeconds()).padStart(2, "0");
+        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      };
+  
+      const formattedHorarioChegada = formatToLocalDateTime(ocorrencia.horario_chegada);
   
       // Formatar e salvar a ocorrência
       const ocorrenciaFormatada = {
@@ -208,12 +231,11 @@ const LancarOcorren = ({ onActionComplete }) => {
         destino_id: destinoID,
         tipoocorrencia_id: parseInt(ocorrencia.tipoocorrencia_id, 10),
         endereco: null,
+        horario_chegada: formattedHorarioChegada, // Enviar no formato local
         status: "Pendente",
       };
   
-      const ocorrenciaResponse = await apiLocal.createOrUpdateOcorrencia(
-        ocorrenciaFormatada
-      );
+      const ocorrenciaResponse = await apiLocal.createOrUpdateOcorrencia(ocorrenciaFormatada);
   
       if (ocorrenciaResponse.data) {
         setOcorrencia({
@@ -238,6 +260,10 @@ const LancarOcorren = ({ onActionComplete }) => {
     }
   };
   
+  
+  
+  
+  
 
   
   
@@ -248,23 +274,36 @@ const LancarOcorren = ({ onActionComplete }) => {
     <Container>
       <Title>Lançar Ocorrência</Title>
       <StyledForm onSubmit={handleSave}>
+      
       <FormGroup>
-        <Label>
-          <FaFileInvoice /> Nota Fiscal
-        </Label>
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <Input
-            type="text"
-            name="nf"
-            value={ocorrencia.nf}
-            onChange={handleNotaFiscalChange}
-            onKeyDown={handleKeyDown} // Adiciona o evento de keyDown
-            placeholder="Nota Fiscal"
-            style={{ flex: 1 }}
-          />
-          {loadingNota && <Spinner size="sm" color="primary" className="ml-2" />}
-        </div>
-      </FormGroup>
+  <Label>
+    <FaFileInvoice /> Nota Fiscal
+  </Label>
+  <div style={{ position: "relative" }}>
+    <Input
+      type="text"
+      name="nf"
+      value={ocorrencia.nf}
+      onChange={handleNotaFiscalChange}
+      onKeyDown={handleKeyDown}
+      placeholder="Informe a nota fiscal"
+      style={{ paddingRight: "30px" }} // Espaço extra para o ícone
+    />
+    {loadingNota && (
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          right: "10px",
+          transform: "translateY(-50%)",
+          pointerEvents: "none", // Evita interferir na interação do input
+        }}
+      >
+        <LoadingDots />
+      </div>
+    )}
+  </div>
+</FormGroup>
       <FormGroup>
   <Label>
     <FaUser /> Cliente

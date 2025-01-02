@@ -1,42 +1,88 @@
-import React from "react";
-import { Button } from "reactstrap";
+import React, { useState } from "react";
+import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Input } from "reactstrap";
 import ChartClientesAtrasos from "./ChartClientesAtrasos";
-import ChartDestinatariosAtrasos from "./ChartDestinatariosAtrasos";
+import apiLocal from "../../../../services/apiLocal";
+import { toast } from "react-toastify";
 
-const ModalNaoCobranca = ({ data, onClose }) => {
-  // Função para calcular o tempo de permanência
+const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
+  const [selectedNota, setSelectedNota] = useState(null);
+  const [isCteModalOpen, setIsCteModalOpen] = useState(false);
+  const [cteValue, setCteValue] = useState("");
+
+  const toggleCteModal = () => setIsCteModalOpen(!isCteModalOpen);
+
+  const handleCheckboxChange = (nf) => {
+    setSelectedNota(nf === selectedNota ? null : nf);
+  };
+
+  const handleSaveCte = async () => {
+    if (!selectedNota || !cteValue.trim()) {
+      toast.error("Por favor, selecione uma nota e insira o número do CTE.");
+      return;
+    }
+
+    try {
+      const payload = {
+        nf: selectedNota, // Número da nota fiscal
+        cobranca_adicional: "S", // Marca como cobrança adicional
+        cte_gerado: cteValue, // Número do CTE informado pelo usuário
+      };
+
+      const response = await apiLocal.updateCobrancaAdicional(payload);
+
+      if (response.status === 200) {
+        toast.success("Cobrança adicional registrada com sucesso!");
+
+        // Atualiza os dados da tabela no componente pai
+        if (onRefresh) {
+          onRefresh();
+        }
+
+        setSelectedNota(null);
+        setCteValue("");
+        toggleCteModal();
+      } else {
+        throw new Error("Erro ao registrar cobrança adicional.");
+      }
+    } catch (error) {
+      console.error("Erro ao registrar cobrança adicional:", error);
+      toast.error("Erro ao registrar cobrança adicional. Verifique os dados e tente novamente.");
+    }
+  };
+
   const calcularTempoPermanencia = (chegada, saida) => {
     const chegadaDate = new Date(chegada);
     const saidaDate = new Date(saida);
+    if (!chegadaDate || !saidaDate || chegadaDate > saidaDate) return "Indisponível";
 
-    if (!chegadaDate || !saidaDate || chegadaDate > saidaDate) {
-      return "Indisponível";
-    }
-
-    const diffMs = saidaDate - chegadaDate; // diferença em milissegundos
-    const diffMin = Math.floor(diffMs / 60000); // converter para minutos
+    const diffMs = saidaDate - chegadaDate;
+    const diffMin = Math.floor(diffMs / 60000);
     const horas = Math.floor(diffMin / 60);
     const minutos = diffMin % 60;
 
     return `${horas}h ${minutos}min`;
   };
 
-  // Prepara os dados para os gráficos
-  const clientesAtrasos = [...data.reduce((acc, item) => {
-    if (!acc.has(item.cliente)) {
-      acc.set(item.cliente, 0);
-    }
-    acc.set(item.cliente, acc.get(item.cliente) + 1);
-    return acc;
-  }, new Map())].map(([name, quantidade]) => ({ name, quantidade }));
+  // Contar atrasos de clientes sem o uso de reduce
+  const contarClientesAtrasos = (data) => {
+    const clientesMap = {};
 
-  const destinatariosAtrasos = [...data.reduce((acc, item) => {
-    if (!acc.has(item.destinatario)) {
-      acc.set(item.destinatario, 0);
+    for (let i = 0; i < data.length; i++) {
+      const cliente = data[i].cliente;
+      if (clientesMap[cliente]) {
+        clientesMap[cliente]++;
+      } else {
+        clientesMap[cliente] = 1;
+      }
     }
-    acc.set(item.destinatario, acc.get(item.destinatario) + 1);
-    return acc;
-  }, new Map())].map(([name, quantidade]) => ({ name, quantidade }));
+
+    return Object.entries(clientesMap).map(([name, quantidade]) => ({
+      name,
+      quantidade,
+    }));
+  };
+
+  const clientesAtrasos = contarClientesAtrasos(data);
 
   return (
     <div
@@ -50,7 +96,7 @@ const ModalNaoCobranca = ({ data, onClose }) => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 9999,
+        zIndex: 1050,
       }}
       onClick={onClose}
     >
@@ -63,32 +109,19 @@ const ModalNaoCobranca = ({ data, onClose }) => {
           maxHeight: "80vh",
           overflowY: "auto",
           color: "black",
+          position: "relative",
         }}
         onClick={(e) => e.stopPropagation()}
       >
         <h4>Ocorrências Sem Cobrança Adicional</h4>
-        
-        {/* Gráfico de Clientes */}
         <div style={{ marginBottom: 20 }}>
           <h5>Top 7 Clientes com Mais Atrasos</h5>
           <ChartClientesAtrasos data={clientesAtrasos.slice(0, 7)} />
         </div>
-
-        {/* Gráfico de Destinatários */}
-        {/* <div style={{ marginBottom: 20 }}>
-          <h5>Top 7 Destinatários com Mais Atrasos</h5>
-          <ChartDestinatariosAtrasos data={destinatariosAtrasos.slice(0, 7)} />
-        </div> */}
-
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            marginBottom: 20,
-          }}
-        >
+        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
           <thead>
             <tr style={{ background: "#f5f5f5" }}>
+              <th style={cellStyle}></th>
               <th style={cellStyle}>Nota</th>
               <th style={cellStyle}>Cliente</th>
               <th style={cellStyle}>Hora de Chegada</th>
@@ -100,6 +133,13 @@ const ModalNaoCobranca = ({ data, onClose }) => {
           <tbody>
             {data.map((item, index) => (
               <tr key={index}>
+                <td style={cellStyle}>
+                  <input
+                    type="checkbox"
+                    checked={item.nf === selectedNota}
+                    onChange={() => handleCheckboxChange(item.nf)}
+                  />
+                </td>
                 <td style={cellStyle}>{item.nf}</td>
                 <td style={cellStyle}>{item.cliente}</td>
                 <td style={cellStyle}>
@@ -116,11 +156,37 @@ const ModalNaoCobranca = ({ data, onClose }) => {
             ))}
           </tbody>
         </table>
-
         <Button color="secondary" onClick={onClose}>
           Fechar
         </Button>
+        {selectedNota && (
+          <Button color="primary" onClick={toggleCteModal} style={{marginLeft:10}}>
+            Gerar Cobrança
+          </Button>
+        )}
       </div>
+
+      {/* Modal para inserir o número do CTE */}
+      <Modal isOpen={isCteModalOpen} toggle={toggleCteModal} backdrop="static" centered>
+        <ModalHeader toggle={toggleCteModal}>Gerar Cobrança</ModalHeader>
+        <ModalBody>
+          <p>Informe o número do CTE para a nota selecionada:</p>
+          <Input
+            type="number"
+            value={cteValue}
+            onChange={(e) => setCteValue(e.target.value)}
+            placeholder="Número do CTE"
+          />
+        </ModalBody>
+        <ModalFooter>
+          <Button color="primary" onClick={handleSaveCte}>
+            Salvar
+          </Button>
+          <Button color="secondary" onClick={toggleCteModal}>
+            Fechar
+          </Button>
+        </ModalFooter>
+      </Modal>
     </div>
   );
 };

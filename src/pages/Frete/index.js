@@ -25,6 +25,9 @@ import Cliente from "./Cliente";
 import Destino from "./Destino";
 import LancarFalta from "./LancarFalta";
 import LancarSTH from "./LancarSTH";
+import TodasOcorrencias from "./TodasOcorrencias";
+import TodasOcorrenciasFalta from "./TodasOcorrenciasFalta";
+import TodasOcorrenciasSTH from "./TodasOcorrenciasSTH";
 
 const Navbar = ({ currentTab, setCurrentTab }) => {
   const [dropdownVisible, setDropdownVisible] = useState(null);
@@ -106,23 +109,23 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
               onClick={() =>
                 handleSelection(
                   "novaOcorrencia",
-                  "Lançar Ocorrência de Falta",
+                  "Lançar Falta",
                   "ocorrenciaFalta"
                 )
               }
             >
-              Lançar Ocorrência de Falta
+              Lançar Falta
             </DropdownItem>
             <DropdownItem
               onClick={() =>
                 handleSelection(
                   "novaOcorrencia",
-                  "Lançar Ocorrência STH",
+                  "Lançar STH",
                   "ocorrenciaSTH"
                 )
               }
             >
-              Lançar Ocorrência STH
+              Lançar STH
             </DropdownItem>
           </Dropdown>
         )}
@@ -141,30 +144,68 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         </NavIcon>
         Rastreio motorista
       </NavButton>
-      <NavButton onClick={() => setCurrentTab("tiposOcorrencias")}>
-        <NavIcon>
-          <FaFileAlt />
-        </NavIcon>
-        Tipos de Ocorrências
-      </NavButton>
-      <NavButton onClick={() => setCurrentTab("motoristas")}>
-        <NavIcon>
-          <FaTruck />
-        </NavIcon>
+      {/* Menu Cadastros com Dropdown */}
+<NavButton onClick={() => toggleDropdown("cadastros")}>
+  <NavIcon>
+    <FaClipboardList />
+  </NavIcon>
+  Cadastros <FaCaretDown />
+  {dropdownVisible === "cadastros" && (
+    <Dropdown>
+      
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "Todas as Ocorrências", "todasOcorrencias")
+        }
+      >
+        Todas as Ocorrências
+      </DropdownItem>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "Tipo de Ocorrência", "tiposOcorrencias")
+        }
+      >
+        Tipo de Ocorrência
+      </DropdownItem>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "Motoristas", "motoristas")
+        }
+      >
         Motoristas
-      </NavButton>
-      <NavButton onClick={() => setCurrentTab("clientes")}>
-        <NavIcon>
-          <FaUsers />
-        </NavIcon>
+      </DropdownItem>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "Clientes", "clientes")
+        }
+      >
         Clientes
-      </NavButton>
-      <NavButton onClick={() => setCurrentTab("destino")}>
-        <NavIcon>
-          <FaHouseFlag />
-        </NavIcon>
-        Destinatário
-      </NavButton>
+      </DropdownItem>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "Faltas", "todasOcorrenciaFalta")
+        }
+      >
+        Faltas
+      </DropdownItem>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "STH", "todasOcorrenciaSTH")
+        }
+      >
+        STH
+      </DropdownItem>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("cadastros", "Destinatários", "destino")
+        }
+      >
+        Destinatários
+      </DropdownItem>
+    </Dropdown>
+  )}
+</NavButton>
+
       <NavButton onClick={() => navigate("/SAC")}>
   <NavIcon>
     <FaArrowRight />
@@ -197,11 +238,17 @@ const Frete = () => {
         {currentTab === "dashboardFaltas" && <div>Dashboard Faltas</div>}
         {currentTab === "dashboardSTH" && <div>Dashboard STH</div>}
         {currentTab === "ocorrencias" && <OcorrenAbertas />}
-        {currentTab === "novaOcorrencia" && <LancarOcorren />}
+        {currentTab === "novaOcorrencia" && (
+  <LancarOcorren onActionComplete={setSuccessMessage} />
+)}
+
         {currentTab === "ocorrenciaFalta" && <LancarFalta />}
         {currentTab === "ocorrenciaSTH" && <LancarSTH />}
         {currentTab === "rastreio" && <RastreioMotorista />}
         {currentTab === "tiposOcorrencias" && <TipoOcorren />}
+        {currentTab === "todasOcorrencias" && <TodasOcorrencias />}
+        {currentTab === "todasOcorrenciaFalta" && <TodasOcorrenciasFalta />}
+        {currentTab === "todasOcorrenciaSTH" && <TodasOcorrenciasSTH />}
         {currentTab === "motoristas" && <Motorista />}
         {currentTab === "clientes" && <Cliente />}
         {currentTab === "destino" && <Destino />}

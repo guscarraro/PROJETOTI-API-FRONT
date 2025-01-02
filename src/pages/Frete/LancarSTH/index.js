@@ -27,7 +27,7 @@ const LancarSTH = ({ onActionComplete }) => {
     nf_sth: "",
     data_viagem: "",
     cidade: "",
-  });
+  });  
   const [clienteNome, setClienteNome] = useState("");
   const [destinoNome, setDestinoNome] = useState("");
   const [loadingNota, setLoadingNota] = useState(false);
@@ -74,7 +74,6 @@ const LancarSTH = ({ onActionComplete }) => {
     const nf = e.target.value;
     setSTH({ ...sth, nf });
   };
-
   const handleKeyDown = async (e) => {
     if (e.key === "Tab" && sth.nf) {
       setLoadingNota(true);
@@ -82,24 +81,16 @@ const LancarSTH = ({ onActionComplete }) => {
         const response = await apiLocal.getDadosNota(sth.nf);
         const dados = response?.data?.dados || [];
   
-        // Filtra as notas que contêm a NF digitada
         const notasFiltradas = dados.filter((item) =>
           item.NF.split(",").map((nf) => nf.trim()).includes(sth.nf)
         );
   
         if (notasFiltradas.length === 1) {
           const data = notasFiltradas[0];
-          const cliente = clientes.find((c) => c.nome === data.remetente);
-          const destino = destinos.find(
-            (d) => d.nome === data.destinatario && d.cidade === data.destino
-          );
-  
           setClienteNome(data.remetente);
           setDestinoNome(data.destinatario);
           setSTH((prev) => ({
             ...prev,
-            cliente_id: cliente ? cliente.id : "", // Use o ID real
-            destino_id: destino ? destino.id : "", // Use o ID real
             cidade: data.destino,
           }));
         } else if (notasFiltradas.length > 1) {
@@ -116,6 +107,7 @@ const LancarSTH = ({ onActionComplete }) => {
       }
     }
   };
+  
   
   const handleClienteSelection = (cliente) => {
     const clienteData = clientes.find((c) => c.nome === cliente.remetente);
@@ -144,22 +136,98 @@ const LancarSTH = ({ onActionComplete }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
+  
     try {
-      const { nf, cliente_id, destino_id, motorista_id, motivo, nf_sth, data_viagem, cidade } = sth;
-      if (!nf || !cliente_id || !destino_id || !motorista_id || !motivo || !nf_sth || !data_viagem) {
-        toast.error("Todos os campos são obrigatórios.");
+      const { nf, motorista_id, motivo, nf_sth, data_viagem, cidade } = sth;
+  
+      // Validação dos campos obrigatórios
+      if (!nf.trim()) {
+        toast.error("A Nota Fiscal é obrigatória.");
+        return;
+      }
+      if (!clienteNome.trim()) {
+        toast.error("O Cliente é obrigatório.");
+        return;
+      }
+      if (!destinoNome.trim()) {
+        toast.error("O Destino é obrigatório.");
+        return;
+      }
+      if (!motorista_id) {
+        toast.error("O Motorista é obrigatório.");
+        return;
+      }
+      if (!motivo.trim()) {
+        toast.error("O Motivo é obrigatório.");
+        return;
+      }
+      if (!nf_sth.trim()) {
+        toast.error("A Nota Fiscal STH é obrigatória.");
+        return;
+      }
+      if (!data_viagem) {
+        toast.error("A Data da Viagem é obrigatória.");
         return;
       }
   
+      let clienteID = sth.cliente_id;
+      let destinoID = sth.destino_id;
+  
+      // Criação do cliente e destino de forma encadeada
+      try {
+        // Criação do cliente, se necessário
+        if (!clienteID) {
+          const clienteExistente = clientes.find((cliente) => cliente.nome === clienteNome);
+          if (!clienteExistente) {
+            const responseCliente = await apiLocal.createOrUpdateCliente({ nome: clienteNome });
+            clienteID = responseCliente.data.data.id;
+            setClientes((prev) => [...prev, responseCliente.data.data]);
+            toast.success("Cliente cadastrado automaticamente.");
+          } else {
+            clienteID = clienteExistente.id;
+          }
+        }
+  
+        // Criação do destino, se necessário
+        if (!destinoID) {
+          const destinoExistente = destinos.find(
+            (destino) => destino.nome === destinoNome && destino.cidade === cidade
+          );
+          if (!destinoExistente) {
+            const responseDestino = await apiLocal.createOrUpdateDestino({
+              nome: destinoNome,
+              endereco: null,
+              cidade,
+            });
+            destinoID = responseDestino.data.data.id;
+            setDestinos((prev) => [...prev, responseDestino.data.data]);
+            toast.success("Destinatário cadastrado automaticamente.");
+          } else {
+            destinoID = destinoExistente.id;
+          }
+        }
+      } catch (creationError) {
+        console.error("Erro ao criar cliente ou destino:", creationError);
+        toast.error("Erro ao processar cliente ou destino.");
+        return; // Não continua sem os IDs
+      }
+  
+      // Garante que os IDs sejam definidos antes de enviar o payload
+      if (!clienteID || !destinoID) {
+        toast.error("Erro ao processar o cliente ou destino. Por favor, tente novamente.");
+        return;
+      }
+  
+      // Envia o payload ao backend
       const payload = {
-        nf: sth.nf,
-        cliente_id: Number(sth.cliente_id), // Converta para número
-        destino_id: Number(sth.destino_id), // Converta para número
-        motorista_id: Number(sth.motorista_id),
-        motivo: sth.motivo,
-        nf_sth: sth.nf_sth,
-        data_viagem: sth.data_viagem,
-        cidade: sth.cidade,
+        nf: nf.trim(),
+        cliente_id: clienteID,
+        destino_id: destinoID,
+        motorista_id: Number(motorista_id),
+        motivo: motivo.trim(),
+        nf_sth: nf_sth.trim(),
+        data_viagem,
+        cidade: cidade.trim(),
       };
   
       console.log("Payload enviado ao backend:", payload);
@@ -183,12 +251,14 @@ const LancarSTH = ({ onActionComplete }) => {
       }
     } catch (error) {
       console.error("Erro ao registrar a ocorrência STH:", error.response?.data || error.message);
-      if (error.response?.data?.detail) {
-        console.error("Detalhes do erro:", error.response.data.detail);
-      }
       toast.error(error.response?.data?.detail || "Erro ao registrar a ocorrência STH.");
     }
   };
+  
+  
+  
+  
+  
   
 
   return (

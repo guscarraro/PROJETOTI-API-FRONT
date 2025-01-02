@@ -23,6 +23,7 @@ const OcorrenAbertas = () => {
   const [ocorrencias, setOcorrencias] = useState([]);
   const [clientes, setClientes] = useState({});
   const [motoristas, setMotoristas] = useState({});
+  const [tipoocorrencia, setTipoocorrencia] = useState({});
 
   const [modalOpen, setModalOpen] = useState(false);
   const [obsModalOpen, setObsModalOpen] = useState(false);
@@ -47,6 +48,7 @@ const OcorrenAbertas = () => {
 
       const clientesResponse = await apiLocal.getClientes();
       const motoristasResponse = await apiLocal.getMotoristas();
+      const tpOcorrenciaResponse = await apiLocal.getNomesOcorrencias();
 
       const clientesMap = {};
       clientesResponse.data.forEach((cliente) => {
@@ -57,8 +59,13 @@ const OcorrenAbertas = () => {
       motoristasResponse.data.forEach((motorista) => {
         motoristasMap[motorista.id] = motorista.nome;
       });
+      const tpOcorrenciaMap = {};
+      tpOcorrenciaResponse.data.forEach((tpocorren) => {
+        tpOcorrenciaMap[tpocorren.id] = tpocorren.nome;
+      });
 
       setOcorrencias(abertas);
+      setTipoocorrencia(tpOcorrenciaMap)
       setClientes(clientesMap);
       setMotoristas(motoristasMap);
     } catch (error) {
@@ -66,7 +73,6 @@ const OcorrenAbertas = () => {
       console.error(error);
     }
   };
-
   const calculateCardStyle = (horarioChegada) => {
     const now = new Date();
     const chegada = new Date(horarioChegada);
@@ -92,6 +98,9 @@ const OcorrenAbertas = () => {
       icon: <FaExclamationTriangle style={styles.redIcon} />,
     };
   };
+  
+  
+  
 
   const filteredOcorrencias = ocorrencias.filter((occ) => {
     const nomeMotorista = motoristas[occ.motorista_id] || "";
@@ -160,7 +169,6 @@ const OcorrenAbertas = () => {
       console.error(error);
     }
   };
-
   return (
     <Container>
       <div style={{ marginBottom: 20, marginTop: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
@@ -195,6 +203,9 @@ const OcorrenAbertas = () => {
                 </CardTitle>
                 <CardText>
                   Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong>
+                </CardText>
+                <CardText>
+                  Tipo de ocorrencia: <strong>{tipoocorrencia[ocorrencia.tipoocorrencia_id] || "Desconhecido"}</strong>
                 </CardText>
                 <CardText>
                   Hora de Chegada: <strong>{new Date(ocorrencia.horario_chegada).toLocaleString()}</strong>
