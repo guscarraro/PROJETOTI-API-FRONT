@@ -162,7 +162,7 @@ const LancarOcorren = ({ onActionComplete }) => {
   
       // Verifica se o cliente já existe
       const clienteExistente = clientes.find(
-        (cliente) => cliente.nome === clienteNome
+        (cliente) => cliente.nome && cliente.nome === clienteNome
       );
   
       if (!clienteExistente) {
@@ -182,15 +182,15 @@ const LancarOcorren = ({ onActionComplete }) => {
       // Verifica se o destino já existe
       const destinoExistente = destinos.find(
         (destino) =>
-          destino.nome.trim() === ocorrencia.destino_id.trim() &&
-          destino.cidade.trim() === ocorrencia.cidade.trim()
+          destino.nome?.trim() === (ocorrencia.destino_id || "").trim() &&
+          destino.cidade?.trim() === (ocorrencia.cidade || "").trim()
       );
   
       if (!destinoExistente) {
         const novoDestino = {
-          nome: ocorrencia.destino_id,
+          nome: ocorrencia.destino_id || "",
           endereco: null,
-          cidade: ocorrencia.cidade,
+          cidade: ocorrencia.cidade || "",
         };
         const responseDestino = await apiLocal.createOrUpdateDestino(novoDestino);
   
@@ -204,35 +204,20 @@ const LancarOcorren = ({ onActionComplete }) => {
         destinoID = destinoExistente.id;
       }
   
-      // Atualiza `destino_id` no estado
-      setOcorrencia((prev) => ({
-        ...prev,
-        destino_id: destinoID,
-      }));
+      const adjustedHorarioChegada = new Date(ocorrencia.horario_chegada);
+      adjustedHorarioChegada.setHours(adjustedHorarioChegada.getHours() - 3);
+      const formattedHorarioChegada = adjustedHorarioChegada.toISOString();
   
-      // **Formatar `horario_chegada` para o formato correto no fuso horário local**
-      const formatToLocalDateTime = (dateString) => {
-        const date = new Date(dateString);
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const hours = String(date.getHours()).padStart(2, "0");
-        const minutes = String(date.getMinutes()).padStart(2, "0");
-        const seconds = String(date.getSeconds()).padStart(2, "0");
-        return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-      };
-  
-      const formattedHorarioChegada = formatToLocalDateTime(ocorrencia.horario_chegada);
-  
-      // Formatar e salvar a ocorrência
       const ocorrenciaFormatada = {
         ...ocorrencia,
         cliente_id: clienteID,
         destino_id: destinoID,
         tipoocorrencia_id: parseInt(ocorrencia.tipoocorrencia_id, 10),
         endereco: null,
-        horario_chegada: formattedHorarioChegada, // Enviar no formato local
-        status: "Pendente",
+        horario_chegada: formattedHorarioChegada,
+        horario_saida: ocorrencia.horario_saida || null, // Certifique-se de enviar null, não undefined
+        obs: ocorrencia.obs || null, // Certifique-se de enviar null, não undefined
+        cobranca_adicional: ocorrencia.cobranca_adicional || "N",
       };
   
       const ocorrenciaResponse = await apiLocal.createOrUpdateOcorrencia(ocorrenciaFormatada);
@@ -259,6 +244,8 @@ const LancarOcorren = ({ onActionComplete }) => {
       toast.error(error.message || "Erro ao lançar a ocorrência.");
     }
   };
+  
+  
   
   
   

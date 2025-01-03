@@ -24,7 +24,7 @@ const OcorrenAbertas = () => {
   const [clientes, setClientes] = useState({});
   const [motoristas, setMotoristas] = useState({});
   const [tipoocorrencia, setTipoocorrencia] = useState({});
-
+  const [cteValue, setCteValue] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [obsModalOpen, setObsModalOpen] = useState(false);
   const [selectedOcorrencia, setSelectedOcorrencia] = useState(null);
@@ -124,6 +124,27 @@ const OcorrenAbertas = () => {
   const toggleObsModal = () => {
     setObsModalOpen(!obsModalOpen);
   };
+  const updateCteGerado = async (nf, cteValue) => {
+    try {
+      if (!cteValue.trim()) {
+        throw new Error("O número do CTE é obrigatório para cobrança adicional.");
+      }
+  
+      const payload = { nf, cte_gerado: cteValue, cobranca_adicional: "S" }; // Atualiza também o cobranca_adicional para 'S'
+      const response = await apiLocal.updateCobrancaAdicional(payload);
+  
+      if (response.status === 200) {
+        toast.success("CTE e cobrança adicional atualizados com sucesso!");
+      } else {
+        throw new Error("Erro ao atualizar CTE e cobrança adicional.");
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar CTE e cobrança adicional:", error);
+      toast.error("Erro ao atualizar CTE e cobrança adicional. Verifique os dados e tente novamente.");
+    }
+  };
+  
+  
 
   const handleCardClick = (ocorrencia) => {
     setSelectedOcorrencia(ocorrencia);
@@ -140,27 +161,39 @@ const OcorrenAbertas = () => {
       toast.error("Por favor, insira a data e hora de encerramento.");
       return;
     }
-
+  
     if (!cobrancaAdicional) {
       toast.error("Por favor, selecione se houve cobrança adicional.");
       return;
     }
-
+  
+    if (cobrancaAdicional === "S" && !cteValue.trim()) {
+      toast.error("O número do CTE é obrigatório para cobrança adicional.");
+      return;
+    }
+  
     const horarioSaidaDate = new Date(horarioSaida);
     const horarioChegadaDate = new Date(selectedOcorrencia.horario_chegada);
-
+  
     if (horarioSaidaDate < horarioChegadaDate) {
       toast.error("A data e hora de saída não podem ser menores que a de chegada.");
       return;
     }
-
+  
     try {
+      // Atualiza o status e os campos relacionados à ocorrência
       await apiLocal.createOrUpdateOcorrencia({
         ...selectedOcorrencia,
         status,
         horario_saida: horarioSaida,
         cobranca_adicional: cobrancaAdicional,
       });
+  
+      // Atualiza o campo cte_gerado separadamente se necessário
+      if (cobrancaAdicional === "S" && cteValue.trim()) {
+        await updateCteGerado(selectedOcorrencia.nf, cteValue);
+      }
+  
       toast.success(`Ocorrência marcada como "${status}" com sucesso!`);
       toggleModal();
       fetchData();
@@ -169,6 +202,8 @@ const OcorrenAbertas = () => {
       console.error(error);
     }
   };
+  
+  
   return (
     <Container>
       <div style={{ marginBottom: 20, marginTop: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
@@ -231,29 +266,42 @@ const OcorrenAbertas = () => {
       <Modal isOpen={modalOpen} toggle={toggleModal}>
         <ModalHeader toggle={toggleModal}>Encerrar Ocorrência</ModalHeader>
         <ModalBody>
-          <FormGroup>
-            <Label for="horario_saida">Data e Hora de Saída</Label>
-            <Input
-              type="datetime-local"
-              id="horario_saida"
-              value={horarioSaida}
-              onChange={(e) => setHorarioSaida(e.target.value)}
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label for="cobranca_adicional">Cobrança Adicional</Label>
-            <Input
-              type="select"
-              id="cobranca_adicional"
-              value={cobrancaAdicional}
-              onChange={(e) => setCobrancaAdicional(e.target.value)}
-            >
-              <option value="">Selecione</option>
-              <option value="S">Sim</option>
-              <option value="N">Não</option>
-            </Input>
-          </FormGroup>
-        </ModalBody>
+  <FormGroup>
+    <Label for="horario_saida">Data e Hora de Saída</Label>
+    <Input
+      type="datetime-local"
+      id="horario_saida"
+      value={horarioSaida}
+      onChange={(e) => setHorarioSaida(e.target.value)}
+    />
+  </FormGroup>
+  <FormGroup>
+    <Label for="cobranca_adicional">Cobrança Adicional</Label>
+    <Input
+      type="select"
+      id="cobranca_adicional"
+      value={cobrancaAdicional}
+      onChange={(e) => setCobrancaAdicional(e.target.value)}
+    >
+      <option value="">Selecione</option>
+      <option value="S">Sim</option>
+      <option value="N">Não</option>
+    </Input>
+  </FormGroup>
+  {cobrancaAdicional === "S" && (
+    <FormGroup>
+      <Label for="cte_value">Número do CTE</Label>
+      <Input
+        type="text"
+        id="cte_value"
+        value={cteValue}
+        onChange={(e) => setCteValue(e.target.value)}
+        placeholder="Informe o número do CTE"
+      />
+    </FormGroup>
+  )}
+</ModalBody>
+
         <ModalFooter>
         <Label>A nota foi entregue com sucesso?</Label>
           <Button color="success" onClick={() => handleStatusUpdate("Resolvido")}>Sim</Button>

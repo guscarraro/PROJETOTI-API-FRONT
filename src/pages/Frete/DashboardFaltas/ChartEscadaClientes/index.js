@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "reactstrap";
-import PieClientes from "./PieClientes"; // Importar o gráfico de pizza
+import PieClientes from "./PieClientes"; // Certifique-se do caminho e exportação corretos
 import {
   ResponsiveContainer,
   BarChart,
@@ -12,52 +12,13 @@ import {
   LabelList,
 } from "recharts";
 
-const CustomTooltip = ({ active, payload }) => {
-  if (active && payload && payload.length) {
-    return (
-      <div
-        style={{
-          background: "rgba(0, 0, 0, 0.8)",
-          padding: "10px",
-          borderRadius: "5px",
-          color: "#fff",
-        }}
-      >
-        <p>{`Quantidade: ${payload[0].value}`}</p>
-        <p style={{ fontSize: "12px", fontStyle: "italic" }}>
-          CLIQUE PARA VER MAIS
-        </p>
-      </div>
-    );
-  }
-  return null;
-};
-
 const ChartEscadaClientes = ({ data }) => {
   const [modalData, setModalData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Filtrar clientes com ocorrências (quantidade > 0) e ordenar em ordem decrescente
   const filteredData = data
     .filter((item) => item.quantidade > 0)
     .sort((a, b) => b.quantidade - a.quantidade);
-
-  // Gerar gradiente de cores do verde escuro ao verde claro
-  const generateGradientColors = (length) => {
-    const startColor = [0, 128, 0]; // Verde escuro (RGB)
-    const endColor = [144, 238, 144]; // Verde claro (RGB)
-    return Array.from({ length }, (_, index) => {
-      const ratio = index / (length - 1);
-      const color = startColor.map((start, i) =>
-        Math.round(start + ratio * (endColor[i] - start))
-      );
-      return `rgb(${color.join(",")})`;
-    });
-  };
-
-  const colors = generateGradientColors(filteredData.length);
-
-  const getBarColor = (index) => colors[index % colors.length];
 
   const handleBarClick = (e) => {
     if (e && e.activePayload && e.activePayload.length) {
@@ -71,14 +32,14 @@ const ChartEscadaClientes = ({ data }) => {
     setModalData(null);
   };
 
-  const chartHeight = Math.max(400, filteredData.length * 40 + 50);
-
-  // Preparar dados para o gráfico de pizza
   const preparePieData = (details) => {
+    if (!details || !Array.isArray(details)) return [];
+
     const typeCount = {};
     details.forEach((item) => {
       typeCount[item.tipo] = (typeCount[item.tipo] || 0) + 1;
     });
+
     return Object.entries(typeCount).map(([name, value]) => ({
       name,
       value,
@@ -86,46 +47,25 @@ const ChartEscadaClientes = ({ data }) => {
   };
 
   return (
-    <div style={{ width: "100%", height: chartHeight }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: "100%", height: "100%" }}>
+      <ResponsiveContainer width="100%" height={400}>
         <BarChart
           data={filteredData}
           layout="vertical"
           margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
           onClick={handleBarClick}
-          barCategoryGap="10%"
         >
           <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            type="number"
-            style={{ fontSize: 14, fill: "#fff" }}
-            allowDecimals={false}
-          />
+          <XAxis type="number" style={{ fontSize: 14, fill: "#fff" }} />
           <YAxis
             dataKey="nome"
             type="category"
-            width={100}
+            width={120}
             style={{ fontSize: 14, fill: "#fff" }}
-            tickFormatter={(tick) => {
-              const maxLength = 22;
-              return tick.length > maxLength
-                ? `${tick.substring(0, maxLength)}...`
-                : tick;
-            }}
           />
-          <Tooltip content={<CustomTooltip />} />
-          <Bar
-            dataKey="quantidade"
-            fill="#00C49F"
-          >
-            {/* Exibir a quantidade na base da barra */}
-            <LabelList
-              dataKey="quantidade"
-              position="insideLeft"
-              fill="#fff"
-              fontSize={14}
-              fontWeight="bold"
-            />
+          <Tooltip />
+          <Bar dataKey="quantidade" fill="#00C49F">
+            <LabelList dataKey="quantidade" position="insideLeft" fill="#fff" />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -142,7 +82,7 @@ const ChartEscadaClientes = ({ data }) => {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            zIndex: 9999,
+            color:'#000'
           }}
           onClick={closeModal}
         >
@@ -154,7 +94,6 @@ const ChartEscadaClientes = ({ data }) => {
               minWidth: 400,
               maxHeight: "80vh",
               overflowY: "auto",
-              color: "black",
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -177,16 +116,20 @@ const ChartEscadaClientes = ({ data }) => {
                   <thead>
                     <tr style={{ background: "#eee" }}>
                       <th style={cellStyle}>Nota</th>
+                      <th style={cellStyle}>Descrição</th>
+                      <th style={cellStyle}>Cliente</th>
                       <th style={cellStyle}>Motorista</th>
-                      <th style={cellStyle}>Tipo de Ocorrência</th>
+                      <th style={cellStyle}>Valor</th>
                     </tr>
                   </thead>
                   <tbody>
                     {modalData.details.map((item, idx) => (
                       <tr key={idx}>
                         <td style={cellStyle}>{item.NF}</td>
+                        <td style={cellStyle}>{item.obs}</td>
+                        <td style={cellStyle}>{item.cliente}</td>
                         <td style={cellStyle}>{item.motorista}</td>
-                        <td style={cellStyle}>{item.tipo}</td>
+                        <td style={cellStyle}>R$ {item.valor.toFixed(2)}</td>
                       </tr>
                     ))}
                   </tbody>

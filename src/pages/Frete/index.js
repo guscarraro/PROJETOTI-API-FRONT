@@ -28,6 +28,7 @@ import LancarSTH from "./LancarSTH";
 import TodasOcorrencias from "./TodasOcorrencias";
 import TodasOcorrenciasFalta from "./TodasOcorrenciasFalta";
 import TodasOcorrenciasSTH from "./TodasOcorrenciasSTH";
+import DashboardFalta from "./DashboardFaltas";
 
 const Navbar = ({ currentTab, setCurrentTab }) => {
   const [dropdownVisible, setDropdownVisible] = useState(null);
@@ -235,7 +236,7 @@ const Frete = () => {
       <Navbar currentTab={currentTab} setCurrentTab={setCurrentTab} />
       <div style={{ width: "100%", height: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start" }}>
         {currentTab === "dashboard" && <Dashboard />}
-        {currentTab === "dashboardFaltas" && <div>Dashboard Faltas</div>}
+        {currentTab === "dashboardFaltas" && <DashboardFalta />}
         {currentTab === "dashboardSTH" && <div>Dashboard STH</div>}
         {currentTab === "ocorrencias" && <OcorrenAbertas />}
         {currentTab === "novaOcorrencia" && (

@@ -10,12 +10,14 @@ import { Button, Col, Row } from "reactstrap";
 import ChartEscadaClientes from "./ChartEscadaClientes";
 import ModalNaoCobranca from "./ModalNaocobranca";
 import ModalNaoEntregue from "./ModalNaoEntregue";
+import ChartDestinatarios from "./ChartDestinatarios";
 
 const Dashboard = () => {
   const [motoristasData, setMotoristasData] = useState([]);
   const [clientesData, setClientesData] = useState([]);
   const [ocorrenciasTipoData, setOcorrenciasTipoData] = useState([]);
   const [todasOcorrencias, setTodasOcorrencias] = useState([]);
+  const [destinatariosData, setDestinatariosData] = useState([]);
 
   const [qtdOcorrenciasAbertas, setQtdOcorrenciasAbertas] = useState(0);
   const [tempoMedioEntrega, setTempoMedioEntrega] = useState(0);
@@ -109,7 +111,40 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
       });
   
       setMotoristasData(motoristasDataFinal);
-  
+
+      // Carrega destinos
+      const respDestinos = await apiLocal.getDestinos();
+      const destinosList = respDestinos.data;
+
+      const destinatariosCountMap = {};
+      ocorrencias.forEach((oc) => {
+        const dId = oc.destino_id;
+        if (!destinatariosCountMap[dId]) destinatariosCountMap[dId] = 0;
+        destinatariosCountMap[dId]++;
+      });
+      
+      const destinatariosDataFinal = destinosList.map((d) => {
+        const ocorrenciasDestino = ocorrencias.filter((oc) => oc.destino_id === d.id);
+        const details = ocorrenciasDestino.map((oc) => ({
+          NF: oc.nf,
+          motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
+          cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
+          tipo: tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+          data: new Date(oc.datainclusao).toLocaleDateString(),
+        }));
+      
+        return {
+          id: d.id,
+          nome: d.nome,
+          cidade: d.cidade, // Adiciona a cidade
+          total: ocorrenciasDestino.length,
+          details: details,
+        };
+      });
+      
+      
+      
+      setDestinatariosData(destinatariosDataFinal);
       // Monta dados para gráfico de Clientes
       const clientesCountMap = {};
       ocorrencias.forEach((oc) => {
@@ -319,12 +354,14 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
         </Box>
         </Col>
         </Row>
-      <Col  md={12}>
-        <Box >
-          <h3>Ocorrências por Motorista</h3>
-          <ChartMotoristas data={motoristasData} />
-        </Box>
-        </Col>
+        <Col md={12}>
+  <Box>
+    <h3>Ocorrências por Destinatário</h3>
+    <ChartDestinatarios data={destinatariosData} />
+  </Box>
+</Col>
+
+      
       <Col  md={12}>
         <Box >
           <h3>Ocorrências por Cliente</h3>
@@ -341,6 +378,12 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
         <ChartOcorrencias data={ocorrenciasTipoData} />
       </Box>
       </Col>
+      <Col  md={12}>
+        <Box >
+          <h3>Ocorrências por Motorista</h3>
+          <ChartMotoristas data={motoristasData} />
+        </Box>
+        </Col>
     </Row>
   );
 };

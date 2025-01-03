@@ -34,6 +34,7 @@ const LancarFalta = ({ onActionComplete }) => {
     valor_falta: "",
     obs: "",
     foto_anexo: "",
+    tipo_ocorren: "",
   });
 
   const [modalImageOpen, setModalImageOpen] = useState(false);
@@ -188,6 +189,10 @@ const [modal, setModal] = useState(false);
   
     try {
       // Validação de todos os campos obrigatórios
+      if (!falta.tipo_ocorren) {
+        toast.error("O campo Tipo da Ocorrência é obrigatório.");
+        return;
+      }
       if (!falta.nf) {
         toast.error("O campo Nota Fiscal é obrigatório.");
         return;
@@ -318,6 +323,30 @@ const [modal, setModal] = useState(false);
       <ModalImage isOpen={modalImageOpen} toggle={toggleModalImage} onImageUpload={handleImageUpload} />
       <Title>Lançar Falta</Title>
       <StyledForm onSubmit={handleSave}>
+      <FormGroup>
+  <Label>
+    <FaStickyNote /> Tipo de Ocorrência
+  </Label>
+  <select
+    name="tipo_ocorren"
+    value={falta.tipo_ocorren || ""}
+    onChange={handleInputChange}
+    style={{
+      width: "100%",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize: "14px",
+    }}
+  >
+    <option value="" disabled>
+      Selecione o tipo de ocorrência
+    </option>
+    <option value="F">Falta</option>
+    <option value="A">Avaria</option>
+    <option value="I">Inversão</option>
+  </select>
+</FormGroup>
       <FormGroup>
   <Label>
     <FaFileInvoice /> Nota Fiscal

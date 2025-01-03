@@ -7,7 +7,8 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip
+  Tooltip,
+  LabelList,
 } from "recharts";
 
 const CustomTooltip = ({ active, payload }) => {
@@ -35,23 +36,24 @@ const ChartOcorrencias = ({ data }) => {
   const [modalData, setModalData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Cores gradativas (exemplo)
-  const colors = [
-    "#FF4500",
-    "#FF5400",
-    "#FF6500",
-    "#FF7500",
-    "#FF8500",
-    "#FF9400",
-    "#FF9900",
-  ];
+  // Ordenar os dados em ordem decrescente
+  const sortedData = [...data].sort((a, b) => b.quantidade - a.quantidade);
 
-  // Retorna uma cor diferente para cada barra, conforme o index
-  const getBarColor = (index) => {
-    return colors[index % colors.length];
+  // Gerar gradiente de cores do verde escuro ao verde claro
+  const generateGradientColors = (length) => {
+    const startColor = [0, 128, 0]; // Verde escuro (RGB)
+    const endColor = [144, 238, 144]; // Verde claro (RGB)
+    return Array.from({ length }, (_, index) => {
+      const ratio = index / (length - 1);
+      const color = startColor.map((start, i) =>
+        Math.round(start + ratio * (endColor[i] - start))
+      );
+      return `rgb(${color.join(",")})`;
+    });
   };
 
-  // Clique na barra → abre modal com detalhes
+  const colors = generateGradientColors(sortedData.length);
+
   const handleBarClick = (e) => {
     if (e && e.activePayload && e.activePayload.length) {
       setModalData(e.activePayload[0].payload);
@@ -59,67 +61,49 @@ const ChartOcorrencias = ({ data }) => {
     }
   };
 
-  // Fecha o modal
   const closeModal = () => {
     setIsModalOpen(false);
     setModalData(null);
   };
 
-  // Dinamicamente, definimos a altura do gráfico
-  // Ex.: 50 px de "folga" + 40 px para cada item, mínimo de 400 px
-  const chartHeight = Math.max(400, data.length * 40 + 50);
+  const chartHeight = Math.max(400, sortedData.length * 40 + 50);
 
   return (
     <div style={{ width: "100%", height: chartHeight }}>
-
       <ResponsiveContainer width="100%" height="100%">
         <BarChart
-          data={data}
+          data={sortedData} // Dados ordenados
           layout="vertical"
           margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
           onClick={handleBarClick}
-          barCategoryGap="10%" // Ajuste a folga entre as barras
+          barCategoryGap="10%"
         >
           <CartesianGrid strokeDasharray="3 3" />
 
-          {/* Eixo X = números (quantidade) */}
           <XAxis
             type="number"
             style={{ fontSize: 14, fill: "#fff" }}
             allowDecimals={false}
           />
 
-          {/* 
-            Eixo Y = nomes (categorias)
-            width={100} por exemplo, 50 px a mais 
-            (ajuste conforme necessidade, ex. 120, 150 etc.)
-          */}
           <YAxis
             dataKey="nome"
             type="category"
-            width={100} 
+            width={100}
             style={{ fontSize: 14, fill: "#fff" }}
-            tickFormatter={(tick) => {
-              const maxLength = 22;
-              return tick.length > maxLength
-                ? `${tick.substring(0, maxLength)}...`
-                : tick;
-            }}
+            tickFormatter={(tick) =>
+              tick.length > 22 ? `${tick.substring(0, 22)}...` : tick
+            }
           />
 
           <Tooltip content={<CustomTooltip />} />
 
           <Bar
             dataKey="quantidade"
-            label={{
-              position: "insideRight", 
-              fill: "#fff",
-              fontSize: 14,
-              fontWeight: "bold",
-            }}
+            fill="#82ca9d"
             shape={(props) => {
               const { x, y, width, height, index } = props;
-              const color = getBarColor(index);
+              const color = colors[index];
               return (
                 <rect
                   x={x}
@@ -132,11 +116,19 @@ const ChartOcorrencias = ({ data }) => {
                 />
               );
             }}
-          />
+          >
+            {/* Exibir quantidade na base das barras */}
+            <LabelList
+              dataKey="quantidade"
+              position="insideLeft"
+              fill="#fff"
+              fontSize={14}
+              fontWeight="bold"
+            />
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
 
-      {/* Modal simples em DIV (sem Reactstrap), exibindo uma tabela de details */}
       {modalData && isModalOpen && (
         <div
           style={{

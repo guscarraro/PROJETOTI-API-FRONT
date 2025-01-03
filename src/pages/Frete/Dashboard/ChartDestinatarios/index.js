@@ -9,8 +9,8 @@ import {
   ResponsiveContainer,
   LabelList,
 } from "recharts";
+import ChartClientesAtrasos from "./ChartClientesAtrasos";
 import { Button } from "reactstrap";
-import MotoristaPieChart from "./MotoristaPieChart"; // Import do novo componente
 
 const CustomTooltip = ({ active, payload }) => {
   if (active && payload && payload.length) {
@@ -33,19 +33,47 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-const ChartMotoristas = ({ data }) => {
+const ChartDestinatarios = ({ data }) => {
   const [modalData, setModalData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Agrupar ocorrências por cliente
+  const groupByClient = (details) => {
+    const grouped = {};
+    details.forEach((item) => {
+      const client = item.cliente || "Desconhecido";
+      grouped[client] = (grouped[client] || 0) + 1;
+    });
+    return Object.entries(grouped).map(([name, quantidade]) => ({
+      name,
+      quantidade,
+    }));
+  };
 
   // Filtrar e ordenar os dados
   const filteredData = data.filter((item) => item.total !== 0);
   const sortedData = [...filteredData].sort((a, b) => b.total - a.total);
 
-  const chartHeight = Math.max(300, sortedData.length * 40 + 50);
+  // Gerar gradiente de cores do azul escuro ao azul claro
+  const generateGradientColors = (length) => {
+    const startColor = [0, 0, 139]; // Azul escuro (RGB)
+    const endColor = [70, 130, 180]; // Azul claro (RGB)
+    return Array.from({ length }, (_, index) => {
+      const ratio = index / (length - 1);
+      const color = startColor.map((start, i) =>
+        Math.round(start + ratio * (endColor[i] - start))
+      );
+      return `rgb(${color.join(",")})`;
+    });
+  };
+
+  const colors = generateGradientColors(sortedData.length);
 
   const handleBarClick = (e) => {
     if (e && e.activePayload && e.activePayload.length) {
-      setModalData(e.activePayload[0].payload);
+      const selectedData = e.activePayload[0].payload;
+      const groupedClients = groupByClient(selectedData.details);
+      setModalData({ ...selectedData, groupedClients });
       setIsModalOpen(true);
     }
   };
@@ -55,15 +83,7 @@ const ChartMotoristas = ({ data }) => {
     setModalData(null);
   };
 
-  const pieData = modalData?.details.reduce((acc, item) => {
-    const existing = acc.find((d) => d.name === item.tipo);
-    if (existing) {
-      existing.value += 1;
-    } else {
-      acc.push({ name: item.tipo, value: 1 });
-    }
-    return acc;
-  }, []);
+  const chartHeight = Math.max(300, sortedData.length * 40 + 50);
 
   return (
     <div style={{ width: "100%", height: chartHeight }}>
@@ -75,13 +95,6 @@ const ChartMotoristas = ({ data }) => {
           barCategoryGap="10%"
           onClick={handleBarClick}
         >
-          {/* Define o gradiente */}
-          <defs>
-            <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#002D62" />
-              <stop offset="100%" stopColor="#00509E" />
-            </linearGradient>
-          </defs>
           <CartesianGrid stroke="#fff" strokeDasharray="3 3" />
           <XAxis
             type="number"
@@ -102,7 +115,24 @@ const ChartMotoristas = ({ data }) => {
             }
           />
           <Tooltip content={<CustomTooltip />} />
-          <Bar dataKey="total" fill="url(#blueGradient)">
+          <Bar
+            dataKey="total"
+            shape={(props) => {
+              const { x, y, width, height, index } = props;
+              const color = colors[index];
+              return (
+                <rect
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  fill={color}
+                  stroke="#000"
+                  strokeWidth={1}
+                />
+              );
+            }}
+          >
             <LabelList
               dataKey="total"
               position="insideLeft"
@@ -142,44 +172,43 @@ const ChartMotoristas = ({ data }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <h4>{modalData.nome}</h4>
+            <p>Cidade: {modalData.cidade}</p>
             <p>Quantidade: {modalData.total}</p>
 
-            {Array.isArray(modalData.details) && modalData.details.length > 0 ? (
-              <>
-                <MotoristaPieChart data={pieData} />
-                <p>Ocorrências Relacionadas:</p>
-                <table
-                  style={{
-                    width: "100%",
-                    borderCollapse: "collapse",
-                    marginBottom: 10,
-                  }}
-                >
-                  <thead>
-                    <tr style={{ background: "#eee" }}>
-                      <th style={cellStyle}>Nota</th>
-                      <th style={cellStyle}>Cliente</th>
-                      <th style={cellStyle}>Tipo de Ocorrência</th>
-                      <th style={cellStyle}>Data</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modalData.details.map((item, idx) => (
-                      <tr key={idx}>
-                        <td style={cellStyle}>{item.NF}</td>
-                        <td style={cellStyle}>{item.cliente}</td>
-                        <td style={cellStyle}>{item.tipo}</td>
-                        <td style={cellStyle}>{item.data}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            ) : (
-              <p style={{ fontStyle: "italic" }}>
-                Nenhum detalhe adicional encontrado.
-              </p>
-            )}
+            <div style={{ marginBottom: 20 }}>
+              <h5>Top 7 Clientes com Mais Ocorrências</h5>
+              <ChartClientesAtrasos data={modalData.groupedClients.slice(0, 7)} />
+            </div>
+
+            <p>Ocorrências Relacionadas:</p>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                marginBottom: 10,
+              }}
+            >
+              <thead>
+                <tr style={{ background: "#eee" }}>
+                  <th style={cellStyle}>Nota</th>
+                  <th style={cellStyle}>Motorista</th>
+                  <th style={cellStyle}>Cliente</th>
+                  <th style={cellStyle}>Tipo de Ocorrência</th>
+                  <th style={cellStyle}>Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {modalData.details.map((item, idx) => (
+                  <tr key={idx}>
+                    <td style={cellStyle}>{item.NF}</td>
+                    <td style={cellStyle}>{item.motorista}</td>
+                    <td style={cellStyle}>{item.cliente}</td>
+                    <td style={cellStyle}>{item.tipo}</td>
+                    <td style={cellStyle}>{item.data}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
 
             <Button onClick={closeModal} color="secondary">
               Fechar
@@ -197,4 +226,4 @@ const cellStyle = {
   textAlign: "left",
 };
 
-export default ChartMotoristas;
+export default ChartDestinatarios;
