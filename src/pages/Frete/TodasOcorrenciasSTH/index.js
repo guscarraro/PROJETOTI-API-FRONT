@@ -12,7 +12,7 @@ const TodasOcorrenciasSTH = () => {
   const [motoristas, setMotoristas] = useState([]);
   const [destinos, setDestinos] = useState([]);
   const [filteredOcorrenciasSTH, setFilteredOcorrenciasSTH] = useState([]);
-  const [motoristaFilter, setMotoristaFilter] = useState("");
+  const [motoristaFilter, setMotoristaFilter] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -21,15 +21,19 @@ const TodasOcorrenciasSTH = () => {
   const fetchData = async () => {
     try {
       const [
-        ocorrenciasRes,
+        ocorrenciasSTHRes,
         clientesRes,
         motoristasRes,
-        destinosRes
+        destinosRes,
+        ocorrenciasRes, // Adicionando a chamada ao getOcorrencias
+        tiposOcorrenciasRes, // Endpoint para tipos de ocorrências
       ] = await Promise.all([
         apiLocal.getOcorrenciasSTH(),
         apiLocal.getClientes(),
         apiLocal.getMotoristas(),
-        apiLocal.getDestinos()
+        apiLocal.getDestinos(),
+        apiLocal.getOcorrencias(), // Chamada ao endpoint de ocorrências
+        apiLocal.getNomesOcorrencias(), // Chamada ao endpoint de tipos de ocorrências
       ]);
 
       // Mapeamento de IDs para nomes
@@ -48,13 +52,41 @@ const TodasOcorrenciasSTH = () => {
         destinosMap[destino.id] = destino.nome;
       });
 
-      // Adiciona nomes às ocorrências
-      const ocorrenciasWithNames = ocorrenciasRes.data.map((ocorrencia) => ({
-        ...ocorrencia,
-        cliente_nome: clientesMap[ocorrencia.cliente_id] || "N/A",
-        motorista_nome: motoristasMap[ocorrencia.motorista_id] || "N/A",
-        destino_nome: destinosMap[ocorrencia.destino_id] || "N/A"
-      }));
+      const tiposOcorrenciasMap = {};
+      tiposOcorrenciasRes.data.forEach((tipo) => {
+        tiposOcorrenciasMap[tipo.id] = tipo.nome;
+      });
+
+      // Confrontar ocorrências STH com ocorrências do endpoint `getOcorrencias`
+      const ocorrenciasWithNames = ocorrenciasSTHRes.data.map((ocorrenciaSTH) => {
+        const matchingOcorrencia = ocorrenciasRes.data.find(
+          (ocorrencia) =>
+            ocorrencia.nf === ocorrenciaSTH.nf &&
+            ocorrencia.cliente_id === ocorrenciaSTH.cliente_id
+        );
+
+        return {
+          ...ocorrenciaSTH,
+          cliente_nome: clientesMap[ocorrenciaSTH.cliente_id] || "N/A",
+          motorista_nome: motoristasMap[ocorrenciaSTH.motorista_id] || "N/A",
+          destino_nome: destinosMap[ocorrenciaSTH.destino_id] || "N/A",
+          horario_chegada: matchingOcorrencia
+            ? new Date(matchingOcorrencia.horario_chegada).toLocaleString("pt-BR")
+            : "N/A",
+          horario_saida: matchingOcorrencia
+            ? new Date(matchingOcorrencia.horario_saida).toLocaleString("pt-BR")
+            : "N/A",
+          permanencia: matchingOcorrencia
+            ? calcularPermanencia(
+                matchingOcorrencia.horario_chegada,
+                matchingOcorrencia.horario_saida
+              )
+            : "N/A",
+          tipo_ocorrencia: matchingOcorrencia
+            ? tiposOcorrenciasMap[matchingOcorrencia.tipoocorrencia_id] || "N/A"
+            : "N/A",
+        };
+      });
 
       setOcorrenciasSTH(ocorrenciasWithNames);
       setFilteredOcorrenciasSTH(ocorrenciasWithNames);
@@ -63,6 +95,14 @@ const TodasOcorrenciasSTH = () => {
       toast.error("Erro ao buscar dados das ocorrências STH.");
       console.error(error);
     }
+  };
+
+  const calcularPermanencia = (chegada, saida) => {
+    if (!chegada || !saida) return "N/A";
+    const diffMs = new Date(saida) - new Date(chegada);
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${minutes}min`;
   };
 
   const handleExportExcel = () => {
@@ -82,6 +122,10 @@ const TodasOcorrenciasSTH = () => {
       "Notas Fiscais STH": ocorrencia.nf_sth,
       "Data da Viagem": new Date(ocorrencia.data_viagem).toLocaleDateString(),
       Cidade: ocorrencia.cidade,
+      "Horário de Chegada": ocorrencia.horario_chegada,
+      "Horário de Saída": ocorrencia.horario_saida,
+      Permanência: ocorrencia.permanencia,
+      "Tipo de Ocorrência": ocorrencia.tipo_ocorrencia,
     }));
 
     // Criar a planilha
@@ -112,7 +156,7 @@ const TodasOcorrenciasSTH = () => {
         alignItems: "center",
         justifyContent: "flex-start",
         width: "100%",
-        minHeight: "100vh"
+        minHeight: "100vh",
       }}
     >
       <HeaderContainer>
@@ -149,6 +193,10 @@ const TodasOcorrenciasSTH = () => {
             <th>Notas Fiscais STH</th>
             <th>Data da Viagem</th>
             <th>Cidade</th>
+            <th>Horário de Chegada</th>
+            <th>Horário de Saída</th>
+            <th>Permanência</th>
+            <th>Tipo de Ocorrência</th>
           </tr>
         </thead>
         <tbody>
@@ -163,6 +211,10 @@ const TodasOcorrenciasSTH = () => {
               <td>{ocorrencia.nf_sth}</td>
               <td>{new Date(ocorrencia.data_viagem).toLocaleDateString()}</td>
               <td>{ocorrencia.cidade}</td>
+              <td>{ocorrencia.horario_chegada}</td>
+              <td>{ocorrencia.horario_saida}</td>
+              <td>{ocorrencia.permanencia}</td>
+              <td>{ocorrencia.tipo_ocorrencia}</td>
             </tr>
           ))}
         </tbody>

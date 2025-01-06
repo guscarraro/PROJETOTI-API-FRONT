@@ -28,6 +28,9 @@ const apiLocal = {
   createOrUpdateOcorrencia: (data) => api.post("/ocorrencias", data),
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
   updateCobrancaAdicional: (data) => api.put("/ocorrencias", data),
+  getOcorrenciasFiltradas: (filters) =>
+    api.get("/ocorrencias", { params: filters }),
+  
   // Ocorrências STH
   getOcorrenciasSTH: () => api.get("/ocorren-sth"), // Listar todas as ocorrências STH
   createOrUpdateOcorrenciaSTH: (data) => api.post("/ocorren-sth", data), // Criar ou atualizar uma ocorrência STH

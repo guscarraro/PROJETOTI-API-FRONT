@@ -6,7 +6,7 @@ import LineOcorrenDias from "./LineOcorrenDias";
 import apiLocal from "../../../services/apiLocal";
 import { Box, CardStyle } from "./style";
 import { FaChartLine, FaClock, FaDollarSign, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
-import { Button, Col, Row } from "reactstrap";
+import { Button, Col, FormGroup, Input, Label, Row } from "reactstrap";
 import ChartEscadaClientes from "./ChartEscadaClientes";
 import ModalNaoCobranca from "./ModalNaocobranca";
 import ModalNaoEntregue from "./ModalNaoEntregue";
@@ -31,6 +31,10 @@ const Dashboard = () => {
   const [motoristasMap, setMotoristasMap] = useState({});
   const [clientesMap, setClientesMap] = useState({});
   const [showModalNaoCobranca, setShowModalNaoCobranca] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [dtInicio, setDtInicio] = useState("");
+  const [dtFinal, setDtFinal] = useState("");
 
 const handleOpenModalNaoCobranca = () => setShowModalNaoCobranca(true);
 const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
@@ -45,12 +49,17 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
     fetchDashboardData();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (filters = {}) => {
+    setIsLoading(true);
+    console.log("Filtros aplicados:", filters);
     try {
+      const params = {};
+    if (filters.dtInicio) params.dtInicio = filters.dtInicio;
+    if (filters.dtFinal) params.dtFinal = filters.dtFinal;
       // Carrega todas as ocorrências
-      const respOcorrencias = await apiLocal.getOcorrencias();
-      const { data: ocorrencias } = respOcorrencias;
-      setTodasOcorrencias(ocorrencias);
+      const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
+    const { data: ocorrencias } = respOcorrencias;
+    setTodasOcorrencias(ocorrencias);
   
       // Carrega motoristas
       const respMotoristas = await apiLocal.getMotoristas();
@@ -233,7 +242,9 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
       }
     } catch (error) {
       console.error("Erro ao buscar dados para o dashboard", error);
-    }
+    } finally {
+      setIsLoading(false);
+  }
   };
   
 
@@ -268,6 +279,32 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
     onClose={handleCloseModalNaoEntregue}
   />
 )}
+{isLoading && <p>Carregando dados...</p>}
+{/* <FormGroup>
+  <Label for="dtInicio">Data Início</Label>
+  <Input
+    type="date"
+    id="dtInicio"
+    value={dtInicio}
+    onChange={(e) => setDtInicio(e.target.value)}
+  />
+</FormGroup>
+<FormGroup>
+  <Label for="dtFinal">Data Final</Label>
+  <Input
+    type="date"
+    id="dtFinal"
+    value={dtFinal}
+    onChange={(e) => setDtFinal(e.target.value)}
+  />
+</FormGroup>
+<Button
+  color="primary"
+  onClick={() => fetchDashboardData({ dtInicio, dtFinal })}
+>
+  Aplicar Filtros
+</Button> */}
+
 
       {/* Cards de métricas */}
       <Row >

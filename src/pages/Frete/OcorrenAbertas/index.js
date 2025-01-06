@@ -223,7 +223,7 @@ const OcorrenAbertas = () => {
           return (
             <Card
               key={ocorrencia.id}
-              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "280px" }}
+              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "320px" }}
               onClick={() => handleCardClick(ocorrencia)}
             >
               <CardBody

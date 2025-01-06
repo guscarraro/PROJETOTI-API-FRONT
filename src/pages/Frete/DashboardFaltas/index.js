@@ -130,7 +130,7 @@ const DashboardFalta = () => {
                 borderRadius: 5,
               }}
             >
-              <p style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>
+              <p style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>
                 Valor Total: R$ {valorAvarias.toFixed(2)}
               </p>
             </Box>
@@ -152,7 +152,7 @@ const DashboardFalta = () => {
                 borderRadius: 5,
               }}
             >
-              <p style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>
+              <p style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>
                 Valor Total: R$ {valorInversoes.toFixed(2)}
               </p>
             </Box>
@@ -174,7 +174,7 @@ const DashboardFalta = () => {
                 borderRadius: 5,
               }}
             >
-              <p style={{ fontSize: 18, fontWeight: 700, color: "#fff" }}>
+              <p style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>
                 Valor Total: R$ {valorFaltas.toFixed(2)}
               </p>
             </Box>

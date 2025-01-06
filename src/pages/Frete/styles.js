@@ -40,6 +40,10 @@ export const NavButton = styled.button`
   &:hover {
     background-color: ${(props) => (props.active ? "#0056b3" : "#555")};
   }
+      &.active {
+    background-color: #2c3e50; /* Tom mais escuro */
+    color: #ecf0f1; /* Texto claro */
+  }
 `;
 
 export const NavIcon = styled.span`
