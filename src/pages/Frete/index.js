@@ -40,7 +40,8 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
   const [selectedOption, setSelectedOption] = useState({
     dashboard: "Dashboard",
     novaOcorrencia: "Lançar Nova Ocorrência",
-    cadastros: "Cadastros/Relatórios",
+    cadastros: "Cadastros",
+    relatorios: "Relatórios",
   });
   const navigate = useNavigate();
 
@@ -49,9 +50,9 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
   };
 
   const handleSelection = (menu, option, tab) => {
-    setSelectedOption((prev) => ({ ...prev, [menu]: option })); // Atualiza o título da aba selecionada
-    setCurrentTab(tab); // Atualiza a aba ativa
-    setDropdownVisible(null); // Fecha o dropdown
+    setSelectedOption((prev) => ({ ...prev, [menu]: option }));
+    setCurrentTab(tab);
+    setDropdownVisible(null);
   };
 
   const isActive = (tab) => currentTab === tab;
@@ -70,23 +71,17 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         {dropdownVisible === "dashboard" && (
           <Dropdown>
             <DropdownItem
-              onClick={() =>
-                handleSelection("dashboard", "Dashboard Ocorrência", "dashboard")
-              }
+              onClick={() => handleSelection("dashboard", "Dashboard Ocorrência", "dashboard")}
             >
               Dashboard Ocorrência
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("dashboard", "Dashboard Faltas", "dashboardFaltas")
-              }
+              onClick={() => handleSelection("dashboard", "Dashboard Faltas", "dashboardFaltas")}
             >
               Dashboard Faltas
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("dashboard", "Dashboard STH", "dashboardSTH")
-              }
+              onClick={() => handleSelection("dashboard", "Dashboard STH", "dashboardSTH")}
             >
               Dashboard STH
             </DropdownItem>
@@ -106,23 +101,17 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         {dropdownVisible === "novaOcorrencia" && (
           <Dropdown>
             <DropdownItem
-              onClick={() =>
-                handleSelection("novaOcorrencia", "Lançar Nova Ocorrência", "novaOcorrencia")
-              }
+              onClick={() => handleSelection("novaOcorrencia", "Lançar Nova Ocorrência", "novaOcorrencia")}
             >
               Lançar Nova Ocorrência
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("novaOcorrencia", "Lançar Falta", "ocorrenciaFalta")
-              }
+              onClick={() => handleSelection("novaOcorrencia", "Lançar Falta", "ocorrenciaFalta")}
             >
               Lançar Falta
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("novaOcorrencia", "Lançar STH", "ocorrenciaSTH")
-              }
+              onClick={() => handleSelection("novaOcorrencia", "Lançar STH", "ocorrenciaSTH")}
             >
               Lançar STH
             </DropdownItem>
@@ -130,7 +119,7 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         )}
       </NavButton>
 
-      {/* Outros Botões */}
+      {/* Ocorrências em Aberto */}
       <NavButton
         onClick={() => setCurrentTab("ocorrencias")}
         className={isActive("ocorrencias") ? "active" : ""}
@@ -140,7 +129,9 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         </NavIcon>
         Ocorrências em Aberto
       </NavButton>
-      <NavButton
+
+      {/* Rastreamento de Motorista */}
+      {/* <NavButton
         onClick={() => setCurrentTab("rastreio")}
         className={isActive("rastreio") ? "active" : ""}
       >
@@ -148,18 +139,15 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
           <SiGooglemaps />
         </NavIcon>
         Rastreio motorista
-      </NavButton>
+      </NavButton> */}
 
-      {/* Menu Cadastros com Dropdown */}
+      {/* Menu Cadastros */}
       <NavButton
         onClick={() => toggleDropdown("cadastros")}
         className={
-          isActive("todasOcorrencias") ||
           isActive("tiposOcorrencias") ||
           isActive("motoristas") ||
           isActive("clientes") ||
-          isActive("todasOcorrenciaFalta") ||
-          isActive("todasOcorrenciaSTH") ||
           isActive("destino")
             ? "active"
             : ""
@@ -172,51 +160,22 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         {dropdownVisible === "cadastros" && (
           <Dropdown>
             <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Todas as Ocorrências", "todasOcorrencias")
-              }
-            >
-              Todas as Ocorrências
-            </DropdownItem>
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Tipo de Ocorrência", "tiposOcorrencias")
-              }
+              onClick={() => handleSelection("cadastros", "Tipo de Ocorrência", "tiposOcorrencias")}
             >
               Tipo de Ocorrência
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Motoristas", "motoristas")
-              }
+              onClick={() => handleSelection("cadastros", "Motoristas", "motoristas")}
             >
               Motoristas
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Clientes", "clientes")
-              }
+              onClick={() => handleSelection("cadastros", "Clientes", "clientes")}
             >
               Clientes
             </DropdownItem>
             <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Faltas", "todasOcorrenciaFalta")
-              }
-            >
-              Faltas
-            </DropdownItem>
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "STH", "todasOcorrenciaSTH")
-              }
-            >
-              STH
-            </DropdownItem>
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Destinatários", "destino")
-              }
+              onClick={() => handleSelection("cadastros", "Destinatários", "destino")}
             >
               Destinatários
             </DropdownItem>
@@ -224,6 +183,43 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         )}
       </NavButton>
 
+      {/* Menu Relatórios */}
+      <NavButton
+        onClick={() => toggleDropdown("relatorios")}
+        className={
+          isActive("todasOcorrencias") ||
+          isActive("todasOcorrenciaFalta") ||
+          isActive("todasOcorrenciaSTH")
+            ? "active"
+            : ""
+        }
+      >
+        <NavIcon>
+          <FaFileAlt />
+        </NavIcon>
+        {selectedOption.relatorios} <FaCaretDown />
+        {dropdownVisible === "relatorios" && (
+          <Dropdown>
+            <DropdownItem
+              onClick={() => handleSelection("relatorios", "Todas as Ocorrências", "todasOcorrencias")}
+            >
+              Todas as Ocorrências
+            </DropdownItem>
+            <DropdownItem
+              onClick={() => handleSelection("relatorios", "Faltas", "todasOcorrenciaFalta")}
+            >
+              Todas as Faltas
+            </DropdownItem>
+            <DropdownItem
+              onClick={() => handleSelection("relatorios", "STH", "todasOcorrenciaSTH")}
+            >
+              Todos os STH
+            </DropdownItem>
+          </Dropdown>
+        )}
+      </NavButton>
+
+      {/* SAC Navigation */}
       <NavButton onClick={() => navigate("/SAC")}>
         <NavIcon>
           <FaArrowRight />
@@ -233,6 +229,7 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
     </NavbarContainer>
   );
 };
+
 
 const Frete = () => {
   const [currentTab, setCurrentTab] = useState("ocorrencias");

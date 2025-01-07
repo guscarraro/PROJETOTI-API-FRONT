@@ -121,7 +121,7 @@ const Cliente = () => {
       <StyledTable bordered>
         <thead>
           <tr>
-            <th>Editar</th>
+            {/* <th>Editar</th> */}
             <th>Nome</th>
             {/* <th>Excluir</th> */}
           </tr>
@@ -129,12 +129,12 @@ const Cliente = () => {
         <tbody>
           {filteredClientes.map((cliente) => (
             <tr key={cliente.id}>
-              <td style={{ width: "10px", textAlign: "center" }}>
+              {/* <td style={{ width: "10px", textAlign: "center" }}>
                 <FaPen
                   style={{ color: "rgb(0, 123, 255)" }}
                   onClick={() => handleEdit(cliente)}
                 />
-              </td>
+              </td> */}
               <td style={{ textAlign: "start" }}>{cliente.nome}</td>
               {/* <td style={{ width: "10px", textAlign: "center" }}>
                 <FaTrash

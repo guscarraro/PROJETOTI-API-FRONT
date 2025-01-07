@@ -137,7 +137,7 @@ const Destino = () => {
       <StyledTable bordered>
         <thead>
           <tr>
-            <th>Editar</th>
+            {/* <th>ID</th> */}
             <th>Nome</th>
             <th>Endereço</th>
             <th>Cidade</th>
@@ -146,12 +146,12 @@ const Destino = () => {
         <tbody>
           {filteredDestinos.map((destino) => (
             <tr key={destino.id}>
-              <td style={{ textAlign: "center", width: "10px" }}>
+              {/* <td style={{ textAlign: "center", width: "10px" }}>
                 <FaPen
                   style={{ color: "rgb(0, 123, 255)" }}
                   onClick={() => handleEdit(destino)}
                 />
-              </td>
+              </td> */}
               <td>{destino.nome}</td>
               <td>{destino.endereco || "N/A"}</td>
               <td>{destino.cidade || "N/A"}</td>

@@ -163,7 +163,7 @@ const Motorista = () => {
       <StyledTable bordered>
         <thead>
           <tr>
-            <th>Editar</th>
+            {/* <th>Editar</th> */}
             <th>Nome</th>
             <th>Placa</th>
             <th>ANTT</th>
@@ -173,12 +173,12 @@ const Motorista = () => {
         <tbody>
           {filteredMotoristas.map((motorista) => (
             <tr key={motorista.id}>
-              <td style={{ textAlign: "center", width: "10px" }}>
+              {/* <td style={{ textAlign: "center", width: "10px" }}>
                 <FaPen
                   style={{ color: "rgb(0, 123, 255)" }}
                   onClick={() => handleEdit(motorista)}
                 />
-              </td>
+              </td> */}
               <td>{motorista.nome}</td>
               <td>{motorista.placa}</td>
               <td>{motorista.antt}</td>
