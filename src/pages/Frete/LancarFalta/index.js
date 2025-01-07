@@ -12,7 +12,7 @@ import {
 } from "./style";
 import { FaDollarSign, FaUser, FaBuilding, FaStickyNote, FaFileImage, FaFileInvoice } from "react-icons/fa";
 import apiLocal from "../../../services/apiLocal";
-import { Button, Modal, ModalBody, ModalFooter, ModalHeader, Spinner } from "reactstrap";
+import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import ModalImage from "./ModalImage";
 import LoadingDots from "../../../components/Loading"; // Altere o caminho conforme necessário
 
@@ -35,12 +35,19 @@ const LancarFalta = ({ onActionComplete }) => {
     obs: "",
     foto_anexo: "",
     tipo_ocorren: "",
+    filial: "",
+    responsavel: "",
+    autor_por: "",
+    conferente: "",
   });
 
   const [modalImageOpen, setModalImageOpen] = useState(false);
   const [uploadedImage, setUploadedImage] = useState(null);
   const [clientesDuplicados, setClientesDuplicados] = useState([]);
-const [modal, setModal] = useState(false);
+  const [modal, setModal] = useState(false);
+
+  const filiais = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP"];
+  const autores = ["Maicon", "Fernanda", "Gean", "Michelen", "sem autorização"];
 
 
   const toggleModalImage = () => {
@@ -193,6 +200,22 @@ const [modal, setModal] = useState(false);
         toast.error("O campo Tipo da Ocorrência é obrigatório.");
         return;
       }
+      if (!falta.filial) {
+        toast.error("O campo Tipo da Filial é obrigatório.");
+        return;
+      }
+      if (!falta.responsavel) {
+        toast.error("O campo Tipo da Responsavel pelo debito é obrigatório.");
+        return;
+      }
+      if (!falta.autor_por) {
+        toast.error("O campo Tipo da Autorizado por é obrigatório.");
+        return;
+      }
+      if (!falta.conferente) {
+        toast.error("O campo Tipo da Conferente é obrigatório.");
+        return;
+      }
       if (!falta.nf) {
         toast.error("O campo Nota Fiscal é obrigatório.");
         return;
@@ -261,6 +284,10 @@ const [modal, setModal] = useState(false);
           valor_falta_num: 0,
           obs: "",
           foto_anexo: "",
+          filial: "",
+          responsavel: "",
+          autor_por: "",
+          conferente: "",
         });
         setClienteNome("");
         setDestinoNome("");
@@ -347,6 +374,7 @@ const [modal, setModal] = useState(false);
     <option value="I">Inversão</option>
   </select>
 </FormGroup>
+
       <FormGroup>
   <Label>
     <FaFileInvoice /> Nota Fiscal
@@ -402,6 +430,66 @@ const [modal, setModal] = useState(false);
             onChange={handleInputChange}
             placeholder="Digite a cidade"
           />
+        </FormGroup>
+        <FormGroup>
+          <Label>
+            <FaBuilding /> Filial onde houve falta
+          </Label>
+          <select name="filial" value={falta.filial} onChange={handleInputChange}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+            <option value="" disabled>Selecione a filial</option>
+            {filiais.map((filial) => (
+              <option key={filial} value={filial}>{filial}</option>
+            ))}
+          </select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            <FaUser /> Responsável pelo débito
+          </Label>
+          <select name="responsavel" value={falta.responsavel} onChange={handleInputChange}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+            <option value="" disabled>Selecione o responsável</option>
+            {filiais.map((responsavel) => (
+              <option key={responsavel} value={responsavel}>{responsavel}</option>
+            ))}
+          </select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            <FaUser /> Autorizado Por
+          </Label>
+          <select name="autor_por" value={falta.autor_por} onChange={handleInputChange}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+            <option value="" disabled>Selecione quem autorizou</option>
+            {autores.map((autor) => (
+              <option key={autor} value={autor}>{autor}</option>
+            ))}
+          </select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>
+            <FaUser /> Conferente
+          </Label>
+          <Input type="text" name="conferente" value={falta.conferente} onChange={handleInputChange} placeholder="Digite o nome do conferente" />
         </FormGroup>
         <FormGroup>
   <Label>
