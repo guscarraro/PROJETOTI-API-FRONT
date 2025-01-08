@@ -1,8 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "reactstrap";
 import ChartClientesNaoEntregues from "./ChartClientesNaoEntregues";
 
 const ModalNaoEntregue = ({ data, onClose }) => {
+  const [sortedData, setSortedData] = useState([...data]);
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+
   const calcularTempoPermanencia = (chegada, saida) => {
     const chegadaDate = new Date(chegada);
     const saidaDate = new Date(saida);
@@ -16,7 +19,31 @@ const ModalNaoEntregue = ({ data, onClose }) => {
     const horas = Math.floor(diffMin / 60);
     const minutos = diffMin % 60;
 
-    return `${horas}h ${minutos}min`;
+    return { horas, minutos, formatado: `${horas}h ${minutos}min` };
+  };
+
+  const handleSort = (key) => {
+    let direction = "asc";
+    if (sortConfig.key === key && sortConfig.direction === "asc") {
+      direction = "desc";
+    }
+
+    const sorted = [...sortedData].sort((a, b) => {
+      if (key === "tempoPermanencia") {
+        const tempoA = calcularTempoPermanencia(a.horario_ocorrencia, a.horario_saida);
+        const tempoB = calcularTempoPermanencia(b.horario_ocorrencia, b.horario_saida);
+        return direction === "asc"
+          ? tempoA.horas - tempoB.horas || tempoA.minutos - tempoB.minutos
+          : tempoB.horas - tempoA.horas || tempoB.minutos - tempoA.minutos;
+      }
+
+      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
+      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    setSortedData(sorted);
+    setSortConfig({ key, direction });
   };
 
   const clientesNaoEntregues = [...data.reduce((acc, item) => {
@@ -72,34 +99,62 @@ const ModalNaoEntregue = ({ data, onClose }) => {
         >
           <thead>
             <tr style={{ background: "#f5f5f5" }}>
-              <th style={cellStyle}>Nota</th>
-              <th style={cellStyle}>Cliente</th>
-              <th style={cellStyle}>Hora de Chegada</th>
-              <th style={cellStyle}>Hora de Saída</th>
-              <th style={cellStyle}>Tempo de Permanência</th>
-              <th style={cellStyle}>Motorista</th>
+              <th style={cellStyle} onClick={() => handleSort("nf")}>
+                Nota
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("cliente")}>
+                Cliente
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("horario_chegada")}>
+                Hora de Chegada
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("horario_ocorrencia")}>
+                Hora da Ocorrência
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("horario_saida")}>
+                Hora de Saída
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("tempoPermanencia")}>
+                Permanência Após Ocorrências
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("motorista")}>
+                Motorista
+              </th>
             </tr>
           </thead>
           <tbody>
-            {data.map((item, index) => (
-              <tr key={index}>
-                <td style={cellStyle}>{item.nf}</td>
-                <td style={cellStyle}>{item.cliente}</td>
-                <td style={cellStyle}>
-                  {new Date(item.horario_chegada).toLocaleTimeString()}
-                </td>
-                <td style={cellStyle}>
-                  {new Date(item.horario_saida).toLocaleTimeString()}
-                </td>
-                <td style={cellStyle}>
-                  {calcularTempoPermanencia(
-                    item.horario_chegada,
-                    item.horario_saida
-                  )}
-                </td>
-                <td style={cellStyle}>{item.motorista}</td>
-              </tr>
-            ))}
+            {sortedData.map((item, index) => {
+              const permanencia = calcularTempoPermanencia(
+                item.horario_ocorrencia,
+                item.horario_saida
+              );
+
+              const isTempoExcedido = permanencia.horas >= 1;
+
+              return (
+                <tr
+                  key={index}
+                  style={{
+                    background: isTempoExcedido ? "#f8d7da" : "inherit",
+                    color: isTempoExcedido ? "#721c24" : "inherit",
+                  }}
+                >
+                  <td style={cellStyle}>{item.nf}</td>
+                  <td style={cellStyle}>{item.cliente}</td>
+                  <td style={cellStyle}>
+                    {new Date(item.horario_chegada).toLocaleTimeString()}
+                  </td>
+                  <td style={cellStyle}>
+                    {new Date(item.horario_ocorrencia).toLocaleTimeString()}
+                  </td>
+                  <td style={cellStyle}>
+                    {new Date(item.horario_saida).toLocaleTimeString()}
+                  </td>
+                  <td style={cellStyle}>{permanencia.formatado}</td>
+                  <td style={cellStyle}>{item.motorista}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
 
@@ -115,6 +170,7 @@ const cellStyle = {
   border: "1px solid #ddd",
   padding: "8px",
   textAlign: "center",
+  cursor: "pointer",
 };
 
 export default ModalNaoEntregue;

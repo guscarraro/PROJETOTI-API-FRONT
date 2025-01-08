@@ -230,7 +230,6 @@ const LancarSTH = ({ onActionComplete }) => {
         cidade: cidade.trim(),
       };
   
-      console.log("Payload enviado ao backend:", payload);
   
       const response = await apiLocal.createOrUpdateOcorrenciaSTH(payload);
       if (response.data) {

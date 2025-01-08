@@ -258,6 +258,7 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
       cliente: clientesMap[oc.cliente_id] || "Desconhecido",
       horario_chegada: oc.horario_chegada,
       horario_saida: oc.horario_saida,
+      horario_ocorrencia: oc.datainclusao,
       motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
     }))}
     onClose={handleCloseModalNaoCobranca}
@@ -274,6 +275,7 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
         destinatario: motoristasMap[oc.motorista_id] || "Desconhecido",
         horario_chegada: oc.horario_chegada,
         horario_saida: oc.horario_saida,
+        horario_ocorrencia: oc.datainclusao,
         motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
       }))}
     onClose={handleCloseModalNaoEntregue}

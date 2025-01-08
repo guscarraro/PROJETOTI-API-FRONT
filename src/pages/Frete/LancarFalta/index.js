@@ -268,7 +268,6 @@ const LancarFalta = ({ onActionComplete }) => {
         valor_falta: falta.valor_falta_num, // Valor numérico para a API
       };
   
-      console.log("Payload enviado para API:", faltaFormatada);
   
       // Salva a falta na API
       const response = await apiLocal.createOrUpdateFalta(faltaFormatada);

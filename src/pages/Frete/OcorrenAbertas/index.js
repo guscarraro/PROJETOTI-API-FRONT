@@ -64,7 +64,6 @@ const OcorrenAbertas = () => {
       tpOcorrenciaResponse.data.forEach((tpocorren) => {
         tpOcorrenciaMap[tpocorren.id] = tpocorren.nome;
       });
-      console.log(abertas)
       setOcorrencias(abertas);
       setTipoocorrencia(tpOcorrenciaMap)
       setClientes(clientesMap);
@@ -173,16 +172,16 @@ const OcorrenAbertas = () => {
       return;
     }
   
-    const horarioSaidaDate = new Date(horarioSaida);
     const horarioChegadaDate = new Date(selectedOcorrencia.horario_chegada);
+    const horarioSaidaDate = new Date(horarioSaida);
+    const horarioOcorrenciaDate = new Date(selectedOcorrencia.datainclusao);
   
-    if (horarioSaidaDate < horarioChegadaDate) {
-      toast.error("A data e hora de saída não podem ser menores que a de chegada.");
+    if (horarioSaida < horarioChegadaDate) {
+      toast.error(`A data e hora de saída não podem ser menores que a de chegada: ${horarioSaidaDate}.`);
       return;
     }
   
     try {
-      // Atualiza o status e os campos relacionados à ocorrência
       await apiLocal.createOrUpdateOcorrencia({
         ...selectedOcorrencia,
         status,
@@ -220,11 +219,11 @@ const OcorrenAbertas = () => {
 
       <ContainerCards style={styles.cardContainer}>
         {filteredOcorrencias.map((ocorrencia) => {
-          const { backgroundColor, icon } = calculateCardStyle(ocorrencia.horario_chegada);
+          const { backgroundColor, icon } = calculateCardStyle(ocorrencia.datainclusao);
           return (
             <Card
               key={ocorrencia.id}
-              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "360px" }}
+              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "400px" }}
               onClick={() => handleCardClick(ocorrencia)}
             >
               <CardBody
