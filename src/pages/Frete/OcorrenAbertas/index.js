@@ -13,6 +13,7 @@ import {
   FormGroup,
   Label,
   Select,
+  CardFooter,
 } from "reactstrap";
 import { toast } from "react-toastify";
 import { FaCheckCircle, FaEye, FaExclamationTriangle } from "react-icons/fa";
@@ -63,7 +64,7 @@ const OcorrenAbertas = () => {
       tpOcorrenciaResponse.data.forEach((tpocorren) => {
         tpOcorrenciaMap[tpocorren.id] = tpocorren.nome;
       });
-
+      console.log(abertas)
       setOcorrencias(abertas);
       setTipoocorrencia(tpOcorrenciaMap)
       setClientes(clientesMap);
@@ -223,7 +224,7 @@ const OcorrenAbertas = () => {
           return (
             <Card
               key={ocorrencia.id}
-              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "320px" }}
+              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "360px" }}
               onClick={() => handleCardClick(ocorrencia)}
             >
               <CardBody
@@ -258,6 +259,11 @@ const OcorrenAbertas = () => {
                   Encerrar
                 </Button>
               </CardBody>
+              <CardFooter>
+              <CardText>
+                  Hora abertura da ocorrência: <strong>{new Date(ocorrencia.datainclusao).toLocaleString()}</strong>
+                </CardText>
+              </CardFooter>
             </Card>
           );
         })}
