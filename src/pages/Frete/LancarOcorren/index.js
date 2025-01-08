@@ -43,6 +43,7 @@ const LancarOcorren = ({ onActionComplete }) => {
   });
 
   const [loadingNota, setLoadingNota] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [modal, setModal] = useState(false);
   const [clientesDuplicados, setClientesDuplicados] = useState([]);
 
@@ -152,15 +153,16 @@ const LancarOcorren = ({ onActionComplete }) => {
   const handleSave = async (e) => {
     e.preventDefault();
   
-    try {
-      if (!clienteNome || !ocorrencia.nf) {
-        toast.error("Por favor, preencha todos os campos obrigatórios.");
-        return;
-      }
+    if (!clienteNome || !ocorrencia.nf || !ocorrencia.motorista_id || !ocorrencia.tipoocorrencia_id || !ocorrencia.horario_chegada) {
+      toast.error("Por favor, preencha todos os campos obrigatórios.");
+      return;
+    }
   
+    setIsLoading(true); // Inicia o estado de carregamento
+  
+    try {
       let clienteID, destinoID;
   
-      // Verifica se o cliente já existe
       const clienteExistente = clientes.find(
         (cliente) => cliente.nome && cliente.nome === clienteNome
       );
@@ -179,7 +181,6 @@ const LancarOcorren = ({ onActionComplete }) => {
         clienteID = clienteExistente.id;
       }
   
-      // Verifica se o destino já existe
       const destinoExistente = destinos.find(
         (destino) =>
           destino.nome?.trim() === (ocorrencia.destino_id || "").trim() &&
@@ -215,8 +216,8 @@ const LancarOcorren = ({ onActionComplete }) => {
         tipoocorrencia_id: parseInt(ocorrencia.tipoocorrencia_id, 10),
         endereco: null,
         horario_chegada: formattedHorarioChegada,
-        horario_saida: ocorrencia.horario_saida || null, // Certifique-se de enviar null, não undefined
-        obs: ocorrencia.obs || null, // Certifique-se de enviar null, não undefined
+        horario_saida: ocorrencia.horario_saida || null,
+        obs: ocorrencia.obs || null,
         cobranca_adicional: ocorrencia.cobranca_adicional || "N",
       };
   
@@ -242,8 +243,11 @@ const LancarOcorren = ({ onActionComplete }) => {
     } catch (error) {
       console.error("Erro ao salvar a ocorrência:", error);
       toast.error(error.message || "Erro ao lançar a ocorrência.");
+    } finally {
+      setIsLoading(false); // Finaliza o estado de carregamento
     }
   };
+  
   
   
   
@@ -384,7 +388,9 @@ const LancarOcorren = ({ onActionComplete }) => {
             placeholder="Observações"
           />
         </FormGroup>
-        <SubmitButton type="submit">Adicionar Ocorrência</SubmitButton>
+        <SubmitButton type="submit" disabled={isLoading}>
+  {isLoading ? <LoadingDots /> : "Adicionar Ocorrência"}
+</SubmitButton>
       </StyledForm>
 
       <Modal isOpen={modal} toggle={() => setModal(!modal)}>
