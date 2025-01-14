@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Input } from "reactstrap";
+import {
+  Button,
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Input,
+} from "reactstrap";
 import ChartClientesAtrasos from "./ChartClientesAtrasos";
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
@@ -47,7 +54,9 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
       }
     } catch (error) {
       console.error("Erro ao registrar cobrança adicional:", error);
-      toast.error("Erro ao registrar cobrança adicional. Verifique os dados e tente novamente.");
+      toast.error(
+        "Erro ao registrar cobrança adicional. Verifique os dados e tente novamente."
+      );
     }
   };
 
@@ -55,7 +64,8 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
     const chegadaDate = new Date(chegada);
     const saidaDate = new Date(saida);
     const ocorrenDate = new Date(ocorren);
-    if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate) return { horas: 0, minutos: 0, formatado: "Indisponível" };
+    if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate)
+      return { horas: 0, minutos: 0, formatado: "Indisponível" };
 
     const diffMs = saidaDate - ocorrenDate;
     const diffMin = Math.floor(diffMs / 60000);
@@ -73,8 +83,16 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
 
     const sorted = [...sortedData].sort((a, b) => {
       if (key === "tempoPermanencia") {
-        const tempoA = calcularTempoPermanencia(a.horario_chegada, a.horario_saida, a.horario_ocorrencia);
-        const tempoB = calcularTempoPermanencia(b.horario_chegada, b.horario_saida, b.horario_ocorrencia);
+        const tempoA = calcularTempoPermanencia(
+          a.horario_chegada,
+          a.horario_saida,
+          a.horario_ocorrencia
+        );
+        const tempoB = calcularTempoPermanencia(
+          b.horario_chegada,
+          b.horario_saida,
+          b.horario_ocorrencia
+        );
         return direction === "asc"
           ? tempoA.horas - tempoB.horas || tempoA.minutos - tempoB.minutos
           : tempoB.horas - tempoA.horas || tempoB.minutos - tempoA.minutos;
@@ -89,13 +107,25 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
     setSortConfig({ key, direction });
   };
 
-  const clientesAtrasos = [...data.reduce((acc, item) => {
-    if (!acc.has(item.cliente)) {
-      acc.set(item.cliente, 0);
+  const clientesAtrasos = [];
+  data.forEach((item) => {
+    const cliente = clientesAtrasos.find((c) => c.name === item.cliente);
+    if (cliente) {
+      cliente.quantidade += 1;
+    } else {
+      clientesAtrasos.push({ name: item.cliente, quantidade: 1 });
     }
-    acc.set(item.cliente, acc.get(item.cliente) + 1);
-    return acc;
-  }, new Map())].map(([name, quantidade]) => ({ name, quantidade }));
+  });
+
+  const formatarDataHora = (dataHora) => {
+    const data = new Date(dataHora);
+    const dia = String(data.getDate()).padStart(2, "0");
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const ano = data.getFullYear();
+    const horas = String(data.getHours()).padStart(2, "0");
+    const minutos = String(data.getMinutes()).padStart(2, "0");
+    return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+  };
 
   return (
     <div
@@ -132,26 +162,48 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
           <ChartClientesAtrasos data={clientesAtrasos.slice(0, 7)} />
         </div>
         {selectedNota && (
-          <Button color="primary" onClick={toggleCteModal} style={{ marginLeft: 10, marginBottom:10 }}>
+          <Button
+            color="primary"
+            onClick={toggleCteModal}
+            style={{ marginLeft: 10, marginBottom: 10 }}
+          >
             Gerar Cobrança
           </Button>
         )}
-        <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: 20 }}>
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            marginBottom: 20,
+          }}
+        >
           <thead>
             <tr style={{ background: "#f5f5f5" }}>
               <th style={cellStyle}></th>
               <th style={cellStyle} onClick={() => handleSort("nf")}>Nota</th>
               <th style={cellStyle} onClick={() => handleSort("cliente")}>Cliente</th>
-              <th style={cellStyle} onClick={() => handleSort("horario_chegada")}>Hora da Chegada</th>
-              <th style={cellStyle} onClick={() => handleSort("horario_ocorrencia")}>Hora da Ocorrência</th>
-              <th style={cellStyle} onClick={() => handleSort("horario_saida")}>Hora de Saída</th>
-              <th style={cellStyle} onClick={() => handleSort("tempoPermanencia")}>Permanência Após Ocorrências</th>
+              <th style={cellStyle} onClick={() => handleSort("horario_chegada")}>
+                Hora da Chegada
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("horario_ocorrencia")}>
+                Hora da Ocorrência
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("horario_saida")}>
+                Hora de Saída
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("tempoPermanencia")}>
+                Permanência Após Ocorrências
+              </th>
               <th style={cellStyle} onClick={() => handleSort("motorista")}>Motorista</th>
             </tr>
           </thead>
           <tbody>
             {sortedData.map((item, index) => {
-              const permanencia = calcularTempoPermanencia(item.horario_chegada, item.horario_saida, item.horario_ocorrencia);
+              const permanencia = calcularTempoPermanencia(
+                item.horario_chegada,
+                item.horario_saida,
+                item.horario_ocorrencia
+              );
               const isTempoExcedido = permanencia.horas >= 1;
 
               return (
@@ -160,7 +212,9 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
                   style={{
                     background: isTempoExcedido ? "#f8d7da" : "inherit",
                     color: isTempoExcedido ? "#721c24" : "inherit",
-                    border: isTempoExcedido ? "1px solid #721c24" : "1px solid rgb(221, 221, 221)",
+                    border: isTempoExcedido
+                      ? "1px solid #721c24"
+                      : "1px solid rgb(221, 221, 221)",
                   }}
                 >
                   <td style={cellStyle}>
@@ -172,9 +226,9 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
                   </td>
                   <td style={cellStyle}>{item.nf}</td>
                   <td style={cellStyle}>{item.cliente}</td>
-                  <td style={cellStyle}>{new Date(item.horario_chegada).toLocaleTimeString()}</td>
-                  <td style={cellStyle}>{new Date(item.horario_ocorrencia).toLocaleTimeString()}</td>
-                  <td style={cellStyle}>{new Date(item.horario_saida).toLocaleTimeString()}</td>
+                  <td style={cellStyle}>{formatarDataHora(item.horario_chegada)}</td>
+                  <td style={cellStyle}>{formatarDataHora(item.horario_ocorrencia)}</td>
+                  <td style={cellStyle}>{formatarDataHora(item.horario_saida)}</td>
                   <td style={cellStyle}>{permanencia.formatado}</td>
                   <td style={cellStyle}>{item.motorista}</td>
                 </tr>
@@ -185,9 +239,9 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
         <Button color="secondary" onClick={onClose}>
           Fechar
         </Button>
-        
       </div>
 
+      {/* Modal para gerar CTE */}
       <Modal isOpen={isCteModalOpen} toggle={toggleCteModal} backdrop="static" centered>
         <ModalHeader toggle={toggleCteModal}>Gerar Cobrança</ModalHeader>
         <ModalBody>
@@ -210,6 +264,18 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
       </Modal>
     </div>
   );
+};
+
+// Função para formatar data e hora no formato "dd/MM/yyyy hh:mm"
+const formatarDataHora = (dataHora) => {
+  if (!dataHora) return "Indisponível";
+  const data = new Date(dataHora);
+  const dia = String(data.getDate()).padStart(2, "0");
+  const mes = String(data.getMonth() + 1).padStart(2, "0");
+  const ano = data.getFullYear();
+  const horas = String(data.getHours()).padStart(2, "0");
+  const minutos = String(data.getMinutes()).padStart(2, "0");
+  return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
 };
 
 const cellStyle = {

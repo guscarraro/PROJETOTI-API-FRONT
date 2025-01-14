@@ -6,12 +6,24 @@ const ModalNaoEntregue = ({ data, onClose }) => {
   const [sortedData, setSortedData] = useState([...data]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
 
+  const formatarDataHora = (dataHora) => {
+    if (!dataHora) return "Indisponível";
+    const data = new Date(dataHora);
+    return data.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const calcularTempoPermanencia = (chegada, saida) => {
     const chegadaDate = new Date(chegada);
     const saidaDate = new Date(saida);
 
     if (!chegadaDate || !saidaDate || chegadaDate > saidaDate) {
-      return "Indisponível";
+      return { horas: 0, minutos: 0, formatado: "Indisponível" };
     }
 
     const diffMs = saidaDate - chegadaDate;
@@ -46,13 +58,17 @@ const ModalNaoEntregue = ({ data, onClose }) => {
     setSortConfig({ key, direction });
   };
 
-  const clientesNaoEntregues = [...data.reduce((acc, item) => {
-    if (!acc.has(item.cliente)) {
-      acc.set(item.cliente, 0);
+  const clientesNaoEntregues = [];
+  data.forEach((item) => {
+    const clienteIndex = clientesNaoEntregues.findIndex(
+      (cliente) => cliente.name === item.cliente
+    );
+    if (clienteIndex === -1) {
+      clientesNaoEntregues.push({ name: item.cliente, quantidade: 1 });
+    } else {
+      clientesNaoEntregues[clienteIndex].quantidade++;
     }
-    acc.set(item.cliente, acc.get(item.cliente) + 1);
-    return acc;
-  }, new Map())].map(([name, quantidade]) => ({ name, quantidade }));
+  });
 
   return (
     <div
@@ -141,15 +157,9 @@ const ModalNaoEntregue = ({ data, onClose }) => {
                 >
                   <td style={cellStyle}>{item.nf}</td>
                   <td style={cellStyle}>{item.cliente}</td>
-                  <td style={cellStyle}>
-                    {new Date(item.horario_chegada).toLocaleTimeString()}
-                  </td>
-                  <td style={cellStyle}>
-                    {new Date(item.horario_ocorrencia).toLocaleTimeString()}
-                  </td>
-                  <td style={cellStyle}>
-                    {new Date(item.horario_saida).toLocaleTimeString()}
-                  </td>
+                  <td style={cellStyle}>{formatarDataHora(item.horario_chegada)}</td>
+                  <td style={cellStyle}>{formatarDataHora(item.horario_ocorrencia)}</td>
+                  <td style={cellStyle}>{formatarDataHora(item.horario_saida)}</td>
                   <td style={cellStyle}>{permanencia.formatado}</td>
                   <td style={cellStyle}>{item.motorista}</td>
                 </tr>
