@@ -23,6 +23,10 @@ const generateDays = () => Array.from({ length: 31 }, (_, i) => i + 1);
  * Eixo Y: quantidade de ocorrências
  */
 const LineOcorrenDias = ({ data }) => {
+  if (!Array.isArray(data)) {
+    console.error("Prop 'data' no LineOcorrenDias não é um array:", data);
+    return <p style={{ color: "red" }}>Sem Dados para o gráfico.</p>;
+  }
   /**
    * Aqui, assumimos que `data` é o array de ocorrências completo
    * que você quer processar. Cada item deve ter, no mínimo:

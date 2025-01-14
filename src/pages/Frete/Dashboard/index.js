@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Select from "react-select"; // Importa react-select
 import ChartMotoristas from "./ChartMotoristas";
 import ChartClientes from "./ChartClientes";
 import ChartOcorrencias from "./ChartOcorrencias";
@@ -11,6 +12,8 @@ import ChartEscadaClientes from "./ChartEscadaClientes";
 import ModalNaoCobranca from "./ModalNaocobranca";
 import ModalNaoEntregue from "./ModalNaoEntregue";
 import ChartDestinatarios from "./ChartDestinatarios";
+import LoadingDots from "../../../components/Loading";
+import NoData from "../../../components/NoData";
 
 const Dashboard = () => {
   const [motoristasData, setMotoristasData] = useState([]);
@@ -27,39 +30,110 @@ const Dashboard = () => {
   const [qtdOcorrenciasNaoEntregues, setQtdOcorrenciasNaoEntregues] = useState(0);
   const [ocorrenciasSemCobranca, setOcorrenciasSemCobranca] = useState([]);
 
-  // Para exibir nomes de motorista/cliente no modal:
   const [motoristasMap, setMotoristasMap] = useState({});
   const [clientesMap, setClientesMap] = useState({});
   const [showModalNaoCobranca, setShowModalNaoCobranca] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const [dtInicio, setDtInicio] = useState("");
-  const [dtFinal, setDtFinal] = useState("");
+  // Filtros
+  const [motoristas, setMotoristas] = useState([]);
+  const [clientes, setClientes] = useState([]);
+  const [destinos, setDestinos] = useState([]);
 
-const handleOpenModalNaoCobranca = () => setShowModalNaoCobranca(true);
-const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
+  const [selectedMotoristas, setSelectedMotoristas] = useState([]);
+  const [selectedClientes, setSelectedClientes] = useState([]);
+  const [selectedDestinos, setSelectedDestinos] = useState([]);
+  const getDefaultDates = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+      .toISOString()
+      .split("T")[0]; // Primeiro dia do mês no formato YYYY-MM-DD
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      .toISOString()
+      .split("T")[0]; // Último dia do mês no formato YYYY-MM-DD
+    return { firstDay, lastDay };
+  };
+  
+  const { firstDay, lastDay } = getDefaultDates();
 
-const [showModalNaoEntregue, setShowModalNaoEntregue] = useState(false);
-
-const handleOpenModalNaoEntregue = () => setShowModalNaoEntregue(true);
-const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
+  const [dtInicio, setDtInicio] = useState(firstDay); // Inicializa com o primeiro dia do mês
+  const [dtFinal, setDtFinal] = useState(lastDay);
 
 
+  const handleOpenModalNaoCobranca = () => setShowModalNaoCobranca(true);
+  const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
+
+  const [showModalNaoEntregue, setShowModalNaoEntregue] = useState(false);
+
+  const handleOpenModalNaoEntregue = () => setShowModalNaoEntregue(true);
+  const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
+
+ useEffect(() => {
+  const filters = {
+    dtInicio: firstDay,
+    dtFinal: lastDay,
+    motoristas: [],
+    clientes: [],
+    destinos: [],
+  };
+  fetchDashboardData(filters); // Busca os dados com os filtros iniciais
+}, []);
   useEffect(() => {
-    fetchDashboardData();
+    const fetchFilters = async () => {
+      try {
+        const motoristasResp = await apiLocal.getMotoristas();
+        const clientesResp = await apiLocal.getClientes();
+        const destinosResp = await apiLocal.getDestinos();
+
+        setMotoristas(
+          motoristasResp.data.map((item) => ({
+            value: item.id,
+            label: item.nome,
+          }))
+        );
+        setClientes(
+          clientesResp.data.map((item) => ({
+            value: item.id,
+            label: item.nome,
+          }))
+        );
+        setDestinos(
+          destinosResp.data.map((item) => ({
+            value: item.id,
+            label: `${item.nome} - ${item.cidade || "Sem cidade"}`,
+          }))
+        );
+      } catch (error) {
+        console.error("Erro ao carregar dados para os filtros", error);
+      }
+    };
+
+    fetchFilters();
   }, []);
 
   const fetchDashboardData = async (filters = {}) => {
     setIsLoading(true);
-    console.log("Filtros aplicados:", filters);
     try {
-      const params = {};
-    if (filters.dtInicio) params.dtInicio = filters.dtInicio;
-    if (filters.dtFinal) params.dtFinal = filters.dtFinal;
-      // Carrega todas as ocorrências
+
       const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
-    const { data: ocorrencias } = respOcorrencias;
-    setTodasOcorrencias(ocorrencias);
+      console.log('resposta do back:', respOcorrencias)
+      const ocorrencias = Array.isArray(respOcorrencias.data) ? respOcorrencias.data : [];
+      setTodasOcorrencias(ocorrencias);
+  
+      // Caso nenhuma ocorrência seja encontrada, zere os dados
+      if (ocorrencias.length === 0) {
+        setMotoristasData([]);
+        setClientesData([]);
+        setOcorrenciasTipoData([]);
+        setDestinatariosData([]);
+        setQtdOcorrenciasAbertas(0);
+        setTempoMedioEntrega(0);
+        setMediaOcorrenciasPorDia(0);
+        setQtdOcorrenciasSemCobranca(0);
+        setQtdOcorrenciasNaoEntregues(0);
+        setOcorrenciasSemCobranca([]);
+        return; // Encerra o fluxo, pois não há dados para processar
+      }
   
       // Carrega motoristas
       const respMotoristas = await apiLocal.getMotoristas();
@@ -246,10 +320,155 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
       setIsLoading(false);
   }
   };
+
+  const handleApplyFilters = () => {
+    const filters = {
+      dtInicio,
+      dtFinal,
+      motoristas: selectedMotoristas.map((m) => m.value),
+      clientes: selectedClientes.map((c) => c.value),
+      destinos: selectedDestinos.map((d) => d.value),
+    };
+    console.log(filters); // Verifique o que está sendo enviado
+    fetchDashboardData(filters);
+  };
+
+  
   
 
   return (
     <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20, width:'100%' }}>
+      <Row className="mb-4">
+        {/* Campo de Data de Início */}
+        <Col md={3}>
+          <FormGroup>
+            <Label for="dtInicio">Data Início</Label>
+            <Input
+              type="date"
+              id="dtInicio"
+              value={dtInicio}
+              onChange={(e) => setDtInicio(e.target.value)}
+            />
+          </FormGroup>
+        </Col>
+
+        {/* Campo de Data Final */}
+        <Col md={3}>
+          <FormGroup>
+            <Label for="dtFinal">Data Final</Label>
+            <Input
+              type="date"
+              id="dtFinal"
+              value={dtFinal}
+              onChange={(e) => setDtFinal(e.target.value)}
+            />
+          </FormGroup>
+        </Col>
+
+        {/* Multiselect para Motoristas */}
+        <Col md={6}>
+          <FormGroup>
+            <Label for="motoristas">Motoristas</Label>
+            <Select
+              id="motoristas"
+              options={motoristas}
+              isMulti
+              value={selectedMotoristas}
+              onChange={setSelectedMotoristas}
+              placeholder="Selecione motoristas"
+              styles={{
+                option: (provided) => ({
+                  ...provided,
+                  color: 'black', // Define a cor do texto como preto
+                }),
+                singleValue: (provided) => ({
+                  ...provided,
+                  color: 'black', // Texto selecionado preto
+                }),
+                multiValue: (provided) => ({
+                  ...provided,
+                  color: 'black', // Texto em seleções múltiplas preto
+                }),
+              }}
+            />
+          </FormGroup>
+        </Col>
+
+        {/* Multiselect para Clientes */}
+        <Col md={4}>
+          <FormGroup>
+            <Label for="clientes">Clientes</Label>
+            <Select
+              id="clientes"
+              options={clientes}
+              isMulti
+              value={selectedClientes}
+              onChange={setSelectedClientes}
+              placeholder="Selecione clientes"
+              styles={{
+                option: (provided) => ({
+                  ...provided,
+                  color: 'black', // Define a cor do texto como preto
+                }),
+                singleValue: (provided) => ({
+                  ...provided,
+                  color: 'black', // Texto selecionado preto
+                }),
+                multiValue: (provided) => ({
+                  ...provided,
+                  color: 'black', // Texto em seleções múltiplas preto
+                }),
+              }}
+            />
+          </FormGroup>
+        </Col>
+
+        {/* Multiselect para Destinos */}
+        <Col md={4}>
+          <FormGroup>
+            <Label for="destinos">Destinos</Label>
+            <Select
+              id="destinos"
+              options={destinos}
+              isMulti
+              value={selectedDestinos}
+              onChange={setSelectedDestinos}
+              placeholder="Selecione destinos"
+              styles={{
+                option: (provided) => ({
+                  ...provided,
+                  color: 'black', // Define a cor do texto como preto
+                }),
+                singleValue: (provided) => ({
+                  ...provided,
+                  color: 'black', // Texto selecionado preto
+                }),
+                multiValue: (provided) => ({
+                  ...provided,
+                  color: 'black', // Texto em seleções múltiplas preto
+                }),
+              }}
+            />
+          </FormGroup>
+        </Col>
+
+        {/* Botão de Aplicar Filtros */}
+        <Col
+  md={4}
+  style={{
+    textAlign: "left",
+    display: "flex",
+    alignItems: "center",
+    marginTop: "1%",
+    justifyContent: "space-between",
+  }}
+>
+<Button color="primary" onClick={handleApplyFilters} disabled={isLoading} style={{minHeight:38 , minWidth:120}}>
+  {isLoading ? <LoadingDots /> : "Aplicar Filtros"}
+</Button>
+ 
+</Col>
+      </Row>
       {/* <h2>Dashboard</h2> */}
       {showModalNaoCobranca && (
   <ModalNaoCobranca
@@ -281,148 +500,162 @@ const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
     onClose={handleCloseModalNaoEntregue}
   />
 )}
-{isLoading && <p>Carregando dados...</p>}
-{/* <FormGroup>
-  <Label for="dtInicio">Data Início</Label>
-  <Input
-    type="date"
-    id="dtInicio"
-    value={dtInicio}
-    onChange={(e) => setDtInicio(e.target.value)}
-  />
-</FormGroup>
-<FormGroup>
-  <Label for="dtFinal">Data Final</Label>
-  <Input
-    type="date"
-    id="dtFinal"
-    value={dtFinal}
-    onChange={(e) => setDtFinal(e.target.value)}
-  />
-</FormGroup>
-<Button
-  color="primary"
-  onClick={() => fetchDashboardData({ dtInicio, dtFinal })}
->
-  Aplicar Filtros
-</Button> */}
+
 
 
       {/* Cards de métricas */}
       <Row >
         {/* Card 1: Ocorrências em Aberto */}
-        <Col  md={4}>
-        <CardStyle bgColor="rgba(255, 99, 71, 0.2)" iconColor="#FF6347">
-          {/* Exemplo: ícone de atenção */}
-          <h3>
-            <FaExclamationTriangle /> Ocorrências em Aberto
-          </h3>
-          <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasAbertas}</p>
-        </CardStyle>
-        </Col>
-        <Col  md={4}>
-        {/* Card 2: Tempo Médio de Entrega */}
-        <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
-          {/* Exemplo: ícone de relógio */}
-          <h3>
-            <FaClock /> Tempo Médio de Entrega
-          </h3>
-          <p style={{ fontSize: 32, fontWeight:700 }}>{tempoMedioEntrega} min</p>
-        </CardStyle>
-        </Col>
-        {/* Card 3: Média Ocorrências/Dia */}
-        <Col  md={4}>
-        <CardStyle bgColor="rgba(154, 205, 50, 0.2)" iconColor="#9ACD32">
-          {/* Exemplo: ícone de gráfico */}
-          <h3>
-            <FaChartLine /> Média Ocorrências/Dia
-          </h3>
-          <p style={{ fontSize: 32, fontWeight:700 }}>{mediaOcorrenciasPorDia}</p>
-        </CardStyle>
-        </Col>
-        <Col md={6}>
-          <CardStyle
-            bgColor="rgba(72, 201, 176, 0.2)"
-            iconColor="#48C9B0"
-            onClick={handleOpenModalNaoCobranca}
-            style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
-          >
-            <h3>
-              <FaDollarSign /> Ocorrências sem Cobrança
-            </h3>
-            <p style={{ fontSize: 32, fontWeight:700 }}>{qtdOcorrenciasSemCobranca}</p>
-            <p style={{ fontSize: 12, fontStyle: 'italic' }}>Clique para mais informações</p>
+        <Col md={4}>
+    <CardStyle bgColor="rgba(255, 99, 71, 0.2)" iconColor="#FF6347">
+      <h3>
+        <FaExclamationTriangle /> Ocorrências em Aberto
+      </h3>
+      <p style={{ fontSize: 32, fontWeight: 700 }}>
+        {qtdOcorrenciasAbertas > 0 ? qtdOcorrenciasAbertas : "0"}
+      </p>
+    </CardStyle>
+  </Col>
 
-          </CardStyle>
-        </Col>
+  <Col md={4}>
+    <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
+      <h3>
+        <FaClock /> Tempo Médio de Entrega
+      </h3>
+      <p style={{ fontSize: 32, fontWeight: 700 }}>
+        {tempoMedioEntrega > 0 ? `${tempoMedioEntrega} min` : "0 min"}
+      </p>
+    </CardStyle>
+  </Col>
 
-        {/* Card 5: Chamados Não Entregues */}
-        <Col md={6}>
-          <CardStyle
-            bgColor="rgba(255, 69, 0, 0.2)"
-            iconColor="#FF4500"
-            onClick={handleOpenModalNaoEntregue}
-            style={{ cursor: "pointer" }}
-          >
-            <h3>
-              <FaTimesCircle /> Chamados Não Entregues
-            </h3>
-            <p style={{ fontSize: 32, fontWeight: 700 }}>
-              {qtdOcorrenciasNaoEntregues}
-            </p>
-            <p style={{ fontSize: 12, fontStyle: "italic" }}>
-              Clique para mais informações
-            </p>
-          </CardStyle>
-        </Col>
+  <Col md={4}>
+    <CardStyle bgColor="rgba(154, 205, 50, 0.2)" iconColor="#9ACD32">
+      <h3>
+        <FaChartLine /> Média Ocorrências/Dia
+      </h3>
+      <p style={{ fontSize: 32, fontWeight: 700 }}>
+        {mediaOcorrenciasPorDia > 0 ? mediaOcorrenciasPorDia : "0"}
+      </p>
+    </CardStyle>
+  </Col>
+  <Col md={6}>
+  <CardStyle
+    bgColor="rgba(72, 201, 176, 0.2)"
+    iconColor="#48C9B0"
+    onClick={handleOpenModalNaoCobranca}
+    style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
+  >
+    <h3>
+      <FaDollarSign /> Ocorrências sem Cobrança
+    </h3>
+    <p style={{ fontSize: 32, fontWeight: 700 }}>
+      {qtdOcorrenciasSemCobranca > 0
+        ? qtdOcorrenciasSemCobranca
+        : "Sem Dados para essa informação"}
+    </p>
+    {qtdOcorrenciasSemCobranca > 0 && (
+      <p style={{ fontSize: 12, fontStyle: "italic" }}>
+        Clique para mais informações
+      </p>
+    )}
+  </CardStyle>
+</Col>
+
+<Col md={6}>
+  <CardStyle
+    bgColor="rgba(255, 69, 0, 0.2)"
+    iconColor="#FF4500"
+    onClick={handleOpenModalNaoEntregue}
+    style={{ cursor: "pointer" }}
+  >
+    <h3>
+      <FaTimesCircle /> Chamados Não Entregues
+    </h3>
+    <p style={{ fontSize: 32, fontWeight: 700 }}>
+      {qtdOcorrenciasNaoEntregues > 0
+        ? qtdOcorrenciasNaoEntregues
+        : "Sem Dados para essa informação"}
+    </p>
+    {qtdOcorrenciasNaoEntregues > 0 && (
+      <p style={{ fontSize: 12, fontStyle: "italic" }}>
+        Clique para mais informações
+      </p>
+    )}
+  </CardStyle>
+</Col>
+
 
       </Row>
 
       {/* Graficos */}
       <Row>
-        <Col  md={7}>
-        <Box >
-          <h3>Ocorrências resolvidas/Não resolvidas por dia</h3>
-          <LineOcorrenDias data={todasOcorrencias} />
-        </Box>
-        </Col>
-        <Col  md={5}>
-        <Box >
-          <h3>Top 7 Clientes com mais ocorrências</h3>
-          <ChartClientes data={clientesData} />
-        </Box>
-        </Col>
-        </Row>
-        <Col md={12}>
+  <Col md={7}>
+    <Box>
+      <h3>Ocorrências resolvidas/Não resolvidas por dia</h3>
+      {todasOcorrencias.length > 0 ? (
+        <LineOcorrenDias data={todasOcorrencias} />
+      ) : (
+        <NoData />
+      )}
+    </Box>
+  </Col>
+
+  <Col md={5}>
+    <Box>
+      <h3>Top 7 Clientes com mais ocorrências</h3>
+      {clientesData.length > 0 ? (
+        <ChartClientes data={clientesData} />
+      ) : (
+        <NoData />
+      )}
+    </Box>
+  </Col>
+</Row>
+
+<Col md={12}>
   <Box>
     <h3>Ocorrências por Destinatário</h3>
-    <ChartDestinatarios data={destinatariosData} />
+    {destinatariosData.length > 0 ? (
+      <ChartDestinatarios data={destinatariosData} />
+    ) : (
+      <NoData />
+    )}
   </Box>
 </Col>
 
-      
-      <Col  md={12}>
-        <Box >
-          <h3>Ocorrências por Cliente</h3>
-          <ChartEscadaClientes data={clientesData} />
-        </Box>
-        </Col>
-       
-      
+<Col md={12}>
+  <Box>
+    <h3>Ocorrências por Cliente</h3>
+    {clientesData.length > 0 ? (
+      <ChartEscadaClientes data={clientesData} />
+    ) : (
+      <NoData />
+    )}
+  </Box>
+</Col>
 
-      {/* Gráfico de Escadas por Tipo de Ocorrência */}
-      <Col  md={12}>
-      <Box >
-        <h3>Quantidade ocorrências por Tipo</h3>
-        <ChartOcorrencias data={ocorrenciasTipoData} />
-      </Box>
-      </Col>
-      <Col  md={12}>
-        <Box >
-          <h3>Ocorrências por Motorista</h3>
-          <ChartMotoristas data={motoristasData} />
-        </Box>
-        </Col>
+<Col md={12}>
+  <Box>
+    <h3>Quantidade ocorrências por Tipo</h3>
+    {ocorrenciasTipoData.length > 0 ? (
+      <ChartOcorrencias data={ocorrenciasTipoData} />
+    ) : (
+      <NoData />
+    )}
+  </Box>
+</Col>
+
+<Col md={12}>
+  <Box>
+    <h3>Ocorrências por Motorista</h3>
+    {motoristasData.length > 0 ? (
+      <ChartMotoristas data={motoristasData} />
+    ) : (
+      <NoData />
+    )}
+  </Box>
+</Col>
+
     </Row>
   );
 };

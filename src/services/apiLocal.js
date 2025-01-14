@@ -1,8 +1,9 @@
 import axios from "axios";
-
+import qs from "qs";
 // Configuração base do axios
 const api = axios.create({
-  baseURL: "https://projetoti-api-production.up.railway.app", // Substitua pelo URL do Railway após o deploy
+  baseURL: "https://projetoti-api-production.up.railway.app",
+  paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),  // Substitua pelo URL do Railway após o deploy
 });
 
 // Endpoints do backend
@@ -29,8 +30,7 @@ const apiLocal = {
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
   updateCobrancaAdicional: (data) => api.put("/ocorrencias", data),
   getOcorrenciasFiltradas: (filters) =>
-    api.get("/ocorrencias", { params: filters }),
-  
+    api.post("/ocorrencias/filtrar", filters),
   // Ocorrências STH
   getOcorrenciasSTH: () => api.get("/ocorren-sth"), // Listar todas as ocorrências STH
   createOrUpdateOcorrenciaSTH: (data) => api.post("/ocorren-sth", data), // Criar ou atualizar uma ocorrência STH
