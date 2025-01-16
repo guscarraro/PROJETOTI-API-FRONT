@@ -13,6 +13,7 @@ import { FaUser, FaBuilding, FaFileInvoice, FaStickyNote, FaCalendarAlt } from "
 import apiLocal from "../../../services/apiLocal";
 import LoadingDots from "../../../components/Loading";
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
+import { fetchIndiceAtendimento } from "../../../services/api";
 
 const LancarSTH = ({ onActionComplete }) => {
   const [clientes, setClientes] = useState([]);
@@ -34,6 +35,18 @@ const LancarSTH = ({ onActionComplete }) => {
   const [modal, setModal] = useState(false);
   const [clientesDuplicados, setClientesDuplicados] = useState([]);
 
+  const motivos = ["Demora na descarga",
+"Demora na confêrencia",
+"Nota sem agendamento",
+"Demora no carregamento",
+"Demora saída base",
+"Agendamento divergente",
+"Atraso do motorista",
+"Morosidade operação Carraro",
+"Falta de veículos",
+"Atraso na roterização",
+"Transito",
+"Falha Mecacnia"]
   useEffect(() => {
     fetchMotoristas();
     fetchClientes();
@@ -78,14 +91,25 @@ const LancarSTH = ({ onActionComplete }) => {
     if (e.key === "Tab" && sth.nf) {
       setLoadingNota(true);
       try {
-        const response = await apiLocal.getDadosNota(sth.nf);
-        const dados = response?.data?.dados || [];
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - 30); // Subtrai 30 dias da data atual
   
+        // Converte as datas para o formato dd/MM/yyyy
+        const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
+        const dataFinal = today.toLocaleDateString("pt-BR"); // Exemplo: 16/01/2025
+  
+        // Busca os dados da API externa
+        const response = await fetchIndiceAtendimento(dataInicial, dataFinal);
+        const dados = response || [];
+  
+        // Filtra as notas que contêm a NF digitada
         const notasFiltradas = dados.filter((item) =>
           item.NF.split(",").map((nf) => nf.trim()).includes(sth.nf)
         );
   
         if (notasFiltradas.length === 1) {
+          // Caso apenas uma nota seja encontrada, preenche os campos
           const data = notasFiltradas[0];
           setClienteNome(data.remetente);
           setDestinoNome(data.destinatario);
@@ -94,19 +118,22 @@ const LancarSTH = ({ onActionComplete }) => {
             cidade: data.destino,
           }));
         } else if (notasFiltradas.length > 1) {
+          // Caso mais de uma nota seja encontrada, exibe o modal para seleção
           setClientesDuplicados(notasFiltradas);
           setModal(true);
         } else {
+          // Caso nenhuma nota seja encontrada
           toast.warning("Nenhuma informação encontrada para a nota informada.");
         }
       } catch (error) {
         console.error("Erro ao buscar dados da nota:", error);
         toast.error("Erro ao buscar informações da nota fiscal.");
       } finally {
-        setLoadingNota(false);
+        setLoadingNota(false); // Finaliza o estado de carregamento
       }
     }
   };
+  
   
   
   const handleClienteSelection = (cliente) => {
@@ -356,18 +383,24 @@ const LancarSTH = ({ onActionComplete }) => {
             ))}
           </select>
         </FormGroup>
-
         <FormGroup>
           <Label>
-            <FaStickyNote /> Motivo
+            <FaUser /> Motivo
           </Label>
-          <Input
-            type="text"
-            name="motivo"
-            value={sth.motivo}
-            onChange={handleInputChange}
-            placeholder="Informe o motivo"
-          />
+          <select
+  name="motivo"
+  value={sth.motivo}
+  onChange={handleInputChange}
+  style={{ padding: "8px", border: "1px solid #ccc", borderRadius: "4px", width: '250px', fontSize: '14px' }}
+>
+  <option value="">Selecione um motivo</option>
+  {motivos.map((mot, index) => (
+    <option key={index} value={mot}>
+      {mot}
+    </option>
+  ))}
+</select>
+
         </FormGroup>
 
         <FormGroup>

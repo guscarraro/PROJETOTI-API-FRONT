@@ -15,6 +15,7 @@ import apiLocal from "../../../services/apiLocal";
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import ModalImage from "./ModalImage";
 import LoadingDots from "../../../components/Loading"; // Altere o caminho conforme necessário
+import { fetchIndiceAtendimento } from "../../../services/api";
 
 
 const LancarFalta = ({ onActionComplete }) => {
@@ -47,6 +48,7 @@ const LancarFalta = ({ onActionComplete }) => {
   const [modal, setModal] = useState(false);
 
   const filiais = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP"];
+  const responsavel = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP","MOTORISTA"]
   const autores = ["Maicon", "Fernanda", "Gean", "Michelen", "sem autorização"];
 
 
@@ -126,14 +128,25 @@ const LancarFalta = ({ onActionComplete }) => {
     if (e.key === "Tab" && falta.nf) {
       setLoadingNota(true);
       try {
-        const response = await apiLocal.getDadosNota(falta.nf);
-        const dados = response?.data?.dados || [];
+        const today = new Date();
+        const startDate = new Date(today);
+        startDate.setDate(today.getDate() - 30); // Subtrai 30 dias da data atual
   
+        // Converte as datas para o formato dd/MM/yyyy
+        const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
+        const dataFinal = today.toLocaleDateString("pt-BR"); // Exemplo: 16/01/2025
+  
+        // Busca os dados da API externa
+        const response = await fetchIndiceAtendimento(dataInicial, dataFinal);
+        const dados = response || [];
+  
+        // Filtra as notas que contêm a NF digitada
         const notasFiltradas = dados.filter((item) =>
           item.NF.split(",").map((nf) => nf.trim()).includes(falta.nf)
         );
   
         if (notasFiltradas.length === 1) {
+          // Caso apenas uma nota seja encontrada, preenche os campos
           const nota = notasFiltradas[0];
           const cliente = clientes.find((c) => c.nome.trim() === nota.remetente.trim());
           const destino = destinos.find(
@@ -152,19 +165,22 @@ const LancarFalta = ({ onActionComplete }) => {
             cidade: nota.destino,
           }));
         } else if (notasFiltradas.length > 1) {
+          // Caso mais de uma nota seja encontrada, exibe o modal para seleção
           setClientesDuplicados(notasFiltradas);
-          setModal(true); // Abre o modal para duplicidade
+          setModal(true);
         } else {
+          // Caso nenhuma nota seja encontrada
           toast.warning("Nenhuma informação encontrada para a nota informada.");
         }
       } catch (error) {
         console.error("Erro ao buscar dados da nota:", error);
         toast.error("Erro ao buscar informações da nota fiscal.");
       } finally {
-        setLoadingNota(false);
+        setLoadingNota(false); // Finaliza o estado de carregamento
       }
     }
   };
+  
   
   
   const handleInputChange = (e) => {
@@ -460,7 +476,7 @@ const LancarFalta = ({ onActionComplete }) => {
       fontSize:'14px'
     }}>
             <option value="" disabled>Selecione o responsável</option>
-            {filiais.map((responsavel) => (
+            {responsavel.map((responsavel) => (
               <option key={responsavel} value={responsavel}>{responsavel}</option>
             ))}
           </select>

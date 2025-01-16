@@ -23,6 +23,7 @@ import {
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from "reactstrap";
 import apiLocal from "../../../services/apiLocal";
 import LoadingDots from "../../../components/Loading";
+import { fetchIndiceAtendimento } from "../../../services/api";
 
 const LancarOcorren = ({ onActionComplete }) => {
   const [motoristas, setMotoristas] = useState([]);
@@ -102,8 +103,16 @@ const LancarOcorren = ({ onActionComplete }) => {
     if (e.key === "Tab" && ocorrencia.nf) {
       setLoadingNota(true);
       try {
-        const response = await apiLocal.getDadosNota(ocorrencia.nf);
-        const dados = response?.data?.dados || [];
+        const today = new Date(); // Data atual
+        const startDate = new Date(today); 
+        startDate.setDate(today.getDate() - 30); // Subtrai 30 dias da data atual
+  
+        // Converte as datas para o formato dd/MM/yyyy
+        const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
+        const dataFinal = today.toLocaleDateString("pt-BR"); // Exemplo: 16/01/2025
+  
+        // Busca os dados da API externa
+        const dados = (await fetchIndiceAtendimento(dataInicial, dataFinal)) || [];
   
         // Filtra as notas que contêm a NF digitada
         const notasFiltradas = dados.filter((item) =>
@@ -111,28 +120,35 @@ const LancarOcorren = ({ onActionComplete }) => {
         );
   
         if (notasFiltradas.length === 1) {
+          // Caso apenas uma nota seja encontrada, preenche os campos
           const data = notasFiltradas[0];
           setClienteNome(data.remetente);
           setOcorrencia((prev) => ({
             ...prev,
-            cliente_id: data.remetente, // O cliente será cadastrado caso não exista
+            cliente_id: data.remetente,
             destino_id: data.destinatario,
             cidade: data.destino,
           }));
         } else if (notasFiltradas.length > 1) {
+          // Caso mais de uma nota seja encontrada, exibe o modal para seleção
           setClientesDuplicados(notasFiltradas);
           setModal(true);
         } else {
+          // Caso nenhuma nota seja encontrada
           toast.warning("Nenhuma informação encontrada para a nota informada.");
         }
       } catch (error) {
         console.error("Erro ao buscar dados da nota:", error);
-        toast.error("Erro ao buscar informações da nota fiscal.");
+        toast.error("Erro ao buscar informações da nota fiscal na API externa.");
       } finally {
-        setLoadingNota(false);
+        setLoadingNota(false); // Finaliza o estado de carregamento
       }
     }
   };
+  
+  
+  
+  
   
 
   const handleClienteSelection = (cliente) => {
