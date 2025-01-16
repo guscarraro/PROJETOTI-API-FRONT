@@ -25,7 +25,7 @@ const LancarFalta = ({ onActionComplete }) => {
   const [destinoNome, setDestinoNome] = useState("");
   const [motoristas, setMotoristas] = useState([]);
   const [motoristaId, setMotoristaId] = useState("");
-
+  const [isLoading, setIsLoading] = useState(false);
   const [loadingNota, setLoadingNota] = useState(false);
   const [falta, setFalta] = useState({
     nf: "",
@@ -244,6 +244,7 @@ const LancarFalta = ({ onActionComplete }) => {
         toast.error("O valor da falta deve ser maior que zero.");
         return;
       }
+      setIsLoading(true);
   
       let clienteID = falta.cliente_id;
       let destinoID = falta.destino_id;
@@ -315,6 +316,8 @@ const LancarFalta = ({ onActionComplete }) => {
     } catch (error) {
       console.error("Erro ao salvar a falta:", error);
       toast.error(error.message || "Erro ao lançar a falta.");
+    }finally {
+      setIsLoading(false); // Finaliza o estado de carregamento
     }
   };
   
@@ -595,7 +598,9 @@ const LancarFalta = ({ onActionComplete }) => {
             )}
           </div>
         </FormGroup>
-        <SubmitButton type="submit">Adicionar Falta</SubmitButton>
+        <SubmitButton type="submit" disabled={isLoading}>
+          {isLoading ? <LoadingDots /> : "Adicionar Falta"}
+        </SubmitButton>
       </StyledForm>
     </Container>
   );

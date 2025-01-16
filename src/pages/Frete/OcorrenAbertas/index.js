@@ -46,6 +46,8 @@ const OcorrenAbertas = () => {
       const abertas = ocorrenciasResponse.data.filter(
         (ocorrencia) => ocorrencia.status === "Pendente"
       );
+      abertas.sort((a, b) => new Date(a.datainclusao) - new Date(b.datainclusao));
+
 
       const clientesResponse = await apiLocal.getClientes();
       const motoristasResponse = await apiLocal.getMotoristas();

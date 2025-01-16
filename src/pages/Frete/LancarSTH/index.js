@@ -34,6 +34,7 @@ const LancarSTH = ({ onActionComplete }) => {
   const [loadingNota, setLoadingNota] = useState(false);
   const [modal, setModal] = useState(false);
   const [clientesDuplicados, setClientesDuplicados] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const motivos = ["Demora na descarga",
 "Demora na confêrencia",
@@ -163,7 +164,7 @@ const LancarSTH = ({ onActionComplete }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-  
+    setIsLoading(true); 
     try {
       const { nf, motorista_id, motivo, nf_sth, data_viagem, cidade } = sth;
   
@@ -278,6 +279,8 @@ const LancarSTH = ({ onActionComplete }) => {
     } catch (error) {
       console.error("Erro ao registrar a ocorrência STH:", error.response?.data || error.message);
       toast.error(error.response?.data?.detail || "Erro ao registrar a ocorrência STH.");
+    } finally {
+      setIsLoading(false); // Finaliza o estado de carregamento
     }
   };
   
@@ -428,7 +431,9 @@ const LancarSTH = ({ onActionComplete }) => {
           />
         </FormGroup>
 
-        <SubmitButton type="submit">Adicionar Ocorrência STH</SubmitButton>
+        <SubmitButton type="submit" disabled={isLoading}>
+  {isLoading ? <LoadingDots /> : "Adicionar Ocorrência STH"}
+</SubmitButton>
       </StyledForm>
     </Container>
   );
