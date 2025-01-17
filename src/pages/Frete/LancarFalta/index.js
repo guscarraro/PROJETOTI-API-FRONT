@@ -130,7 +130,7 @@ const LancarFalta = ({ onActionComplete }) => {
       try {
         const today = new Date();
         const startDate = new Date(today);
-        startDate.setDate(today.getDate() - 30); // Subtrai 30 dias da data atual
+        startDate.setDate(today.getDate() - 37); // Subtrai 30 dias da data atual
   
         // Converte as datas para o formato dd/MM/yyyy
         const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
