@@ -19,6 +19,7 @@ import { toast } from "react-toastify";
 import { FaCheckCircle, FaEye, FaExclamationTriangle } from "react-icons/fa";
 import apiLocal from "../../../services/apiLocal";
 import { Container, ContainerCards } from "./styles";
+import LoadingDots from "../../../components/Loading";
 
 const OcorrenAbertas = () => {
   const [ocorrencias, setOcorrencias] = useState([]);
@@ -31,6 +32,7 @@ const OcorrenAbertas = () => {
   const [selectedOcorrencia, setSelectedOcorrencia] = useState(null);
   const [horarioSaida, setHorarioSaida] = useState("");
   const [cobrancaAdicional, setCobrancaAdicional] = useState("");
+  const [isLoading, setIsLoading] = useState(false)
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -41,6 +43,7 @@ const OcorrenAbertas = () => {
   }, []);
 
   const fetchData = async () => {
+    setIsLoading(true)
     try {
       const ocorrenciasResponse = await apiLocal.getOcorrencias();
       const abertas = ocorrenciasResponse.data.filter(
@@ -73,6 +76,8 @@ const OcorrenAbertas = () => {
     } catch (error) {
       toast.error("Erro ao buscar dados.");
       console.error(error);
+    }finally{
+      setIsLoading(false)
     }
   };
   const calculateCardStyle = (horarioChegada) => {
@@ -216,17 +221,19 @@ const OcorrenAbertas = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{ maxWidth: "300px" }}
-        />
+          />
       </div>
 
+      {isLoading ? <LoadingDots style={{marginTop:500}}/> :
+      <>
       <ContainerCards style={styles.cardContainer}>
         {filteredOcorrencias.map((ocorrencia) => {
           const { backgroundColor, icon } = calculateCardStyle(ocorrencia.datainclusao);
           return (
             <Card
-              key={ocorrencia.id}
-              style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "400px" }}
-              onClick={() => handleCardClick(ocorrencia)}
+            key={ocorrencia.id}
+            style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "400px" }}
+            onClick={() => handleCardClick(ocorrencia)}
             >
               <CardBody
                 style={{
@@ -256,7 +263,7 @@ const OcorrenAbertas = () => {
                     e.stopPropagation();
                     handleEncerrar(ocorrencia);
                   }}
-                >
+                  >
                   Encerrar
                 </Button>
               </CardBody>
@@ -289,7 +296,7 @@ const OcorrenAbertas = () => {
       id="cobranca_adicional"
       value={cobrancaAdicional}
       onChange={(e) => setCobrancaAdicional(e.target.value)}
-    >
+      >
       <option value="">Selecione</option>
       <option value="S">Sim</option>
       <option value="N">Não</option>
@@ -304,7 +311,7 @@ const OcorrenAbertas = () => {
         value={cteValue}
         onChange={(e) => setCteValue(e.target.value)}
         placeholder="Informe o número do CTE"
-      />
+        />
     </FormGroup>
   )}
 </ModalBody>
@@ -325,6 +332,7 @@ const OcorrenAbertas = () => {
           <Button color="secondary" onClick={toggleObsModal}>Fechar</Button>
         </ModalFooter>
       </Modal>
+      </>}
     </Container>
   );
 };

@@ -46,13 +46,8 @@ const apiLocal = {
   createOrUpdateDestino: (data) => api.post("/destinos", data),
   deleteDestino: (id) => api.delete(`/destinos/${id}`),
 
+  getDashboardSTH: (filters) => api.post("/dashboard-sth/filtrar", filters),
 
-  getDadosNota: (nf) => api.get(`/dados-nota`, { params: { nf } }),
-  // Outros endpoints (dados otimizados, ciclo pedido, etc.)
-  // getDadosOtimizados: () => api.get("/dados-otimizados"),
-  // getCicloPedido: () => api.get("/ciclo-pedido"),
-  // getBalanceteCarraro: () => api.get("/balancete-carraro"),
-  // getFechamentoOperacao: () => api.get("/fechamento-operacao"),
 };
 
 export default apiLocal;

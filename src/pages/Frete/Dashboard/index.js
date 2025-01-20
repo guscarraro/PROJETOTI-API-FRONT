@@ -329,7 +329,6 @@ const Dashboard = () => {
       clientes: selectedClientes.map((c) => c.value),
       destinos: selectedDestinos.map((d) => d.value),
     };
-    console.log(filters); // Verifique o que está sendo enviado
     fetchDashboardData(filters);
   };
 
@@ -340,7 +339,7 @@ const Dashboard = () => {
     <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20, width:'100%' }}>
       <Row className="mb-4">
         {/* Campo de Data de Início */}
-        <Col md={3}>
+        <Col md={1}>
           <FormGroup>
             <Label for="dtInicio">Data Início</Label>
             <Input
@@ -353,7 +352,7 @@ const Dashboard = () => {
         </Col>
 
         {/* Campo de Data Final */}
-        <Col md={3}>
+        <Col md={1}>
           <FormGroup>
             <Label for="dtFinal">Data Final</Label>
             <Input
@@ -366,7 +365,7 @@ const Dashboard = () => {
         </Col>
 
         {/* Multiselect para Motoristas */}
-        <Col md={6}>
+        <Col md={2}>
           <FormGroup>
             <Label for="motoristas">Motoristas</Label>
             <Select
@@ -395,7 +394,7 @@ const Dashboard = () => {
         </Col>
 
         {/* Multiselect para Clientes */}
-        <Col md={4}>
+        <Col md={3}>
           <FormGroup>
             <Label for="clientes">Clientes</Label>
             <Select
@@ -424,7 +423,7 @@ const Dashboard = () => {
         </Col>
 
         {/* Multiselect para Destinos */}
-        <Col md={4}>
+        <Col md={3}>
           <FormGroup>
             <Label for="destinos">Destinos</Label>
             <Select
@@ -454,7 +453,7 @@ const Dashboard = () => {
 
         {/* Botão de Aplicar Filtros */}
         <Col
-  md={4}
+  md={1}
   style={{
     textAlign: "left",
     display: "flex",
