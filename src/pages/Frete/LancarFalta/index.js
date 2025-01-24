@@ -48,7 +48,7 @@ const LancarFalta = ({ onActionComplete }) => {
   const [modal, setModal] = useState(false);
 
   const filiais = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP"];
-  const responsavel = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP","MOTORISTA"]
+  const responsavel = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP","MOTORISTA","CLIENTE"]
   const autores = ["Maicon", "Fernanda", "Gean", "Michelen", "sem autorização"];
 
 

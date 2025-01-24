@@ -16,10 +16,13 @@ const ChartEscadaClientes = ({ data }) => {
   const [modalData, setModalData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const filteredData = data
-    .filter((item) => item.quantidade > 0)
-    .sort((a, b) => b.quantidade - a.quantidade);
 
+  
+  const filteredData = data
+  .filter((item) => item.quantidade > 0)
+  .sort((a, b) => b.quantidade - a.quantidade);
+  
+  const chartHeight = Math.max(400, filteredData.length * 50 + 50);
   const handleBarClick = (e) => {
     if (e && e.activePayload && e.activePayload.length) {
       setModalData(e.activePayload[0].payload);
@@ -48,7 +51,7 @@ const ChartEscadaClientes = ({ data }) => {
 
   return (
     <div style={{ width: "100%", height: "100%" }}>
-      <ResponsiveContainer width="100%" height={400}>
+      <ResponsiveContainer width="100%" height={chartHeight}>
         <BarChart
           data={filteredData}
           layout="vertical"

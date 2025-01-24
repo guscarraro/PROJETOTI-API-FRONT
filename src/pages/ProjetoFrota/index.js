@@ -29,50 +29,50 @@ function ComparacaoOrcamentos() {
 
   const months = 36; // 3 anos (36 meses)
 
-  // Dados dos orçamentos
-  const bitysCosts = calculateCumulativeCosts(
-    Array(5).fill(5000), // 5 parcelas de 5000
-    1500, // Mensalidade de 1500
-    months
-  );
+  // Dados fornecidos
+  const initialSoftwareCost = 30000; // Custo inicial do software
+  const monthlySoftwareCost = 2000; // Custo mensal do novo software
 
-  const infoWorkerCosts = calculateCumulativeCosts(
-    Array(5).fill(6000), // 5 parcelas de 6000
-    2000, // Mensalidade de 2000
-    months
-  );
+  const currentOperationCost = 18081.68; // Custo mensal atual com 4 emissores
+  const reduced1EmissorCost = 13536.26; // Custo mensal com menos 1 emissor
+  const reduced2EmissoresCost = 8990.84; // Custo mensal com menos 2 emissores
 
-  const operationCosts = calculateCumulativeCosts(
-    [19176.07], // Custo inicial da operação atual
-    19176.07 + 500, // Custos crescentes (500 a mais por mês)
-    months
-  );
+  // Cálculo dos custos cumulativos
+  const currentOperationCosts = calculateCumulativeCosts([], currentOperationCost, months);
+  const reduced1EmissorCosts = calculateCumulativeCosts([], reduced1EmissorCost, months);
+  const reduced2EmissoresCosts = calculateCumulativeCosts([], reduced2EmissoresCost, months);
+  const newSoftwareCosts = calculateCumulativeCosts([initialSoftwareCost], monthlySoftwareCost, months);
 
-  const operationSmallCosts = calculateCumulativeCosts(
-    [15188.00], // Custo inicial da operação atual
-    15188.00 + 500, // Custos crescentes (500 a mais por mês)
-    months
-  );
+  // ROI: Cálculo do mês em que o investimento se paga
+  const calculateROI = (currentCosts, reducedCosts, softwareCosts) => {
+    for (let i = 0; i < months; i++) {
+      if (currentCosts[i] > reducedCosts[i] + softwareCosts[i]) {
+        return i + 1; // Retorna o mês (i + 1 porque o índice começa em 0)
+      }
+    }
+    return null; // Retorna null caso o ROI não seja alcançado em 36 meses
+  };
 
-  // Cálculo de médias mensais
-  const averageCostCurrentOperation = operationCosts[months - 1] / months;
-  const averageCostOperationSmall = operationSmallCosts[months - 1] / months;
-  const averageCostBitys = bitysCosts[months - 1] / months;
-  const averageCostInfoWorker = infoWorkerCosts[months - 1] / months;
+  const roiWith1Emissor = calculateROI(currentOperationCosts, reduced1EmissorCosts, newSoftwareCosts);
+  const roiWith2Emissores = calculateROI(currentOperationCosts, reduced2EmissoresCosts, newSoftwareCosts);
 
-  // Cálculo dos ganhos (diferença entre operação atual e alternativas)
-  const gainWithBitys = averageCostCurrentOperation - (averageCostOperationSmall + averageCostBitys);
-  const gainWithInfoWorker = averageCostCurrentOperation - (averageCostOperationSmall + averageCostInfoWorker);
+  // Ganhos acumulados
+  const gainWith1Emissor1Year = (currentOperationCosts[11] - reduced1EmissorCosts[11]) - newSoftwareCosts[11];
+  const gainWith1Emissor2Years = (currentOperationCosts[23] - reduced1EmissorCosts[23]) - newSoftwareCosts[23];
+  const gainWith1Emissor3Years = (currentOperationCosts[35] - reduced1EmissorCosts[35]) - newSoftwareCosts[35];
 
-  // Ganhos em 1 ano (12 meses)
-  const gainWithBitys1Year = operationCosts[11] - (operationSmallCosts[11] + bitysCosts[11]);
-  const gainWithInfoWorker1Year = operationCosts[11] - (operationSmallCosts[11] + infoWorkerCosts[11]);
+  const gainWith2Emissores1Year = (currentOperationCosts[11] - reduced2EmissoresCosts[11]) - newSoftwareCosts[11];
+  const gainWith2Emissores2Years = (currentOperationCosts[23] - reduced2EmissoresCosts[23]) - newSoftwareCosts[23];
+  const gainWith2Emissores3Years = (currentOperationCosts[35] - reduced2EmissoresCosts[35]) - newSoftwareCosts[35];
 
-  // Ganhos em 2 anos (24 meses)
-  const gainWithBitys2Years = operationCosts[23] - (operationSmallCosts[23] + bitysCosts[23]);
-  const gainWithInfoWorker2Years = operationCosts[23] - (operationSmallCosts[23] + infoWorkerCosts[23]);
+  // Dados de produtividade
+  const weeklyTimeSaved = 136.42 - 26.47; // 136h 25min - 26h 28min
+  const monthlyTimeSaved = 545 - 106; // 545h - 106h
 
-  // Configuração do gráfico de linha
+  const additionalWeeklyTimeSaved = 10 - 1.05; // 10h - 1h 3min
+  const additionalMonthlyTimeSaved = 40 - 5.33; // 40h - 5h 20min
+
+  // Configuração do gráfico
   const lineChartOptions = {
     tooltip: {
       trigger: 'axis',
@@ -85,10 +85,10 @@ function ComparacaoOrcamentos() {
     },
     legend: {
       data: [
-        'Bitys',
-        'InfoWorker',
         'Operação Atual',
-        'Operação Com menos 1 emissor',
+        'Operação com menos 1 emissor',
+        'Operação com menos 2 emissores',
+        'Novo Software',
       ],
       textStyle: { color: '#fff' },
     },
@@ -106,35 +106,35 @@ function ComparacaoOrcamentos() {
     },
     series: [
       {
-        name: 'Bitys',
-        type: 'line',
-        smooth: true,
-        data: bitysCosts,
-        color: '#39FF14',
-        lineStyle: { width: 3 },
-      },
-      {
-        name: 'InfoWorker',
-        type: 'line',
-        smooth: true,
-        data: infoWorkerCosts,
-        color: '#FF00FF',
-        lineStyle: { width: 3 },
-      },
-      {
         name: 'Operação Atual',
         type: 'line',
         smooth: true,
-        data: operationCosts,
+        data: currentOperationCosts,
         color: '#FF4500',
         lineStyle: { width: 3 },
       },
       {
-        name: 'Operação Com menos 1 emissor',
+        name: 'Operação com menos 1 emissor',
         type: 'line',
         smooth: true,
-        data: operationSmallCosts,
+        data: reduced1EmissorCosts,
         color: 'yellow',
+        lineStyle: { width: 3 },
+      },
+      {
+        name: 'Operação com menos 2 emissores',
+        type: 'line',
+        smooth: true,
+        data: reduced2EmissoresCosts,
+        color: '#39FF14',
+        lineStyle: { width: 3 },
+      },
+      {
+        name: 'Novo Software',
+        type: 'line',
+        smooth: true,
+        data: newSoftwareCosts,
+        color: '#1E90FF',
         lineStyle: { width: 3 },
       },
     ],
@@ -145,7 +145,7 @@ function ComparacaoOrcamentos() {
       <Container fluid className="d-flex align-items-center justify-content-center">
         <Row>
           <Col md={12} className="text-center mb-4">
-            <h1 style={{ color: 'white' }}>Comparação de Orçamentos e Custos</h1>
+            <h1 style={{ color: 'white' }}>Comparação de Orçamentos e Retorno do Investimento</h1>
           </Col>
 
           {/* Gráfico de Linha */}
@@ -158,39 +158,68 @@ function ComparacaoOrcamentos() {
             </Card>
           </Col>
 
-          {/* Comparação de Custos e Ganhos */}
+          {/* ROI e Ganhos */}
           <Col md={6}>
             <Card className="custom-card">
               <CardBody>
-                <h5 style={{ color: 'white' }}>Média Mensal e Ganhos</h5>
+                <h5 style={{ color: 'white' }}>ROI e Ganhos</h5>
                 <p style={{ color: 'white' }}>
-                  <strong>Média Mensal Operação Atual:</strong> {formatCurrency(averageCostCurrentOperation)}
+                  <strong>ROI com 1 emissor a menos:</strong> {roiWith1Emissor ? `${roiWith1Emissor} meses` : 'Não alcançado em 36 meses'}
                 </p>
                 <p style={{ color: 'white' }}>
-                  <strong>Ganhos com Bitys em 1 ano:</strong> {formatCurrency(gainWithBitys1Year)}
+                  <strong>ROI com 2 emissores a menos:</strong> {roiWith2Emissores ? `${roiWith2Emissores} meses` : 'Não alcançado em 36 meses'}
                 </p>
                 <p style={{ color: 'white' }}>
-                  <strong>Ganhos com Bitys em 2 anos:</strong> {formatCurrency(gainWithBitys2Years)}
+                  <strong>Ganhos com 1 emissor a menos em 1 ano:</strong> {formatCurrency(gainWith1Emissor1Year)}
                 </p>
-               
-                
+                <p style={{ color: 'white' }}>
+                  <strong>Ganhos com 1 emissor a menos em 2 anos:</strong> {formatCurrency(gainWith1Emissor2Years)}
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Ganhos com 1 emissor a menos em 3 anos:</strong> {formatCurrency(gainWith1Emissor3Years)}
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Ganhos com 2 emissores a menos em 1 ano:</strong> {formatCurrency(gainWith2Emissores1Year)}
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Ganhos com 2 emissores a menos em 2 anos:</strong> {formatCurrency(gainWith2Emissores2Years)}
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Ganhos com 2 emissores a menos em 3 anos:</strong> {formatCurrency(gainWith2Emissores3Years)}
+                </p>
               </CardBody>
             </Card>
           </Col>
+
+          {/* Ganhos em Produtividade */}
           <Col md={6}>
             <Card className="custom-card">
               <CardBody>
-                <h5 style={{ color: 'white' }}>Média Mensal e Ganhos</h5>
+                <h5 style={{ color: 'white' }}>Ganhos em Produtividade</h5>
                 <p style={{ color: 'white' }}>
-                  <strong>Média Mensal Operação Atual:</strong> {formatCurrency(averageCostCurrentOperation)}
+                  <strong>Tempo semanal atual:</strong> 136 horas
                 </p>
                 <p style={{ color: 'white' }}>
-                  <strong>Ganhos com InfoWorker em 1 ano:</strong> {formatCurrency(gainWithInfoWorker1Year)}
+                  <strong>Tempo mensal atual:</strong> 545 horas
                 </p>
                 <p style={{ color: 'white' }}>
-                  <strong>Ganhos com InfoWorker em 2 anos:</strong> {formatCurrency(gainWithInfoWorker2Years)}
+                  <strong>Novo tempo semanal:</strong> 26 horas
                 </p>
-                
+                <p style={{ color: 'white' }}>
+                  <strong>Novo tempo mensal:</strong> 106 horas
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Tempo semanal economizado:</strong> {weeklyTimeSaved.toFixed(0)} horas
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Tempo mensal economizado:</strong> {monthlyTimeSaved.toFixed(0)} horas
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Ganho adicional semanal economizado:</strong> {additionalWeeklyTimeSaved.toFixed(0)} horas
+                </p>
+                <p style={{ color: 'white' }}>
+                  <strong>Ganho adicional mensal economizado:</strong> {additionalMonthlyTimeSaved.toFixed(0)} horas
+                </p>
               </CardBody>
             </Card>
           </Col>

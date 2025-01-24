@@ -47,7 +47,8 @@ const LancarSTH = ({ onActionComplete }) => {
 "Falta de veículos",
 "Atraso na roterização",
 "Transito",
-"Falha Mecacnia"]
+"Falha Mecacnia",
+"Excesso de entregas"]
   useEffect(() => {
     fetchMotoristas();
     fetchClientes();

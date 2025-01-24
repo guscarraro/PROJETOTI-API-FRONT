@@ -38,8 +38,10 @@ const apiLocal = {
 
   // Faltas
   getFaltas: () => api.get("/faltas"),
+  getFaltasFiltradas: (filters) => api.post("/faltas/filtrar", filters),
   createOrUpdateFalta: (data) => api.post("/faltas", data),
   deleteFalta: (id) => api.delete(`/faltas/${id}`),
+
 
   // Destinos
   getDestinos: () => api.get("/destinos"),
