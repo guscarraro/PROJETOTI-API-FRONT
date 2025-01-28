@@ -147,6 +147,7 @@ const TodasOcorrenciasSTH = () => {
       );
     }
   };
+  console.log(filteredOcorrenciasSTH)
 
   return (
     <div
@@ -209,7 +210,8 @@ const TodasOcorrenciasSTH = () => {
               <td>{ocorrencia.destino_nome}</td>
               <td>{ocorrencia.motivo}</td>
               <td>{ocorrencia.nf_sth}</td>
-              <td>{new Date(ocorrencia.data_viagem).toLocaleDateString()}</td>
+              <td>{new Date(ocorrencia.data_viagem + "T00:00:00").toLocaleDateString("pt-BR")}</td>
+
               <td>{ocorrencia.cidade}</td>
               <td>{ocorrencia.horario_chegada}</td>
               <td>{ocorrencia.horario_saida}</td>
