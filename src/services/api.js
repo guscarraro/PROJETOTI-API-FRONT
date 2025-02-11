@@ -8,6 +8,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 const API_AUTH_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/authorization';
 const API_INDICE_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/painel/IndiceAtendimentoPraca';
 const API_OCORRENCIAS_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/ocorrencia/ExportarOcorrencias';
+const API_NOTA_FISCAL_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/originario/consulta';
+
 
 const SHARED_TOKEN_ID = 'shared-token'; // ID fixo para o token compartilhado
 
@@ -117,7 +119,6 @@ export const fetchIndiceAtendimento = async (dataInicial, dataFinal) => {
 
         return retryResponse.data.indiceAtendimentoPraca || [];
       } catch (retryError) {
-        console.error('Erro ao buscar índice após renovar token:', retryError.message);
         return [];
       }
     }
@@ -126,6 +127,56 @@ export const fetchIndiceAtendimento = async (dataInicial, dataFinal) => {
     return [];
   }
 };
+
+export const fetchNotaFiscal = async (notaFiscal) => {
+  try {
+    const token = await getAuthToken();
+    
+    const response = await axios.get(`${API_NOTA_FISCAL_URL}?notafiscal=${notaFiscal}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+
+    let rawData;
+    let jsonData; // ✅ Declaramos jsonData antes do bloco try
+
+    try {
+      rawData = typeof response.data === "string" ? response.data : JSON.stringify(response.data);
+
+      // ✅ Corrige valores inválidos antes de fazer o parse
+      rawData = rawData.replace(/"CTE":\s*,/g, '"CTE":"" ,'); // Garante que campos vazios fiquem com aspas
+      rawData = rawData.replace(/: ,/g, ': "" ,'); // Corrige qualquer outro valor vazio sem aspas
+
+
+      jsonData = JSON.parse(rawData); // ✅ Agora jsonData está definido
+    } catch (parseError) {
+      return [];
+    }
+
+
+    // Verifica se a estrutura esperada está presente
+    if (!jsonData || !jsonData.nota || !Array.isArray(jsonData.nota)) {
+      return [];
+    }
+
+    // Filtra e limpa os dados removendo notas inválidas
+    const notasValidas = jsonData.nota.filter(n => {
+      if (!n.NF || isNaN(n.NF)) {
+        return false;
+      }
+      return true;
+    });
+
+
+    return notasValidas;
+  } catch (error) {
+    return [];
+  }
+};
+  
+
 
 
 export const fetchOcorrencias = async (dataInicial) => {

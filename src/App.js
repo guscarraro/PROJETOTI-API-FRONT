@@ -11,6 +11,7 @@ import TesteApi from './pages/TesteApi';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
+import EstoqueTi from './pages/EstoqueTi';
 
 const App = () => {
   const user = JSON.parse(localStorage.getItem('user'));
@@ -92,6 +93,15 @@ const App = () => {
     element={
       <PrivateRoute
         element={<ProjetoFrota />}
+        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
+      />
+    }
+  />
+  <Route
+    path="/ti"
+    element={
+      <PrivateRoute
+        element={<EstoqueTi />}
         allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
       />
     }

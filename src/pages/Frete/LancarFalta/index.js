@@ -15,7 +15,7 @@ import apiLocal from "../../../services/apiLocal";
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
 import ModalImage from "./ModalImage";
 import LoadingDots from "../../../components/Loading"; // Altere o caminho conforme necessário
-import { fetchIndiceAtendimento } from "../../../services/api";
+import {  fetchNotaFiscal } from "../../../services/api";
 
 
 const LancarFalta = ({ onActionComplete }) => {
@@ -49,7 +49,7 @@ const LancarFalta = ({ onActionComplete }) => {
 
   const filiais = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP"];
   const responsavel = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP","MOTORISTA","CLIENTE"]
-  const autores = ["Maicon", "Fernanda", "Gean", "Michelen", "sem autorização"];
+  const autores = ["Maicon", "Fernanda", "Gean", "Michelen","Mikael", "Vinicius", "sem autorização"];
 
 
   const toggleModalImage = () => {
@@ -128,58 +128,47 @@ const LancarFalta = ({ onActionComplete }) => {
     if (e.key === "Tab" && falta.nf) {
       setLoadingNota(true);
       try {
-        const today = new Date();
-        const startDate = new Date(today);
-        startDate.setDate(today.getDate() - 37); // Subtrai 30 dias da data atual
-  
-        // Converte as datas para o formato dd/MM/yyyy
-        const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
-        const dataFinal = today.toLocaleDateString("pt-BR"); // Exemplo: 16/01/2025
-  
         // Busca os dados da API externa
-        const response = await fetchIndiceAtendimento(dataInicial, dataFinal);
-        const dados = response || [];
+        const response = await fetchNotaFiscal(falta.nf.trim());
   
-        // Filtra as notas que contêm a NF digitada
-        const notasFiltradas = dados.filter((item) =>
-          item.NF.split(",").map((nf) => nf.trim()).includes(falta.nf)
-        );
+        if (!response || !Array.isArray(response)) {
+          throw new Error("Resposta inválida da API.");
+        }
+  
+        // Filtra as notas que correspondem à NF digitada
+        const notasFiltradas = response.filter((n) => {
+          if (!n.NF || isNaN(n.NF)) {
+            return false;
+          }
+          return n.NF.toString().trim() === falta.nf.trim();
+        });
   
         if (notasFiltradas.length === 1) {
-          // Caso apenas uma nota seja encontrada, preenche os campos
           const nota = notasFiltradas[0];
-          const cliente = clientes.find((c) => c.nome.trim() === nota.remetente.trim());
-          const destino = destinos.find(
-            (d) =>
-              d.nome.trim() === nota.destinatario.trim() &&
-              d.cidade.trim() === nota.destino.trim()
-          );
   
           setClienteNome(nota.remetente);
           setDestinoNome(nota.destinatario);
   
           setFalta((prev) => ({
             ...prev,
-            cliente_id: cliente ? cliente.id : "",
-            destino_id: destino ? destino.id : "",
+            cliente_id: nota.remetente,
+            destino_id: nota.destinatario,
             cidade: nota.destino,
           }));
         } else if (notasFiltradas.length > 1) {
-          // Caso mais de uma nota seja encontrada, exibe o modal para seleção
           setClientesDuplicados(notasFiltradas);
           setModal(true);
         } else {
-          // Caso nenhuma nota seja encontrada
-          toast.warning("Nenhuma informação encontrada para a nota informada.");
+          toast.warning("Nenhuma informação encontrada para a NF digitada.");
         }
       } catch (error) {
-        console.error("Erro ao buscar dados da nota:", error);
         toast.error("Erro ao buscar informações da nota fiscal.");
       } finally {
-        setLoadingNota(false); // Finaliza o estado de carregamento
+        setLoadingNota(false);
       }
     }
   };
+  
   
   
   
@@ -335,29 +324,30 @@ const LancarFalta = ({ onActionComplete }) => {
         <Modal isOpen={modal} toggle={() => setModal(!modal)}>
   <ModalHeader toggle={() => setModal(!modal)}>Selecionar Cliente</ModalHeader>
   <ModalBody>
-    <p>Mais de um cliente foi encontrado para esta nota fiscal:</p>
-    <ul>
-      {clientesDuplicados.map((cliente, index) => (
-        <li
-          key={index}
-          style={{ cursor: "pointer", padding: "5px 0" }}
-          onClick={() => {
-            setClienteNome(cliente.remetente);
-            setDestinoNome(cliente.destinatario);
-            setFalta((prev) => ({
-              ...prev,
-              cliente_id: cliente.id,
-              destino_id: cliente.destinatario,
-              cidade: cliente.destino,
-            }));
-            setModal(false);
-          }}
-        >
-          Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario}
-        </li>
-      ))}
-    </ul>
-  </ModalBody>
+  <p>Mais de um cliente foi encontrado para esta nota fiscal:</p>
+  <ul>
+    {clientesDuplicados.map((cliente, index) => (
+      <li
+        key={index}
+        style={{ cursor: "pointer", padding: "5px 0" }}
+        onClick={() => {
+          setClienteNome(cliente.remetente);
+          setDestinoNome(cliente.destinatario);
+          setFalta((prev) => ({
+            ...prev,
+            cliente_id: cliente.remetente,
+            destino_id: cliente.destinatario,
+            cidade: cliente.destino,
+          }));
+          setModal(false);
+        }}
+      >
+        Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario} | Cidade: {cliente.destino}
+      </li>
+    ))}
+  </ul>
+</ModalBody>
+
   <ModalFooter>
     <Button color="secondary" onClick={() => setModal(false)}>
       Cancelar

@@ -23,7 +23,7 @@ import {
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Spinner } from "reactstrap";
 import apiLocal from "../../../services/apiLocal";
 import LoadingDots from "../../../components/Loading";
-import { fetchIndiceAtendimento } from "../../../services/api";
+import { fetchNotaFiscal } from "../../../services/api";
 
 const LancarOcorren = ({ onActionComplete }) => {
   const [motoristas, setMotoristas] = useState([]);
@@ -61,7 +61,7 @@ const LancarOcorren = ({ onActionComplete }) => {
       setMotoristas(response.data);
     } catch (error) {
       toast.error("Erro ao buscar motoristas.");
-      console.error(error);
+      
     }
   };
   const fetchDestinos = async () => {
@@ -70,7 +70,7 @@ const LancarOcorren = ({ onActionComplete }) => {
       setDestinos(response.data);
     } catch (error) {
       toast.error("Erro ao buscar destinos.");
-      console.error(error);
+      
     }
   };
 
@@ -80,7 +80,7 @@ const LancarOcorren = ({ onActionComplete }) => {
       setClientes(response.data);
     } catch (error) {
       toast.error("Erro ao buscar clientes.");
-      console.error(error);
+      
     }
   };
 
@@ -90,7 +90,7 @@ const LancarOcorren = ({ onActionComplete }) => {
       setTiposOcorrencia(response.data);
     } catch (error) {
       toast.error("Erro ao buscar tipos de ocorrência.");
-      console.error(error);
+      
     }
   };
 
@@ -102,26 +102,27 @@ const LancarOcorren = ({ onActionComplete }) => {
   const handleKeyDown = async (e) => {
     if (e.key === "Tab" && ocorrencia.nf) {
       setLoadingNota(true);
+  
       try {
-        const today = new Date(); // Data atual
-        const startDate = new Date(today); 
-        startDate.setDate(today.getDate() - 37); // Subtrai 30 dias da data atual
+        // Chamada da API para buscar as notas fiscais
+        const response = await fetchNotaFiscal(ocorrencia.nf.trim());
   
-        // Converte as datas para o formato dd/MM/yyyy
-        const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
-        const dataFinal = today.toLocaleDateString("pt-BR"); // Exemplo: 16/01/2025
+        // Verifica se a resposta da API é um array válido
+        if (!response || !Array.isArray(response)) {
+          throw new Error("Resposta inválida da API.");
+        }
   
-        // Busca os dados da API externa
-        const dados = (await fetchIndiceAtendimento(dataInicial, dataFinal)) || [];
+        // Filtra apenas notas que possuem NF válido e correspondem ao número digitado
+        const dados = response.filter((n) => {
+          if (!n.NF || isNaN(n.NF)) {
+            return false;
+          }
+          return n.NF.toString().trim() === ocorrencia.nf.trim();
+        });
   
-        // Filtra as notas que contêm a NF digitada
-        const notasFiltradas = dados.filter((item) =>
-          item.NF.split(",").map((nf) => nf.trim()).includes(ocorrencia.nf)
-        );
   
-        if (notasFiltradas.length === 1) {
-          // Caso apenas uma nota seja encontrada, preenche os campos
-          const data = notasFiltradas[0];
+        if (dados.length === 1) {
+          const data = dados[0];
           setClienteNome(data.remetente);
           setOcorrencia((prev) => ({
             ...prev,
@@ -129,27 +130,21 @@ const LancarOcorren = ({ onActionComplete }) => {
             destino_id: data.destinatario,
             cidade: data.destino,
           }));
-        } else if (notasFiltradas.length > 1) {
-          // Caso mais de uma nota seja encontrada, exibe o modal para seleção
-          setClientesDuplicados(notasFiltradas);
+        } else if (dados.length > 1) {
+          setClientesDuplicados(dados);
           setModal(true);
         } else {
-          // Caso nenhuma nota seja encontrada
-          toast.warning("Nenhuma informação encontrada para a nota informada.");
+          toast.warning(`Nenhuma informação encontrada para a NF: ${ocorrencia.nf.trim()}.`);
         }
       } catch (error) {
-        console.error("Erro ao buscar dados da nota:", error);
         toast.error("Erro ao buscar informações da nota fiscal na API externa.");
       } finally {
-        setLoadingNota(false); // Finaliza o estado de carregamento
+        setLoadingNota(false);
       }
     }
   };
   
-  
-  
-  
-  
+
 
   const handleClienteSelection = (cliente) => {
     setClienteNome(cliente.remetente); // Exibe o nome
@@ -257,7 +252,6 @@ const LancarOcorren = ({ onActionComplete }) => {
         throw new Error("Erro ao salvar a ocorrência.");
       }
     } catch (error) {
-      console.error("Erro ao salvar a ocorrência:", error);
       toast.error(error.message || "Erro ao lançar a ocorrência.");
     } finally {
       setIsLoading(false); // Finaliza o estado de carregamento
@@ -267,6 +261,11 @@ const LancarOcorren = ({ onActionComplete }) => {
   
   
   
+  useEffect(() => {
+    if (clientesDuplicados.length > 1) {
+      setModal(true);
+    }
+  }, [clientesDuplicados]);
   
   
   
@@ -410,27 +409,28 @@ const LancarOcorren = ({ onActionComplete }) => {
       </StyledForm>
 
       <Modal isOpen={modal} toggle={() => setModal(!modal)}>
-        <ModalHeader toggle={() => setModal(!modal)}>Selecionar Cliente</ModalHeader>
-        <ModalBody>
-          <p>Mais de um cliente foi encontrado para esta nota fiscal:</p>
-          <ul>
-            {clientesDuplicados.map((cliente, index) => (
-              <li
-                key={index}
-                style={{ cursor: "pointer", padding: "5px 0" }}
-                onClick={() => handleClienteSelection(cliente)}
-              >
-                Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario}
-              </li>
-            ))}
-          </ul>
-        </ModalBody>
-        <ModalFooter>
-          <Button color="secondary" onClick={() => setModal(false)}>
-            Cancelar
-          </Button>
-        </ModalFooter>
-      </Modal>
+  <ModalHeader toggle={() => setModal(!modal)}>Selecionar Cliente</ModalHeader>
+  <ModalBody>
+    <p>Mais de um cliente foi encontrado para esta nota fiscal:</p>
+    <ul>
+      {clientesDuplicados.map((cliente, index) => (
+        <li
+          key={index}
+          style={{ cursor: "pointer", padding: "5px 0" }}
+          onClick={() => handleClienteSelection(cliente)}
+        >
+          Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario} | Cidade: {cliente.destino}
+        </li>
+      ))}
+    </ul>
+  </ModalBody>
+  <ModalFooter>
+    <Button color="secondary" onClick={() => setModal(false)}>
+      Cancelar
+    </Button>
+  </ModalFooter>
+</Modal>
+
     </Container>
   );
 };

@@ -50,6 +50,12 @@ const apiLocal = {
 
   getDashboardSTH: (filters) => api.post("/dashboard-sth/filtrar", filters),
 
+   // Controle de Estoque de TI
+   getControleEstoque: () => api.get("/controle-estoque"), // Listar todos os registros
+   getControleEstoqueFiltrado: (filters) => api.post("/controle-estoque/filtrar", filters), // Filtrar registros
+   createOrUpdateControleEstoque: (data) => api.post("/controle-estoque", data), // Criar ou atualizar registro
+   deleteControleEstoque: (id) => api.delete(`/controle-estoque/${id}`), // Deletar registro
+
 };
 
 export default apiLocal;

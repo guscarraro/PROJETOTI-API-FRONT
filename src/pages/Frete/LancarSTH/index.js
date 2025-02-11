@@ -13,7 +13,7 @@ import { FaUser, FaBuilding, FaFileInvoice, FaStickyNote, FaCalendarAlt } from "
 import apiLocal from "../../../services/apiLocal";
 import LoadingDots from "../../../components/Loading";
 import { Button, Modal, ModalBody, ModalFooter, ModalHeader } from "reactstrap";
-import { fetchIndiceAtendimento } from "../../../services/api";
+import { fetchNotaFiscal } from "../../../services/api";
 
 const LancarSTH = ({ onActionComplete }) => {
   const [clientes, setClientes] = useState([]);
@@ -49,7 +49,8 @@ const LancarSTH = ({ onActionComplete }) => {
 "Transito",
 "Falha Mecacnia",
 "Longa distancia entre destinos",
-"Excesso de entregas"]
+"Excesso de entregas",
+"Horário de recebimento encerrado"]
   useEffect(() => {
     fetchMotoristas();
     fetchClientes();
@@ -94,48 +95,41 @@ const LancarSTH = ({ onActionComplete }) => {
     if (e.key === "Tab" && sth.nf) {
       setLoadingNota(true);
       try {
-        const today = new Date();
-        const startDate = new Date(today);
-        startDate.setDate(today.getDate() - 37); // Subtrai 30 dias da data atual
+        const response = await fetchNotaFiscal(sth.nf.trim());
   
-        // Converte as datas para o formato dd/MM/yyyy
-        const dataInicial = startDate.toLocaleDateString("pt-BR"); // Exemplo: 17/12/2024
-        const dataFinal = today.toLocaleDateString("pt-BR"); // Exemplo: 16/01/2025
+        if (!response || !Array.isArray(response)) {
+          throw new Error("Resposta inválida da API.");
+        }
   
-        // Busca os dados da API externa
-        const response = await fetchIndiceAtendimento(dataInicial, dataFinal);
-        const dados = response || [];
+        const dados = response.filter((n) => {
+          if (!n.NF || isNaN(n.NF)) {
+            return false;
+          }
+          return n.NF.toString().trim() === sth.nf.trim();
+        });
   
-        // Filtra as notas que contêm a NF digitada
-        const notasFiltradas = dados.filter((item) =>
-          item.NF.split(",").map((nf) => nf.trim()).includes(sth.nf)
-        );
-  
-        if (notasFiltradas.length === 1) {
-          // Caso apenas uma nota seja encontrada, preenche os campos
-          const data = notasFiltradas[0];
+        if (dados.length === 1) {
+          const data = dados[0];
           setClienteNome(data.remetente);
           setDestinoNome(data.destinatario);
           setSTH((prev) => ({
             ...prev,
             cidade: data.destino,
           }));
-        } else if (notasFiltradas.length > 1) {
-          // Caso mais de uma nota seja encontrada, exibe o modal para seleção
-          setClientesDuplicados(notasFiltradas);
+        } else if (dados.length > 1) {
+          setClientesDuplicados(dados);
           setModal(true);
         } else {
-          // Caso nenhuma nota seja encontrada
-          toast.warning("Nenhuma informação encontrada para a nota informada.");
+          toast.warning(`Nenhuma informação encontrada para a NF: ${sth.nf.trim()}.`);
         }
       } catch (error) {
-        console.error("Erro ao buscar dados da nota:", error);
-        toast.error("Erro ao buscar informações da nota fiscal.");
+        toast.error("Erro ao buscar informações da nota fiscal na API externa.");
       } finally {
-        setLoadingNota(false); // Finaliza o estado de carregamento
+        setLoadingNota(false);
       }
     }
   };
+  
   
   
   
@@ -288,7 +282,11 @@ const LancarSTH = ({ onActionComplete }) => {
   
   
   
-  
+    useEffect(() => {
+      if (clientesDuplicados.length > 1) {
+        setModal(true);
+      }
+    }, [clientesDuplicados]);
   
   
 
@@ -297,19 +295,20 @@ const LancarSTH = ({ onActionComplete }) => {
         <Modal isOpen={modal} toggle={() => setModal(!modal)}>
   <ModalHeader toggle={() => setModal(!modal)}>Selecionar Cliente</ModalHeader>
   <ModalBody>
-    <p>Mais de um cliente foi encontrado para esta nota fiscal:</p>
-    <ul>
-      {clientesDuplicados.map((cliente, index) => (
-        <li
-          key={index}
-          style={{ cursor: "pointer", padding: "5px 0" }}
-          onClick={() => handleClienteSelection(cliente)}
-        >
-          Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario}
-        </li>
-      ))}
-    </ul>
-  </ModalBody>
+  <p>Mais de um cliente foi encontrado para esta nota fiscal:</p>
+  <ul>
+    {clientesDuplicados.map((cliente, index) => (
+      <li
+        key={index}
+        style={{ cursor: "pointer", padding: "5px 0" }}
+        onClick={() => handleClienteSelection(cliente)}
+      >
+        Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario} | Cidade: {cliente.destino}
+      </li>
+    ))}
+  </ul>
+</ModalBody>
+
   <ModalFooter>
     <Button color="secondary" onClick={() => setModal(false)}>
       Cancelar
@@ -321,7 +320,7 @@ const LancarSTH = ({ onActionComplete }) => {
       <StyledForm onSubmit={handleSave}>
         <FormGroup>
           <Label>
-            <FaFileInvoice /> Nota Fiscal que Gerou Atraso
+            <FaFileInvoice /> NF STH / NF que Gerou Atraso
           </Label>
           <div style={{ position: "relative" }}>
             <Input
