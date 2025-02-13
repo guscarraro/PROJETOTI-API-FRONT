@@ -85,10 +85,9 @@ const LancarFalta = ({ onActionComplete }) => {
   };
 
   useEffect(() => {
-    fetchClientes();
-    fetchDestinos();
-    fetchMotoristas();
+    Promise.all([fetchClientes(), fetchDestinos(), fetchMotoristas()]);
   }, []);
+  
 
   const fetchClientes = async () => {
     try {
@@ -146,15 +145,19 @@ const LancarFalta = ({ onActionComplete }) => {
         if (notasFiltradas.length === 1) {
           const nota = notasFiltradas[0];
   
-          setClienteNome(nota.remetente);
-          setDestinoNome(nota.destinatario);
-  
-          setFalta((prev) => ({
-            ...prev,
-            cliente_id: nota.remetente,
-            destino_id: nota.destinatario,
-            cidade: nota.destino,
-          }));
+          const clienteEncontrado = clientes.find((c) => c.nome === nota.remetente);
+const destinoEncontrado = destinos.find((d) => d.nome === nota.destinatario);
+
+setFalta((prev) => ({
+  ...prev,
+  cliente_id: clienteEncontrado ? clienteEncontrado.id : "",
+  destino_id: destinoEncontrado ? destinoEncontrado.id : "",
+  cidade: nota.destino,
+}));
+
+setClienteNome(nota.remetente);
+setDestinoNome(nota.destinatario);
+
         } else if (notasFiltradas.length > 1) {
           setClientesDuplicados(notasFiltradas);
           setModal(true);
@@ -331,16 +334,20 @@ const LancarFalta = ({ onActionComplete }) => {
         key={index}
         style={{ cursor: "pointer", padding: "5px 0" }}
         onClick={() => {
+          const clienteEncontrado = clientes.find((c) => c.nome === cliente.remetente);
+          const destinoEncontrado = destinos.find((d) => d.nome === cliente.destinatario);
+        
           setClienteNome(cliente.remetente);
           setDestinoNome(cliente.destinatario);
           setFalta((prev) => ({
             ...prev,
-            cliente_id: cliente.remetente,
-            destino_id: cliente.destinatario,
+            cliente_id: clienteEncontrado ? clienteEncontrado.id : "",
+            destino_id: destinoEncontrado ? destinoEncontrado.id : "",
             cidade: cliente.destino,
           }));
           setModal(false);
         }}
+        
       >
         Cliente: {cliente.remetente} | Destinatário: {cliente.destinatario} | Cidade: {cliente.destino}
       </li>
