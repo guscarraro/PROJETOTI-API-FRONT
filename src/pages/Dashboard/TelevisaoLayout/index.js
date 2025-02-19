@@ -3,33 +3,62 @@ import { Box } from "../styles";
 import ServiceLevelChart from "../ServiceLevelChart";
 import TopRemetentesChart from "../TopRemetentesChart";
 import DailyDeliveryChartByPraça from "../DailyDeliveryChart";
+import InfoOcorren from "./InfoOcorren";
+import apiLocal from "../../../services/apiLocal";
 
-const TelevisaoLayout = ({ data,dataFinal,dataInicial  }) => {
-  const [currentChart, setCurrentChart] = useState(0); // 0 para ServiceLevelChart, 1 para outros gráficos
+const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [ocorrencias, setOcorrencias] = useState([]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentChart((prev) => (prev === 0 ? 1 : 0)); // Alterna entre 0 e 1 a cada 60 segundos
-    }, 60000); // 60 segundos
-
-    return () => clearInterval(interval); // Limpa o intervalo ao desmontar o componente
+    fetchOcorrencias();
   }, []);
 
+  useEffect(() => {
+    const totalSlides = ocorrencias.length > 0 ? 3 : 2;
+    
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % totalSlides);
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [ocorrencias]);
+
+  const fetchOcorrencias = async () => {
+    try {
+      const response = await apiLocal.getOcorrencias();
+      const abertas = response.data.filter(
+        (ocorrencia) => ocorrencia.status === "Pendente"
+      );
+      setOcorrencias(abertas);
+    } catch (error) {
+      console.error("Erro ao buscar ocorrências", error);
+    }
+  };
+
   return (
-    <div style={{ width: "99%", height: "99%",  color: "#fff" }}>
-      {currentChart === 0 ? (
+    <div style={{ width: "99%", height: "99%", color: "#fff" }}>
+      {currentSlide === 0 && (
         <div style={{ padding: "20px" }}>
           <Box>
             <ServiceLevelChart data={data} />
           </Box>
         </div>
-      ) : (
+      )}
+      {currentSlide === 1 && (
         <div style={{ padding: "20px" }}>
           <Box>
             <TopRemetentesChart data={data} />
           </Box>
           <Box>
-            <DailyDeliveryChartByPraça data={data} dataFinal={dataFinal} dataInicial={dataInicial}/>
+            <DailyDeliveryChartByPraça data={data} dataFinal={dataFinal} dataInicial={dataInicial} />
+          </Box>
+        </div>
+      )}
+      {currentSlide === 2 && ocorrencias.length > 0 && (
+        <div style={{ padding: "20px" }}>
+          <Box>
+            <InfoOcorren ocorrencias={ocorrencias} />
           </Box>
         </div>
       )}
