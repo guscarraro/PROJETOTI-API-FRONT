@@ -6,6 +6,7 @@ import { Card, CardBody, CardTitle, CardText } from "reactstrap";
 const InfoOcorren = ({ ocorrencias }) => {
   const [clientes, setClientes] = useState({});
   const [motoristas, setMotoristas] = useState({});
+  const [tipoocorrencia, setTipoocorrencia] = useState({});
 
   useEffect(() => {
     fetchAdditionalData();
@@ -15,6 +16,7 @@ const InfoOcorren = ({ ocorrencias }) => {
     try {
       const clientesResponse = await apiLocal.getClientes();
       const motoristasResponse = await apiLocal.getMotoristas();
+      const tpOcorrenciaResponse = await apiLocal.getNomesOcorrencias();
 
       const clientesMap = {};
       clientesResponse.data.forEach((cliente) => {
@@ -25,6 +27,11 @@ const InfoOcorren = ({ ocorrencias }) => {
       motoristasResponse.data.forEach((motorista) => {
         motoristasMap[motorista.id] = motorista.nome;
       });
+      const tpOcorrenciaMap = {};
+      tpOcorrenciaResponse.data.forEach((tpocorren) => {
+        tpOcorrenciaMap[tpocorren.id] = tpocorren.nome;
+      });
+      setTipoocorrencia(tpOcorrenciaMap)
 
       setClientes(clientesMap);
       setMotoristas(motoristasMap);
@@ -58,11 +65,20 @@ const InfoOcorren = ({ ocorrencias }) => {
         {sortedOcorrencias.map((ocorrencia) => {
           const { backgroundColor, border, message, icon } = calculateCardStyle(ocorrencia.datainclusao);
           return (
-            <Card key={ocorrencia.id} style={{ backgroundColor, border, width: "250px", padding: "10px", color: "#fff" }}>
+            <Card key={ocorrencia.id} style={{ backgroundColor, border, width: "300px", padding: "10px", color: "#fff" }}>
               <CardBody style={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
-                <CardTitle>{icon} Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong></CardTitle>
+                <CardTitle tag="h5">
+                                  {icon} Nota Fiscal: {ocorrencia.nf}
+                                </CardTitle>
+                <CardText>Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong></CardText>
                 <CardText>Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong></CardText>
-                <CardText>Aberto em: <strong>{new Date(ocorrencia.datainclusao).toLocaleTimeString()}</strong></CardText>
+                <CardText>
+                                  Tipo de ocorrencia: <strong>{tipoocorrencia[ocorrencia.tipoocorrencia_id] || "Desconhecido"}</strong>
+                                </CardText>
+                                <CardText>
+                                  Hora de Chegada: <strong>{new Date(ocorrencia.horario_chegada).toLocaleTimeString()}</strong>
+                                </CardText>
+                <CardText>Ocorrência aberta: <strong>{new Date(ocorrencia.datainclusao).toLocaleTimeString()}</strong></CardText>
                 <CardText style={{ fontStyle: "italic", fontWeight: "bold" }}>{message}</CardText>
               </CardBody>
             </Card>
