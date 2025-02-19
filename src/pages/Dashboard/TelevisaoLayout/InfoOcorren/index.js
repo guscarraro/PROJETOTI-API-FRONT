@@ -65,20 +65,20 @@ const InfoOcorren = ({ ocorrencias }) => {
         {sortedOcorrencias.map((ocorrencia) => {
           const { backgroundColor, border, message, icon } = calculateCardStyle(ocorrencia.datainclusao);
           return (
-            <Card key={ocorrencia.id} style={{ backgroundColor, border, width: "300px", padding: "10px", color: "#fff" }}>
+            <Card key={ocorrencia.id} style={{ backgroundColor, border, width: "500px", padding: "10px", color: "#fff" }}>
               <CardBody style={{display:'flex', flexDirection:'column', justifyContent:'space-between'}}>
-                <CardTitle tag="h5">
+                <CardTitle tag="h1">
                                   {icon} Nota Fiscal: {ocorrencia.nf}
                                 </CardTitle>
-                <CardText>Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong></CardText>
-                <CardText>Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong></CardText>
-                <CardText>
+                <CardText style={{fontSize:'30px'}}>Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong></CardText>
+                <CardText style={{fontSize:'30px'}}>Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong></CardText>
+                <CardText style={{fontSize:'30px'}}>
                                   Tipo de ocorrencia: <strong>{tipoocorrencia[ocorrencia.tipoocorrencia_id] || "Desconhecido"}</strong>
                                 </CardText>
-                                <CardText>
+                                <CardText style={{fontSize:'30px'}}>
                                   Hora de Chegada: <strong>{new Date(ocorrencia.horario_chegada).toLocaleTimeString()}</strong>
                                 </CardText>
-                <CardText>Ocorrência aberta: <strong>{new Date(ocorrencia.datainclusao).toLocaleTimeString()}</strong></CardText>
+                <CardText style={{fontSize:'30px'}}>Ocorrência aberta: <strong>{new Date(ocorrencia.datainclusao).toLocaleTimeString()}</strong></CardText>
                 <CardText style={{ fontStyle: "italic", fontWeight: "bold" }}>{message}</CardText>
               </CardBody>
             </Card>

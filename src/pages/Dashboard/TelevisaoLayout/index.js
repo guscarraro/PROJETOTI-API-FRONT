@@ -18,11 +18,18 @@ const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
     const totalSlides = ocorrencias.length > 0 ? 3 : 2;
     
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % totalSlides);
+      setCurrentSlide((prev) => {
+        const nextSlide = (prev + 1) % totalSlides;
+        if (nextSlide === 2 && ocorrencias.length > 0) {
+          fetchOcorrencias(); // Atualiza as ocorrências ao chegar no slide 2
+        }
+        return nextSlide;
+      });
     }, 60000);
-
+  
     return () => clearInterval(interval);
   }, [ocorrencias]);
+  
 
   const fetchOcorrencias = async () => {
     try {
