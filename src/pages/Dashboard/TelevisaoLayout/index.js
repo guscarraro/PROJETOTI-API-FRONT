@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Box } from "../styles";
 import ServiceLevelChart from "../ServiceLevelChart";
 import TopRemetentesChart from "../TopRemetentesChart";
@@ -9,6 +9,8 @@ import apiLocal from "../../../services/apiLocal";
 const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [ocorrencias, setOcorrencias] = useState([]);
+  const scrollContainerRef = useRef(null);
+  const [scrollDirection, setScrollDirection] = useState("down");
 
   useEffect(() => {
     fetchOcorrencias();
@@ -16,20 +18,29 @@ const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
 
   useEffect(() => {
     const totalSlides = ocorrencias.length > 0 ? 3 : 2;
-    
+
     const interval = setInterval(() => {
       setCurrentSlide((prev) => {
         const nextSlide = (prev + 1) % totalSlides;
+
         if (nextSlide === 2 && ocorrencias.length > 0) {
-          fetchOcorrencias(); // Atualiza as ocorrências ao chegar no slide 2
+          fetchOcorrencias(); // Atualiza ocorrências ao entrar no slide 2
         }
+
         return nextSlide;
       });
-    }, 60000);
-  
+    }, 100000);
+
     return () => clearInterval(interval);
   }, [ocorrencias]);
-  
+
+  useEffect(() => {
+    if (currentSlide === 2 && ocorrencias.length > 0) {
+      startAutoScroll();
+    } else {
+      stopAutoScroll();
+    }
+  }, [currentSlide, ocorrencias]);
 
   const fetchOcorrencias = async () => {
     try {
@@ -40,6 +51,46 @@ const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
       setOcorrencias(abertas);
     } catch (error) {
       console.error("Erro ao buscar ocorrências", error);
+    }
+  };
+
+  const startAutoScroll = () => {
+    stopAutoScroll(); // Garante que não criamos múltiplos intervalos
+
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const contentHeight = container.scrollHeight;
+    const boxHeight = container.clientHeight;
+
+    if (contentHeight > boxHeight) {
+      const scrollSpeed = 50; // Tempo entre cada scroll (menor = mais rápido)
+      const scrollStep = 1; // Pixels a cada passo
+
+      const interval = setInterval(() => {
+        if (scrollDirection === "down") {
+          container.scrollTop += scrollStep;
+          if (container.scrollTop + boxHeight >= contentHeight - 5) {
+            setScrollDirection("up");
+          }
+        } else {
+          container.scrollTop -= scrollStep;
+          if (container.scrollTop <= 0) {
+            setScrollDirection("down");
+          }
+        }
+      }, scrollSpeed);
+
+      container.dataset.scrollInterval = interval;
+    }
+  };
+
+  const stopAutoScroll = () => {
+    const container = scrollContainerRef.current;
+    if (container && container.dataset.scrollInterval) {
+      clearInterval(container.dataset.scrollInterval);
+      container.dataset.scrollInterval = null;
+      container.scrollTop = 0; // Reseta ao trocar de slide
     }
   };
 
@@ -64,7 +115,14 @@ const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
       )}
       {currentSlide === 2 && ocorrencias.length > 0 && (
         <div style={{ padding: "20px" }}>
-          <Box>
+          <Box
+            ref={scrollContainerRef}
+            style={{
+              maxHeight: "90vh",
+              overflow: "hidden",
+              position: "relative",
+            }}
+          >
             <InfoOcorren ocorrencias={ocorrencias} />
           </Box>
         </div>
