@@ -64,7 +64,7 @@ const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
     const boxHeight = container.clientHeight;
 
     if (contentHeight > boxHeight) {
-      const scrollSpeed = 50; // Tempo entre cada scroll (menor = mais rápido)
+      const scrollSpeed = 30; // Tempo entre cada scroll (menor = mais rápido)
       const scrollStep = 1; // Pixels a cada passo
 
       const interval = setInterval(() => {
