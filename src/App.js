@@ -8,6 +8,8 @@ import ProjetoFrota from './pages/ProjetoFrota';
 import Fiscal from './pages/Fiscal';
 import Frete from './pages/Frete';
 import TesteApi from './pages/TesteApi';
+import CargaLucrativa from './pages/CargaLucrativa';
+
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
@@ -50,6 +52,20 @@ const App = () => {
       />
     }
   />
+
+<Route
+  path="/Frete/CargaLucrativa"
+  element={
+    <PrivateRoute
+      element={<CargaLucrativa />}
+      allowedSectors={[
+        '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
+        '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
+      ]}
+    />
+  }
+/>
+
 
   {/* Outras rotas */}
   <Route
