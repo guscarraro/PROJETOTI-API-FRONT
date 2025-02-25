@@ -55,7 +55,8 @@ const apiLocal = {
    getControleEstoqueFiltrado: (filters) => api.post("/controle-estoque/filtrar", filters), // Filtrar registros
    createOrUpdateControleEstoque: (data) => api.post("/controle-estoque", data), // Criar ou atualizar registro
    deleteControleEstoque: (id) => api.delete(`/controle-estoque/${id}`), // Deletar registro
-
+   updateSetorControleEstoque: (data) => api.put("/controle-estoque/setor", data), // Atualizar setor
+   
 };
 
 export default apiLocal;

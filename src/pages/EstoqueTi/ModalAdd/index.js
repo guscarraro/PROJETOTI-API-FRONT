@@ -6,12 +6,12 @@ import {
   ModalFooter,
   Button,
   Form,
-  FormGroup,
   Label,
   Input,
 } from 'reactstrap';
-import Select from 'react-select'; // Importa o react-select
-import apiLocal from '../../../services/apiLocal'; // Importa a API
+import Select from 'react-select';
+import apiLocal from '../../../services/apiLocal';
+import { StyledFormGroup } from './style';
 
 function ModalAdd({ isOpen, toggle }) {
   const [formData, setFormData] = useState({
@@ -27,11 +27,11 @@ function ModalAdd({ isOpen, toggle }) {
     ssd: '',
     processador: '',
     numero_serie: '',
+    portas_switch: '', // Adicionado campo para portas
     observacoes: '',
     localizacao_fisica: '',
   });
 
-  // Opções de periféricos para o react-select
   const perifericosOptions = [
     { value: 'Mouse novo', label: 'Mouse novo' },
     { value: 'Teclado novo', label: 'Teclado novo' },
@@ -50,16 +50,31 @@ function ModalAdd({ isOpen, toggle }) {
   };
 
   const generateDescricao = () => {
-    const { ram, ssd, processador } = formData;
-    return `${ram}GB RAM, ${ssd}GB SSD, ${processador}`;
+    if (formData.tipo_aparelho === 'Switch') {
+      return `${formData.portas_switch} portas`; // Descrição de switch
+    } else {
+      return `${formData.ram}GB RAM, ${formData.ssd}GB SSD, ${formData.processador}`; // Descrição de notebook e desktop
+    }
   };
 
   const handleSubmit = async () => {
     try {
-      const dataToSend = { ...formData, descricao: generateDescricao() }; // Concatena RAM, SSD e Processador
-      await apiLocal.createEstoqueTI(dataToSend); // Envia os dados para o backend
+      if (!formData.localizacao_fisica || !formData.status || !formData.tipo_aparelho || !formData.setor) {
+        alert('Os campos Localização Física, Status, Tipo de Aparelho e Setor são obrigatórios.');
+        return;
+      }
+
+      const dataToSend = {
+        ...formData,
+        perifericos: formData.perifericos.join(', '),
+        descricao: generateDescricao(),
+      };
+
+      console.log('Enviando dados:', dataToSend);
+      await apiLocal.createOrUpdateControleEstoque(dataToSend);
+
       alert('Estoque adicionado com sucesso!');
-      toggle(); // Fecha o modal
+      toggle();
     } catch (error) {
       console.error('Erro ao adicionar ao estoque:', error);
       alert('Erro ao adicionar ao estoque.');
@@ -71,7 +86,8 @@ function ModalAdd({ isOpen, toggle }) {
       <ModalHeader toggle={toggle}>Adicionar ao Estoque</ModalHeader>
       <ModalBody>
         <Form>
-          <FormGroup>
+          {/* Setor */}
+          <StyledFormGroup>
             <Label for="setor">Setor</Label>
             <Input
               type="select"
@@ -81,13 +97,13 @@ function ModalAdd({ isOpen, toggle }) {
             >
               <option value="">Selecione</option>
               {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI'].map((setor) => (
-                <option key={setor} value={setor}>
-                  {setor}
-                </option>
+                <option key={setor} value={setor}>{setor}</option>
               ))}
             </Input>
-          </FormGroup>
-          <FormGroup>
+          </StyledFormGroup>
+
+          {/* Tipo de Aparelho */}
+          <StyledFormGroup>
             <Label for="tipo_aparelho">Tipo de Aparelho</Label>
             <Input
               type="select"
@@ -96,146 +112,103 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Notebook', 'Desktop', 'Switch', 'Roteador', 'Servidor', 'Monitor'].map(
+              {['Notebook', 'Desktop', 'Switch', 'Roteador'].map(
                 (aparelho) => (
-                  <option key={aparelho} value={aparelho}>
-                    {aparelho}
-                  </option>
+                  <option key={aparelho} value={aparelho}>{aparelho}</option>
                 )
               )}
             </Input>
-          </FormGroup>
-          <FormGroup>
-            <Label for="email_utilizado">Email Utilizado</Label>
-            <Input
-              type="email"
-              name="email_utilizado"
-              value={formData.email_utilizado}
-              onChange={handleInputChange}
-              placeholder="Digite o email"
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label for="pessoa_responsavel">Pessoa Responsável</Label>
-            <Input
-              type="text"
-              name="pessoa_responsavel"
-              value={formData.pessoa_responsavel}
-              onChange={handleInputChange}
-              placeholder="Nome do responsável"
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label for="cloud_utilizado">Cloud Utilizado</Label>
-            <Input
-              type="email"
-              name="cloud_utilizado"
-              value={formData.cloud_utilizado}
-              onChange={handleInputChange}
-              placeholder="Email do cloud"
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label for="perifericos">Periféricos</Label>
-            <Select
-              isMulti
-              name="perifericos"
-              options={perifericosOptions}
-              value={perifericosOptions.filter((option) =>
-                formData.perifericos.includes(option.value)
-              )}
-              onChange={handleMultiSelectChange}
-              placeholder="Selecione os periféricos"
-            />
-          </FormGroup>
-          <FormGroup>
-            <Label for="chamadas_duas_telas">Chamadas Duas Telas</Label>
-            <Input
-              type="select"
-              name="chamadas_duas_telas"
-              value={formData.chamadas_duas_telas}
-              onChange={handleInputChange}
-            >
-              <option value="">Selecione</option>
-              <option value="S">Sim</option>
-              <option value="N">Não</option>
-            </Input>
-          </FormGroup>
-          {/* Descrição dividida em 3 campos */}
-          <FormGroup>
-            <Label for="ram">Quantidade de RAM</Label>
-            <Input
-              type="select"
-              name="ram"
-              value={formData.ram}
-              onChange={handleInputChange}
-            >
-              <option value="">Selecione</option>
-              {['4', '8', '16', '32'].map((ram) => (
-                <option key={ram} value={ram}>
-                  {ram}GB
-                </option>
-              ))}
-            </Input>
-          </FormGroup>
-          <FormGroup>
-            <Label for="ssd">Quantidade de SSD</Label>
-            <Input
-              type="select"
-              name="ssd"
-              value={formData.ssd}
-              onChange={handleInputChange}
-            >
-              <option value="">Selecione</option>
-              {['128', '256', '512', '1024'].map((ssd) => (
-                <option key={ssd} value={ssd}>
-                  {ssd}GB
-                </option>
-              ))}
-            </Input>
-          </FormGroup>
-          <FormGroup>
-            <Label for="processador">Processador</Label>
-            <Input
-              type="select"
-              name="processador"
-              value={formData.processador}
-              onChange={handleInputChange}
-            >
-              <option value="">Selecione</option>
-              {[
-                'i3 5ª Geração',
-                'i5 5ª Geração',
-                'i7 5ª Geração',
-                'i3 6ª Geração',
-                'i5 6ª Geração',
-                'i7 6ª Geração',
-                'i3 7ª Geração',
-                'i5 7ª Geração',
-                'i7 7ª Geração',
-                'i3 8ª Geração',
-                'i5 8ª Geração',
-                'i7 8ª Geração',
-                'i3 9ª Geração',
-                'i5 9ª Geração',
-                'i7 9ª Geração',
-                'i3 10ª Geração',
-                'i5 10ª Geração',
-                'i7 10ª Geração',
-                'i3 11ª Geração',
-                'i5 11ª Geração',
-                'i7 11ª Geração',
-                'i3 12ª Geração',
-                'i5 12ª Geração',
-                'i7 12ª Geração',
-              ].map((processador) => (
-                <option key={processador} value={processador}>
-                  {processador}
-                </option>
-              ))}
-            </Input>
-          </FormGroup>
-          <FormGroup>
+          </StyledFormGroup>
+
+          {/* Campos específicos por tipo de aparelho */}
+          {(formData.tipo_aparelho === 'Notebook' || formData.tipo_aparelho === 'Desktop') && (
+            <>
+              <StyledFormGroup>
+                <Label for="email_utilizado">Email Utilizado</Label>
+                <Input type="email" name="email_utilizado" value={formData.email_utilizado} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+                <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="cloud_utilizado">Cloud Utilizado</Label>
+                <Input type="email" name="cloud_utilizado" value={formData.cloud_utilizado} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="perifericos">Periféricos</Label>
+                <Select
+                  isMulti
+                  name="perifericos"
+                  options={perifericosOptions}
+                  value={perifericosOptions.filter((option) => formData.perifericos.includes(option.value))}
+                  onChange={handleMultiSelectChange}
+                />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="chamadas_duas_telas">Chamadas Duas Telas</Label>
+                <Input type="select" name="chamadas_duas_telas" value={formData.chamadas_duas_telas} onChange={handleInputChange}>
+                  <option value="">Selecione</option>
+                  <option value="S">Sim</option>
+                  <option value="N">Não</option>
+                </Input>
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="numero_serie">Número de Série</Label>
+                <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="ram">Quantidade de RAM</Label>
+                <Input type="select" name="ram" value={formData.ram} onChange={handleInputChange}>
+                  <option value="">Selecione</option>
+                  {['4', '8', '16', '32'].map((ram) => (
+                    <option key={ram} value={ram}>{ram}GB</option>
+                  ))}
+                </Input>
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="ssd">Quantidade de SSD</Label>
+                <Input type="select" name="ssd" value={formData.ssd} onChange={handleInputChange}>
+                  <option value="">Selecione</option>
+                  {['128', '256', '512', '1024'].map((ssd) => (
+                    <option key={ssd} value={ssd}>{ssd}GB</option>
+                  ))}
+                </Input>
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="processador">Processador</Label>
+                <Input type="select" name="processador" value={formData.processador} onChange={handleInputChange}>
+                  <option value="">Selecione</option>
+                  {['i3 10ª Geração', 'i5 10ª Geração', 'i7 10ª Geração'].map((proc) => (
+                    <option key={proc} value={proc}>{proc}</option>
+                  ))}
+                </Input>
+              </StyledFormGroup>
+            </>
+          )}
+
+          {/* Campo para quantidade de portas em switch */}
+          {formData.tipo_aparelho === 'Switch' && (
+            <StyledFormGroup>
+              <Label for="portas_switch">Quantidade de Portas</Label>
+              <Input
+                type="select"
+                name="portas_switch"
+                value={formData.portas_switch}
+                onChange={handleInputChange}
+              >
+                <option value="">Selecione</option>
+                {['4', '8', '16', '32', '64'].map((port) => (
+                  <option key={port} value={port}>
+                    {port} portas
+                  </option>
+                ))}
+              </Input>
+            </StyledFormGroup>
+          )}
+
+          {/* Campo para localização física */}
+          <StyledFormGroup>
             <Label for="localizacao_fisica">Localização Física</Label>
             <Input
               type="select"
@@ -250,8 +223,10 @@ function ModalAdd({ isOpen, toggle }) {
                 </option>
               ))}
             </Input>
-          </FormGroup>
-          <FormGroup>
+          </StyledFormGroup>
+
+          {/* Campo de Observações */}
+          <StyledFormGroup>
             <Label for="observacoes">Observações</Label>
             <Input
               type="textarea"
@@ -260,7 +235,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
               placeholder="Adicione observações, se necessário"
             />
-          </FormGroup>
+          </StyledFormGroup>
         </Form>
       </ModalBody>
       <ModalFooter>

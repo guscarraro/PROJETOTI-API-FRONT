@@ -8,7 +8,7 @@
     justify-content: center;
     background-size: cover;
 }
-form{
+.form-container{
     display: flex;
     flex-direction: column;
     align-items: center;
