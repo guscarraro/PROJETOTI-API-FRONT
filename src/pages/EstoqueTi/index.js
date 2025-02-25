@@ -69,7 +69,7 @@ function EstoqueTi() {
           <SetorSection key={setor}>
             <h3>{setor}</h3>
             <hr />
-            <Row>
+            <Row style={{maxWidth:'80%'}}>
               {equipamentos
                 .filter((eq) => eq.setor === setor)
                 .map((equipamento) => (
