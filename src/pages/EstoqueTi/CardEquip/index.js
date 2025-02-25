@@ -1,6 +1,6 @@
 import React from 'react';
 import { CustomCard, EditButton } from './style';
-import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi } from 'react-icons/fa';
+import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaPencilAlt } from 'react-icons/fa';
 
 function CardEquip({ equipamento, onClick, onEdit }) {
   // Definindo o ícone de acordo com o tipo de aparelho
@@ -20,24 +20,33 @@ function CardEquip({ equipamento, onClick, onEdit }) {
   };
 
   return (
-    <CustomCard onClick={onClick}> {/* ✅ O evento de clique está ativado */}
-      <div style={{ position: 'relative', padding: '20px', textAlign: 'flex-start' , display: 'flex',
+    <CustomCard onClick={onClick}>
+      {/* Botão de edição com ícone de lápis */}
+      <EditButton
+        onClick={(e) => {
+          e.stopPropagation(); // Impede o clique de abrir o modal de detalhes ao clicar em editar
+          onEdit();
+        }}
+      >
+        <FaPencilAlt size={12} />
+      </EditButton>
 
-    flexDirection:'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start'}}>
-        
-        <h5 style={{ position: 'relative', padding: '20px', textAlign: 'center' }}>{renderIcon(equipamento.tipo_aparelho)} {equipamento.tipo_aparelho}</h5>
+      <div
+        style={{
+          padding: '20px',
+          textAlign: 'flex-start',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'flex-start',
+        }}
+      >
+        <h5 style={{ textAlign: 'center' }}>
+          {renderIcon(equipamento.tipo_aparelho)} {equipamento.tipo_aparelho}
+        </h5>
         <p><strong>Responsável:</strong> {equipamento.pessoa_responsavel || 'Não informado'}</p>
         <p><strong>Email:</strong> {equipamento.email_utilizado || 'Não informado'}</p>
         <p><strong>Cloud:</strong> {equipamento.cloud_utilizado || 'Não informado'}</p>
-        {/* Botão de edição */}
-        <EditButton onClick={(e) => {
-          e.stopPropagation(); // Impede o clique de abrir o modal de detalhes ao clicar em editar
-          onEdit();
-        }}>
-          ✏️
-        </EditButton>
       </div>
     </CustomCard>
   );

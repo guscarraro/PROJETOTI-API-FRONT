@@ -31,19 +31,26 @@ export const Almoxarifado = styled.div`
 `;
 
 export const EditButton = styled.button`
-  background-color: secundary;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: #007bff;
   color: white;
   border: none;
-  padding: 5px 10px;
-  border-radius: 5px;
+  padding: 5px;
+  border-radius: 10px;
   cursor: pointer;
-  margin-top: 10px;
-  width: 100%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    background-color: #e67e22;
+    background-color: #0056b3;
   }
 `;
+
 
 export const CardDetail = styled.div`
   display: flex;

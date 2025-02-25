@@ -12,6 +12,7 @@ import {
 import Select from 'react-select';
 import apiLocal from '../../../services/apiLocal';
 import { StyledFormGroup } from './style';
+import { toast } from 'react-toastify';
 
 function ModalAdd({ isOpen, toggle }) {
   const [formData, setFormData] = useState({
@@ -73,7 +74,8 @@ function ModalAdd({ isOpen, toggle }) {
       console.log('Enviando dados:', dataToSend);
       await apiLocal.createOrUpdateControleEstoque(dataToSend);
 
-      alert('Estoque adicionado com sucesso!');
+      toast.success('Equipamento cadastrado com sucesso!');
+
       toggle();
     } catch (error) {
       console.error('Erro ao adicionar ao estoque:', error);

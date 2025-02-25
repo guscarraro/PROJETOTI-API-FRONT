@@ -5,6 +5,7 @@ import CardEquip from './CardEquip';
 import ModalEdit from './ModalEdit';
 import apiLocal from '../../services/apiLocal';
 import { EditButton, StyledContainer, SetorSection, AlmoxarifadoSection } from './style';
+import { toast } from 'react-toastify';
 
 function EstoqueTi() {
   const [isModalOpen, setIsModalOpen] = useState(false); // Modal de adicionar
@@ -42,6 +43,8 @@ function EstoqueTi() {
       await apiLocal.createOrUpdateControleEstoque(updatedEquipamento); // Atualiza o equipamento
       fetchEquipamentos(); // Recarrega a lista de equipamentos atualizada
       setIsEditModalOpen(false); // Fecha o modal de edição
+      toast.success('Equipamento editado com sucesso!');
+
     } catch (error) {
       console.error('Erro ao salvar as alterações:', error);
     }
