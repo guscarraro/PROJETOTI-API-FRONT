@@ -98,7 +98,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI'].map((setor) => (
+              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI','Fiscal','Operacao','Compras','Qualidade','Backup'].map((setor) => (
                 <option key={setor} value={setor}>{setor}</option>
               ))}
             </Input>
@@ -181,7 +181,7 @@ function ModalAdd({ isOpen, toggle }) {
                 <Label for="processador">Processador</Label>
                 <Input type="select" name="processador" value={formData.processador} onChange={handleInputChange}>
                   <option value="">Selecione</option>
-                  {['i3 10ª Geração', 'i5 10ª Geração', 'i7 10ª Geração'].map((proc) => (
+                  {['i3 5ª ou mais antiga Geração', 'i5 5ª ou mais antiga Geração', 'i7 5ª ou mais antiga Geração','i3 6ª Geração', 'i5 6ª Geração', 'i7 6ª Geração','i3 7ª Geração', 'i5 7ª Geração', 'i7 7ª Geração','i3 8ª Geração', 'i5 8ª Geração', 'i7 8ª Geração','i3 9ª Geração', 'i5 9ª Geração', 'i7 9ª Geração','i3 10ª ou recente Geração', 'i5 10ª ou mais recente Geração', 'i7 10ª ou mais recente Geração'].map((proc) => (
                     <option key={proc} value={proc}>{proc}</option>
                   ))}
                 </Input>
@@ -219,7 +219,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['SJP', 'PTO', 'MGA', 'Minas', 'Goiás', 'SP', 'SC'].map((local) => (
+              {['SJP', 'PTO', 'MGA', 'MINAS', 'GOIAS','CUIDABA', 'SP', 'SC'].map((local) => (
                 <option key={local} value={local}>
                   {local}
                 </option>

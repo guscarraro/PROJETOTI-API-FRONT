@@ -118,7 +118,9 @@ const App = () => {
     element={
       <PrivateRoute
         element={<EstoqueTi />}
-        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
+        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c',
+          'd2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f'
+        ]}
       />
     }
   />
