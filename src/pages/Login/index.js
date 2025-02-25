@@ -58,6 +58,9 @@ function Login() {
         if (user.setor === '958db54e-add5-45f6-8aef-739d6ba7cb4c') {
           return '/Frete'; // Frete
         }
+        if (user.setor === 'd2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f') {
+          return '/ti'; // Frete
+        }
         // Para outros setores ou Admin (tipo de usuário)
         if (user.tipo === 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c') {
           return '/CicloPedido'; // Admin ou dashboard padrão
