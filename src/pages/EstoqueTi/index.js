@@ -19,7 +19,6 @@ function EstoqueTi() {
   const [selectedEquipamento, setSelectedEquipamento] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [equipamentoToEdit, setEquipamentoToEdit] = useState(null);
-  const [showBackup, setShowBackup] = useState(false);
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [microsoftModalOpen, setMicrosoftModalOpen] = useState(false);
   const [aparelhoModalOpen, setAparelhoModalOpen] = useState(false);
@@ -31,7 +30,6 @@ function EstoqueTi() {
   const toggleModal = () => setIsModalOpen(!isModalOpen);
   const toggleEditModal = () => setIsEditModalOpen(!isEditModalOpen);
   const toggleDetailsModal = () => setSelectedEquipamento(null);
-  const toggleBackup = () => setShowBackup(!showBackup);
 
   const fetchEquipamentos = async () => {
     try {
@@ -145,30 +143,9 @@ function EstoqueTi() {
           </Col>
         </Row>
         <Row className="mt-3">
-<Col md={12} className="text-center">
-  <Button color={showBackup ? "danger" : "secondary"} onClick={toggleBackup}>
-    <FaDatabase /> {showBackup ? "Ocultar Backups" : "Mostrar Backups"}
-  </Button>
-</Col>
+
 </Row>
-{showBackup && (
-<SetorSection>
-  <h4>Backup</h4>
-  <Row>
-    {equipamentos
-      .filter((eq) => eq.setor === 'Backup')
-      .map((equipamento) => (
-        <Col md={3} key={equipamento.id}>
-          <CardEquip
-            equipamento={equipamento}
-            onClick={() => setSelectedEquipamento(equipamento)}
-            onEdit={() => handleEditClick(equipamento)}
-          />
-        </Col>
-      ))}
-  </Row>
-</SetorSection>
-)}
+
 {/* Exibição por Setor */}
 {setores.map((setor) => (
 <SetorSection key={setor}>
