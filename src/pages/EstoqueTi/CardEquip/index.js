@@ -1,6 +1,6 @@
 import React from 'react';
 import { CustomCard, EditButton } from './style';
-import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaPencilAlt } from 'react-icons/fa';
+import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaPencilAlt, FaMobileAlt } from 'react-icons/fa';
 
 // Função para definir a cor com base no status
 const getStatusStyle = (status) => {
@@ -28,6 +28,8 @@ function CardEquip({ equipamento, onClick, onEdit }) {
         return <FaDesktop size={40} />;
       case 'Switch':
         return <FaNetworkWired size={40} />;
+      case 'Celular':
+        return <FaMobileAlt size={40} />
       case 'Roteador':
         return <FaWifi size={40} />;
       default:

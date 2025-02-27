@@ -1,7 +1,17 @@
 import React from 'react';
 import { Modal, ModalHeader, ModalBody, Table } from 'reactstrap';
+import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaMobileAlt, FaBox } from 'react-icons/fa';
 
 const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
+  // Mapeamento dos ícones por tipo de aparelho
+  const iconePorTipo = {
+    Notebook: <FaLaptop size={30} />,
+    Desktop: <FaDesktop size={30} />,
+    Switch: <FaNetworkWired size={30} />,
+    Roteador: <FaWifi size={30} />,
+    Celular: <FaMobileAlt size={30} />,
+  };
+
   // Agrupar os tipos de aparelhos por setor
   const agrupados = {};
   
@@ -16,6 +26,18 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
     }
   });
 
+  // Contagem total de cada tipo de aparelho
+  const totalPorTipo = {};
+  Object.values(agrupados).forEach((setor) => {
+    Object.entries(setor).forEach(([tipo, quantidade]) => {
+      if (!totalPorTipo[tipo]) {
+        totalPorTipo[tipo] = quantidade;
+      } else {
+        totalPorTipo[tipo] += quantidade;
+      }
+    });
+  });
+
   // Converter para um array para exibição na tabela
   const dadosTabela = [];
   Object.entries(agrupados).forEach(([setor, aparelhos]) => {
@@ -28,6 +50,20 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
     <Modal isOpen={isOpen} toggle={toggle} size="lg">
       <ModalHeader toggle={toggle}>Quantidade de Aparelhos por Setor</ModalHeader>
       <ModalBody>
+
+        {/* Linha de Ícones com Contadores */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          {Object.entries(totalPorTipo).map(([tipo, quantidade]) => (
+            <div key={tipo} style={{ textAlign: 'center' }}>
+              {iconePorTipo[tipo] || <FaBox size={30} />} {/* Ícone padrão se não houver */}
+              {/* Ícone padrão se não houver */}
+              <h2>{quantidade}</h2>
+              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{tipo}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabela de Quantidades por Setor */}
         <Table bordered>
           <thead>
             <tr>
@@ -46,6 +82,7 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
             ))}
           </tbody>
         </Table>
+
       </ModalBody>
     </Modal>
   );
