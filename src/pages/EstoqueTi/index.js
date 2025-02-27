@@ -156,7 +156,7 @@ function EstoqueTi() {
   <h4>Backup</h4>
   <Row>
     {equipamentos
-      .filter((eq) => eq.setor === 'Almoxarifado')
+      .filter((eq) => eq.setor === 'Backup')
       .map((equipamento) => (
         <Col md={3} key={equipamento.id}>
           <CardEquip
