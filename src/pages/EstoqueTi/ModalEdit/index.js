@@ -56,7 +56,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI'].map((setor) => (
+              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI','Fiscal','Operacao','Compras','Qualidade','Backup'].map((setor) => (
                 <option key={setor} value={setor}>{setor}</option>
               ))}
             </Input>
@@ -129,7 +129,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
                 onChange={(e) => setFormData({ ...formData, descricao: `${e.target.value} portas` })}
               >
                 <option value="">Selecione</option>
-                {['4', '8', '16', '32', '64'].map((port) => (
+                {['4', '8','24', '16', '32','48', '64'].map((port) => (
                   <option key={port} value={port}>
                     {port} portas
                   </option>

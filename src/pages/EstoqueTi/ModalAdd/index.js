@@ -31,6 +31,8 @@ function ModalAdd({ isOpen, toggle }) {
     portas_switch: '', // Adicionado campo para portas
     observacoes: '',
     localizacao_fisica: '',
+    numero_telefone: '', // Novo campo para número de telefone
+    operadora: '', // Novo campo para operadora
   });
 
   const perifericosOptions = [
@@ -52,11 +54,14 @@ function ModalAdd({ isOpen, toggle }) {
 
   const generateDescricao = () => {
     if (formData.tipo_aparelho === 'Switch') {
-      return `${formData.portas_switch} portas`; // Descrição de switch
-    } else {
-      return `${formData.ram}GB RAM, ${formData.ssd}GB SSD, ${formData.processador}`; // Descrição de notebook e desktop
-    }
+      return `${formData.portas_switch} portas`;
+    } 
+    if (formData.tipo_aparelho === 'Celular') {
+      return `Número: ${formData.numero_telefone}, Operadora: ${formData.operadora}`;
+    } 
+    return `${formData.ram}GB RAM, ${formData.ssd}GB SSD, ${formData.processador}`;
   };
+  
 
   const handleSubmit = async () => {
     try {
@@ -114,7 +119,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Notebook', 'Desktop', 'Switch', 'Roteador'].map(
+              {['Notebook', 'Desktop', 'Switch', 'Celular','Roteador'].map(
                 (aparelho) => (
                   <option key={aparelho} value={aparelho}>{aparelho}</option>
                 )
@@ -123,6 +128,35 @@ function ModalAdd({ isOpen, toggle }) {
           </StyledFormGroup>
 
           {/* Campos específicos por tipo de aparelho */}
+          {formData.tipo_aparelho === 'Celular' && (
+  <>
+    <StyledFormGroup>
+      <Label for="numero_telefone">Número de Telefone</Label>
+      <Input
+        type="text"
+        name="numero_telefone"
+        value={formData.numero_telefone}
+        onChange={handleInputChange}
+        placeholder="Digite o número do telefone"
+      />
+    </StyledFormGroup>
+
+    <StyledFormGroup>
+      <Label for="operadora">Operadora</Label>
+      <Input
+        type="select"
+        name="operadora"
+        value={formData.operadora}
+        onChange={handleInputChange}
+      >
+        <option value="">Selecione</option>
+        <option value="TIM">TIM</option>
+        <option value="VIVO">VIVO</option>
+      </Input>
+    </StyledFormGroup>
+  </>
+)}
+
           {(formData.tipo_aparelho === 'Notebook' || formData.tipo_aparelho === 'Desktop') && (
             <>
               <StyledFormGroup>
@@ -200,7 +234,7 @@ function ModalAdd({ isOpen, toggle }) {
                 onChange={handleInputChange}
               >
                 <option value="">Selecione</option>
-                {['4', '8', '16', '32', '64'].map((port) => (
+                {['4', '8','24', '16', '32','48', '64'].map((port) => (
                   <option key={port} value={port}>
                     {port} portas
                   </option>

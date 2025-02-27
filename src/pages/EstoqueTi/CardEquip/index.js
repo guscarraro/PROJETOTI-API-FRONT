@@ -2,6 +2,22 @@ import React from 'react';
 import { CustomCard, EditButton } from './style';
 import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaPencilAlt } from 'react-icons/fa';
 
+// Função para definir a cor com base no status
+const getStatusStyle = (status) => {
+  switch (status) {
+    case 'Em Uso':
+      return { backgroundColor: "rgba(0, 255, 127, 0.35)" }; // Verde
+    case 'Pendente':
+      return { backgroundColor: "rgba(255, 215, 0, 0.35)" }; // Amarelo
+    case 'Manutenção':
+      return { backgroundColor: "rgba(255, 165, 0, 0.35)" }; // Laranja
+    case 'Inativo':
+      return { backgroundColor: "rgba(255, 69, 0, 0.35)" }; // Vermelho
+    default:
+      return { backgroundColor: "rgba(200, 200, 200, 0.35)" }; // Cinza padrão
+  }
+};
+
 function CardEquip({ equipamento, onClick, onEdit }) {
   // Definindo o ícone de acordo com o tipo de aparelho
   const renderIcon = (tipo) => {
@@ -20,7 +36,7 @@ function CardEquip({ equipamento, onClick, onEdit }) {
   };
 
   return (
-    <CustomCard onClick={onClick}>
+    <CustomCard onClick={onClick} style={getStatusStyle(equipamento.status)}>
       {/* Botão de edição com ícone de lápis */}
       <EditButton
         onClick={(e) => {
