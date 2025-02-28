@@ -120,7 +120,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Notebook', 'Desktop', 'Switch', 'Celular','Coletor','Roteador'].map(
+              {['Notebook', 'Desktop', 'Switch', 'Celular','Coletor','Roteador','Licença'].map(
                 (aparelho) => (
                   <option key={aparelho} value={aparelho}>{aparelho}</option>
                 )
@@ -250,6 +250,18 @@ function ModalAdd({ isOpen, toggle }) {
       <Label for="numero_serie">Número de Série</Label>
       <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
     </StyledFormGroup>
+  </>
+)}
+         {formData.tipo_aparelho === 'Licença' && (
+  <>
+   <StyledFormGroup>
+                <Label for="email_utilizado">Email Utilizado</Label>
+                <Input type="email" name="email_utilizado" value={formData.email_utilizado} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+                <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
+              </StyledFormGroup>
   </>
 )}
 
