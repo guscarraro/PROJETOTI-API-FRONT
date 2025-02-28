@@ -16,7 +16,7 @@ import { toast } from 'react-toastify';
 
 function ModalAdd({ isOpen, toggle }) {
   const [formData, setFormData] = useState({
-    status: 'P',
+    status: 'Pendente',
     setor: '',
     tipo_aparelho: '',
     email_utilizado: '',
@@ -33,6 +33,7 @@ function ModalAdd({ isOpen, toggle }) {
     localizacao_fisica: '',
     numero_telefone: '', // Novo campo para número de telefone
     operadora: '', // Novo campo para operadora
+    produto: '', // Novo campo para operadora
   });
 
   const perifericosOptions = [
@@ -57,7 +58,7 @@ function ModalAdd({ isOpen, toggle }) {
       return `${formData.portas_switch} portas`;
     } 
     if (formData.tipo_aparelho === 'Celular') {
-      return `Número: ${formData.numero_telefone}, Operadora: ${formData.operadora}`;
+      return `Número: ${formData.numero_telefone}, Produto: ${formData.produto},Operadora: ${formData.operadora}`;
     } 
     return `${formData.ram}GB RAM, ${formData.ssd}GB SSD, ${formData.processador}`;
   };
@@ -119,7 +120,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Notebook', 'Desktop', 'Switch', 'Celular','Roteador'].map(
+              {['Notebook', 'Desktop', 'Switch', 'Celular','Coletor','Roteador'].map(
                 (aparelho) => (
                   <option key={aparelho} value={aparelho}>{aparelho}</option>
                 )
@@ -142,6 +143,19 @@ function ModalAdd({ isOpen, toggle }) {
     </StyledFormGroup>
 
     <StyledFormGroup>
+      <Label for="produto">Produto</Label>
+      <Input
+        type="select"
+        name="produto"
+        value={formData.produto}
+        onChange={handleInputChange}
+      >
+        <option value="">Selecione</option>
+        <option value="TIM">Celular+Chip</option>
+        <option value="VIVO">Chip</option>
+      </Input>
+    </StyledFormGroup>
+    <StyledFormGroup>
       <Label for="operadora">Operadora</Label>
       <Input
         type="select"
@@ -156,7 +170,7 @@ function ModalAdd({ isOpen, toggle }) {
     </StyledFormGroup>
   </>
 )}
-
+      
           {(formData.tipo_aparelho === 'Notebook' || formData.tipo_aparelho === 'Desktop') && (
             <>
               <StyledFormGroup>
@@ -222,6 +236,23 @@ function ModalAdd({ isOpen, toggle }) {
               </StyledFormGroup>
             </>
           )}
+         {formData.tipo_aparelho === 'Coletor' && (
+  <>
+    <StyledFormGroup>
+      <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+      <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
+    </StyledFormGroup>
+    <StyledFormGroup>
+      <Label for="cloud_utilizado">Cloud Utilizado</Label>
+      <Input type="email" name="cloud_utilizado" value={formData.cloud_utilizado} onChange={handleInputChange} />
+    </StyledFormGroup>
+    <StyledFormGroup>
+      <Label for="numero_serie">Número de Série</Label>
+      <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
+    </StyledFormGroup>
+  </>
+)}
+
 
           {/* Campo para quantidade de portas em switch */}
           {formData.tipo_aparelho === 'Switch' && (
@@ -253,7 +284,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['SJP', 'PTO', 'MGA', 'MINAS', 'GOIAS','CUIDABA', 'SP', 'SC'].map((local) => (
+              {['SJP', 'PTO', 'MGA', 'MINAS', 'GOIAS','CUIABA', 'SP','RS', 'SC'].map((local) => (
                 <option key={local} value={local}>
                   {local}
                 </option>
