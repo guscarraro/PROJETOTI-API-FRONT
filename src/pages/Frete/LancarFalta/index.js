@@ -284,6 +284,7 @@ setDestinoNome(nota.destinatario);
       if (response.data) {
         toast.success("Falta registrada com sucesso!");
         setFalta({
+          data_inclusao: new Date().toISOString().split("T")[0],
           nf: "",
           cliente_id: "",
           destino_id: "",
@@ -365,6 +366,19 @@ setDestinoNome(nota.destinatario);
       <ModalImage isOpen={modalImageOpen} toggle={toggleModalImage} onImageUpload={handleImageUpload} />
       <Title>Lançar Falta</Title>
       <StyledForm onSubmit={handleSave}>
+      <FormGroup>
+  <Label>
+    <FaStickyNote /> Data de Inclusão
+  </Label>
+  <Input
+    type="date"
+    name="data_inclusao"
+    value={falta.data_inclusao}
+    onChange={handleInputChange}
+    required
+  />
+</FormGroup>
+
       <FormGroup>
   <Label>
     <FaStickyNote /> Tipo de Ocorrência
