@@ -23,8 +23,6 @@ export const NavbarContainer = styled.nav`
   align-items: center;
   width: 100%;
   background-color: #333; /* Visibilidade melhorada */
-  padding: 10px 0;
-  height: 60px;
   position: sticky; /* Fixa no topo */
   top: 0;
   z-index: 999; /* Garante que ficará visível */
@@ -43,8 +41,8 @@ export const NavButton = styled.button`
   display: flex;
   align-items: center;
   transition: background-color 0.3s;
-  width: auto;
-  min-width: 150px;
+  height: 50px;
+  width: 100%;
   text-align: center;
 
   &:hover {

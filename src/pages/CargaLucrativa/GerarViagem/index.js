@@ -17,7 +17,7 @@ import {
 const GerarViagem = () => {
   const [numeroViagem, setNumeroViagem] = useState("");
   const [numeroCTE, setNumeroCTE] = useState("");
-  const [custoViagem, setCustoViagem] = useState(1500);
+  const [custoViagem, setCustoViagem] = useState(0);
   const [ctes, setCtes] = useState([]);
   const [rentabilidade, setRentabilidade] = useState({ percentual: 0, cor: "gray", status: "" });
   const [oldPercentual, setOldPercentual] = useState(0);
@@ -48,20 +48,23 @@ const GerarViagem = () => {
     for (let i = 0; i < listaCtes.length; i++) {
       receitaTotal += listaCtes[i].valor_receita_total;
     }
-
+  
     const lucro = receitaTotal - custo;
+  
+    // Calcula percentual relativo ao custo da viagem
     const percentual = custo > 0 ? ((lucro / custo) * 100).toFixed(2) : 0;
-
+  
     setOldPercentual(rentabilidade.percentual);
-
+  
     setRentabilidade({
-      percentual: parseFloat(percentual),
+      percentual: lucro > 0 ? `+${percentual}` : percentual, // Adiciona "+" quando há lucro
       status: lucro > 0 ? "Viagem lucrativa!" : lucro === 0 ? "Viagem sem lucro." : "Viagem no prejuízo!",
       backgroundColor:
         lucro > 0 ? "rgba(0, 255, 127, 0.35)" :
         lucro === 0 ? "rgba(255, 215, 0, 0.35)" : "rgba(255, 69, 0, 0.35)",
     });
   };
+  
 
   const atualizarCusto = (e) => {
     const novoCusto = parseFloat(e.target.value) || 0;
@@ -193,10 +196,20 @@ const GerarViagem = () => {
         </div>
 
         <LucroContainer style={{ background: rentabilidade.backgroundColor }}>
-          <LucroPercentual cor={rentabilidade.cor}><CountUp start={oldPercentual} end={rentabilidade.percentual} duration={1.5} decimals={2} />%</LucroPercentual>
-          <p>{rentabilidade.status}</p>
-          <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton>
-        </LucroContainer>
+  <LucroPercentual cor={rentabilidade.cor}>
+    {rentabilidade.percentual > 0 ? "+" : ""}
+    <CountUp 
+      start={oldPercentual} 
+      end={rentabilidade.percentual} 
+      duration={1.5} 
+      decimals={2} 
+    />
+    %
+  </LucroPercentual>
+  <p>{rentabilidade.status}</p>
+  <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton>
+</LucroContainer>
+
       </CardContainer>
     </Container>
   );
