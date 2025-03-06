@@ -219,12 +219,12 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
           </Dropdown>
         )}
       </NavButton>
-      {/* <NavButton onClick={() => navigate("/Frete/CargaLucrativa")}>
+      <NavButton onClick={() => navigate("/Frete/CargaLucrativa")}>
         <NavIcon>
           <FaTruck />
         </NavIcon>
         Ir para Carga Lucrativa
-      </NavButton> */}
+      </NavButton>
       {/* SAC Navigation */}
       <NavButton onClick={() => navigate("/SAC")}>
         <NavIcon>

@@ -57,6 +57,16 @@ const apiLocal = {
    deleteControleEstoque: (id) => api.delete(`/controle-estoque/${id}`), // Deletar registro
    updateSetorControleEstoque: (data) => api.put("/controle-estoque/setor", data), // Atualizar setor
    
+   // 🚛 Viagens
+  getViagens: () => api.get("/viagens"), // Listar todas as viagens
+  getViagemByNumero: (numero_viagem) => api.get(`/viagens/${numero_viagem}`), // Buscar viagem por número
+  createOrUpdateViagem: (data) => api.post("/viagens", data), // Criar ou atualizar viagem
+  updateViagem: (data) => api.put("/viagens", data), // Adicionar ou remover CTEs de uma viagem
+  deleteViagem: (numero_viagem) => api.delete(`/viagens/${numero_viagem}`), // Excluir viagem e seus documentos
+
+  // 📦 Documentos de Transporte (CTEs/NFSe)
+  getDocumentoTransporte: (numero_cte) => api.get(`/documento-transporte/${numero_cte}`), // Buscar um CTE/NFSe por número
+
 };
 
 export default apiLocal;

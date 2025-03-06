@@ -24,6 +24,7 @@
     "node-fetch": "^3.3.2",
     "qs": "^6.13.1",
     "react": "^18.3.1",
+    "react-countup": "^6.5.3",
     "react-datepicker": "^7.5.0",
     "react-dom": "^18.3.1",
     "react-easy-crop": "^5.2.0",

@@ -151,8 +151,9 @@ function ModalAdd({ isOpen, toggle }) {
         onChange={handleInputChange}
       >
         <option value="">Selecione</option>
-        <option value="TIM">Celular+Chip</option>
-        <option value="VIVO">Chip</option>
+        <option value="Celular+Chip">Celular+Chip</option>
+        <option value="Chip">Chip</option>
+        <option value="Celular">Celular</option>
       </Input>
     </StyledFormGroup>
     <StyledFormGroup>
