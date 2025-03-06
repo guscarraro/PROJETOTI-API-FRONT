@@ -67,5 +67,5 @@ export const CustomCard = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.2);
   min-width: 100%;
   position: relative; /* Para o botão de edição funcionar corretamente */
-  min-height: 250px
+  min-height: 200px
 `;
