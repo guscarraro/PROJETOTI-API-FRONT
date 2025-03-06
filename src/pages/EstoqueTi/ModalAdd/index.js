@@ -167,6 +167,7 @@ function ModalAdd({ isOpen, toggle }) {
         <option value="">Selecione</option>
         <option value="TIM">TIM</option>
         <option value="VIVO">VIVO</option>
+        <option value="Sem operadora">Sem operadora</option>
       </Input>
     </StyledFormGroup>
   </>
