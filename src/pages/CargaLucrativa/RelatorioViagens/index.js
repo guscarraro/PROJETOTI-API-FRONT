@@ -1,25 +1,39 @@
 import React, { useState, useEffect } from "react";
 import apiLocal from "../../../services/apiLocal";
 import * as XLSX from "xlsx";
-import { Container, Table, TableRow, TableCell, TableHeader, ExportButton } from "./style";
+import { FaEdit, FaTrash } from "react-icons/fa"; // Ícones de edição e exclusão
+import ModalEdit from "./ModalEdit"; // Modal para editar CTEs
+import ModalDel from "./ModalDel"; // Modal para excluir viagem
+import {
+  Container,
+  Table,
+  TableRow,
+  TableCell,
+  TableHeader,
+  ExportButton,
+  ActionButton
+} from "./style";
 
 const RelatorioViagens = () => {
   const [viagens, setViagens] = useState([]);
+  const [modalEditOpen, setModalEditOpen] = useState(false);
+  const [modalDelOpen, setModalDelOpen] = useState(false);
+  const [viagemSelecionada, setViagemSelecionada] = useState(null);
 
   useEffect(() => {
-    const carregarViagens = async () => {
-      try {
-        const response = await apiLocal.getViagens();
-        if (response.data) {
-          setViagens(response.data);
-        }
-      } catch (error) {
-        console.error("Erro ao buscar viagens:", error);
-      }
-    };
-
     carregarViagens();
   }, []);
+
+  const carregarViagens = async () => {
+    try {
+      const response = await apiLocal.getViagens();
+      if (response.data) {
+        setViagens(response.data);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar viagens:", error);
+    }
+  };
 
   const exportarParaExcel = () => {
     const dadosFormatados = viagens.map((viagem) => ({
@@ -34,6 +48,7 @@ const RelatorioViagens = () => {
       "Motorista": viagem.motorista,
       "Filial Origem": viagem.filial_origem,
       "Filial Destino": viagem.filial_destino,
+      "CTEs Vinculados": viagem.documentos_transporte.map(cte => cte.numero_cte).join(", "), // Lista de CTEs
     }));
 
     const ws = XLSX.utils.json_to_sheet(dadosFormatados);
@@ -62,6 +77,8 @@ const RelatorioViagens = () => {
               <TableHeader>Motorista</TableHeader>
               <TableHeader>Filial Origem</TableHeader>
               <TableHeader>Filial Destino</TableHeader>
+              <TableHeader>CTEs</TableHeader>
+              <TableHeader>Ações</TableHeader>
             </TableRow>
           </thead>
           <tbody>
@@ -80,6 +97,29 @@ const RelatorioViagens = () => {
                   <TableCell>{viagem.motorista}</TableCell>
                   <TableCell>{viagem.filial_origem}</TableCell>
                   <TableCell>{viagem.filial_destino}</TableCell>
+                  <TableCell>
+  {viagem.documentos_transporte.map((cte, idx) => (
+    <span key={cte.numero_cte} style={{ 
+      background: "purple", 
+      color: "white", 
+      padding: "5px 10px", 
+      borderRadius: "5px", 
+      marginRight: "5px", 
+      display: "inline-block" 
+    }}>
+      {cte.numero_cte}
+    </span>
+  ))}
+</TableCell>
+
+                  <TableCell>
+                    <ActionButton style={{background:"blue", color:'#fff'}} onClick={() => { setViagemSelecionada(viagem); setModalEditOpen(true); }}>
+                      <FaEdit size={16}  />
+                    </ActionButton>
+                    <ActionButton style={{background:"red", color:'#fff'}} onClick={() => { setViagemSelecionada(viagem); setModalDelOpen(true); }}>
+                      <FaTrash size={16} />
+                    </ActionButton>
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -87,6 +127,24 @@ const RelatorioViagens = () => {
         </Table>
       ) : (
         <p>Nenhuma viagem encontrada.</p>
+      )}
+
+      {/* Modal para editar CTEs da viagem */}
+      {modalEditOpen && (
+        <ModalEdit
+          viagem={viagemSelecionada}
+          onClose={() => setModalEditOpen(false)}
+          onSave={carregarViagens}
+        />
+      )}
+
+      {/* Modal para excluir viagem */}
+      {modalDelOpen && (
+        <ModalDel
+          viagem={viagemSelecionada}
+          onClose={() => setModalDelOpen(false)}
+          onDelete={carregarViagens}
+        />
       )}
     </Container>
   );
