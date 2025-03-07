@@ -39,7 +39,7 @@ function CardEquip({ equipamento, onClick, onEdit }) {
         } else if (descricao.includes("Celular")) {
           return <FaMobileAlt size={40} />;
         } else if (descricao.includes("Chip")) {
-          return <FaBarcode size={40} />;
+          return <LiaMicrochipSolid size={40} />;
         }
         return <FaMobileAlt size={40} />;
       case 'Roteador':
