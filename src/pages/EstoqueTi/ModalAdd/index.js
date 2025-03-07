@@ -167,6 +167,9 @@ function ModalAdd({ isOpen, toggle }) {
         <option value="">Selecione</option>
         <option value="TIM">TIM</option>
         <option value="VIVO">VIVO</option>
+        <option value="OI">OI</option>
+        <option value="EMBRATEL">EMBRATEL</option>
+        <option value="BALDUSSI">BALDUSSI</option>
         <option value="Sem operadora">Sem operadora</option>
       </Input>
     </StyledFormGroup>
@@ -279,7 +282,7 @@ function ModalAdd({ isOpen, toggle }) {
                 onChange={handleInputChange}
               >
                 <option value="">Selecione</option>
-                {['4', '8','24', '16', '32','48', '64'].map((port) => (
+                {['4', '8','24', '16', '32','48','52', '64'].map((port) => (
                   <option key={port} value={port}>
                     {port} portas
                   </option>

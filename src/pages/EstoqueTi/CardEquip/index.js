@@ -1,6 +1,7 @@
 import React from 'react';
 import { CustomCard, EditButton } from './style';
 import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaPencilAlt, FaMobileAlt, FaEnvelope ,FaBarcode } from 'react-icons/fa';
+import { LiaMicrochipSolid } from "react-icons/lia";
 
 // Função para definir a cor com base no status
 const getStatusStyle = (status) => {
@@ -19,8 +20,8 @@ const getStatusStyle = (status) => {
 };
 
 function CardEquip({ equipamento, onClick, onEdit }) {
-  // Definindo o ícone de acordo com o tipo de aparelho
-  const renderIcon = (tipo) => {
+
+  const renderIcon = (tipo, descricao) => {
     switch (tipo) {
       case 'Notebook':
         return <FaLaptop size={40} />;
@@ -29,7 +30,18 @@ function CardEquip({ equipamento, onClick, onEdit }) {
       case 'Switch':
         return <FaNetworkWired size={40} />;
       case 'Celular':
-        return <FaMobileAlt size={40} />
+        if (descricao.includes("Celular+Chip")) {
+          return (
+            <>
+              <FaMobileAlt size={30} /> <LiaMicrochipSolid size={30} />
+            </>
+          );
+        } else if (descricao.includes("Celular")) {
+          return <FaMobileAlt size={40} />;
+        } else if (descricao.includes("Chip")) {
+          return <FaBarcode size={40} />;
+        }
+        return <FaMobileAlt size={40} />;
       case 'Roteador':
         return <FaWifi size={40} />;
       case 'Coletor':
@@ -40,6 +52,7 @@ function CardEquip({ equipamento, onClick, onEdit }) {
         return <FaDesktop size={40} />;
     }
   };
+  
 
   return (
     <CustomCard onClick={onClick} style={getStatusStyle(equipamento.status)}>
@@ -63,12 +76,29 @@ function CardEquip({ equipamento, onClick, onEdit }) {
           alignItems: 'flex-start',
         }}
       >
-        <h5 style={{ textAlign: 'center' }}>
-          {renderIcon(equipamento.tipo_aparelho)} {equipamento.tipo_aparelho}
-        </h5>
+      <h5 style={{ textAlign: 'center' }}>
+  {renderIcon(equipamento.tipo_aparelho, equipamento.descricao)} 
+  {equipamento.tipo_aparelho === "Celular"
+    ? equipamento.descricao.includes("Celular+Chip") 
+      ? " Celular+Chip" 
+      : equipamento.descricao.includes("Chip") && !equipamento.descricao.includes("Celular") 
+        ? " Apenas Chip" 
+        : " Celular"
+    : ` ${equipamento.tipo_aparelho}`}
+</h5>
+
+
+ {equipamento.tipo_aparelho === "Celular" ?
+ <>
+        <p><strong>Responsável:</strong> {equipamento.pessoa_responsavel || 'Não informado'}</p>
+        <p><strong>Descrição:</strong> {equipamento.descricao || 'Não informado'}</p>
+ </>
+        :
+        <>
         <p><strong>Responsável:</strong> {equipamento.pessoa_responsavel || 'Não informado'}</p>
         <p><strong>Email:</strong> {equipamento.email_utilizado || 'Não informado'}</p>
         <p><strong>Cloud:</strong> {equipamento.cloud_utilizado || 'Não informado'}</p>
+        </>}
       </div>
     </CustomCard>
   );
