@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, ModalHeader, ModalBody, Table } from 'reactstrap';
-import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaMobileAlt, FaBox } from 'react-icons/fa';
+import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaMobileAlt, FaBox, FaEnvelope } from 'react-icons/fa';
 import { LiaMicrochipSolid } from "react-icons/lia"; // Ícone correto para Chip
 import * as XLSX from 'xlsx';
 import { Button } from 'reactstrap';
@@ -12,6 +12,7 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
     Desktop: <FaDesktop size={30} />,
     Switch: <FaNetworkWired size={30} />,
     Roteador: <FaWifi size={30} />,
+    Licença: <FaEnvelope size={30} />,
     Celular: <FaMobileAlt size={30} />,
     Chip: <LiaMicrochipSolid size={30} /> // Ícone correto para Chip
   };
