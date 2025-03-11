@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import CountUp from "react-countup";
-import { FaCheckCircle, FaEye, FaExclamationTriangle } from "react-icons/fa";
+import { FaCheckCircle, FaEye, FaExclamationTriangle, FaTrash } from "react-icons/fa";
 import apiLocal from "../../../services/apiLocal";
 import {
   Container,
@@ -13,6 +13,8 @@ import {
   LucroPercentual,
   SaveButton
 } from "./style";
+import { fetchDocumento, fetchViagem } from "../../../services/api";
+import { Row } from "reactstrap";
 
 const GerarViagem = () => {
   const [numeroViagem, setNumeroViagem] = useState("");
@@ -22,19 +24,69 @@ const GerarViagem = () => {
   const [rentabilidade, setRentabilidade] = useState({ percentual: 0, cor: "gray", status: "" });
   const [oldPercentual, setOldPercentual] = useState(0);
 
+ 
+
+  const buscarViagem = async () => {
+    if (!numeroViagem) return;
+  
+    try {
+        const response = await fetchViagem(numeroViagem);
+
+      if (response.data && response.data.detalhe) {
+        setCtes(response.data.detalhe.documentos_transporte || []);
+        calcularRentabilidade(response.data.detalhe.documentos_transporte, custoViagem);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar viagem:", error);
+    }
+  };
   const buscarCTE = async () => {
     if (!numeroCTE) return;
-
+  
     try {
-      const response = await apiLocal.getDocumentoTransporte(numeroCTE);
-      if (response.data) {
-        setCtes((prev) => [...prev, response.data]);
-        calcularRentabilidade([...ctes, response.data], custoViagem);
+      const response = await fetchDocumento(numeroCTE);
+  
+      if (response.detalhe) {
+        const novoCTE = {
+            numero_cte: response.detalhe.docTransporte || numeroCTE,
+            peso: response.detalhe.peso || 0,
+            volume: response.detalhe.vol || 0,  // Garante que tenha um valor válido
+            quantidade: response.detalhe.qtde || 0,
+            tomador: response.detalhe.tomador,
+            destino: response.detalhe.destino,
+            cidade: response.detalhe.cidade,
+            prazo_entrega: response.detalhe.prazo_entrega || 0,
+            valor_receita_total: response.detalhe.valor_receita_total || 0,
+            valor_frete: response.detalhe.valor_receita_sep.valor_frete || 0,
+            icms: response.detalhe.valor_receita_sep.icms || 0,
+            ad_valorem: response.detalhe.valor_receita_sep.gris || 0,
+            valor_mercadoria: response.detalhe.valor_mercadoria || 0,
+            peso_total: response.detalhe.peso_total || 0,
+            cubagem_total: response.detalhe.cubagem_total || 0,
+            nfs: response.detalhe.nfs || []
+          };
+          
+  
+        // Atualiza o estado com os novos CTEs e garante a atualização correta da rentabilidade
+        setCtes((prevCtes) => {
+          const novosCtes = [...prevCtes, novoCTE];
+          return novosCtes;
+        });
+  
+        setNumeroCTE(""); // Limpa o input após adicionar o CTE
+        setTimeout(() => document.getElementById("inputCTE").focus(), 100); // Mantém o foco no campo
+        
       }
     } catch (error) {
       console.error("Erro ao buscar CTE:", error);
     }
   };
+  
+  // Monitora o estado ctes e recalcula a rentabilidade quando muda
+  useEffect(() => {
+    calcularRentabilidade(ctes, custoViagem);
+  }, [ctes, custoViagem]); // Recalcula sempre que ctes ou custoViagem mudar
+  
 
   const removerCTE = (index) => {
     const novaLista = [...ctes];
@@ -44,26 +96,23 @@ const GerarViagem = () => {
   };
 
   const calcularRentabilidade = (listaCtes, custo) => {
-    let receitaTotal = 0;
-    for (let i = 0; i < listaCtes.length; i++) {
-      receitaTotal += listaCtes[i].valor_receita_total;
-    }
-  
+    let receitaTotal = listaCtes.reduce((total, cte) => total + cte.valor_receita_total, 0);
+    
     const lucro = receitaTotal - custo;
-  
-    // Calcula percentual relativo ao custo da viagem
-    const percentual = custo > 0 ? ((lucro / custo) * 100).toFixed(2) : 0;
+    const percentual = custo !== 0 ? ((lucro / custo) * 100).toFixed(2) : 0; 
   
     setOldPercentual(rentabilidade.percentual);
   
     setRentabilidade({
-      percentual: lucro > 0 ? `+${percentual}` : percentual, // Adiciona "+" quando há lucro
-      status: lucro > 0 ? "Viagem lucrativa!" : lucro === 0 ? "Viagem sem lucro." : "Viagem no prejuízo!",
+      percentual: percentual >= 0 ? `+${percentual}` : percentual,  // Mostra "+" para valores positivos
+      status: lucro > 0 ? `Viagem lucrativa` : 
+             lucro === 0 ? "Viagem sem lucro." : `Viagem no prejuízo`,
       backgroundColor:
         lucro > 0 ? "rgba(0, 255, 127, 0.35)" :
         lucro === 0 ? "rgba(255, 215, 0, 0.35)" : "rgba(255, 69, 0, 0.35)",
     });
   };
+  
   
 
   const atualizarCusto = (e) => {
@@ -129,33 +178,43 @@ const GerarViagem = () => {
     }
   };
 
+  console.log(ctes )
+
   return (
     <Container>
         <p style={{textAlign:'start', width:'100%', fontSize:50, fontWeight:700}}>Carga Lucrativa</p>
-   <InputContainer>
+        <InputContainer>
   <div style={{ display: "flex", flexDirection: "column" }}>
-    <label style={{fontSize:15}}>Número da Viagem (opcional)</label>
+    <label style={{ fontSize: 15 }}>Número da Viagem</label>
     <Input
       type="text"
-      placeholder="Número da Viagem (opcional)"
+      placeholder="Buscar por Número da Viagem"
       value={numeroViagem}
       onChange={(e) => setNumeroViagem(e.target.value)}
+      onKeyDown={(e) => e.key === "Enter" && buscarViagem()}
     />
   </div>
 
   <div style={{ display: "flex", flexDirection: "column" }}>
-    <label style={{fontSize:15}}>Buscar por Número do CTE</label>
+    <label style={{ fontSize: 15 }}>Número do CTE</label>
     <Input
-      type="text"
-      placeholder="Buscar por Número do CTE"
-      value={numeroCTE}
-      onChange={(e) => setNumeroCTE(e.target.value)}
-      onKeyDown={(e) => e.key === "Enter" && buscarCTE()}
-    />
+  id="inputCTE"
+  type="text"
+  placeholder="Buscar por Número do CTE"
+  value={numeroCTE}
+  onChange={(e) => setNumeroCTE(e.target.value)}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault(); // Evita pular de campo
+      buscarCTE();
+    }
+  }}
+/>
+
   </div>
 
   <div style={{ display: "flex", flexDirection: "column" }}>
-    <label style={{fontSize:15}}>Custo da Viagem</label>
+    <label style={{ fontSize: 15 }}>Custo da Viagem</label>
     <Input
       type="number"
       placeholder="Custo da Viagem"
@@ -167,33 +226,53 @@ const GerarViagem = () => {
 
 
 
-      <CardContainer>
-        <div style={{ width: "70%", paddingRight: "20px" }}>
-          {ctes.length > 0 ? (
-            ctes.map((cte, index) => {
-              const lucroCte = cte.valor_receita_total - custoViagem / ctes.length;
-              const cteStatus =
-                lucroCte > 0 ? { background: "rgba(0, 255, 127, 0.35)", text: "Dentro da margem", icon: <FaCheckCircle style={{ color: "green", marginRight: "8px" }} /> } :
-                lucroCte === 0 ? { background: "rgba(255, 215, 0, 0.35)", text: "Sem ganho sem perda", icon: <FaEye style={{ color: "gold", marginRight: "8px" }} /> } :
-                { background: "rgba(255, 69, 0, 0.35)", text: "Prejuízo", icon: <FaExclamationTriangle style={{ color: "red", marginRight: "8px" }} /> };
 
-              return (
-                <CTECard key={index} style={{ background: cteStatus.background }}>
-                  <p>{cteStatus.icon} <strong>{cteStatus.text}</strong></p>
-                  <p><strong>Cliente:</strong> {cte.tomador}</p>
-                  <p><strong>Receita Total:</strong> R$ {cte.valor_receita_total.toFixed(2)}</p>
-                  <p><strong>Quantidade de Notas:</strong> {cte.nfs.length}</p>
-                  <p><strong>Prazo de Entrega:</strong> {cte.prazo_entrega}</p>
-                  <p><strong>Peso Total:</strong> {cte.peso_total} kg</p>
-                  <p><strong>Volume:</strong> {cte.vol}</p>
-                  <RemoveButton onClick={() => removerCTE(index)}>Remover</RemoveButton>
-                </CTECard>
-              );
-            })
-          ) : (
-            <p>Nenhum CTE carregado.</p>
-          )}
-        </div>
+      <CardContainer>
+        <Row>
+      <table>
+    <thead>
+      <tr>
+        <th>CTE</th>
+        <th>Cliente</th>
+        <th>Receita Total</th>
+        <th>Quantidade de Notas</th>
+        <th>Prazo de Entrega</th>
+        <th>Peso Total</th>
+        <th>Volume</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {ctes.length > 0 ? (
+        ctes.map((cte, index) => {
+          const lucroCte = cte.valor_receita_total - custoViagem / ctes.length;
+          const cteStatus =
+            lucroCte > 0 ? { icon: <FaCheckCircle style={{ color: "green" }} /> } :
+            lucroCte === 0 ? { icon: <FaEye style={{ color: "gold" }} /> } :
+            { icon: <FaExclamationTriangle style={{ color: "red" }} /> };
+
+          return (
+            <tr key={index}>
+              <td>{cteStatus.icon} <strong>{cte.numero_cte}</strong></td>
+              <td className="truncate">{cte.tomador}</td>
+              <td>R$ {cte.valor_receita_total.toFixed(2)}</td>
+              <td>{cte.nfs.length}</td>
+              <td>{cte.prazo_entrega}</td>
+              <td>{cte.peso_total} kg</td>
+              <td>{cte.volume}</td>
+              <td>
+                <RemoveButton onClick={() => removerCTE(index)}>
+                  <FaTrash size={16} />
+                </RemoveButton>
+              </td>
+            </tr>
+          );
+        })
+      ) : (
+        <tr><td colSpan="8">Nenhum CTE carregado.</td></tr>
+      )}
+    </tbody>
+  </table>
 
         <LucroContainer style={{ background: rentabilidade.backgroundColor }}>
   <LucroPercentual cor={rentabilidade.cor}>
@@ -209,7 +288,7 @@ const GerarViagem = () => {
   <p>{rentabilidade.status}</p>
   <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton>
 </LucroContainer>
-
+</Row>
       </CardContainer>
     </Container>
   );

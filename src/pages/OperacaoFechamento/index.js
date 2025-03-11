@@ -41,6 +41,7 @@ const OperacaoFechamento = () => {
     { value: "2024-11", label: "Novembro 2024" },
     { value: "2024-12", label: "Dezembro 2024" },
     { value: "2025-01", label: "Janeiro 2025" },
+    { value: "2025-02", label: "Fevereiro 2025" },
   ];
 
   // Função para buscar dados

@@ -30,26 +30,31 @@ export const Input = styled.input`
 // Layout de 70% / 30%
 export const CardContainer = styled.div`
   width: 100%;
-  display: flex;
-  justify-content: space-between;
-`;
+  gap:10px;
+  table {
+    width: 70%;
+    border-collapse: collapse;
+  }
 
-// Card de CTE
-export const CTECard = styled.div`
-  background: #fff;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 8px;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
-  width: 100%;
-  max-width: 600px;
-  font-size: 14px;
-  line-height: 1.5;
+  th, td {
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+    text-align: left;
+  }
 
-  p {
-    margin: 5px 0;
+  th {
+    background-color: #f4f4f4;
+    color:#000;
+  }
+
+  .truncate {
+    max-width: 200px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 `;
+
 
 // Container da rentabilidade
 export const LucroContainer = styled.div`
@@ -77,8 +82,8 @@ export const RemoveButton = styled.button`
   cursor: pointer;
   font-size: 14px;
   margin-top: 10px;
-  width: 100%;
-
+  width: 50px;
+ 
   &:hover {
     background-color: #cc0000;
   }

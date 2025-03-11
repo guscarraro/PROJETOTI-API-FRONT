@@ -9,6 +9,8 @@ const API_AUTH_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/authorizat
 const API_INDICE_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/painel/IndiceAtendimentoPraca';
 const API_OCORRENCIAS_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/ocorrencia/ExportarOcorrencias';
 const API_NOTA_FISCAL_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/originario/consulta';
+const API_CONSULTA_VIAGEM = "https://cloud.escalasoft.com.br:8055/escalasoft/operacional/viagem/consultaviagem";
+const API_CONSULTA_DOCUMENTO = "https://cloud.escalasoft.com.br:8055/escalasoft/operacional/documento/consulta";
 
 
 const SHARED_TOKEN_ID = 'shared-token'; // ID fixo para o token compartilhado
@@ -87,6 +89,37 @@ const generateAndSaveToken = async () => {
     throw new Error('Não foi possível gerar um novo token.');
   }
 };
+
+export const fetchViagem = async (numeroViagem) => {
+  try {
+    const token = await getAuthToken();
+    const response = await axios.get(`${API_CONSULTA_VIAGEM}?viagem=${numeroViagem}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data || {};
+  } catch (error) {
+    console.error("Erro ao buscar viagem:", error.message);
+    return {};
+  }
+};
+
+export const fetchDocumento = async (chave) => {
+  try {
+    const token = await getAuthToken();
+    const response = await axios.get(`${API_CONSULTA_DOCUMENTO}?chave=${chave}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data || {};
+  } catch (error) {
+    console.error("Erro ao buscar documento:", error.message);
+    return {};
+  }
+};
+
 
 // Funções de API usando o token
 export const fetchIndiceAtendimento = async (dataInicial, dataFinal) => {
