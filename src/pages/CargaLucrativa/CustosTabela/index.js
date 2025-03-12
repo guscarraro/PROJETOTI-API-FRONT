@@ -99,13 +99,13 @@ const CustosTabela = () => {
 
                 <TableCell>
                   <ActionButton
-                    style={{ background: "blue", color: "#fff" }}
+                    style={{ background: "blue", color: "#fff" ,borderRadius: '5px 0px 0px 5px' }}
                     onClick={() => { setCustoSelecionado(custo); setModalEditOpen(true); }}
                   >
                     <FaEdit size={16} />
                   </ActionButton>
                   <ActionButton
-                    style={{ background: "red", color: "#fff" }}
+                    style={{ background: "red", color: "#fff" ,borderRadius: '0px 5px 5px 0px'}}
                     onClick={() => { setCustoSelecionado(custo); setModalDelOpen(true); }}
                   >
                     <FaTrash size={16} />

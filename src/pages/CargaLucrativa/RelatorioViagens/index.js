@@ -98,8 +98,8 @@ const RelatorioViagens = () => {
                   <TableCell>{viagem.filial_origem}</TableCell>
                   <TableCell>{viagem.filial_destino}</TableCell>
                   <TableCell>
-  {viagem.documentos_transporte.map((cte, idx) => (
-    <span key={cte.numero_cte} style={{ 
+  {(viagem.documentos_transporte || []).map((cte, idx) => (
+    <span key={cte.numero_cte || idx} style={{ 
       background: "purple", 
       color: "white", 
       padding: "5px 10px", 
@@ -112,11 +112,12 @@ const RelatorioViagens = () => {
   ))}
 </TableCell>
 
+
                   <TableCell>
-                    <ActionButton style={{background:"blue", color:'#fff'}} onClick={() => { setViagemSelecionada(viagem); setModalEditOpen(true); }}>
+                    <ActionButton style={{background:"blue", color:'#fff',borderRadius: '5px 5px 0px 0px' }} onClick={() => { setViagemSelecionada(viagem); setModalEditOpen(true); }}>
                       <FaEdit size={16}  />
                     </ActionButton>
-                    <ActionButton style={{background:"red", color:'#fff'}} onClick={() => { setViagemSelecionada(viagem); setModalDelOpen(true); }}>
+                    <ActionButton style={{background:"red", color:'#fff', borderRadius: '0px 0px 5px 5px' }} onClick={() => { setViagemSelecionada(viagem); setModalDelOpen(true); }}>
                       <FaTrash size={16} />
                     </ActionButton>
                   </TableCell>

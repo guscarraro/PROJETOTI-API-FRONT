@@ -170,7 +170,7 @@ export const Label = styled.label`
 
 export const TextArea = styled.textarea`
       width: 70%;
-  min-height: 50px;
+  max-height: 50px;
   padding: 10px;
   border: 1px solid #ccc;
   border-radius: 5px;
