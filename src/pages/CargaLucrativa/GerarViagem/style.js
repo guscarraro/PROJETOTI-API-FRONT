@@ -14,14 +14,16 @@ export const InputContainer = styled.div`
   width: 100%;
   display: flex;
   justify-content: flex-start;
-  gap: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 20px;
+  align-items: flex-end;
 `;
 
-export const Input = styled.input`
-  min-width: 300px;  
-  width: 100%;
+export const Input = styled.input` 
+    
   padding: 10px;
+  width:100%;
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 16px;
@@ -32,7 +34,7 @@ export const CardContainer = styled.div`
   width: 100%;
   gap:10px;
   table {
-    width: 70%;
+    width: 100%;
     border-collapse: collapse;
   }
 
@@ -45,6 +47,7 @@ export const CardContainer = styled.div`
   th {
     background-color: #f4f4f4;
     color:#000;
+    border-radius:10px 10px 0px 0px;
   }
 
   .truncate {
@@ -58,7 +61,6 @@ export const CardContainer = styled.div`
 
 // Container da rentabilidade
 export const LucroContainer = styled.div`
-  width: 30%;
   background: #f9f9f9;
   padding: 20px;
   border-radius: 8px;
@@ -67,7 +69,7 @@ export const LucroContainer = styled.div`
 `;
 
 // Percentual de rentabilidade
-export const LucroPercentual = styled.div`
+export const CustoPercentual = styled.div`
   font-size: 32px;
   font-weight: bold;
   color: ${(props) => props.cor};
@@ -104,4 +106,75 @@ export const SaveButton = styled.button`
   &:hover {
     background-color: #0056b3;
   }
+`;
+
+// Container dos MiniCards para organizar em grid responsivo
+export const MiniCardContainer = styled.div`
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  margin-top: 10px;
+`;
+
+// Cada MiniCard individual
+export const MiniCard = styled.div`
+  color: white;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom:15px;
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.7);
+  text-align: center;
+  width: 100%;
+  min-width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  
+  span {
+    font-size: 14px;
+    color: #fff;
+    margin-top: 5px;
+  }
+
+  strong {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 5px;
+    color: #fff;
+  }
+
+  svg {
+    color: #fff;
+    margin-bottom: 5px;
+  }
+`;
+// Adicione estas linhas no arquivo de estilos
+
+export const CheckboxContainer = styled.div`
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-top: 10px;
+`;
+
+export const Label = styled.label`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 16px;
+  color: #fff;
+`;
+
+export const TextArea = styled.textarea`
+      width: 70%;
+  min-height: 50px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  resize: vertical;
+  margin-top: 10px;
 `;

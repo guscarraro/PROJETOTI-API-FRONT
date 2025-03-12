@@ -66,7 +66,24 @@ const apiLocal = {
 
   // 📦 Documentos de Transporte (CTEs/NFSe)
   getDocumentoTransporte: (numero_cte) => api.get(`/documento-transporte/${numero_cte}`), // Buscar um CTE/NFSe por número
+    // 📤 Importação de Custos de Frete
+      // 📊 Custos de Frete
+  getCustosFrete: (filters) => api.get("/custos-frete", { params: filters }), // Buscar todos ou filtrar
+  createOrUpdateCustosFrete: (data) => api.post("/custos-frete", data), // Criar ou atualizar
+  deleteCustosFrete: (id) => api.delete(`/custos-frete/${id}`), // Deletar registro
+  // 📌 Buscar UF pelo nome da cidade (usado em origem e destino)
+  getUFByCidade: (cidade) => 
+    axios.get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios")
+      .then(response => {
+        const municipio = response.data.find(m => m.nome.toUpperCase() === cidade.toUpperCase());
+        return municipio ? municipio.microrregiao.mesorregiao.UF.sigla : "";
+      })
+      .catch(error => {
+        console.error("Erro ao buscar UF:", error);
+        return "";
+      }),
 
+  
 };
 
 export default apiLocal;

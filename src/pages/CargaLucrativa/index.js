@@ -10,6 +10,7 @@ import {
 import RelatorioViagens from "./RelatorioViagens";
 import GerarViagem from "./GerarViagem";
 import Dashboard from "./Dashboard";
+import CustosTabela from "./CustosTabela";
 
 const Navbar = ({ currentTab, setCurrentTab }) => {
 
@@ -36,6 +37,12 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         Gerar Viagem
       </NavButton>
 
+      <NavButton
+        active={currentTab === "custosTabela"}
+        onClick={() => handleSelection("custosTabela")}
+      >
+        Tabela de custos
+      </NavButton>
       <NavButton
         active={currentTab === "relatorioViagem"}
         onClick={() => handleSelection("relatorioViagem")}
@@ -75,6 +82,7 @@ const CargaLucrativa = () => {
       >
         {currentTab === "dashboard" && <Dashboard />}
         {currentTab === "gerarViagem" && <GerarViagem />}
+        {currentTab === "custosTabela" && <CustosTabela />}
         {currentTab === "relatorioViagem" && <RelatorioViagens />}
       </div>
     </ContainerGeralCargaLucrativa>
