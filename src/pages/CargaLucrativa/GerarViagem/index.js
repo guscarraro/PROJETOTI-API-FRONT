@@ -1,17 +1,13 @@
 import React, { useEffect, useState } from "react";
 import Select from "react-select";
-import { FaCheckCircle, FaEye, FaExclamationTriangle, FaTrash } from "react-icons/fa";
-import { Container, InputContainer, Input, CardContainer, RemoveButton, CheckboxContainer, Label, TextArea,Table,
-  TableRow,
-  TableCell,
-  TableHeader,
-  ActionButton } from "./style";
-import { fetchDocumento, fetchViagem } from "../../../services/api";
+import { Container, InputContainer, Input, CardContainer, RemoveButton, CheckboxContainer, Label, TextArea } from "./style";
+import { fetchDocumento } from "../../../services/api";
 import CardLucro from "./CardLucro";
 import { Col, Row } from "reactstrap";
 import { toast } from "react-toastify";
 import LoadingDots from "../../../components/Loading";
 import apiLocal from "../../../services/apiLocal";
+import TableCTE from "./TableCTE";
 
 const tiposVeiculoOptions = [
   { value: "TRUCK", label: "TRUCK" },
@@ -30,6 +26,7 @@ const GerarViagem = () => {
   const [ctes, setCtes] = useState([]);
   const [tipoVeiculo, setTipoVeiculo] = useState(null);
   const [custoManual, setCustoManual] = useState(false);
+  const [tabelaCustosFrete, setTabelaCustosFrete] = useState([]);
 
   const [cargaDividida, setCargaDividida] = useState(false);
   const [obs, setObs] = useState("");
@@ -38,21 +35,24 @@ const GerarViagem = () => {
   const [loadingCTE, setLoadingCTE] = useState(false);
 
 
-//   const buscarViagem = async () => {
-//     if (!numeroViagem) return;
-//     try {
-//       const response = await fetchViagem(numeroViagem);
-//       if (response.data && response.data.detalhe) {
-//         setCtes(response.data.detalhe.documentos_transporte || []);
-//       }
-//     } catch (error) {
-//       console.error("Erro ao buscar viagem:", error);
-//     }
-//   };
-useEffect(() => {
-  calcularCustoViagem();
-}, [ctes, tipoVeiculo]);
-
+  useEffect(() => {
+    const carregarTabelaFrete = async () => {
+      try {
+        const response = await apiLocal.getCustosFrete();
+        if (response.data) {
+          setTabelaCustosFrete(response.data);
+        }
+      } catch (error) {
+        console.error("Erro ao buscar tabela de custos de frete:", error);
+        toast.error("Erro ao carregar tabela de custos de frete.");
+      }
+    };
+  
+    carregarTabelaFrete();
+  }, []);
+  useEffect(() => {
+    calcularCustoViagem();
+  }, [ctes.length, tipoVeiculo]);
 
 const buscarCTE = async () => {
     if (!numeroCTE) return;
@@ -61,7 +61,7 @@ const buscarCTE = async () => {
     
     try {
         const response = await fetchDocumento(numeroCTE);
-        
+        console.log(response)
         if (response.detalhe) {
             const novoCTE = {
                 numero_cte: response.detalhe.docTransporte || numeroCTE,
@@ -71,6 +71,8 @@ const buscarCTE = async () => {
                 tomador: response.detalhe.tomador,
                 destino: response.detalhe.destino,
                 cidade: response.detalhe.cidade,
+                filialOrigem: response.detalhe.fil_ori,
+                filialDestino: response.detalhe.fil_des,
                 prazo_entrega: response.detalhe.prazo_entrega || "",
                 agendamento: response.detalhe.agendamento || null,
                 valor_receita_total: response.detalhe.valor_receita_total || 0,
@@ -141,13 +143,12 @@ const calcularCustoViagem = async () => {
   }
 
   try {
-      const response = await apiLocal.getCustosFrete();
-
-      if (!response.data || response.data.length === 0) {
-          setCustoViagem(0);
-          toast.warning("Nenhuma tabela de custos disponível.");
-          return;
-      }
+    if (!tabelaCustosFrete || tabelaCustosFrete.length === 0) {
+      setCustoViagem(0);
+      toast.warning("Nenhuma tabela de custos disponível.");
+      return;
+    }
+    
 
 
       // 🔍 1. Pegando as cidades dos CTEs
@@ -162,7 +163,8 @@ const calcularCustoViagem = async () => {
       const tipoVeiculoFormatado = tipoVeiculo.trim().toUpperCase();
 
       // 🔍 2. Filtrar apenas os custos correspondentes ao veículo e à cidade dos CTEs
-      const tarifasFiltradas = response.data.filter(item =>
+      const tarifasFiltradas = tabelaCustosFrete.filter(item =>
+
           destinosCtes.includes(item.destino.trim().toUpperCase()) &&
           item.tipo_veiculo.trim().toUpperCase() === tipoVeiculoFormatado
       );
@@ -216,38 +218,6 @@ setCustoTabela(tarifaEncontrada.valor); // Armazena o valor original da tabela
       toast.error("Erro ao buscar custo de frete.");
   }
 };
-const calcularCustoTabela = () => {
-  if (!tipoVeiculo || ctes.length === 0) return 0;
-
-  try {
-    const response = apiLocal.getCustosFrete();
-    if (!response.data || response.data.length === 0) return 0;
-
-    const tipoVeiculoFormatado = tipoVeiculo.trim().toUpperCase();
-    const destinosCtes = ctes.map(cte => cte.cidade?.trim().toUpperCase()).filter(Boolean);
-
-    const tarifasFiltradas = response.data.filter(item =>
-      destinosCtes.includes(item.destino.trim().toUpperCase()) &&
-      item.tipo_veiculo.trim().toUpperCase() === tipoVeiculoFormatado
-    );
-
-    if (tarifasFiltradas.length === 0) return 0;
-
-    const distanciasValidas = tarifasFiltradas.map(item => parseFloat(item.distancia_km) || 0).filter(dist => dist > 0);
-    if (distanciasValidas.length === 0) return 0;
-
-    const maiorDistancia = Math.max(...distanciasValidas);
-    const tarifaEncontrada = tarifasFiltradas.find(item => parseFloat(item.distancia_km) === maiorDistancia);
-
-    return tarifaEncontrada ? tarifaEncontrada.valor : 0;
-  } catch (error) {
-    console.error("Erro ao calcular custo da tabela:", error);
-    return 0;
-  }
-};
-
-
-
 
 
 const removerCTE = (index) => {
@@ -275,16 +245,7 @@ const removerCTE = (index) => {
       <p style={{ textAlign: "start", width: "100%", fontSize: 50, fontWeight: 700 }}>Carga Lucrativa</p>
       <Row>
       <InputContainer>
-      {/* <Col md="1">
-        <Input 
-          type="text" 
-          placeholder="Número da Viagem (Opcional)" 
-          value={numeroViagem} 
-          onChange={(e) => setNumeroViagem(e.target.value)} 
-          onKeyDown={(e) => (e.key === "Enter" || e.key === "Tab") && buscarCTE()}
-
-        />
-        </Col> */}
+      
         <Col md="4">
         <div style={{ position: "relative", width: "100%" }}>
         <label style={{ fontSize: "12px", fontWeight: "bold", color: "#fff" }}>Número do CTE</label>
@@ -428,79 +389,11 @@ const removerCTE = (index) => {
       </Row>
       <CardContainer>
   <Row>
-    <Col md="8">
-      {ctes.length > 0 ? (
-        <Table>
-        <thead>
-          <TableRow>
-            <TableHeader>CTE</TableHeader>
-            <TableHeader>Cliente</TableHeader>
-            <TableHeader>Receita Total</TableHeader>
-            <TableHeader>Qtd NF</TableHeader>
-            <TableHeader>Prazo de Entrega</TableHeader>
-            <TableHeader>Peso Total</TableHeader>
-            <TableHeader>Volume</TableHeader>
-            <TableHeader>Ações</TableHeader>
-          </TableRow>
-        </thead>
-        <tbody>
-          {ctes.map((cte, index) => (
-            <TableRow key={index}>
-              <TableCell>
-                <FaCheckCircle style={{ color: "green" }} /> <strong>{cte.numero_cte}</strong>
-              </TableCell>
-              <TableCell>{cte.tomador}</TableCell>
-              <TableCell>R$ {cte.valor_receita_total.toFixed(2)}</TableCell>
-              <TableCell>{cte.nfs.length}</TableCell>
-              <TableCell>
-                {cte.agendamento ? (
-                  <span style={{ backgroundColor: "#007bff", color: "white", padding: "3px 8px", borderRadius: "4px", fontSize: "15px", width: "100%" }}>
-                    {cte.agendamento} Agendado
-                  </span>
-                ) : (
-                  cte.prazo_entrega
-                )}
-              </TableCell>
-              <TableCell>{cte.peso_total} kg</TableCell>
-              <TableCell>{cte.volume}</TableCell>
-              <TableCell>
-                <ActionButton
-                  style={{ background: "red", color: "#fff", borderRadius: "5px" }}
-                  onClick={() => removerCTE(index)}
-                >
-                  <FaTrash size={16} />
-                </ActionButton>
-              </TableCell>
-            </TableRow>
-          ))}
-        </tbody>
-      </Table>
-      
-      ) : (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            backgroundColor: "transparent",
-            padding: "20px",
-            color:'#fff',
-            borderRadius: "12px",
-            boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.5)",
-            textAlign: "center",
-          }}
-        >
-          <FaExclamationTriangle size={40} color="#FF9800" style={{ marginBottom: "10px" }} />
-          <h4 style={{ color: "#fff", fontWeight: "bold", marginBottom: "5px" }}>
-            Nenhum registro encontrado
-          </h4>
-          <p style={{ color: "#fff", fontSize: "14px" }}>
-            Adicione um CTE para visualizar os cálculos.
-          </p>
-        </div>
-      )}
-    </Col>
+  <Col md="8">
+  <TableCTE ctes={ctes} tabelaCustosFrete={tabelaCustosFrete} removerCTE={removerCTE} />
+
+</Col>
+
     <Col md="4">
       <CardLucro
         ctes={ctes}
@@ -510,6 +403,7 @@ const removerCTE = (index) => {
         setNumeroViagem={setNumeroViagem}
         setNumeroCTE={setNumeroCTE}
         setCustoViagem={setCustoViagem}
+        tipoVeiculo={tipoVeiculo} 
       />
     </Col>
   </Row>

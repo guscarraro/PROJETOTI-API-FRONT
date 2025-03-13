@@ -79,4 +79,8 @@ export const formatTomadorName = (tomador) => {
     return `${hh}:${mm}`;
   };
   
+  export const formatDateISO = (date) => {
+    if (!date) return null;
+    return new Date(date).toISOString(); // 🔥 Retorna 'YYYY-MM-DDTHH:MM:SSZ'
+  };
   

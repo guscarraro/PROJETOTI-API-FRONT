@@ -4,9 +4,9 @@ import { LucroContainer, CustoPercentual, SaveButton, MiniCard, MiniCardContaine
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
 import { Row, Col } from "reactstrap";
-import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine, FaCheckCircle, FaTimesCircle, FaDollarSign } from "react-icons/fa";
+import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine,  FaDollarSign } from "react-icons/fa";
 
-const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem }) => {
+const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,tipoVeiculo }) => {
   const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0 });
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const metaRentabilidade = 18; // Meta de 18% da receita
@@ -88,21 +88,81 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
 
     const viagemData = {
       numero_viagem: numeroViagem || `V${Date.now()}`,
-      data_inclusao: new Date().toISOString(),
+      data_inclusao: new Date().toISOString().slice(0, 19).replace("T", " "),
+
       total_receita: receitaTotal,
       total_entregas: ctes.length,
       total_peso: totalPeso,
-      total_custo: custoViagem
+      total_custo: custoViagem,
+      margem_custo: rentabilidade.custoPercentual,
+      filial_origem: ctes.length > 0 ? ctes[0].filial_origem || "" : "",
+      filial_destino: ctes.length > 0 ? ctes[0].filial_destino || "" : "",
+      
+      tipo_veiculo: tipoVeiculo || "", // Certifica-se de que o tipo do veículo foi preenchido
     };
+    
 
     try {
+      const parseDate = (dateString) => {
+        if (!dateString) return null;
+      
+        const dateParts = dateString.split(" ");
+        if (dateParts.length !== 2) return null; // Certifica-se de que a string tem data e hora
+      
+        const [day, month, year] = dateParts[0].split("/"); // Divide a parte da data
+        const time = dateParts[1]; // Pega a parte da hora
+      
+        // Monta a data no formato correto para o JavaScript (YYYY-MM-DDTHH:mm:ss)
+        const formattedDate = `${year}-${month}-${day}T${time}`;
+        const dateObject = new Date(formattedDate);
+      
+        return isNaN(dateObject.getTime()) ? null : dateObject.toISOString(); // Retorna ISO se válido
+      };
+      
+      const documentosTransporte = ctes.map(cte => {
+        console.log("Prazo Entrega antes da conversão:", cte.prazo_entrega);
+        const prazoFormatado = parseDate(cte.prazo_entrega);
+        console.log("Prazo Entrega após conversão:", prazoFormatado);
+      
+        return {
+          numero_cte: String(cte.numero_cte),
+          peso: cte.peso,
+          volume: cte.volume,
+          quantidade: cte.quantidade,
+          tomador: cte.tomador,
+          destino: cte.destino,
+          cidade: cte.cidade,
+          prazo_entrega: prazoFormatado ? prazoFormatado.slice(0, 10) : null, // Retorna apenas YYYY-MM-DD
+          valor_receita_total: cte.valor_receita_total,
+          valor_frete: cte.valor_frete,
+          icms: cte.icms,
+          ad_valorem: cte.ad_valorem,
+          outros_valores: {},
+          valor_mercadoria: cte.valor_mercadoria,
+          peso_total: cte.peso_total,
+          cubagem_total: cte.cubagem_total,
+          notas_fiscais: cte.nfs.map(nf => ({
+            numero_nf: String(nf.numero_nf || "0"), // Define um valor padrão para evitar erro
+            peso: nf.peso,
+            valor: nf.valor,
+            cubagem: nf.cubagem || 0,
+          })),
+        };
+      });
+      
+      
+      
+      viagemData.documentos_transporte = documentosTransporte;
+      
       await apiLocal.createOrUpdateViagem(viagemData);
+      
       toast.success("Viagem salva com sucesso!");
       setCtes([]);
       setNumeroViagem("");
       setNumeroCTE("");
       setCustoViagem(1500);
     } catch (error) {
+      console.error("Erro ao salvar viagem:", error.response ? error.response.data : error);
       toast.error("Erro ao salvar viagem.");
     }
   };
