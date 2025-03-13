@@ -71,17 +71,7 @@ const apiLocal = {
   getCustosFrete: (filters) => api.get("/custos-frete", { params: filters }), // Buscar todos ou filtrar
   createOrUpdateCustosFrete: (data) => api.post("/custos-frete", data), // Criar ou atualizar
   deleteCustosFrete: (id) => api.delete(`/custos-frete/${id}`), // Deletar registro
-  // 📌 Buscar UF pelo nome da cidade (usado em origem e destino)
-  getUFByCidade: (cidade) => 
-    axios.get("https://servicodados.ibge.gov.br/api/v1/localidades/municipios")
-      .then(response => {
-        const municipio = response.data.find(m => m.nome.toUpperCase() === cidade.toUpperCase());
-        return municipio ? municipio.microrregiao.mesorregiao.UF.sigla : "";
-      })
-      .catch(error => {
-        console.error("Erro ao buscar UF:", error);
-        return "";
-      }),
+
 
   
 };

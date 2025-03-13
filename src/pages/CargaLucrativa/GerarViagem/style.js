@@ -5,7 +5,7 @@ export const Container = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
   padding: 20px;
 `;
 
@@ -61,11 +61,10 @@ export const CardContainer = styled.div`
 
 // Container da rentabilidade
 export const LucroContainer = styled.div`
-  background: #f9f9f9;
   padding: 20px;
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.7);
 `;
 
 // Percentual de rentabilidade
@@ -134,13 +133,13 @@ export const MiniCard = styled.div`
   justify-content: center;
   
   span {
-    font-size: 14px;
+    font-size: 18px;
     color: #fff;
     margin-top: 5px;
   }
 
   strong {
-    font-size: 18px;
+    font-size: 14px;
     font-weight: bold;
     margin-top: 5px;
     color: #fff;
@@ -169,7 +168,7 @@ export const Label = styled.label`
 `;
 
 export const TextArea = styled.textarea`
-      width: 70%;
+      width: 100%;
   max-height: 50px;
   padding: 10px;
   border: 1px solid #ccc;
@@ -177,4 +176,54 @@ export const TextArea = styled.textarea`
   font-size: 16px;
   resize: vertical;
   margin-top: 10px;
+`;
+export const Table = styled.table`
+  width: 100%;
+  max-width: 1200px;
+  border-collapse: collapse;
+  margin-top: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+`;
+
+// Linha da Tabela, com cor dinâmica baseada na lucratividade
+export const TableRow = styled.tr`
+  color:#000;
+  background-color: "rgba(0, 255, 127, 0.15)" ;
+  transition: background-color 0.3s;
+`;
+
+// Célula da Tabela
+export const TableCell = styled.td`
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+// Cabeçalho da Tabela
+export const TableHeader = styled.th`
+  padding: 14px;
+  background: #009879;
+  color: white;
+  font-weight: bold;
+  border-bottom: 2px solid #ddd;
+  text-align: center;
+`;
+
+export const ActionButton = styled.button`
+  background: ${(props) => props.color || "#007bff"};
+  color: white;
+  border: none;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 5px;
+
+  &:hover {
+    opacity: 0.8;
+  }
 `;

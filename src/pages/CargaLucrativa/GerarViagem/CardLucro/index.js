@@ -19,7 +19,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
     if (custoViagem === 0 && ctes.length === 0) {
       setRentabilidade((prev) => ({
         ...prev,
-        backgroundColor: "#333333", // Cinza escuro quando não há dados
+        backgroundColor: "transparent", // Cinza escuro quando não há dados
         status: "Aguardando dados",
         custoPercentual: 0,
         lucroPercentual: 0,
@@ -61,7 +61,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
       
         backgroundColor:
           receitaTotal === 0 && custo === 0
-            ? "#333333" // Cinza escuro quando não há dados
+            ? "transparent" // Cinza escuro quando não há dados
             : metaAtingida
             ? "rgba(0, 255, 127, 0.35)" // Verde quando a meta é atingida
             : "rgba(255, 69, 0, 0.35)", // Vermelho quando não atingida
@@ -172,18 +172,24 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
         </Row>
       </MiniCardContainer>
 
-      {rentabilidade.backgroundColor !== "#333333" && (
+      {rentabilidade.backgroundColor !== "transparent" && (
   <p style={{ fontSize: "18px", fontWeight: "bold", marginTop: "10px" }}>
     {rentabilidade.metaAtingida ? (
+      <>
       <>Meta Atingida ✅</>
+      <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton>
+      </>
     ) : (
+      <>
       <>Meta Não Alcançada ❌</>
+      <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton>
+      </>
     )}
   </p>
 )}
 
-
-      <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton>
+{/* 
+      <SaveButton onClick={salvarViagem}>Salvar Viagem</SaveButton> */}
     </LucroContainer>
   );
 };

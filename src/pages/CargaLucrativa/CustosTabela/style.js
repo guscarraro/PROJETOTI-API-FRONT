@@ -23,7 +23,7 @@ export const Table = styled.table`
 // Linha da Tabela, com cor dinâmica baseada na lucratividade
 export const TableRow = styled.tr`
   color:#000;
-  background-color: "rgba(0, 255, 127, 0.15)" 
+  background-color: "rgba(0, 255, 127, 0.15)" ;
   transition: background-color 0.3s;
 `;
 
