@@ -2,16 +2,16 @@ import axios from "axios";
 import qs from "qs";
 
 // ✅ Agora pegamos do `.env`
-const baseURL = process.env.REACT_APP_API_URL || "https://projetoti-api-production.up.railway.app";
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://projetoti-api-production.up.railway.app";
 
 const api = axios.create({
-    baseURL: baseURL,
-    headers: { "Content-Type": "application/json" },
-    withCredentials: false,
-    paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
+  baseURL: API_URL.replace("http://", "https://"), // 🔥 Substitui qualquer HTTP por HTTPS
+  headers: { "Content-Type": "application/json" },
+  withCredentials: false,
+  paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
-console.log("🚀 API Base URL:", baseURL); // 🔥 Verifique no console
+console.log("🚀 API Base URL:", api.defaults.baseURL); // Confirmação no console
 
 const apiLocal = {
   getMotoristas: () => api.get("/motoristas"),
