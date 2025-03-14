@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from "react";
-import { Button, Table, Input } from "reactstrap";
+import { Button } from "reactstrap";
 import { FaFileExcel } from "react-icons/fa";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import apiLocal from "../../../services/apiLocal";
-import { HeaderContainer, StyledTable } from "./style";
+import {
+  HeaderContainer, Table,
+  TableRow,
+  TableCell,
+  TableHeader,
+} from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const TodasOcorrenciasFalta = () => {
   const [faltas, setFaltas] = useState([]);
-  const [clientes, setClientes] = useState([]);
-  const [motoristas, setMotoristas] = useState([]);
-  const [destinos, setDestinos] = useState([]);
   const [filteredFaltas, setFilteredFaltas] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
 
   useEffect(() => {
@@ -19,6 +23,8 @@ const TodasOcorrenciasFalta = () => {
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
+
     try {
       const [faltasRes, clientesRes, motoristasRes, destinosRes] = await Promise.all([
         apiLocal.getFaltas(),
@@ -53,10 +59,14 @@ const TodasOcorrenciasFalta = () => {
 
       setFaltas(faltasWithNames.sort((a, b) => a.id - b.id)); // Ordena por ID
       setFilteredFaltas(faltasWithNames);
+      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar dados das faltas.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
+
   };
 
   const handleExportExcel = () => {
@@ -126,36 +136,41 @@ const TodasOcorrenciasFalta = () => {
         </Input> */}
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nota Fiscal</th>
-            <th>Cliente</th>
-            <th>Motorista</th>
-            <th>Destino</th>
-            <th>Cidade</th>
-            <th>Valor da Falta</th>
-            <th>Data de Inclusão</th>
-            <th>Observação</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredFaltas.map((falta) => (
-            <tr key={falta.id}>
-              <td>{falta.id}</td>
-              <td>{falta.nf}</td>
-              <td>{falta.cliente_nome}</td>
-              <td>{falta.motorista_nome}</td>
-              <td>{falta.destino_nome}</td>
-              <td>{falta.cidade}</td>
-              <td>{parseFloat(falta.valor_falta).toFixed(2)}</td>
-              <td>{new Date(falta.data_inclusao).toLocaleString()}</td>
-              <td>{falta.obs}</td>
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+      {loading ? (
+        <LoadingDots /> // Ou use um componente de loading
+      ) : (
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader>ID</TableHeader>
+              <TableHeader>Nota Fiscal</TableHeader>
+              <TableHeader>Cliente</TableHeader>
+              <TableHeader>Motorista</TableHeader>
+              <TableHeader>Destino</TableHeader>
+              <TableHeader>Cidade</TableHeader>
+              <TableHeader>Valor da Falta</TableHeader>
+              <TableHeader>Data de Inclusão</TableHeader>
+              <TableHeader>Observação</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filteredFaltas.map((falta) => (
+              <TableRow key={falta.id}>
+                <TableCell>{falta.id}</TableCell>
+                <TableCell>{falta.nf}</TableCell>
+                <TableCell>{falta.cliente_nome}</TableCell>
+                <TableCell>{falta.motorista_nome}</TableCell>
+                <TableCell>{falta.destino_nome}</TableCell>
+                <TableCell>{falta.cidade}</TableCell>
+                <TableCell>{parseFloat(falta.valor_falta).toFixed(2)}</TableCell>
+                <TableCell>{new Date(falta.data_inclusao).toLocaleString()}</TableCell>
+                <TableCell>{falta.obs}</TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
     </div>
   );
 };

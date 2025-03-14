@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import { Table, Button } from "reactstrap";
+import { Button } from "reactstrap";
 
 /**
  * Header principal que envolve
@@ -18,29 +18,7 @@ export const HeaderContainer = styled.div`
 /**
  * Tabela estilizada (usa Table do reactstrap)
  */
-export const StyledTable = styled(Table)`
-  margin-top: 20px;
-  border-radius: 10px;
-  overflow: hidden;
-  width: 90%;
 
-  thead tr th {
-    background-color: #007bff;
-    color: #fff;
-    text-align: center;
-    padding: 10px;
-  }
-
-  tbody tr td {
-    text-align: start;
-    padding: 10px;
-    background: transparent;
-    color: #fff;
-    svg {
-      cursor: pointer;
-    }
-  }
-`;
 
 /**
  * Botão de adicionar (usa Button do reactstrap)
@@ -61,5 +39,41 @@ export const FilterInput = styled.input`
   border-radius: 4px;
   border: 1px solid #ccc;
   max-width: 300px;
+`;
+
+export const Table = styled.table`
+  width: 95%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  overflow: hidden;
+  background: #ffffff;
+`;
+
+// Linha da Tabela, com cor dinâmica baseada na lucratividade
+export const TableRow = styled.tr`
+  color:#000;
+  background-color: "rgba(0, 255, 127, 0.15)" ;
+  transition: background-color 0.3s;
+`;
+
+// Célula da Tabela
+export const TableCell = styled.td`
+  padding: 12px;
+  border-bottom: 1px solid #ddd;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+`;
+
+// Cabeçalho da Tabela
+export const TableHeader = styled.th`
+  padding: 14px;
+  background: #009879;
+  color: white;
+  font-weight: bold;
+  border-bottom: 2px solid #ddd;
+  text-align: center;
 `;
 

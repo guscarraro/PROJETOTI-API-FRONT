@@ -30,6 +30,10 @@ const DashboardSTH = () => {
     fetchFilters();
     setDefaultDateRange();
   }, []);
+  useEffect(() => {
+    fetchDashboardData();
+  }, [filters]); // 🔥 Agora sempre que filters mudar, os dados serão recarregados
+  
 
   const fetchFilters = async () => {
     try {

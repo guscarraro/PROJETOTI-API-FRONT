@@ -7,25 +7,30 @@ import {
   Button,
 } from "reactstrap";
 import { toast } from "react-toastify";
-import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
+import { FaPlus } from "react-icons/fa";
 
 import apiLocal from "../../../services/apiLocal";
 
 // Importa os componentes estilizados do arquivo styleMotorista.js
 import {
   HeaderContainer,
-  StyledTable,
+  Table,
+  TableRow,
+  TableCell,
+  TableHeader,
   AddButton,
   FilterInput
 } from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const Motorista = () => {
   // Lista de motoristas
   const [motoristas, setMotoristas] = useState([]);
-  
+  const [loading, setLoading] = useState(false);
+
   // Controle do modal de edição/criação
   const [modalOpen, setModalOpen] = useState(false);
-  
+
   // Dados do motorista selecionado (para edição ou criação)
   const [selectedMotorista, setSelectedMotorista] = useState({
     id: null,
@@ -46,12 +51,16 @@ const Motorista = () => {
   }, []);
 
   const fetchMotoristas = async () => {
+    setLoading(true);
     try {
       const response = await apiLocal.getMotoristas();
       setMotoristas(response.data);
+      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar motoristas.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -160,38 +169,29 @@ const Motorista = () => {
         </AddButton>
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            {/* <th>Editar</th> */}
-            <th>Nome</th>
-            <th>Placa</th>
-            <th>ANTT</th>
-            {/* <th>Excluir</th> */}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredMotoristas.map((motorista) => (
-            <tr key={motorista.id}>
-              {/* <td style={{ textAlign: "center", width: "10px" }}>
-                <FaPen
-                  style={{ color: "rgb(0, 123, 255)" }}
-                  onClick={() => handleEdit(motorista)}
-                />
-              </td> */}
-              <td>{motorista.nome}</td>
-              <td>{motorista.placa}</td>
-              <td>{motorista.antt}</td>
-              {/* <td style={{ textAlign: "center", width: "10px" }}>
-                <FaTrash
-                  style={{ color: "red" }}
-                  onClick={() => openDeleteModal(motorista.id)}
-                />
-              </td> */}
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+      {loading ? (
+        <LoadingDots /> // Ou utilize um componente de loading
+      ) : (
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader>Nome</TableHeader>
+              <TableHeader>Placa</TableHeader>
+              <TableHeader>ANTT</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filteredMotoristas.map((motorista) => (
+              <TableRow key={motorista.id}>
+                <TableCell>{motorista.nome}</TableCell>
+                <TableCell>{motorista.placa}</TableCell>
+                <TableCell>{motorista.antt}</TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
 
       {/* Modal para edição ou criação */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>

@@ -12,10 +12,14 @@ import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
 import apiLocal from "../../../services/apiLocal";
 import {
   HeaderContainer,
-  StyledTable,
+  Table,
+  TableRow,
+  TableCell,
+  TableHeader,
   AddButton,
   FilterInput
 } from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const Cliente = () => {
   const [clientes, setClientes] = useState([]);
@@ -25,18 +29,23 @@ const Cliente = () => {
   const [selectedCliente, setSelectedCliente] = useState({ id: null, nome: "" });
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchClientes();
   }, []);
 
   const fetchClientes = async () => {
+    setLoading(true);
     try {
       const response = await apiLocal.getClientes();
       setClientes(response.data);
     } catch (error) {
       toast.error("Erro ao buscar clientes.");
-      console.error(error);
+    
+      setLoading(false);
+    }finally {
+      setLoading(false);
     }
   };
 
@@ -118,34 +127,25 @@ const Cliente = () => {
         </AddButton>
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            {/* <th>Editar</th> */}
-            <th>Nome</th>
-            {/* <th>Excluir</th> */}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredClientes.map((cliente) => (
-            <tr key={cliente.id}>
-              {/* <td style={{ width: "10px", textAlign: "center" }}>
-                <FaPen
-                  style={{ color: "rgb(0, 123, 255)" }}
-                  onClick={() => handleEdit(cliente)}
-                />
-              </td> */}
-              <td style={{ textAlign: "start" }}>{cliente.nome}</td>
-              {/* <td style={{ width: "10px", textAlign: "center" }}>
-                <FaTrash
-                  style={{ color: "red" }}
-                  onClick={() => handleDelete(cliente.id)}
-                />
-              </td> */}
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+      {loading ? (
+  <LoadingDots/> // Ou utilize um componente de loading
+) : (
+  <Table>
+    <thead>
+      <TableRow>
+        <TableHeader>Nome</TableHeader>
+      </TableRow>
+    </thead>
+    <tbody>
+      {filteredClientes.map((cliente) => (
+        <TableRow key={cliente.id}>
+          <TableCell>{cliente.nome}</TableCell>
+        </TableRow>
+      ))}
+    </tbody>
+  </Table>
+)}
+
 
       {/* Modal para edição/criação */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>

@@ -1,24 +1,32 @@
 import React, { useEffect, useState } from "react";
-import { Button, Table, Input } from "reactstrap";
+import { Button, Input } from "reactstrap";
 import { FaFileExcel } from "react-icons/fa";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import apiLocal from "../../../services/apiLocal";
-import { HeaderContainer, StyledTable } from "./style";
+import {
+  HeaderContainer,
+  Table,
+  TableRow,
+  TableCell,
+  TableHeader,
+} from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const TodasOcorrenciasSTH = () => {
   const [ocorrenciasSTH, setOcorrenciasSTH] = useState([]);
-  const [clientes, setClientes] = useState([]);
   const [motoristas, setMotoristas] = useState([]);
-  const [destinos, setDestinos] = useState([]);
   const [filteredOcorrenciasSTH, setFilteredOcorrenciasSTH] = useState([]);
   const [motoristaFilter, setMotoristaFilter] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
+
     try {
       const [
         ocorrenciasSTHRes,
@@ -78,9 +86,9 @@ const TodasOcorrenciasSTH = () => {
             : "N/A",
           permanencia: matchingOcorrencia
             ? calcularPermanencia(
-                matchingOcorrencia.horario_chegada,
-                matchingOcorrencia.horario_saida
-              )
+              matchingOcorrencia.horario_chegada,
+              matchingOcorrencia.horario_saida
+            )
             : "N/A",
           tipo_ocorrencia: matchingOcorrencia
             ? tiposOcorrenciasMap[matchingOcorrencia.tipoocorrencia_id] || "N/A"
@@ -91,9 +99,13 @@ const TodasOcorrenciasSTH = () => {
       setOcorrenciasSTH(ocorrenciasWithNames);
       setFilteredOcorrenciasSTH(ocorrenciasWithNames);
       setMotoristas(motoristasRes.data); // Popula motoristas para o filtro
+      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar dados das ocorrências STH.");
       console.error(error);
+
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -111,22 +123,30 @@ const TodasOcorrenciasSTH = () => {
       return;
     }
 
-    // Formatar dados para exportar descrições em vez de IDs
-    const exportData = filteredOcorrenciasSTH.map((ocorrencia) => ({
-      ID: ocorrencia.id,
-      "Nota Fiscal": ocorrencia.nf,
-      Cliente: ocorrencia.cliente_nome,
-      Destino: ocorrencia.destino_nome,
-      Motorista: ocorrencia.motorista_nome,
-      Motivo: ocorrencia.motivo,
-      "Notas Fiscais STH": ocorrencia.nf_sth,
-      "Data da Viagem": new Date(ocorrencia.data_viagem).toLocaleDateString(),
-      Cidade: ocorrencia.cidade,
-      "Horário de Chegada": ocorrencia.horario_chegada,
-      "Horário de Saída": ocorrencia.horario_saida,
-      Permanência: ocorrencia.permanencia,
-      "Tipo de Ocorrência": ocorrencia.tipo_ocorrencia,
-    }));
+    let exportData = [];
+
+    // Iterar sobre as ocorrências e duplicar a linha para cada NF STH
+    filteredOcorrenciasSTH.forEach((ocorrencia) => {
+      const notasFiscais = ocorrencia.nf_sth ? ocorrencia.nf_sth.split(",") : [""]; // Separa as notas pelo ","
+
+      notasFiscais.forEach((nota) => {
+        exportData.push({
+          ID: ocorrencia.id,
+          "NF Causadora": ocorrencia.nf,
+          Cliente: ocorrencia.cliente_nome,
+          Destino: ocorrencia.destino_nome,
+          Motorista: ocorrencia.motorista_nome,
+          Motivo: ocorrencia.motivo,
+          "Notas Fiscais STH": nota.trim(), // Cada NF em uma linha separada
+          "Data da Viagem": new Date(ocorrencia.data_viagem).toLocaleDateString(),
+          Cidade: ocorrencia.cidade,
+          "Horário de Chegada": ocorrencia.horario_chegada,
+          "Horário de Saída": ocorrencia.horario_saida,
+          Permanência: ocorrencia.permanencia,
+          "Tipo de Ocorrência": ocorrencia.tipo_ocorrencia,
+        });
+      });
+    });
 
     // Criar a planilha
     const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -134,6 +154,7 @@ const TodasOcorrenciasSTH = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "OcorrenciasSTH");
     XLSX.writeFile(workbook, "TodasOcorrenciasSTH.xlsx");
   };
+
 
   const handleFilter = (motoristaId) => {
     setMotoristaFilter(motoristaId);
@@ -182,45 +203,53 @@ const TodasOcorrenciasSTH = () => {
         </Input>
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Nota Fiscal</th>
-            <th>Cliente</th>
-            <th>Motorista</th>
-            <th>Destino</th>
-            <th>Motivo</th>
-            <th>Notas Fiscais STH</th>
-            <th>Data da Viagem</th>
-            <th>Cidade</th>
-            <th>Horário de Chegada</th>
-            <th>Horário de Saída</th>
-            <th>Permanência</th>
-            <th>Tipo de Ocorrência</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredOcorrenciasSTH.map((ocorrencia) => (
-            <tr key={ocorrencia.id}>
-              <td>{ocorrencia.id}</td>
-              <td>{ocorrencia.nf}</td>
-              <td>{ocorrencia.cliente_nome}</td>
-              <td>{ocorrencia.motorista_nome}</td>
-              <td>{ocorrencia.destino_nome}</td>
-              <td>{ocorrencia.motivo}</td>
-              <td>{ocorrencia.nf_sth}</td>
-              <td>{new Date(ocorrencia.data_viagem + "T00:00:00").toLocaleDateString("pt-BR")}</td>
+      {loading ? (
+          <LoadingDots /> // Ou use um componente de loading
+      ) : (
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader>ID</TableHeader>
+              <TableHeader>NF Causadora</TableHeader>
+              <TableHeader>Cliente</TableHeader>
+              <TableHeader>Motorista</TableHeader>
+              <TableHeader>Destino</TableHeader>
+              <TableHeader>Motivo</TableHeader>
+              <TableHeader>Notas Fiscais STH</TableHeader>
+              <TableHeader>Data da Viagem</TableHeader>
+              <TableHeader>Cidade</TableHeader>
+              <TableHeader>Horário de Chegada</TableHeader>
+              <TableHeader>Horário de Saída</TableHeader>
+              <TableHeader>Permanência</TableHeader>
+              <TableHeader>Tipo de Ocorrência</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filteredOcorrenciasSTH.flatMap((ocorrencia) => {
+              const notasFiscais = ocorrencia.nf_sth ? ocorrencia.nf_sth.split(",") : [""];
+              return notasFiscais.map((nota, index) => (
+                <TableRow key={`${ocorrencia.id}-${index}`}>
+                  <TableCell>{ocorrencia.id}</TableCell>
+                  <TableCell>{ocorrencia.nf}</TableCell>
+                  <TableCell>{ocorrencia.cliente_nome}</TableCell>
+                  <TableCell>{ocorrencia.motorista_nome}</TableCell>
+                  <TableCell>{ocorrencia.destino_nome}</TableCell>
+                  <TableCell>{ocorrencia.motivo}</TableCell>
+                  <TableCell>{nota.trim()}</TableCell>
+                  <TableCell>{new Date(ocorrencia.data_viagem + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                  <TableCell>{ocorrencia.cidade}</TableCell>
+                  <TableCell>{ocorrencia.horario_chegada}</TableCell>
+                  <TableCell>{ocorrencia.horario_saida}</TableCell>
+                  <TableCell>{ocorrencia.permanencia}</TableCell>
+                  <TableCell>{ocorrencia.tipo_ocorrencia}</TableCell>
+                </TableRow>
+              ));
+            })}
+          </tbody>
+        </Table>
+      )}
 
-              <td>{ocorrencia.cidade}</td>
-              <td>{ocorrencia.horario_chegada}</td>
-              <td>{ocorrencia.horario_saida}</td>
-              <td>{ocorrencia.permanencia}</td>
-              <td>{ocorrencia.tipo_ocorrencia}</td>
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+
     </div>
   );
 };

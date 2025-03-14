@@ -7,20 +7,26 @@ import {
   Button,
 } from "reactstrap";
 import { toast } from "react-toastify";
-import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
+import { FaPen, FaPlus } from "react-icons/fa";
 
 import apiLocal from "../../../services/apiLocal";
 // Importa os componentes estilizados
 import {
   HeaderContainer,
-  StyledTable,
+  Table,
+  TableRow,
+  TableCell,
+  TableHeader,
   AddButton,
   FilterInput
 } from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const TipoOcorren = () => {
   const [tiposOcorrencia, setTiposOcorrencia] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
 
   // Dados do tipo que está sendo criado/editado
   const [selectedTipo, setSelectedTipo] = useState({
@@ -41,13 +47,19 @@ const TipoOcorren = () => {
   }, []);
 
   const fetchTiposOcorrencia = async () => {
+    setLoading(true);
+
     try {
       const response = await apiLocal.getNomesOcorrencias();
       setTiposOcorrencia(response.data);
+      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar tipos de ocorrências.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
+
   };
 
   // Filtra as ocorrências com base no 'searchTerm'
@@ -143,34 +155,32 @@ const TipoOcorren = () => {
         </AddButton>
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            <th>Editar</th>
-            <th>Nome</th>
-            {/* <th>Excluir</th> */}
-          </tr>
-        </thead>
-        <tbody>
-          {filteredOcorrencias.map((tipo) => (
-            <tr key={tipo.id}>
-              <td style={{ width: "10px", textAlign: "center" }}>
-                <FaPen
-                  onClick={() => handleEdit(tipo)}
-                  style={{ color: "rgb(0, 123, 255)" }}
-                />
-              </td>
-              <td>{tipo.nome}</td>
-              {/* <td style={{ width: "10px", textAlign: "center" }}>
-                <FaTrash
-                  style={{ color: "rgba(255, 69, 0, 0.8)" }}
-                  onClick={() => openDeleteModal(tipo.id)}
-                />
-              </td> */}
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+      {loading ? (
+        <LoadingDots /> // Ou utilize um componente de loading
+      ) : (
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader>Editar</TableHeader>
+              <TableHeader>Nome</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filteredOcorrencias.map((tipo) => (
+              <TableRow key={tipo.id}>
+                <TableCell>
+                  <FaPen
+                    onClick={() => handleEdit(tipo)}
+                    style={{ color: "rgb(0, 123, 255)", cursor: "pointer" }}
+                  />
+                </TableCell>
+                <TableCell>{tipo.nome}</TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
 
       {/* Modal para edição ou criação */}
       <Modal isOpen={modalOpen} toggle={toggleModal}>

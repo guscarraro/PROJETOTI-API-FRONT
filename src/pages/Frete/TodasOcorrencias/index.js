@@ -4,19 +4,27 @@ import { FaFileExcel } from "react-icons/fa";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import apiLocal from "../../../services/apiLocal";
-import { HeaderContainer, StyledTable } from "./style";
+import { HeaderContainer, Table,
+  TableRow,
+  TableCell,
+  TableHeader, } from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const TodasOcorrencias = () => {
   const [ocorrencias, setOcorrencias] = useState([]);
   const [filteredOcorrencias, setFilteredOcorrencias] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
+  const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    setLoading(true);
+
     try {
       const [
         ocorrenciasRes,
@@ -67,13 +75,16 @@ const TodasOcorrencias = () => {
           ocorrencia.horario_chegada
         ),
       }));
-
       setOcorrencias(ocorrenciasWithNames);
       setFilteredOcorrencias(ocorrenciasWithNames);
+      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar dados das ocorrências.");
       console.error(error);
+    } finally {
+      setLoading(false);
     }
+
   };
 
   const calcularPermanencia = (chegada, saida) => {
@@ -179,50 +190,55 @@ const TodasOcorrencias = () => {
         </Input>
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            <th onClick={() => handleSort("id")}>ID</th>
-            <th onClick={() => handleSort("nf")}>Nota Fiscal</th>
-            <th onClick={() => handleSort("cliente_nome")}>Cliente</th>
-            <th onClick={() => handleSort("motorista_nome")}>Motorista</th>
-            <th onClick={() => handleSort("destino_nome")}>Destino</th>
-            <th onClick={() => handleSort("status")}>Status</th>
-            <th onClick={() => handleSort("datainclusao")}>Data de Inclusão</th>
-            <th onClick={() => handleSort("horario_chegada")}>Hora de Chegada</th>
-            <th onClick={() => handleSort("horario_saida")}>Hora de Saída</th>
-            <th onClick={() => handleSort("permanencia")}>Permanência</th>
-            <th onClick={() => handleSort("tempo_para_abrir")}>Tempo para Abrir</th>
-            <th onClick={() => handleSort("tipo_ocorrencia")}>Tipo de Ocorrência</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredOcorrencias.map((ocorrencia) => (
-            <tr key={ocorrencia.id}>
-              <td>{ocorrencia.id}</td>
-              <td>{ocorrencia.nf}</td>
-              <td>{ocorrencia.cliente_nome}</td>
-              <td>{ocorrencia.motorista_nome}</td>
-              <td>{ocorrencia.destino_nome}</td>
-              <td>{ocorrencia.status}</td>
-              <td>{new Date(ocorrencia.datainclusao).toLocaleString()}</td>
-              <td>
-                {ocorrencia.horario_chegada
-                  ? new Date(ocorrencia.horario_chegada).toLocaleString()
-                  : "N/A"}
-              </td>
-              <td>
-                {ocorrencia.horario_saida
-                  ? new Date(ocorrencia.horario_saida).toLocaleString()
-                  : "N/A"}
-              </td>
-              <td>{ocorrencia.permanencia}</td>
-              <td>{ocorrencia.tempo_para_abrir}</td>
-              <td>{ocorrencia.tipo_ocorrencia}</td>
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+      {loading ? (
+        <LoadingDots/> // Ou utilize um componente de loading
+      ) : (
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader onClick={() => handleSort("id")}>ID</TableHeader>
+              <TableHeader onClick={() => handleSort("nf")}>Nota Fiscal</TableHeader>
+              <TableHeader onClick={() => handleSort("cliente_nome")}>Cliente</TableHeader>
+              <TableHeader onClick={() => handleSort("motorista_nome")}>Motorista</TableHeader>
+              <TableHeader onClick={() => handleSort("destino_nome")}>Destino</TableHeader>
+              <TableHeader onClick={() => handleSort("status")}>Status</TableHeader>
+              <TableHeader onClick={() => handleSort("datainclusao")}>Data de Inclusão</TableHeader>
+              <TableHeader onClick={() => handleSort("horario_chegada")}>Hora de Chegada</TableHeader>
+              <TableHeader onClick={() => handleSort("horario_saida")}>Hora de Saída</TableHeader>
+              <TableHeader onClick={() => handleSort("permanencia")}>Permanência</TableHeader>
+              <TableHeader onClick={() => handleSort("tempo_para_abrir")}>Tempo para Abrir</TableHeader>
+              <TableHeader onClick={() => handleSort("tipo_ocorrencia")}>Tipo de Ocorrência</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filteredOcorrencias.map((ocorrencia) => (
+              <TableRow key={ocorrencia.id}>
+                <TableCell>{ocorrencia.id}</TableCell>
+                <TableCell>{ocorrencia.nf}</TableCell>
+                <TableCell>{ocorrencia.cliente_nome}</TableCell>
+                <TableCell>{ocorrencia.motorista_nome}</TableCell>
+                <TableCell>{ocorrencia.destino_nome}</TableCell>
+                <TableCell>{ocorrencia.status}</TableCell>
+                <TableCell>{new Date(ocorrencia.datainclusao).toLocaleString()}</TableCell>
+                <TableCell>
+                  {ocorrencia.horario_chegada
+                    ? new Date(ocorrencia.horario_chegada).toLocaleString()
+                    : "N/A"}
+                </TableCell>
+                <TableCell>
+                  {ocorrencia.horario_saida
+                    ? new Date(ocorrencia.horario_saida).toLocaleString()
+                    : "N/A"}
+                </TableCell>
+                <TableCell>{ocorrencia.permanencia}</TableCell>
+                <TableCell>{ocorrencia.tempo_para_abrir}</TableCell>
+                <TableCell>{ocorrencia.tipo_ocorrencia}</TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
     </div>
   );
 };

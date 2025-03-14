@@ -11,7 +11,6 @@ const api = axios.create({
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
-console.log("🚀 API Base URL:", api.defaults.baseURL); // Confirmação no console
 
 const apiLocal = {
   getMotoristas: () => api.get("/motoristas/"),
@@ -19,7 +18,7 @@ const apiLocal = {
   deleteMotorista: (id) => api.delete(`/motoristas/${id}`),
 
   getClientes: () => api.get("/clientes/"),
-  createOrUpdateCliente: (data) => api.post("/clientes", data),
+  createOrUpdateCliente: (data) => api.post("/clientes/", data),
   deleteCliente: (id) => api.delete(`/clientes/${id}`),
 
   getNomesOcorrencias: () => api.get("/nomes-ocorrencias/"),

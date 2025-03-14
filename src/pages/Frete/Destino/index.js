@@ -13,10 +13,14 @@ import apiLocal from "../../../services/apiLocal";
 
 import {
   HeaderContainer,
-  StyledTable,
+  Table,
+  TableRow,
+  TableCell,
+  TableHeader,
   AddButton,
   FilterInput,
 } from "./style";
+import LoadingDots from "../../../components/Loading";
 
 const Destino = () => {
   const [destinos, setDestinos] = useState([]);
@@ -30,18 +34,23 @@ const Destino = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [destinoToDelete, setDestinoToDelete] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetchDestinos();
   }, []);
 
   const fetchDestinos = async () => {
+    setLoading(true);
     try {
       const response = await apiLocal.getDestinos();
       setDestinos(response.data);
+      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar destinos.");
       console.error(error);
+    }finally {
+      setLoading(false);
     }
   };
 
@@ -134,31 +143,29 @@ const Destino = () => {
         </AddButton>
       </HeaderContainer>
 
-      <StyledTable bordered>
-        <thead>
-          <tr>
-            {/* <th>ID</th> */}
-            <th>Nome</th>
-            <th>Endereço</th>
-            <th>Cidade</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredDestinos.map((destino) => (
-            <tr key={destino.id}>
-              {/* <td style={{ textAlign: "center", width: "10px" }}>
-                <FaPen
-                  style={{ color: "rgb(0, 123, 255)" }}
-                  onClick={() => handleEdit(destino)}
-                />
-              </td> */}
-              <td>{destino.nome}</td>
-              <td>{destino.endereco || "N/A"}</td>
-              <td>{destino.cidade || "N/A"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </StyledTable>
+      {loading ? (
+  <LoadingDots/> // Ou utilize um componente de loading
+) : (
+  <Table>
+    <thead>
+      <TableRow>
+        <TableHeader>Nome</TableHeader>
+        <TableHeader>Endereço</TableHeader>
+        <TableHeader>Cidade</TableHeader>
+      </TableRow>
+    </thead>
+    <tbody>
+      {filteredDestinos.map((destino) => (
+        <TableRow key={destino.id}>
+          <TableCell>{destino.nome}</TableCell>
+          <TableCell>{destino.endereco || "N/A"}</TableCell>
+          <TableCell>{destino.cidade || "N/A"}</TableCell>
+        </TableRow>
+      ))}
+    </tbody>
+  </Table>
+)}
+
 
       <Modal isOpen={modalOpen} toggle={toggleModal}>
         <ModalHeader toggle={toggleModal}>

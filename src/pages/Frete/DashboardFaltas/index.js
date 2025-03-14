@@ -37,6 +37,9 @@ const DashboardFalta = () => {
     fetchFilters();
     setDefaultDateRange();
   }, []);
+    useEffect(() => {
+      fetchFaltasData();
+    }, [filters]); 
   
   const fetchFilters = async () => {
     try {
