@@ -46,7 +46,7 @@ const apiLocal = {
   createOrUpdateDestino: (data) => api.post("/destinos", data),
   deleteDestino: (id) => api.delete(`/destinos/${id}`), 
 
-  getControleEstoque: () => api.get("/estoque"), 
+  getControleEstoque: () => api.get("/estoque/"), 
   createOrUpdateControleEstoque: (data) => api.post("/estoque", data),
   deleteControleEstoque: (id) => api.delete(`/estoque/${id}`), 
   getControleEstoqueFiltrado: (filters) => api.post("/controle-estoque/filtrar", filters),
