@@ -1,17 +1,17 @@
 import axios from "axios";
 import qs from "qs";
 
-const baseURL ="https://projetoti-api-production.up.railway.app";
+// ✅ Agora pegamos do `.env`
+const baseURL = process.env.REACT_APP_API_URL || "https://projetoti-api-production.up.railway.app";
 
 const api = axios.create({
-    baseURL,
+    baseURL: baseURL,
     headers: { "Content-Type": "application/json" },
     withCredentials: false,
     paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
-console.log("Axios está usando:", api.defaults.baseURL);
-console.log("🚀 API Base URL:", process.env.NEXT_PUBLIC_API_URL);
+console.log("🚀 API Base URL:", baseURL); // 🔥 Verifique no console
 
 const apiLocal = {
   getMotoristas: () => api.get("/motoristas"),
