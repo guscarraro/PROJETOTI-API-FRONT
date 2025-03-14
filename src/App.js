@@ -7,7 +7,6 @@ import CicloPedido from './pages/CicloPedido';
 import ProjetoFrota from './pages/ProjetoFrota';
 import Fiscal from './pages/Fiscal';
 import Frete from './pages/Frete';
-import TesteApi from './pages/TesteApi';
 import CargaLucrativa from './pages/CargaLucrativa';
 
 import Login from './pages/Login';
@@ -95,15 +94,7 @@ const App = () => {
       />
     }
   />
-  <Route
-    path="/Test"
-    element={
-      <PrivateRoute
-        element={<TesteApi />}
-        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
-      />
-    }
-  />
+ 
   <Route
     path="/ProjetoFrota"
     element={

@@ -55,16 +55,6 @@ const LancarOcorren = ({ onActionComplete }) => {
     fetchDestinos(); 
   }, []);
 
-  useEffect(() => {
-    if (!ocorrencia.horario_chegada) {
-      const now = new Date();
-      const formattedNow = now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
-      setOcorrencia((prev) => ({
-        ...prev,
-        horario_chegada: formattedNow,
-      }));
-    }
-  }, [ocorrencia]); // Reage a mudanças na ocorrência
   
   const fetchMotoristas = async () => {
     try {
