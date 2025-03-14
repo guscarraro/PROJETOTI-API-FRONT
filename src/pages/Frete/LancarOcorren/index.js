@@ -55,6 +55,17 @@ const LancarOcorren = ({ onActionComplete }) => {
     fetchDestinos(); 
   }, []);
 
+  useEffect(() => {
+    if (!ocorrencia.horario_chegada) {
+      const now = new Date();
+      const formattedNow = now.toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+      setOcorrencia((prev) => ({
+        ...prev,
+        horario_chegada: formattedNow,
+      }));
+    }
+  }, [ocorrencia]); // Reage a mudanças na ocorrência
+  
   const fetchMotoristas = async () => {
     try {
       const response = await apiLocal.getMotoristas();
@@ -163,7 +174,7 @@ const LancarOcorren = ({ onActionComplete }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-  
+    console.log("Payload enviado para o backend:", ocorrencia);
     if (!clienteNome || !ocorrencia.nf || !ocorrencia.motorista_id || !ocorrencia.tipoocorrencia_id || !ocorrencia.horario_chegada) {
       toast.error("Por favor, preencha todos os campos obrigatórios.");
       return;

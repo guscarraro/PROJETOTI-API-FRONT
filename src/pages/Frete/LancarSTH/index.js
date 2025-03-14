@@ -320,7 +320,7 @@ const LancarSTH = ({ onActionComplete }) => {
       <StyledForm onSubmit={handleSave}>
         <FormGroup>
           <Label>
-            <FaFileInvoice /> NF STH / NF que Gerou Atraso
+            <FaFileInvoice /> NF que Gerou Atraso
           </Label>
           <div style={{ position: "relative" }}>
             <Input
@@ -409,7 +409,7 @@ const LancarSTH = ({ onActionComplete }) => {
 
         <FormGroup>
           <Label>
-            <FaFileInvoice /> Nota Fiscal STH
+            <FaFileInvoice /> NF(S) STH Impactada(s)
           </Label>
           <Input
             type="text"
