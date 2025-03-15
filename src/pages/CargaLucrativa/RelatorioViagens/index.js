@@ -4,6 +4,7 @@ import * as XLSX from "xlsx";
 import { FaEdit, FaTrash } from "react-icons/fa"; // Ícones de edição e exclusão
 import ModalEdit from "./ModalEdit"; // Modal para editar CTEs
 import ModalDel from "./ModalDel"; // Modal para excluir viagem
+import PDFViagem from "./PDFViagem"; 
 import {
   Container,
   Table,
@@ -80,6 +81,7 @@ const RelatorioViagens = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Relatório de Viagens");
     XLSX.writeFile(wb, "Relatorio_Viagens.xlsx");
   };
+  console.log(viagens)
 
   return (
     <Container>
@@ -104,7 +106,8 @@ const RelatorioViagens = () => {
               <TableHeader>Filial Origem</TableHeader>
               <TableHeader>Filial Destino</TableHeader>
               <TableHeader>CTEs</TableHeader>
-              <TableHeader>Ações</TableHeader>
+              <TableHeader></TableHeader>
+              <TableHeader></TableHeader>
             </TableRow>
           </thead>
           <tbody>
@@ -138,6 +141,10 @@ const RelatorioViagens = () => {
           ))}
         </TableCell>
         <TableCell>
+          
+          <PDFViagem viagem={viagem} />
+        </TableCell>
+        <TableCell>
           <ActionButton
             style={{ background: "blue", color: "#fff", borderRadius: "5px 5px 0px 0px" }}
             onClick={() => {
@@ -162,6 +169,7 @@ const RelatorioViagens = () => {
             <FaTrash size={16} />
           </ActionButton>
         </TableCell>
+        
       </TableRow>
     );
   })}
@@ -180,6 +188,7 @@ const RelatorioViagens = () => {
           onSave={carregarViagens}
         />
       )}
+      
 
       {/* Modal para excluir viagem */}
       {modalDelOpen && (
