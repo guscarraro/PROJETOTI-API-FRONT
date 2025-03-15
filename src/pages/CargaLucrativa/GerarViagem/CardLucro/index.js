@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { Row, Col } from "reactstrap";
 import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine,  FaDollarSign } from "react-icons/fa";
 
-const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,tipoVeiculo }) => {
+const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,tipoVeiculo,obs,custoManual,cargaDividida}) => {
   const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0 });
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const metaRentabilidade = 18; // Meta de 18% da receita
@@ -95,8 +95,15 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
       total_peso: totalPeso,
       total_custo: custoViagem,
       margem_custo: rentabilidade.custoPercentual,
-      filial_origem: ctes.length > 0 ? ctes[0].filial_origem || "" : "",
-      filial_destino: ctes.length > 0 ? ctes[0].filial_destino || "" : "",
+      filial_origem: ctes.length > 0 ? [...new Set(ctes.map(cte => cte.filialOrigem).filter(Boolean))].join("/") : "",
+      filial_destino: ctes.length > 0 ? [...new Set(ctes.map(cte => cte.filialDestino).filter(Boolean))].join("/") : "",
+      placa:"NA",
+      motorista:"NA",
+      obs: obs || "",  
+      custo_manual: custoManual ? "S" : "N",  // 🔥 Adicionando Custo Manual
+      carga_dividida: cargaDividida ? "S" : "N",  // 🔥 Adicionando Carga Dividida
+
+
       
       tipo_veiculo: tipoVeiculo || "", // Certifica-se de que o tipo do veículo foi preenchido
     };
@@ -153,14 +160,14 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
       
       
       viagemData.documentos_transporte = documentosTransporte;
-      
+      console.log(viagemData)
       await apiLocal.createOrUpdateViagem(viagemData);
       
       toast.success("Viagem salva com sucesso!");
       setCtes([]);
       setNumeroViagem("");
       setNumeroCTE("");
-      setCustoViagem(1500);
+      setCustoViagem(0);
     } catch (error) {
       console.error("Erro ao salvar viagem:", error.response ? error.response.data : error);
       toast.error("Erro ao salvar viagem.");

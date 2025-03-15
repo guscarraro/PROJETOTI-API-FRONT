@@ -11,7 +11,7 @@ export const Container = styled.div`
 
 // Inputs de busca
 export const InputContainer = styled.div`
-  width: 100%;
+  width: 70%;
   display: flex;
   justify-content: flex-start;
   flex-wrap: wrap;
@@ -65,6 +65,9 @@ export const LucroContainer = styled.div`
   border-radius: 8px;
   text-align: center;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.7);
+  position: fixed;
+  top: 200px;
+  margin-right: 1%;
 `;
 
 // Percentual de rentabilidade

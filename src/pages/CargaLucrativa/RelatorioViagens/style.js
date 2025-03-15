@@ -22,13 +22,13 @@ export const Table = styled.table`
 `;
 
 // Linha da Tabela, com cor dinâmica baseada na lucratividade
+// Linha da Tabela, com cor dinâmica baseada na margem de custo
 export const TableRow = styled.tr`
-  background-color: ${(props) => (props.lucrativa ? "rgba(0, 255, 127, 0.15)" : "rgba(124, 119, 117, 0.15)")};
-  &:nth-child(even) {
-    background-color: ${(props) => (props.lucrativa ? "rgba(0, 255, 127, 0.25)" : "rgba(255, 69, 0, 0.25)")};
-  }
+  background-color: ${(props) => (props.lucrativa ? "rgba(0, 255, 127, 0.15)" : "rgba(255, 69, 0, 0.25)")};
+
   transition: background-color 0.3s;
 `;
+
 
 // Célula da Tabela
 export const TableCell = styled.td`

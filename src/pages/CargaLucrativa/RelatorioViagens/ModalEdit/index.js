@@ -1,81 +1,144 @@
-import React, { useState } from "react";
-import { 
-  ModalContainer, 
-  ModalContent, 
-  CloseButton, 
-  ActionButton, 
-  Table, 
-  TableRow, 
-  TableCell, 
-  TableHeader 
+import React, { useState, useEffect } from "react";
+import Select from "react-select"; // 📌 react-select para dropdowns
+import {
+  ModalContainer,
+  ModalContent,
+  CloseButton,
+  ActionButton,
+  InputStyled,
+  FormGroup,
 } from "./style";
-import { FaTrash } from "react-icons/fa"; // Ícone de lixeira
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
 
 const ModalEdit = ({ viagem, onClose, onSave }) => {
-  const [documentos, setDocumentos] = useState(viagem.documentos_transporte || []);
+  const [numeroViagem, setNumeroViagem] = useState(viagem.numero_viagem);
+  const [placa, setPlaca] = useState({
+    label: viagem.placa,
+    value: viagem.placa,
+  });
+  const [motorista, setMotorista] = useState({
+    label: viagem.motorista,
+    value: viagem.motorista,
+  });
+  const [motoristas, setMotoristas] = useState([]);
+  const [placas, setPlacas] = useState([]);
 
-  // Função para remover um CTE da viagem
-  const removerCTE = async (cteNumero) => {
-    const novosDocumentos = documentos.filter(doc => doc.numero_cte !== cteNumero);
-    setDocumentos(novosDocumentos);
-  
+  // 🔄 Carregar motoristas e placas disponíveis
+  useEffect(() => {
+    async function fetchMotoristas() {
+      try {
+        const response = await apiLocal.getMotoristas();
+        const motoristasFormatados = response.data.map((motorista) => ({
+          label: motorista.nome,
+          value: motorista.nome,
+          placa: motorista.placa, // Relaciona placa ao motorista
+        }));
+
+        setMotoristas(motoristasFormatados);
+        setPlacas(
+          [...new Set(motoristasFormatados.map((m) => m.placa))].map((p) => ({
+            label: p,
+            value: p,
+          }))
+        );
+      } catch (error) {
+        console.error("Erro ao buscar motoristas:", error);
+      }
+    }
+
+    fetchMotoristas();
+  }, []);
+
+  // 🔄 Atualizar Viagem com validação
+  const handleSave = async () => {
+    // 🔥 Valida se todos os campos estão preenchidos
+    if (!numeroViagem.trim()) {
+      toast.error("O número da viagem é obrigatório.");
+      return;
+    }
+    if (!placa.value) {
+      toast.error("Selecione uma placa válida.");
+      return;
+    }
+    if (!motorista.value) {
+      toast.error("Selecione um motorista válido.");
+      return;
+    }
+
     try {
-      await apiLocal.updateViagem({
-        numero_viagem: viagem.numero_viagem,
-        remover_ctes: [cteNumero] // Mudança aqui para lista correta
+      await apiLocal.updateViagem(viagem.id, {
+        numero_viagem: numeroViagem, // 🔥 Agora permite alterar o número da viagem
+        placa: placa.value,
+        motorista: motorista.value,
       });
-  
-      toast.success(`CTE ${cteNumero} removido com sucesso!`);
-      onSave(); // Atualiza o relatório
+
+      toast.success("Viagem atualizada com sucesso!");
+      onSave(); // Atualiza a lista de viagens
+      onClose(); // Fecha o modal
     } catch (error) {
-      toast.error("Erro ao remover CTE:", error);
+      toast.error("Erro ao atualizar viagem.");
+      console.error("Erro ao atualizar viagem:", error);
     }
   };
-  
 
   return (
     <ModalContainer>
       <ModalContent>
         <h3 style={{ color: "#000", marginBottom: "15px" }}>
-          Editar CTEs da Viagem <span style={{ color: "#007bff" }}>{viagem.numero_viagem}</span>
+          Editar Viagem{" "}
+          <span style={{ color: "#007bff" }}>{viagem.numero_viagem}</span>
         </h3>
 
-        {/* Tabela de CTEs */}
-        <Table>
-          <thead>
-            <TableRow>
-              <TableHeader>Número do CTE</TableHeader>
-              <TableHeader>Cliente</TableHeader>
-              <TableHeader>Filial Destino</TableHeader>
-              <TableHeader>Ação</TableHeader>
-            </TableRow>
-          </thead>
-          <tbody>
-            {documentos.length > 0 ? (
-              documentos.map((cte) => (
-                <TableRow key={cte.numero_cte}>
-                  <TableCell>{cte.numero_cte}</TableCell>
-                  <TableCell>{cte.tomador}</TableCell>
-                  <TableCell>{cte.destino}</TableCell>
-                  <TableCell>
-                    <ActionButton onClick={() => removerCTE(cte.numero_cte)} style={{ color: "#fff", background: "red" }}>
-                      <FaTrash />
-                    </ActionButton>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan="4">Nenhum CTE cadastrado.</TableCell>
-              </TableRow>
-            )}
-          </tbody>
-        </Table>
+        {/* Formulário com inputs alinhados */}
+        <FormGroup>
+          {/* Número da Viagem */}
+          <label>Número da Viagem</label>
+          <InputStyled
+            type="text"
+            value={numeroViagem}
+            onChange={(e) => setNumeroViagem(e.target.value)}
+          />
+        </FormGroup>
 
-        {/* Botão de Fechar */}
-        <CloseButton onClick={onClose}>Fechar</CloseButton>
+        <FormGroup>
+          {/* Placa */}
+          <label>Placa</label>
+          <Select
+            options={placas}
+            value={placa}
+            onChange={setPlaca}
+            placeholder="Selecione uma placa"
+          />
+        </FormGroup>
+
+        <FormGroup>
+          {/* Motorista */}
+          <label>Motorista</label>
+          <Select
+            options={motoristas}
+            value={motorista}
+            onChange={setMotorista}
+            placeholder="Selecione um motorista"
+          />
+        </FormGroup>
+
+        {/* Botões de ação */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            marginTop: "15px",
+          }}
+        >
+          <CloseButton onClick={onClose}>Fechar</CloseButton>
+          <ActionButton
+            style={{ background: "green", color: "#fff" }}
+            onClick={handleSave}
+          >
+            Salvar Alterações
+          </ActionButton>
+        </div>
       </ModalContent>
     </ModalContainer>
   );

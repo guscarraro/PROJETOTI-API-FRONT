@@ -15,66 +15,65 @@ export const ModalContainer = styled.div`
 
 export const ModalContent = styled.div`
   background: white;
-  width: 80%; /* Aumentado para evitar quebras de linha */
-  max-width: 900px; /* Limite de largura */
+  width: 50%; 
+  max-width: 450px;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   align-items: center;
+  color: #000;
 `;
 
-// Estilos para a Tabela
-export const Table = styled.table`
+// Estilização do FormGroup para alinhar os inputs/selects
+export const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  margin-bottom: 20px;
-`;
+  margin-bottom: 15px;
 
-export const TableRow = styled.tr`
-  background-color: #f8f9fa;
-  border-radius: 8px 8px 0px 0px;
-  transition: 0.3s;
-
-  &:hover {
-    background-color: #e9ecef;
+  label {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #555;
   }
 `;
 
-export const TableHeader = styled.th`
-  background: #007bff;
-  color: white;
-  padding: 12px;
-    border-radius: 8px 8px 0px 0px;
-  text-align: left;
-  font-size: 14px;
+// Estilos para os Inputs
+export const InputStyled = styled.input`
+  width: 100%;
+  min-width: 250px;
+  max-width: 300px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  transition: 0.3s;
+
+  &:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0px 0px 5px rgba(0, 123, 255, 0.5);
+  }
 `;
 
-export const TableCell = styled.td`
-  padding: 12px;
-  text-align: left;
-  font-size: 14px;
-  color: black;
-  border-bottom: 1px solid #ddd;
-  border-left: 1px solid #ddd;
-`;
+// Estilos para o react-select
 
-// Botão de ação (Excluir CTE)
+
+// Botão de ação (Salvar)
 export const ActionButton = styled.button`
-  width:100%;
-  background: red;
+  background: green;
   color: white;
   border: none;
-  padding: 6px 10px;
+  padding: 10px 15px;
   border-radius: 5px;
   cursor: pointer;
   transition: 0.3s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 
   &:hover {
-    background: darkred;
+    background: darkgreen;
   }
 `;
 
@@ -83,7 +82,7 @@ export const CloseButton = styled.button`
   background: #6c757d;
   color: white;
   border: none;
-  padding: 8px 15px;
+  padding: 10px 15px;
   border-radius: 5px;
   cursor: pointer;
   transition: 0.3s;

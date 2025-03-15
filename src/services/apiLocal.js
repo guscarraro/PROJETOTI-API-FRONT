@@ -56,6 +56,10 @@ const apiLocal = {
   createOrUpdateViagem: (data) => api.post("/viagens/", data),
   updateViagem: (data) => api.put("/viagens/update", data),
   deleteViagem: (numero_viagem) => api.delete(`/viagens/${numero_viagem}`),
+  updateViagem: (viagemId, data) => api.put(`/viagens/atualizar_viagem/${viagemId}`, data),
+  getDocumentosTransporte: () => api.get("/documentos-transporte/"),
+
+
 
   getDocumentoTransporte: (numero_cte) => api.get(`/documentos-transporte/${numero_cte}`),
 
