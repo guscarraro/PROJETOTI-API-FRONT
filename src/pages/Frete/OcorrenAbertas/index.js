@@ -45,10 +45,9 @@ const OcorrenAbertas = () => {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const ocorrenciasResponse = await apiLocal.getOcorrencias();
-      const abertas = ocorrenciasResponse.data.filter(
-        (ocorrencia) => ocorrencia.status === "Pendente"
-      );
+      const ocorrenciasResponse = await apiLocal.getOcorrenciasPendentes();
+      const abertas = ocorrenciasResponse.data;
+      
       abertas.sort((a, b) => new Date(a.datainclusao) - new Date(b.datainclusao));
 
 
@@ -189,12 +188,14 @@ const OcorrenAbertas = () => {
     }
   
     try {
-      await apiLocal.createOrUpdateOcorrencia({
-        ...selectedOcorrencia,
+      await apiLocal.updateOcorrenciaStatus({
+        id: selectedOcorrencia.id,
         status,
         horario_saida: horarioSaida,
         cobranca_adicional: cobrancaAdicional,
+        cte_gerado: cteValue || null,
       });
+      
   
       // Atualiza o campo cte_gerado separadamente se necessário
       if (cobrancaAdicional === "S" && cteValue.trim()) {

@@ -35,6 +35,8 @@ const apiLocal = {
   createOrUpdateOcorrenciaSTH: (data) => api.post("/ocorren-sth/", data),
   deleteOcorrenciaSTH: (id) => api.delete(`/ocorren-sth/${id}`),
   getDashboardSTH: (filters) => api.post("/ocorren-sth/filtrar", filters),
+  updateOcorrenciaStatus: (data) => api.put("/ocorrencias/atualizar-status", data),
+  getOcorrenciasPendentes: () => api.get("/ocorrencias/pendentes"),
 
   getFaltas: () => api.get("/faltas/"),
   getFaltasFiltradas: (filters) => api.post("/faltas/filtrar", filters),
