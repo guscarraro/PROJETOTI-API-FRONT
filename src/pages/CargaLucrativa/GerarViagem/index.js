@@ -15,7 +15,7 @@ import { Col, Row } from "reactstrap";
 import { toast } from "react-toastify";
 import LoadingDots from "../../../components/Loading";
 import apiLocal from "../../../services/apiLocal";
-import TableCTE from "./TableCte";
+import TableCTE from "./TableCTE";
 
 
 const tiposVeiculoOptions = [
