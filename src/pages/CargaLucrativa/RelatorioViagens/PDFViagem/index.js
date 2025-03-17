@@ -70,9 +70,12 @@ const PDFViagem = ({ viagem }) => {
           <div style={styles.cteBox}>
             <h3 style={styles.subTitle}>CTEs Vinculados</h3>
             <div style={styles.cteList}>
-              {viagem.documentos_transporte.map((cte, idx) => (
-                <span key={idx} style={styles.cteItem}>{cte.numero_cte}</span>
-              ))}
+            {viagem.documentos_transporte.map((cte, idx) => (
+  <span key={idx} style={styles.cteItem}>
+    {cte.numero_cte}{idx < viagem.documentos_transporte.length - 1 ? ", " : ""}
+  </span>
+))}
+
             </div>
           </div>
 

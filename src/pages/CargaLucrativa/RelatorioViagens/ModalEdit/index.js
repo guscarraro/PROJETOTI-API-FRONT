@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import Select from "react-select"; // 📌 react-select para dropdowns
 import {
   ModalContainer,
   ModalContent,
@@ -10,45 +9,70 @@ import {
 } from "./style";
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
+import { fetchViagem } from "../../../../services/api";
 
 const ModalEdit = ({ viagem, onClose, onSave }) => {
   const [numeroViagem, setNumeroViagem] = useState(viagem.numero_viagem);
-  const [placa, setPlaca] = useState({
-    label: viagem.placa,
-    value: viagem.placa,
-  });
-  const [motorista, setMotorista] = useState({
-    label: viagem.motorista,
-    value: viagem.motorista,
-  });
-  const [motoristas, setMotoristas] = useState([]);
-  const [placas, setPlacas] = useState([]);
+  const [placa, setPlaca] = useState(viagem.placa);
+  const [motorista, setMotorista] = useState(viagem.motorista);
 
-  // 🔄 Carregar motoristas e placas disponíveis
-  useEffect(() => {
-    async function fetchMotoristas() {
-      try {
-        const response = await apiLocal.getMotoristas();
-        const motoristasFormatados = response.data.map((motorista) => ({
-          label: motorista.nome,
-          value: motorista.nome,
-          placa: motorista.placa, // Relaciona placa ao motorista
-        }));
 
-        setMotoristas(motoristasFormatados);
-        setPlacas(
-          [...new Set(motoristasFormatados.map((m) => m.placa))].map((p) => ({
-            label: p,
-            value: p,
-          }))
-        );
-      } catch (error) {
-        console.error("Erro ao buscar motoristas:", error);
+  const [divergencia, setDivergencia] = useState("N");
+  const [obsDivergencia, setObsDivergencia] = useState([]);
+  const [divergenciasCampos, setDivergenciasCampos] = useState({});
+  const [isLoadingViagem, setIsLoadingViagem] = useState(false);
+
+  console.log(viagem);
+
+  // 📌 Buscar viagem da API externa e comparar os dados
+  const fetchViagemData = async () => {
+    if (!numeroViagem.trim()) return;
+
+    setIsLoadingViagem(true);
+
+    try {
+      const response = await fetchViagem(numeroViagem);
+      if (!response || !response.totalReceita) {
+        toast.error("Viagem não encontrada na API externa.");
+        return;
       }
-    }
 
-    fetchMotoristas();
-  }, []);
+      let obs = [];
+      let divergenciasTemp = {};
+
+      // ✅ Valida divergência de valor de receita
+      if (parseFloat(response.totalReceita) !== parseFloat(viagem.total_receita)) {
+        obs.push("Valor da receita divergente");
+        divergenciasTemp["total_receita"] = true;
+      }
+
+      // ✅ Valida divergência de quantidade de documentos de transporte
+      if (response.docsTransp.length !== viagem.total_entregas) {
+        obs.push("Número de entrega a menos");
+        divergenciasTemp["total_entregas"] = true;
+      }
+
+      // ✅ Valida divergência de peso total
+      if (parseFloat(response.totalPeso) !== parseFloat(viagem.total_peso)) {
+        obs.push("Peso total divergente");
+        divergenciasTemp["total_peso"] = true;
+      }
+
+      // ✅ Define os estados de divergência
+      setDivergencia(obs.length > 0 ? "S" : "N");
+      setObsDivergencia(obs);
+      setDivergenciasCampos(divergenciasTemp);
+
+      // ✅ Atualiza motorista e placa com os valores da API
+      setMotorista(response.Motorista);
+      setPlaca(response.Placa);
+    } catch (error) {
+      console.error("Erro ao buscar viagem:", error);
+      toast.error("Erro ao buscar viagem.");
+    } finally {
+      setIsLoadingViagem(false);
+    }
+  };
 
   // 🔄 Atualizar Viagem com validação
   const handleSave = async () => {
@@ -57,20 +81,22 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
       toast.error("O número da viagem é obrigatório.");
       return;
     }
-    if (!placa.value) {
-      toast.error("Selecione uma placa válida.");
+    if (!placa) {
+      toast.error("Placa inválida.");
       return;
     }
-    if (!motorista.value) {
-      toast.error("Selecione um motorista válido.");
+    if (!motorista) {
+      toast.error("Motorista inválido.");
       return;
     }
 
     try {
       await apiLocal.updateViagem(viagem.id, {
-        numero_viagem: numeroViagem, // 🔥 Agora permite alterar o número da viagem
-        placa: placa.value,
-        motorista: motorista.value,
+        numero_viagem: numeroViagem, 
+        placa: placa,
+        motorista: motorista,
+        divergencia: divergencia, 
+        obs_divergencia: obsDivergencia,
       });
 
       toast.success("Viagem atualizada com sucesso!");
@@ -90,6 +116,18 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
           <span style={{ color: "#007bff" }}>{viagem.numero_viagem}</span>
         </h3>
 
+        {/* Exibir divergências ao usuário */}
+        {obsDivergencia.length > 0 && (
+          <div style={{ background: "#ffcccc", padding: "10px", borderRadius: "5px", marginBottom: "15px" }}>
+            <strong>Atenção! Foram encontradas divergências:</strong>
+            <ul>
+              {obsDivergencia.map((item, index) => (
+                <li key={index} style={{ color: "red" }}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Formulário com inputs alinhados */}
         <FormGroup>
           {/* Número da Viagem */}
@@ -98,29 +136,24 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
             type="text"
             value={numeroViagem}
             onChange={(e) => setNumeroViagem(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Tab") {
+                fetchViagemData(); 
+              }
+            }}
           />
         </FormGroup>
 
+        {/* Placa - Apenas para exibição */}
         <FormGroup>
-          {/* Placa */}
           <label>Placa</label>
-          <Select
-            options={placas}
-            value={placa}
-            onChange={setPlaca}
-            placeholder="Selecione uma placa"
-          />
+          <InputStyled type="text" value={placa} disabled />
         </FormGroup>
 
+        {/* Motorista - Apenas para exibição */}
         <FormGroup>
-          {/* Motorista */}
           <label>Motorista</label>
-          <Select
-            options={motoristas}
-            value={motorista}
-            onChange={setMotorista}
-            placeholder="Selecione um motorista"
-          />
+          <InputStyled type="text" value={motorista} disabled />
         </FormGroup>
 
         {/* Botões de ação */}

@@ -5,7 +5,6 @@ import {
   InputContainer,
   Input,
   CardContainer,
-  RemoveButton,
   CheckboxContainer,
   Label,
   TextArea,
@@ -16,7 +15,8 @@ import { Col, Row } from "reactstrap";
 import { toast } from "react-toastify";
 import LoadingDots from "../../../components/Loading";
 import apiLocal from "../../../services/apiLocal";
-import TableCTE from "./TableCTE";
+import TableCTE from "./TableCte";
+
 
 const tiposVeiculoOptions = [
   { value: "TRUCK", label: "TRUCK" },
@@ -25,6 +25,11 @@ const tiposVeiculoOptions = [
   { value: "VAN", label: "VAN" },
   { value: "FIORINO", label: "FIORINO" },
   { value: "CARRETA", label: "CARRETA" },
+];
+const tiposOperacaoOptions = [
+  { value: "MTZ - Transferencia", label: "MTZ - Transferencia" },
+  { value: "MTZ - Metropolitana", label: "MTZ - Metropolitana" },
+  { value: "MTZ - Raio 2", label: "MTZ - Raio 2" },
 ];
 
 const GerarViagem = () => {
@@ -36,7 +41,7 @@ const GerarViagem = () => {
   const [tipoVeiculo, setTipoVeiculo] = useState(null);
   const [custoManual, setCustoManual] = useState(false);
   const [tabelaCustosFrete, setTabelaCustosFrete] = useState([]);
-
+  const [tipoOperacao, setTipoOperacao] = useState(null);
   const [cargaDividida, setCargaDividida] = useState(false);
   const [obs, setObs] = useState("");
   const [filialOrigem, setFilialOrigem] = useState("");
@@ -104,15 +109,15 @@ const GerarViagem = () => {
             origens.add(response.detalhe.fil_ori);
             return Array.from(origens).join("/");
           });
-        
+
           setFilialDestino((prevDestino) => {
             const destinos = new Set(prevDestino.split("/").filter(Boolean));
             destinos.add(response.detalhe.fil_des);
             return Array.from(destinos).join("/");
           });
         }
-        
-        
+
+
 
         // Verifica se a Filial Origem e Destino do novo CTE diverge da atual
         if (
@@ -259,7 +264,7 @@ const GerarViagem = () => {
           );
           return origensAtuais.size > 0 ? Array.from(origensAtuais).join("/") : "";
         });
-      
+
         setFilialDestino((prevDestino) => {
           const destinosAtuais = new Set(
             novaLista.map((cte) => cte.filialDestino).filter(Boolean)
@@ -267,8 +272,8 @@ const GerarViagem = () => {
           return destinosAtuais.size > 0 ? Array.from(destinosAtuais).join("/") : "";
         });
       }
-      
-      
+
+
 
       if (novaLista.length === 0) {
         // Reseta os inputs caso todos os CTEs sejam removidos
@@ -278,6 +283,8 @@ const GerarViagem = () => {
         setCustoViagem(0);
         setNumeroCTE("");
         setTipoVeiculo(null);
+        setTipoOperacao(null);
+        setObs("");
       }
 
       return novaLista;
@@ -296,49 +303,97 @@ const GerarViagem = () => {
       >
         Carga Lucrativa
       </p>
+      
       <Col md="3">
-            <CheckboxContainer>
-              <Label>
-                <input
-                  type="checkbox"
-                  checked={custoManual}
-                  onChange={(e) => {
-                    if (!e.target.checked && custoViagem !== custoTabela) {
-                      toast.warning(
-                        "Não é possível desativar Custo Manual sem redefinir o valor original."
-                      );
-                      return;
-                    }
-                    setCustoManual(e.target.checked);
-                  }}
-                />
-                Custo Manual
-              </Label>
-              <Label>
-                <input
-                  type="checkbox"
-                  checked={cargaDividida}
-                  onChange={(e) => {
-                    const destinosUnicos = [
-                      ...new Set(ctes.map((cte) => cte.destino)),
-                    ];
+        <CheckboxContainer>
+          <Label>
+            <input
+              type="checkbox"
+              checked={custoManual}
+              onChange={(e) => {
+                if (!e.target.checked && custoViagem !== custoTabela) {
+                  toast.warning(
+                    "Não é possível desativar Custo Manual sem redefinir o valor original."
+                  );
+                  return;
+                }
+                setCustoManual(e.target.checked);
+              }}
+            />
+            Custo Manual
+          </Label>
+          <Label>
+            <input
+              type="checkbox"
+              checked={cargaDividida}
+              onChange={(e) => {
+                const destinosUnicos = [
+                  ...new Set(ctes.map((cte) => cte.destino)),
+                ];
 
-                    if (!e.target.checked && destinosUnicos.length > 1) {
-                      toast.warning(
-                        "Não é possível desativar Carga Dividida com múltiplos destinos."
-                      );
-                      return;
-                    }
+                if (!e.target.checked && destinosUnicos.length > 1) {
+                  toast.warning(
+                    "Não é possível desativar Carga Dividida com múltiplos destinos."
+                  );
+                  return;
+                }
 
-                    setCargaDividida(e.target.checked);
-                  }}
-                />
-                Carga Dividida
-              </Label>
-            </CheckboxContainer>
-          </Col>
+                setCargaDividida(e.target.checked);
+              }}
+            />
+            Carga Dividida
+          </Label>
+        </CheckboxContainer>
+      </Col>
       <Row>
         <InputContainer>
+        <Col md="3">
+  <label
+    style={{ fontSize: "12px", fontWeight: "bold", color: "#fff" }}
+  >
+    Tipo de Operação
+  </label>
+  <Select
+    name="tipo_operacao"
+    options={tiposOperacaoOptions}
+    placeholder="Selecione o Tipo de Operação"
+    value={
+      tiposOperacaoOptions.find(
+        (option) => option.value === tipoOperacao
+      ) || null
+    }
+    onChange={(selectedOption) => setTipoOperacao(selectedOption.value)}
+    styles={{
+      control: (provided) => ({
+        ...provided,
+        backgroundColor: "#fff",
+        borderColor: "#ccc",
+        color: "#000",
+        fontSize: "16px",
+        height: "45px",
+      }),
+      singleValue: (provided) => ({
+        ...provided,
+        color: "#000",
+      }),
+      placeholder: (provided) => ({
+        ...provided,
+        color: "#555",
+      }),
+      menu: (provided) => ({
+        ...provided,
+        backgroundColor: "#fff",
+      }),
+      option: (provided, state) => ({
+        ...provided,
+        backgroundColor: state.isSelected ? "#ddd" : "#fff",
+        color: "#000",
+        fontSize: "16px",
+      }),
+    }}
+  />
+</Col>
+
           <Col md="4">
             <div style={{ position: "relative", width: "100%" }}>
               <label
@@ -491,7 +546,7 @@ const GerarViagem = () => {
             />
           </Col>
 
-          
+
         </InputContainer>
       </Row>
       <CardContainer>
@@ -513,10 +568,16 @@ const GerarViagem = () => {
               setNumeroViagem={setNumeroViagem}
               setNumeroCTE={setNumeroCTE}
               setCustoViagem={setCustoViagem}
+              setFilialOrigem={setFilialOrigem}
+              setFilialDestino={setFilialDestino}
+              setObs={setObs}
+              setTipoVeiculo={setTipoVeiculo}
+              setTipoOperacao={setTipoOperacao}
               tipoVeiculo={tipoVeiculo}
               obs={obs}
               custoManual={custoManual}  // 🔥 Passando custoManual
-              cargaDividida={cargaDividida} 
+              cargaDividida={cargaDividida}
+              tipoOperacao={tipoOperacao}
             />
           </Col>
         </Row>
