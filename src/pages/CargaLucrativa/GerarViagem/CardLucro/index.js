@@ -21,7 +21,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
   } else if (tipoOperacao === "MTZ - Transferencia") {
     metaRentabilidade = 18;
   } else {
-    metaRentabilidade = 18; // Padrão para outras operações
+    metaRentabilidade = 30; // Padrão para outras operações
   }
 
   useEffect(() => {

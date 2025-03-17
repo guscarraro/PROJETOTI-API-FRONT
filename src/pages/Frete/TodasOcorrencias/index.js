@@ -7,7 +7,7 @@ import apiLocal from "../../../services/apiLocal";
 import { HeaderContainer, Table,
   TableRow,
   TableCell,
-  TableHeader, } from "./style";
+  TableHeader} from "./style";
 import LoadingDots from "../../../components/Loading";
 
 const TodasOcorrencias = () => {

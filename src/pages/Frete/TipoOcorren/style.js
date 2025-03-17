@@ -1,5 +1,5 @@
 import styled from "styled-components";
-import {  Button } from "reactstrap";
+import { Button } from "reactstrap";
 
 /**
  * Header principal que envolve o título e o botão de adicionar
