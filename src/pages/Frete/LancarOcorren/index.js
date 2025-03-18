@@ -164,7 +164,7 @@ const LancarOcorren = ({ onActionComplete }) => {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    console.log("Payload enviado para o backend:", ocorrencia);
+    
     if (!clienteNome || !ocorrencia.nf || !ocorrencia.motorista_id || !ocorrencia.tipoocorrencia_id || !ocorrencia.horario_chegada) {
       toast.error("Por favor, preencha todos os campos obrigatórios.");
       return;

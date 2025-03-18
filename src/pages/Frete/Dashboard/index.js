@@ -116,7 +116,7 @@ const Dashboard = () => {
     try {
 
       const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
-      console.log('resposta do back:', respOcorrencias)
+      
       const ocorrencias = Array.isArray(respOcorrencias.data) ? respOcorrencias.data : [];
       setTodasOcorrencias(ocorrencias);
   

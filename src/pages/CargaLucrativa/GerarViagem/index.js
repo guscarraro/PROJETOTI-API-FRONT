@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 import LoadingDots from "../../../components/Loading";
 import apiLocal from "../../../services/apiLocal";
 import TableCTE from "./TableCTE";
+import { useParams } from "react-router-dom";
 
 
 const tiposVeiculoOptions = [
@@ -32,7 +33,9 @@ const tiposOperacaoOptions = [
   { value: "MTZ - Raio 2", label: "MTZ - Raio 2" },
 ];
 
-const GerarViagem = () => {
+const GerarViagem = ({ numeroViagemParam }) => {
+  const { numero_viagem } = useParams(); // ✅ Pegando da URL, se existir
+  const numeroViagemFinal = numeroViagemParam || numero_viagem || null;
   const [numeroViagem, setNumeroViagem] = useState("");
   const [numeroCTE, setNumeroCTE] = useState("");
   const [custoViagem, setCustoViagem] = useState(0);
@@ -47,24 +50,84 @@ const GerarViagem = () => {
   const [filialOrigem, setFilialOrigem] = useState("");
   const [filialDestino, setFilialDestino] = useState("");
   const [loadingCTE, setLoadingCTE] = useState(false);
+  useEffect(() => {
+    if (numeroViagemFinal) {
+
+      carregarViagem(numeroViagemFinal);
+    }
+  }, [numeroViagemFinal]);
+
+
+  const carregarViagem = async (numeroViagem) => {
+    try {
+      const response = await apiLocal.getViagemByNumero(numeroViagem);
+
+
+      if (response.data) {
+        setNumeroViagem(response.data.numero_viagem);
+        setFilialOrigem(response.data.filial_origem);
+        setFilialDestino(response.data.filial_destino);
+        setTipoVeiculo(response.data.tipo_veiculo);
+        setTipoOperacao(response.data.tipo_operacao || null);
+        setObs(response.data.obs);
+        setCtes(response.data.documentos_transporte || []);
+
+        // 🔥 Pegando o custo total da API (evita valores nulos)
+        const custoAPI = response.data.total_custo ?? 0;
+
+        // 🔥 Define o custo manual conforme a API antes de atualizar o custo
+        const isCustoManual = response.data.custo_manual === "S";
+        setCustoManual(isCustoManual);
+        setCustoTabela(custoAPI); // Atualiza o custo vindo da API
+
+        if (isCustoManual) {
+          setCustoViagem(custoAPI);
+        }
+
+        // Ajusta o estado de 'cargaDividida' conforme as filiais de origem e destino
+        const origemDestinoDiferentes = response.data.filial_origem !== response.data.filial_destino;
+        setCargaDividida(origemDestinoDiferentes); // Se filiais forem diferentes, define cargaDividida como true
+      } else {
+        setCtes([]);
+      }
+    } catch (error) {
+      toast.error("Erro ao carregar viagem.");
+      setCtes([]);
+    }
+  };
+
+
+  // 🚀 **useEffect para garantir que `custoViagem` seja atualizado corretamente**
+  useEffect(() => {
+    if (!custoManual && tabelaCustosFrete.length > 0) {
+
+      calcularCustoViagem();
+    }
+  }, [custoManual, ctes.length, tipoVeiculo, tabelaCustosFrete]);
+
 
   useEffect(() => {
     const carregarTabelaFrete = async () => {
       try {
         const response = await apiLocal.getCustosFrete();
         if (response.data) {
+
           setTabelaCustosFrete(response.data);
+          // ✅ Chama o cálculo APÓS carregar a tabela
+          if (!custoManual) {
+            calcularCustoViagem(response.data);
+          }
         }
       } catch (error) {
         toast.error("Erro ao carregar tabela de custos de frete.");
       }
     };
-
     carregarTabelaFrete();
   }, []);
   useEffect(() => {
     calcularCustoViagem();
   }, [ctes.length, tipoVeiculo]);
+
 
   const buscarCTE = async () => {
     if (!numeroCTE) return;
@@ -73,6 +136,9 @@ const GerarViagem = () => {
 
     try {
       const response = await fetchDocumento(numeroCTE);
+
+
+
       if (response.detalhe) {
         const novoCTE = {
           numero_cte: response.detalhe.docTransporte || numeroCTE,
@@ -170,16 +236,30 @@ const GerarViagem = () => {
       setLoadingCTE(false);
     }
   };
-  const calcularCustoViagem = async () => {
+  useEffect(() => {
+    if (!custoManual && tabelaCustosFrete.length > 0) {
+
+      calcularCustoViagem();
+    }
+  }, [custoManual, ctes.length, tipoVeiculo, tabelaCustosFrete]);
+
+
+  // 🚀 **Correção na função `calcularCustoViagem()`**
+  const calcularCustoViagem = async (tabelaCustos = tabelaCustosFrete) => {
+    if (custoManual) {
+
+      return; // 🔥 Se custo manual estiver ativado, não sobrescreve o valor!
+    }
+
     if (!tipoVeiculo || ctes.length === 0) {
+
       setCustoViagem(0);
       return;
     }
 
     try {
-      if (!tabelaCustosFrete || tabelaCustosFrete.length === 0) {
+      if (!tabelaCustos || tabelaCustos.length === 0) {
         setCustoViagem(0);
-        toast.warning("Nenhuma tabela de custos disponível.");
         return;
       }
 
@@ -188,7 +268,10 @@ const GerarViagem = () => {
         .map((cte) => cte.cidade?.trim().toUpperCase())
         .filter(Boolean);
 
+
+
       if (destinosCtes.length === 0) {
+
         setCustoViagem(0);
         toast.warning("Nenhuma cidade de destino válida encontrada nos CTEs.");
         return;
@@ -196,33 +279,35 @@ const GerarViagem = () => {
 
       const tipoVeiculoFormatado = tipoVeiculo.trim().toUpperCase();
 
-      // 🔍 2. Filtrar apenas os custos correspondentes ao veículo e à cidade dos CTEs
-      const tarifasFiltradas = tabelaCustosFrete.filter(
+
+      // 🔍 2. Filtrar apenas os custos correspondentes ao veículo e às cidades dos CTEs
+      const tarifasFiltradas = tabelaCustos.filter(
         (item) =>
           destinosCtes.includes(item.destino.trim().toUpperCase()) &&
           item.tipo_veiculo.trim().toUpperCase() === tipoVeiculoFormatado
       );
 
+
+
       if (tarifasFiltradas.length === 0) {
+
         setCustoViagem(0);
-        toast.warning(
-          `Nenhuma tarifa encontrada para "${tipoVeiculo}" nas cidades de destino dos CTEs.`
-        );
+        toast.warning(`Nenhuma tarifa encontrada para "${tipoVeiculo}" nas cidades de destino.`);
         return;
       }
 
-      // 🔍 3. Buscar as distâncias da tabela de custos
+      // 🔍 3. Buscar a maior distância da tabela de custos
       const distanciasValidas = tarifasFiltradas
         .map((item) => {
           let distancia = parseFloat(item.distancia_km);
-          if (isNaN(distancia) || distancia <= 0) {
-            return 0;
-          }
-          return distancia;
+          return isNaN(distancia) || distancia <= 0 ? 0 : distancia;
         })
         .filter((dist) => dist > 0);
 
+
+
       if (distanciasValidas.length === 0) {
+
         setCustoViagem(0);
         toast.warning("Nenhuma distância válida encontrada nos CTEs.");
         return;
@@ -231,26 +316,28 @@ const GerarViagem = () => {
       // 🔍 4. Pegando a maior distância encontrada
       const maiorDistancia = Math.max(...distanciasValidas);
 
+
       // 🔍 5. Encontrar a tarifa correspondente a essa distância
       const tarifaEncontrada = tarifasFiltradas.find(
         (item) => parseFloat(item.distancia_km) === maiorDistancia
       );
 
       if (tarifaEncontrada) {
+
         setCustoViagem(tarifaEncontrada.valor);
         setCustoTabela(tarifaEncontrada.valor); // Armazena o valor original da tabela
       } else {
-        setCustoViagem(0);
 
-        toast.warning(
-          `Nenhuma tarifa encontrada para "${tipoVeiculo}" com ${maiorDistancia} km.`
-        );
+        setCustoViagem(0);
+        toast.warning(`Nenhuma tarifa encontrada para "${tipoVeiculo}" com ${maiorDistancia} km.`);
       }
     } catch (error) {
+      console.error("🚨 Erro ao calcular custo de viagem:", error);
       setCustoViagem(0);
       toast.error("Erro ao buscar custo de frete.");
     }
   };
+
 
   const removerCTE = (index) => {
     setCtes((prevCtes) => {
@@ -303,7 +390,9 @@ const GerarViagem = () => {
       >
         Carga Lucrativa
       </p>
-      
+      <h4 style={{ textAlign: "start", fontSize: "20px", fontWeight: "600" }}>
+        Número da Viagem: {numeroViagem || "N/A"}
+      </h4>
       <Col md="3">
         <CheckboxContainer>
           <Label>
@@ -347,52 +436,53 @@ const GerarViagem = () => {
       </Col>
       <Row>
         <InputContainer>
-        <Col md="3">
-  <label
-    style={{ fontSize: "12px", fontWeight: "bold", color: "#fff" }}
-  >
-    Tipo de Operação
-  </label>
-  <Select
-    name="tipo_operacao"
-    options={tiposOperacaoOptions}
-    placeholder="Selecione o Tipo de Operação"
-    value={
-      tiposOperacaoOptions.find(
-        (option) => option.value === tipoOperacao
-      ) || null
-    }
-    onChange={(selectedOption) => setTipoOperacao(selectedOption.value)}
-    styles={{
-      control: (provided) => ({
-        ...provided,
-        backgroundColor: "#fff",
-        borderColor: "#ccc",
-        color: "#000",
-        fontSize: "16px",
-        height: "45px",
-      }),
-      singleValue: (provided) => ({
-        ...provided,
-        color: "#000",
-      }),
-      placeholder: (provided) => ({
-        ...provided,
-        color: "#555",
-      }),
-      menu: (provided) => ({
-        ...provided,
-        backgroundColor: "#fff",
-      }),
-      option: (provided, state) => ({
-        ...provided,
-        backgroundColor: state.isSelected ? "#ddd" : "#fff",
-        color: "#000",
-        fontSize: "16px",
-      }),
-    }}
-  />
-</Col>
+          <Col md="3">
+            <label
+              style={{ fontSize: "12px", fontWeight: "bold", color: "#fff" }}
+            >
+              Tipo de Operação
+            </label>
+
+            <Select
+              name="tipo_operacao"
+              options={tiposOperacaoOptions}
+              placeholder="Selecione o Tipo de Operação"
+              value={
+                tiposOperacaoOptions.find(
+                  (option) => option.value === tipoOperacao
+                ) || null
+              }
+              onChange={(selectedOption) => setTipoOperacao(selectedOption.value)}
+              styles={{
+                control: (provided) => ({
+                  ...provided,
+                  backgroundColor: "#fff",
+                  borderColor: "#ccc",
+                  color: "#000",
+                  fontSize: "16px",
+                  height: "45px",
+                }),
+                singleValue: (provided) => ({
+                  ...provided,
+                  color: "#000",
+                }),
+                placeholder: (provided) => ({
+                  ...provided,
+                  color: "#555",
+                }),
+                menu: (provided) => ({
+                  ...provided,
+                  backgroundColor: "#fff",
+                }),
+                option: (provided, state) => ({
+                  ...provided,
+                  backgroundColor: state.isSelected ? "#ddd" : "#fff",
+                  color: "#000",
+                  fontSize: "16px",
+                }),
+              }}
+            />
+          </Col>
 
           <Col md="4">
             <div style={{ position: "relative", width: "100%" }}>
@@ -552,11 +642,9 @@ const GerarViagem = () => {
       <CardContainer>
         <Row>
           <Col md="8">
-            <TableCTE
-              ctes={ctes}
-              tabelaCustosFrete={tabelaCustosFrete}
-              removerCTE={removerCTE}
-            />
+            <TableCTE ctes={ctes || []} tabelaCustosFrete={tabelaCustosFrete} removerCTE={removerCTE} />
+
+
           </Col>
 
           <Col md="4">
@@ -577,6 +665,8 @@ const GerarViagem = () => {
               obs={obs}
               custoManual={custoManual}  // 🔥 Passando custoManual
               cargaDividida={cargaDividida}
+              setCustoManual={setCustoManual}  // 🔥 Passando custoManual
+              setCargaDividida={setCargaDividida}
               tipoOperacao={tipoOperacao}
             />
           </Col>

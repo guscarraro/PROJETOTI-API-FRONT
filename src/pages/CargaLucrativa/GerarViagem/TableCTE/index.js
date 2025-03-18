@@ -1,5 +1,5 @@
 import React from "react";
-import { FaCheckCircle, FaTrash, FaExclamationTriangle } from "react-icons/fa";
+import { FaTrash, FaExclamationTriangle } from "react-icons/fa";
 import {
   Table,
   TableRow,
@@ -9,9 +9,12 @@ import {
 } from "../style";
 
 const TableCTE = ({ ctes, removerCTE, tabelaCustosFrete }) => {
+
+
   return (
     <>
-      {ctes.length > 0 ? (
+      {Array.isArray(ctes) && ctes?.length ? (
+
         <Table>
           <thead>
             <TableRow>
@@ -37,70 +40,61 @@ const TableCTE = ({ ctes, removerCTE, tabelaCustosFrete }) => {
                 </TableCell>
                 <TableCell>{cte.tomador}</TableCell>
                 <TableCell>R$ {cte.valor_receita_total.toFixed(2)}</TableCell>
-                <TableCell>{cte.nfs.length}</TableCell>
+                <TableCell>{Array.isArray(cte.nfs) ? cte.nfs.length : 0}</TableCell>
                 <TableCell>
-                  {cte.agendamento ? (
-                    <span
-                      style={{
-                        backgroundColor: "#007bff",
-                        color: "white",
-                        padding: "3px 8px",
-                        display: "flex",
-                        borderRadius: "4px",
-                        fontSize: "15px",
-                        width: "100%",
-                        display:'flex'
-                      }}
-                    >
-                      {cte.agendamento} Agendado
-                    </span>
-                  ) : (
-                    (() => {
-                      const hoje = new Date();
-                      hoje.setHours(0, 0, 0, 0); // Remove horas para comparar apenas a data
-                      const prazoEntrega = new Date(cte.prazo_entrega);
-                      prazoEntrega.setHours(0, 0, 0, 0); // Remove horas para comparação
+                  {(() => {
+                    // Função para formatar a data para "DD/MM/YYYY HH:mm"
+                    const formatarData = (data) => {
+                      if (!data) return "";
+                      const dataObjeto = new Date(data.includes("T") ? data : data.replace(" ", "T"));
+                      const dia = String(dataObjeto.getDate()).padStart(2, "0");
+                      const mes = String(dataObjeto.getMonth() + 1).padStart(2, "0");
+                      const ano = dataObjeto.getFullYear();
+                      const horas = String(dataObjeto.getHours()).padStart(2, "0");
+                      const minutos = String(dataObjeto.getMinutes()).padStart(2, "0");
+                      return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
+                    };
 
-                      if (prazoEntrega < hoje) {
-                        return (
-                          <span
-                            style={{
-                              backgroundColor: "#dc3545",
-                              color: "white",
-                              padding: "3px 8px",
-                              display: "flex",
-                              borderRadius: "4px",
-                              fontSize: "15px",
-                              width: "100%",
-                              display:'flex'
-                            }}
-                          >
-                            {cte.prazo_entrega} Atrasada
-                          </span>
-                        );
-                      } else if (prazoEntrega.getTime() === hoje.getTime()) {
-                        return (
-                          <span
-                            style={{
-                              backgroundColor: "#FFA500",
-                              color: "white",
-                              padding: "3px 8px",
-                              display: "flex",
-                              borderRadius: "4px",
-                              fontSize: "15px",
-                              width: "100%",
-                              display:'flex'
-                            }}
-                          >
-                            {cte.prazo_entrega} Entregar hoje
-                          </span>
-                        );
-                      } else {
-                        return cte.prazo_entrega;
-                      }
-                    })()
-                  )}
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0); // Remove as horas para comparar apenas a data
+                    const prazoEntrega = new Date(cte.prazo_entrega?.includes("T") ? cte.prazo_entrega : cte.prazo_entrega?.replace(" ", "T"));
+                    prazoEntrega.setHours(0, 0, 0, 0);
+
+                    const estaAtrasado = prazoEntrega < hoje;
+                    const estaAgendado = Boolean(cte.agendamento);
+
+                    let estilo = {};
+                    let descricao = formatarData(cte.prazo_entrega);
+
+                    if (estaAtrasado && estaAgendado) {
+                      estilo = { backgroundColor: "#dc3545", color: "white" }; // Vermelho
+                      descricao += " - Atrasado / Agendado";
+                    } else if (estaAtrasado) {
+                      estilo = { backgroundColor: "#dc3545", color: "white" }; // Vermelho
+                      descricao += " - Atrasado";
+                    } else if (estaAgendado) {
+                      estilo = { backgroundColor: "#007bff", color: "white" }; // Azul
+                      descricao += " - Agendado";
+                    }
+
+                    return (
+                      <span
+                        style={{
+                          ...estilo,
+                          padding: "3px 8px",
+                          display: "flex",
+                          borderRadius: "4px",
+                          fontSize: "15px",
+                          width: "100%",
+                        }}
+                      >
+                        {descricao}
+                      </span>
+                    );
+                  })()}
                 </TableCell>
+
+
 
                 <TableCell>{cte.peso_total} kg</TableCell>
                 <TableCell>{cte.volume}</TableCell>
@@ -112,8 +106,9 @@ const TableCTE = ({ ctes, removerCTE, tabelaCustosFrete }) => {
                       cte.cidade.trim().toUpperCase()
                   )?.distancia_km || "-"}
                 </TableCell>
-                <TableCell>{cte.filialOrigem}</TableCell>
-                <TableCell>{cte.filialDestino}</TableCell>
+                <TableCell>{cte.filial_origem || cte.filialOrigem}</TableCell>
+                <TableCell>{cte.filial_destino || cte.filialDestino}</TableCell>
+
                 <TableCell>
                   <ActionButton
                     style={{

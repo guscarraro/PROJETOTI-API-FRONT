@@ -7,7 +7,7 @@ import { Row, Col } from "reactstrap";
 import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine, FaDollarSign } from "react-icons/fa";
 import LoadingDots from "../../../../components/Loading";
 
-const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,setFilialOrigem,setFilialDestino,setObs,setTipoVeiculo,setTipoOperacao, tipoVeiculo, obs, custoManual, cargaDividida, tipoOperacao }) => {
+const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,setFilialOrigem,setFilialDestino,setObs,setTipoVeiculo,setTipoOperacao, tipoVeiculo, obs, custoManual,setCargaDividida,setCustoManual, cargaDividida, tipoOperacao }) => {
   const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0 });
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -87,128 +87,136 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
   };
 
   const salvarViagem = async () => {
-    if (ctes.length === 0) {
-      toast.error("Adicione pelo menos um CTE antes de salvar a viagem.");
-      return;
+    if (!Array.isArray(ctes) || ctes.length === 0) {
+        toast.error("Adicione pelo menos um CTE antes de salvar a viagem.");
+        return;
     }
+
     if ((!rentabilidade.metaAtingida || custoManual) && !obs.trim()) {
-      toast.error("É obrigatório preencher a observação quando a meta não for atingida ou o custo manual estiver ativado.");
-      return;
+        toast.error("É obrigatório preencher a observação quando a meta não for atingida ou o custo manual estiver ativado.");
+        return;
     }
 
     if (!tipoOperacao) {
-      toast.error("É obrigatório selecionar o Tipo de Operação antes de salvar a viagem.");
-      return;
+        toast.error("É obrigatório selecionar o Tipo de Operação antes de salvar a viagem.");
+        return;
     }
+
     if (!tipoVeiculo) {
-      toast.error("É obrigatório selecionar o Tipo de Veículo antes de salvar a viagem.");
-      return;
+        toast.error("É obrigatório selecionar o Tipo de Veículo antes de salvar a viagem.");
+        return;
     }
 
     setLoading(true);
+    
     let receitaTotal = 0;
     let totalPeso = 0;
     for (let i = 0; i < ctes.length; i++) {
-      receitaTotal += ctes[i].valor_receita_total;
-      totalPeso += ctes[i].peso_total;
+        receitaTotal += ctes[i]?.valor_receita_total || 0;
+        totalPeso += ctes[i]?.peso_total || 0;
     }
 
     const viagemData = {
-      numero_viagem: numeroViagem || `V${Date.now()}`,
-      data_inclusao: new Date().toISOString().slice(0, 19).replace("T", " "),
-
-      total_receita: receitaTotal,
-      total_entregas: ctes.length,
-      total_peso: totalPeso,
-      total_custo: custoViagem,
-      margem_custo: rentabilidade.custoPercentual,
-      filial_origem: ctes.length > 0 ? [...new Set(ctes.map(cte => cte.filialOrigem).filter(Boolean))].join("/") : "",
-      filial_destino: ctes.length > 0 ? [...new Set(ctes.map(cte => cte.filialDestino).filter(Boolean))].join("/") : "",
-      placa: "NA",
-      motorista: "NA",
-      obs: obs || "",
-      custo_manual: custoManual ? "S" : "N",  // 🔥 Adicionando Custo Manual
-      carga_dividida: cargaDividida ? "S" : "N",  // 🔥 Adicionando Carga Dividida
-      tipo_operacao: tipoOperacao || "",
-
-
-
-      tipo_veiculo: tipoVeiculo || "", // Certifica-se de que o tipo do veículo foi preenchido
+        numero_viagem: numeroViagem || `V${Date.now()}`,
+        data_inclusao: new Date().toISOString().slice(0, 19).replace("T", " "),
+        total_receita: receitaTotal,
+        total_entregas: ctes.length,
+        total_peso: totalPeso,
+        total_custo: custoViagem,
+        margem_custo: rentabilidade.custoPercentual,
+        filial_origem: ctes.length > 0 ? [...new Set(ctes.map(cte => cte?.filialOrigem).filter(Boolean))].join("/") : "",
+        filial_destino: ctes.length > 0 ? [...new Set(ctes.map(cte => cte?.filialDestino).filter(Boolean))].join("/") : "",
+        placa: "NA",
+        motorista: "NA",
+        obs: obs || "",
+        custo_manual: custoManual ? "S" : "N",
+        carga_dividida: cargaDividida ? "S" : "N",
+        tipo_operacao: tipoOperacao || "",
+        tipo_veiculo: tipoVeiculo || ""
     };
 
-
     try {
-      const parseDate = (dateString) => {
-        if (!dateString) return null;
+        const parseDate = (dateString) => {
+            if (!dateString) return null;
 
-        const dateParts = dateString.split(" ");
-        if (dateParts.length !== 2) return null; // Certifica-se de que a string tem data e hora
+            const dateParts = dateString.split(" ");
+            if (dateParts.length !== 2) return null; 
 
-        const [day, month, year] = dateParts[0].split("/"); // Divide a parte da data
-        const time = dateParts[1]; // Pega a parte da hora
+            const [day, month, year] = dateParts[0].split("/"); 
+            const time = dateParts[1];
 
-        // Monta a data no formato correto para o JavaScript (YYYY-MM-DDTHH:mm:ss)
-        const formattedDate = `${year}-${month}-${day}T${time}`;
-        const dateObject = new Date(formattedDate);
+            const formattedDate = `${year}-${month}-${day}T${time}`;
+            const dateObject = new Date(formattedDate);
 
-        return isNaN(dateObject.getTime()) ? null : dateObject.toISOString(); // Retorna ISO se válido
-      };
-
-      const documentosTransporte = ctes.map(cte => {
-        console.log("Prazo Entrega antes da conversão:", cte.prazo_entrega);
-        const prazoFormatado = parseDate(cte.prazo_entrega);
-        console.log("Prazo Entrega após conversão:", prazoFormatado);
-
-        return {
-          numero_cte: String(cte.numero_cte),
-          peso: cte.peso,
-          volume: cte.volume,
-          quantidade: cte.quantidade,
-          tomador: cte.tomador,
-          destino: cte.destino,
-          cidade: cte.cidade,
-          prazo_entrega: prazoFormatado ? prazoFormatado.slice(0, 10) : null, // Retorna apenas YYYY-MM-DD
-          valor_receita_total: cte.valor_receita_total,
-          valor_frete: cte.valor_frete,
-          icms: cte.icms,
-          ad_valorem: cte.ad_valorem,
-          outros_valores: {},
-          valor_mercadoria: cte.valor_mercadoria,
-          peso_total: cte.peso_total,
-          cubagem_total: cte.cubagem_total,
-          notas_fiscais: cte.nfs.map(nf => ({
-            numero_nf: String(nf.numero_nf || "0"), // Define um valor padrão para evitar erro
-            peso: nf.peso,
-            valor: nf.valor,
-            cubagem: nf.cubagem || 0,
-          })),
+            return isNaN(dateObject.getTime()) ? null : dateObject.toISOString();
         };
-      });
 
+        // 🔥 Evita erro ao mapear notas fiscais dentro dos CTEs
+        const documentosTransporte = ctes.map(cte => {
+            
+          const formatarPrazoEntrega = (prazo) => {
+            if (!prazo || prazo.trim() === "" || prazo === "0000-00-00 00:00:00") {
+                return null; // ✅ Envia null corretamente
+            }
+            return prazo; // Mantém a data original se já estiver correta
+        };
+        
 
+            return {
+                numero_cte: String(cte?.numero_cte || ""),
+                peso: cte?.peso || 0,
+                volume: cte?.volume || 0,
+                quantidade: cte?.quantidade || 0,
+                tomador: cte?.tomador || "",
+                destino: cte?.destino || "",
+                cidade: cte?.cidade || "",
+                prazo_entrega: formatarPrazoEntrega(cte.prazo_entrega), 
+                valor_receita_total: cte?.valor_receita_total || 0,
+                valor_frete: cte?.valor_frete || 0,
+                icms: cte?.icms || 0,
+                ad_valorem: cte?.ad_valorem || 0,
+                outros_valores: {},
+                valor_mercadoria: cte?.valor_mercadoria || 0,
+                peso_total: cte?.peso_total || 0,
+                cubagem_total: cte?.cubagem_total || 0,
+                filial_origem: cte?.filialOrigem || "",  // Adiciona a filial de origem
+                filial_destino: cte?.filialDestino || "",
+                notas_fiscais: Array.isArray(cte?.nfs)
+                    ? cte.nfs.map(nf => ({
+                        numero_nf: String(nf?.numero_nf || "0"),
+                        peso: nf?.peso || 0,
+                        valor: nf?.valor || 0,
+                        cubagem: nf?.cubagem || 0
+                    }))
+                    : []
+            };
+        });
 
-      viagemData.documentos_transporte = documentosTransporte;
-      console.log(viagemData)
-      await apiLocal.createOrUpdateViagem(viagemData);
+        viagemData.documentos_transporte = documentosTransporte;
+       
+        
+        await apiLocal.createOrUpdateViagem(viagemData);
 
-      toast.success("Viagem salva com sucesso!");
-      setLoading(false);
-      setCtes([]);
-      setNumeroViagem("");
-      setNumeroCTE("");
-      setCustoViagem(0);
-      setFilialOrigem("");
-      setFilialDestino("");
-      setTipoVeiculo(null);
-      setTipoOperacao(null);
-      setObs("");
+        toast.success("Viagem salva com sucesso!");
+        setLoading(false);
+        setCtes([]);
+        setNumeroViagem("");
+        setNumeroCTE("");
+        setCustoViagem(0);
+        setFilialOrigem("");
+        setFilialDestino("");
+        setTipoVeiculo(null);
+        setTipoOperacao(null);
+        setCargaDividida(false)
+        setCustoManual(false)
+        setObs("");
     } catch (error) {
-      console.error("Erro ao salvar viagem:", error.response ? error.response.data : error);
-      toast.error("Erro ao salvar viagem.");
+        console.error("Erro ao salvar viagem:", error.response ? error.response.data : error);
+        toast.error("Erro ao salvar viagem.");
     } finally {
-      setLoading(false); // Desativa o loading
+        setLoading(false);
     }
-  };
+};
 
   return (
     <LucroContainer style={{ backgroundColor: rentabilidade.backgroundColor }}>

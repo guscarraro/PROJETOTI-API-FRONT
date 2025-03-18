@@ -16,7 +16,7 @@ import {
 } from "./style";
 import ModalInfo from "./ModalInfo";
 
-const RelatorioViagens = () => {
+const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [viagens, setViagens] = useState([]);
   const [modalEditOpen, setModalEditOpen] = useState(false);
   const [modalDelOpen, setModalDelOpen] = useState(false);
@@ -82,7 +82,7 @@ const RelatorioViagens = () => {
     XLSX.utils.book_append_sheet(wb, ws, "Relatório de Viagens");
     XLSX.writeFile(wb, "Relatorio_Viagens.xlsx");
   };
-  console.log(viagens)
+
 
   return (
     <Container>
@@ -200,7 +200,10 @@ const RelatorioViagens = () => {
           viagem={viagemSelecionada}
           onClose={() => setModalEditOpen(false)}
           onSave={carregarViagens}
+          setCurrentTab={setCurrentTab}   // 🔹 Adicionar esta linha
+          setNumeroViagem={setNumeroViagem} // 🔹 Adicionar esta linha
         />
+
       )}
       {modalInfoOpen && (
         <ModalInfo

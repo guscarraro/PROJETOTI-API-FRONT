@@ -77,7 +77,7 @@ function ModalAdd({ isOpen, toggle }) {
         descricao: generateDescricao(),
       };
 
-      console.log('Enviando dados:', dataToSend);
+    
       await apiLocal.createOrUpdateControleEstoque(dataToSend);
 
       toast.success('Equipamento cadastrado com sucesso!');

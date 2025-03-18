@@ -10,9 +10,11 @@ import {
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
 import { fetchViagem } from "../../../../services/api";
+import { useNavigate } from "react-router-dom";
 
-const ModalEdit = ({ viagem, onClose, onSave }) => {
-  const [numeroViagem, setNumeroViagem] = useState(viagem.numero_viagem);
+const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) => {
+
+  const [numeroViagemLocal, setNumeroViagemLocal] = useState(viagem.numero_viagem);
   const [placa, setPlaca] = useState(viagem.placa);
   const [motorista, setMotorista] = useState(viagem.motorista);
 
@@ -22,16 +24,16 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
   const [divergenciasCampos, setDivergenciasCampos] = useState({});
   const [isLoadingViagem, setIsLoadingViagem] = useState(false);
 
-  console.log(viagem);
+  const navigate = useNavigate();
 
   // 📌 Buscar viagem da API externa e comparar os dados
   const fetchViagemData = async () => {
-    if (!numeroViagem.trim()) return;
+    if (!numeroViagemLocal.trim()) return;
 
     setIsLoadingViagem(true);
 
     try {
-      const response = await fetchViagem(numeroViagem);
+      const response = await fetchViagem(numeroViagemLocal);
       if (!response || !response.totalReceita) {
         toast.error("Viagem não encontrada na API externa.");
         return;
@@ -77,7 +79,7 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
   // 🔄 Atualizar Viagem com validação
   const handleSave = async () => {
     // 🔥 Valida se todos os campos estão preenchidos
-    if (!numeroViagem.trim()) {
+    if (!numeroViagemLocal.trim()) {
       toast.error("O número da viagem é obrigatório.");
       return;
     }
@@ -92,10 +94,10 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
 
     try {
       await apiLocal.updateViagem(viagem.id, {
-        numero_viagem: numeroViagem, 
+        numero_viagem: numeroViagemLocal,
         placa: placa,
         motorista: motorista,
-        divergencia: divergencia, 
+        divergencia: divergencia,
         obs_divergencia: obsDivergencia,
       });
 
@@ -134,11 +136,11 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
           <label>Número da Viagem</label>
           <InputStyled
             type="text"
-            value={numeroViagem}
-            onChange={(e) => setNumeroViagem(e.target.value)}
+            value={numeroViagemLocal}
+            onChange={(e) => setNumeroViagemLocal(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Tab") {
-                fetchViagemData(); 
+                fetchViagemData();
               }
             }}
           />
@@ -155,6 +157,17 @@ const ModalEdit = ({ viagem, onClose, onSave }) => {
           <label>Motorista</label>
           <InputStyled type="text" value={motorista} disabled />
         </FormGroup>
+        <ActionButton
+  style={{ background: "#f39c12", color: "#fff", marginRight: "10px" }}
+  onClick={() => {
+    setCurrentTab("gerarViagem");
+    setNumeroViagem(viagem.numero_viagem);
+  }}
+>
+  Adicionar/Remover CTE
+</ActionButton>
+
+
 
         {/* Botões de ação */}
         <div

@@ -168,7 +168,7 @@ const TodasOcorrenciasSTH = () => {
       );
     }
   };
-  console.log(filteredOcorrenciasSTH)
+ 
 
   return (
     <div

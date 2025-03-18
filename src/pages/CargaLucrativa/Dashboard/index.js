@@ -1,7 +1,7 @@
 import React from "react";
 
 const Dashboard = () => {
-  console.log("Dashboard Renderizado");
+  
   return (
     <div style={{ color: "white", padding: "20px" }}>
       <h1>Dashboard de Viagens</h1>

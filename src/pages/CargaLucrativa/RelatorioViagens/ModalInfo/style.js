@@ -71,6 +71,12 @@ export const InfoValue = styled.span`
   display: block;
   font-size: 1rem;
 `;
+export const CTEListContainer = styled.div`
+  max-height: 150px; /* Limite de altura */
+  overflow-y: auto; /* Ativa o scroll vertical */
+  padding-right: 5px; /* Ajuste para evitar corte */
+`;
+
 
 export const CTEList = styled.ul`
   list-style: none;
