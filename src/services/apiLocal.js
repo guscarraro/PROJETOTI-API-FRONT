@@ -54,10 +54,11 @@ const apiLocal = {
   updateSetorControleEstoque: (data) => api.put("/controle-estoque/setor", data),
 
   getViagens: () => api.get("/viagens/"),
+  getProximoNumeroViagem: () => api.get("/viagens/ultimo_numero_viagem"),
   getViagemByNumero: (numero_viagem) => api.get(`/viagens/${numero_viagem}`),
   createOrUpdateViagem: (data) => api.post("/viagens/", data),
   updateViagem: (data) => api.put("/viagens/update", data),
-  deleteViagem: (numero_viagem) => api.delete(`/viagens/${numero_viagem}`),
+  deleteViagem: (viagemId) => api.delete(`/viagens/delete/${viagemId}`),
   updateViagem: (viagemId, data) => api.put(`/viagens/atualizar_viagem/${viagemId}`, data),
   getDocumentosTransporte: () => api.get("/documentos-transporte/"),
 

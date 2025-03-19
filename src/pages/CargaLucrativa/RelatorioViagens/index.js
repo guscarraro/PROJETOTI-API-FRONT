@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import { FaEdit, FaTrash } from "react-icons/fa"; // Ícones de edição e exclusão
 import ModalEdit from "./ModalEdit"; // Modal para editar CTEs
 import ModalDel from "./ModalDel"; // Modal para excluir viagem
-import PDFViagem from "./PDFViagem";
+
 import {
   Container,
   Table,
@@ -149,7 +149,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
 
                   <TableCell>
 
-                    <PDFViagem viagem={viagem} />
+                   
                   </TableCell>
                   <TableCell>
                     <ActionButton

@@ -157,24 +157,28 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
           <label>Motorista</label>
           <InputStyled type="text" value={motorista} disabled />
         </FormGroup>
-        <ActionButton
-  style={{ background: "#f39c12", color: "#fff", marginRight: "10px" }}
-  onClick={() => {
-    setCurrentTab("gerarViagem");
-    setNumeroViagem(viagem.numero_viagem);
-  }}
->
-  Adicionar/Remover CTE
-</ActionButton>
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+  <ActionButton
+    style={{ background: "#007bff", color: "#fff", padding: "10px 20px" }}
+    onClick={() => {
+      setCurrentTab("gerarViagem");
+      setNumeroViagem(viagem.numero_viagem);
+    }}
+  >
+    + Adicionar/ - Remover CTE
+  </ActionButton>
+</div>
+
 
 
 
         {/* Botões de ação */}
         <div
-          style={{
+           style={{
             display: "flex",
             justifyContent: "space-between",
-            marginTop: "15px",
+            gap: "20px",
+            marginTop: "20px",
           }}
         >
           <CloseButton onClick={onClose}>Fechar</CloseButton>

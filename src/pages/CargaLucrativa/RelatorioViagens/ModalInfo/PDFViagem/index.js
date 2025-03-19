@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useReactToPrint } from "react-to-print";
 import { FaPrint } from "react-icons/fa";
-import { ActionButton } from "../style";
+import { ActionButton } from "../../style";
 
 const PDFViagem = ({ viagem }) => {
   const contentRef = useRef(null);
@@ -33,7 +33,7 @@ const PDFViagem = ({ viagem }) => {
   return (
     <>
       <ActionButton
-        style={{ background: "green", color: "#fff", borderRadius: "5px" }}
+        style={{ background: "green", color: "#fff", borderRadius: "5px" , width:'50px', marginBottom:5}}
         onClick={handlePrint}
       >
         <FaPrint size={16} />
@@ -85,7 +85,8 @@ const PDFViagem = ({ viagem }) => {
               <h3 style={styles.subTitle}>Entregas Agendadas</h3>
               <ul>
                 {viagem.documentos_transporte
-                  .filter(doc => doc.prazo_entrega)
+                  .filter(doc => doc.agendamento) 
+
                   .map((cte, idx) => (
                     <li key={idx}>
                       CTE: {cte.numero_cte} - {formatarData(cte.prazo_entrega)}

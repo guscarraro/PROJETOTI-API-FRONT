@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 const ModalDel = ({ viagem, onClose, onDelete }) => {
   const excluirViagem = async () => {
     try {
-      await apiLocal.deleteViagem(viagem.numero_viagem);
+      await apiLocal.deleteViagem(viagem.id);
       onDelete(); // Atualiza o relatório após a exclusão
       toast.success(`Viagem excluida com sucesso!`);
       onClose(); // Fecha o modal

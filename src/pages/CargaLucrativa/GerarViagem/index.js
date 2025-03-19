@@ -56,8 +56,23 @@ const GerarViagem = ({ numeroViagemParam }) => {
       carregarViagem(numeroViagemFinal);
     }
   }, [numeroViagemFinal]);
+  useEffect(() => {
+    if (!numeroViagemFinal) {
+      carregarProximoNumeroViagem();
+    }
+  }, [numeroViagemFinal]);
 
-
+  const carregarProximoNumeroViagem = async () => {
+    try {
+      const response = await apiLocal.getProximoNumeroViagem(); // Chama o novo endpoint do backend
+      if (response.data?.proximo_numero_viagem) {
+        setNumeroViagem(response.data.proximo_numero_viagem);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar o próximo número de viagem:", error);
+      setNumeroViagem("V1"); // Padrão se der erro
+    }
+  };
   const carregarViagem = async (numeroViagem) => {
     try {
       const response = await apiLocal.getViagemByNumero(numeroViagem);

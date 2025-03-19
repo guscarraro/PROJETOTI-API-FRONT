@@ -117,7 +117,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
     }
 
     const viagemData = {
-        numero_viagem: numeroViagem || `V${Date.now()}`,
+        numero_viagem: numeroViagem,
         data_inclusao: new Date().toISOString().slice(0, 19).replace("T", " "),
         total_receita: receitaTotal,
         total_entregas: ctes.length,
@@ -154,14 +154,20 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
         // 🔥 Evita erro ao mapear notas fiscais dentro dos CTEs
         const documentosTransporte = ctes.map(cte => {
             
+          
           const formatarPrazoEntrega = (prazo) => {
             if (!prazo || prazo.trim() === "" || prazo === "0000-00-00 00:00:00") {
                 return null; // ✅ Envia null corretamente
             }
             return prazo; // Mantém a data original se já estiver correta
         };
+          const formatarAgendameto = (agendamento) => {
+            if (!agendamento || agendamento.trim() === "" || agendamento === "0000-00-00 00:00:00") {
+                return null; // ✅ Envia null corretamente
+            }
+            return agendamento; // Mantém a data original se já estiver correta
+        };
         
-
             return {
                 numero_cte: String(cte?.numero_cte || ""),
                 peso: cte?.peso || 0,
@@ -171,6 +177,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
                 destino: cte?.destino || "",
                 cidade: cte?.cidade || "",
                 prazo_entrega: formatarPrazoEntrega(cte.prazo_entrega), 
+                agendamento: formatarAgendameto(cte.agendamento), 
                 valor_receita_total: cte?.valor_receita_total || 0,
                 valor_frete: cte?.valor_frete || 0,
                 icms: cte?.icms || 0,

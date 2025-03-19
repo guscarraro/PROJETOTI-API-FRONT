@@ -13,8 +13,11 @@ import {
   CTEItem,
   CTEListContainer,
 } from "./style";
+import PDFViagem from "./PDFViagem";
 
 const ModalInfo = ({ viagem, onClose }) => {
+  console.log(viagem);
+  
   return (
     <ModalContainer>
       <ModalContent>
@@ -28,7 +31,7 @@ const ModalInfo = ({ viagem, onClose }) => {
             minute: '2-digit',
           })}
         </Subtitle>
-
+        <PDFViagem viagem={viagem} />
         <CardsContainer>
           <Card>
             <InfoLabel>Número da Viagem</InfoLabel>
@@ -59,8 +62,8 @@ const ModalInfo = ({ viagem, onClose }) => {
             <InfoValue>{viagem.obs || "Nenhuma observação."}</InfoValue>
           </Card>
           <Card>
-            <InfoLabel>Custo Manual</InfoLabel>
-            <InfoValue>{viagem.custo_manual || "Nenhum custo manual."}</InfoValue>
+            <InfoLabel>Custo</InfoLabel>
+            <InfoValue>R${viagem.total_custo || "Nenhum custo."}</InfoValue>
           </Card>
           <Card>
             <InfoLabel>CTEs Vinculados</InfoLabel>
@@ -74,6 +77,7 @@ const ModalInfo = ({ viagem, onClose }) => {
             </CTEListContainer>
           </Card>
         </CardsContainer>
+        
         <CloseButton onClick={onClose}>Fechar</CloseButton>
       </ModalContent>
     </ModalContainer>
