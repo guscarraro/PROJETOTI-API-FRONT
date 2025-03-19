@@ -11,6 +11,7 @@ const API_OCORRENCIAS_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/ope
 const API_NOTA_FISCAL_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/originario/consulta';
 const API_CONSULTA_VIAGEM = "https://cloud.escalasoft.com.br:8055/escalasoft/operacional/viagem/consultaviagem";
 const API_CONSULTA_DOCUMENTO = "https://cloud.escalasoft.com.br:8055/escalasoft/operacional/documento/consulta";
+const API_ENTREGA_CONFIRMADA = "https://cloud.escalasoft.com.br:8055/escalasoft/operacional/ocorrencia/EntregasConfirmadas";
 
 
 const SHARED_TOKEN_ID = 'shared-token'; // ID fixo para o token compartilhado
