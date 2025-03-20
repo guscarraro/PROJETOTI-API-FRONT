@@ -27,44 +27,71 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
   const navigate = useNavigate();
 
   // 📌 Buscar viagem da API externa e comparar os dados
+  // 📌 Buscar viagem da API externa e comparar os dados
   const fetchViagemData = async () => {
     if (!numeroViagemLocal.trim()) return;
-
+  
     setIsLoadingViagem(true);
-
+  
     try {
       const response = await fetchViagem(numeroViagemLocal);
       if (!response || !response.totalReceita) {
         toast.error("Viagem não encontrada na API externa.");
         return;
       }
-
-      let obs = [];
+  
       let divergenciasTemp = {};
-
+      let obs = [];
+  
+      const formatDivergencia = (campo, valorViagem, valorApi) => {
+        const diferenca = parseFloat(valorApi) - parseFloat(valorViagem);
+        const isCusto = campo.toLowerCase().includes("custo");
+        const isPeso = campo.toLowerCase().includes("peso");
+        const cor = isCusto ? (diferenca > 0 ? "red" : "green") : (diferenca > 0 ? "green" : "red");
+        const sinal = diferenca > 0 ? "+" : "";
+        const valorFormatado = isCusto ? `R$ ${valorApi}` : isPeso ? `${valorApi} kg` : valorApi;
+        const diferencaFormatada = isCusto ? `R$ ${sinal}${diferenca}` : isPeso ? `${sinal}${diferenca} kg` : `${sinal}${diferenca}`;
+  
+        return (
+          <div style={{ fontSize: "14px", color: "#555" }}>
+            <div>{campo}</div>
+            <div style={{ color: cor, fontSize: "16px" }}>
+              {valorViagem} → <strong>{valorFormatado}</strong> ({diferencaFormatada})
+            </div>
+          </div>
+        );
+      };
+  
       // ✅ Valida divergência de valor de receita
       if (parseFloat(response.totalReceita) !== parseFloat(viagem.total_receita)) {
-        obs.push("Valor da receita divergente");
-        divergenciasTemp["total_receita"] = true;
+        obs.push(formatDivergencia("Valor da Receita", viagem.total_receita, response.totalReceita));
+        divergenciasTemp["total_receita"] = response.totalReceita;
       }
-
-      // ✅ Valida divergência de quantidade de documentos de transporte
+  
+      // ✅ Valida divergência de quantidade de entregas
       if (response.docsTransp.length !== viagem.total_entregas) {
-        obs.push("Número de entrega a menos");
-        divergenciasTemp["total_entregas"] = true;
+        obs.push(formatDivergencia("Total de Entregas", viagem.total_entregas, response.docsTransp.length));
+        divergenciasTemp["total_entregas"] = response.docsTransp.length;
       }
-
+  
       // ✅ Valida divergência de peso total
       if (parseFloat(response.totalPeso) !== parseFloat(viagem.total_peso)) {
-        obs.push("Peso total divergente");
-        divergenciasTemp["total_peso"] = true;
+        obs.push(formatDivergencia("Peso Total", viagem.total_peso, response.totalPeso));
+        divergenciasTemp["total_peso"] = response.totalPeso;
       }
-
+  
+      // ✅ Valida divergência de custo total
+      const custoTotal = response.totalCusto || response.custoTotal || response.valor_custo || 0;
+      if (parseFloat(custoTotal) !== parseFloat(viagem.total_custo)) {
+        obs.push(formatDivergencia("Custo Total", viagem.total_custo, custoTotal));
+        divergenciasTemp["total_custo"] = custoTotal;
+      }
+  
       // ✅ Define os estados de divergência
       setDivergencia(obs.length > 0 ? "S" : "N");
       setObsDivergencia(obs);
       setDivergenciasCampos(divergenciasTemp);
-
+  
       // ✅ Atualiza motorista e placa com os valores da API
       setMotorista(response.Motorista);
       setPlaca(response.Placa);
@@ -75,6 +102,7 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
       setIsLoadingViagem(false);
     }
   };
+
 
   // 🔄 Atualizar Viagem com validação
   const handleSave = async () => {
@@ -91,16 +119,16 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
       toast.error("Motorista inválido.");
       return;
     }
-
+  
     try {
       await apiLocal.updateViagem(viagem.id, {
         numero_viagem: numeroViagemLocal,
         placa: placa,
         motorista: motorista,
         divergencia: divergencia,
-        obs_divergencia: obsDivergencia,
+        obs_divergencia: Object.entries(divergenciasCampos).map(([campo, valor]) => `${campo}: ${valor}`), // Envia a lista de strings
       });
-
+  
       toast.success("Viagem atualizada com sucesso!");
       onSave(); // Atualiza a lista de viagens
       onClose(); // Fecha o modal
@@ -109,22 +137,22 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
       console.error("Erro ao atualizar viagem:", error);
     }
   };
-
   return (
     <ModalContainer>
       <ModalContent>
-        <h3 style={{ color: "#000", marginBottom: "15px" }}>
+        <h3 style={{ color: "#555", marginBottom: "15px" }}>
           Editar Viagem{" "}
           <span style={{ color: "#007bff" }}>{viagem.numero_viagem}</span>
         </h3>
 
         {/* Exibir divergências ao usuário */}
         {obsDivergencia.length > 0 && (
-          <div style={{ background: "#ffcccc", padding: "10px", borderRadius: "5px", marginBottom: "15px" }}>
-            <strong>Atenção! Foram encontradas divergências:</strong>
+          <div style={{ background: "rgb(0 123 255 / 40%)", padding: "10px", borderRadius: "5px", marginBottom: "15px" }}>
+            <strong style={{color:'#555'}}>Atenção! Foram encontradas divergências:</strong>
             <ul>
               {obsDivergencia.map((item, index) => (
-                <li key={index} style={{ color: "red" }}>{item}</li>
+                <li key={index} style={{  listStyleType: "none" }}>{item}</li>
+
               ))}
             </ul>
           </div>

@@ -167,6 +167,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
                         setViagemSelecionada({
                           id: viagem.id,
                           numero_viagem: viagem.numero_viagem,
+                          total_custo: viagem.total_custo,
                           placa: viagem.placa,
                           motorista: viagem.motorista,
                           total_receita: viagem.total_receita,  // ✅ Passa a receita total
