@@ -10,6 +10,7 @@ import {
 import ChartClientesAtrasos from "./ChartClientesAtrasos";
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
+import * as XLSX from "xlsx"; // ✅ Importa XLSX para exportação
 
 const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
   const [sortedData, setSortedData] = useState([...data]);
@@ -22,6 +23,26 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
 
   const handleCheckboxChange = (nf) => {
     setSelectedNota(nf === selectedNota ? null : nf);
+  };
+  const exportarParaExcel = () => {
+    const dadosFormatados = sortedData.map((item) => ({
+      "Nota Fiscal": item.nf,
+      Cliente: item.cliente,
+      "Hora da Chegada": formatarDataHora(item.horario_chegada),
+      "Hora da Ocorrência": formatarDataHora(item.horario_ocorrencia),
+      "Hora de Saída": formatarDataHora(item.horario_saida),
+      "Permanência Após Ocorrências": calcularTempoPermanencia(
+        item.horario_chegada,
+        item.horario_saida,
+        item.horario_ocorrencia
+      ).formatado,
+      Motorista: item.motorista,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dadosFormatados);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Ocorrencias_Sem_Cobranca");
+    XLSX.writeFile(wb, "Ocorrencias_Sem_Cobranca.xlsx");
   };
 
   const handleSaveCte = async () => {
@@ -156,7 +177,18 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h4>Ocorrências Sem Cobrança Adicional</h4>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h4>Ocorrências Sem Cobrança Adicional</h4>
+          <Button color="success" onClick={exportarParaExcel} size="sm">
+            Exportar para Excel
+          </Button>
+        </div>
         <div style={{ marginBottom: 20 }}>
           <h5>Top 7 Clientes com Mais Atrasos</h5>
           <ChartClientesAtrasos data={clientesAtrasos.slice(0, 7)} />
@@ -180,21 +212,36 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
           <thead>
             <tr style={{ background: "#f5f5f5" }}>
               <th style={cellStyle}></th>
-              <th style={cellStyle} onClick={() => handleSort("nf")}>Nota</th>
-              <th style={cellStyle} onClick={() => handleSort("cliente")}>Cliente</th>
-              <th style={cellStyle} onClick={() => handleSort("horario_chegada")}>
+              <th style={cellStyle} onClick={() => handleSort("nf")}>
+                Nota
+              </th>
+              <th style={cellStyle} onClick={() => handleSort("cliente")}>
+                Cliente
+              </th>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("horario_chegada")}
+              >
                 Hora da Chegada
               </th>
-              <th style={cellStyle} onClick={() => handleSort("horario_ocorrencia")}>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("horario_ocorrencia")}
+              >
                 Hora da Ocorrência
               </th>
               <th style={cellStyle} onClick={() => handleSort("horario_saida")}>
                 Hora de Saída
               </th>
-              <th style={cellStyle} onClick={() => handleSort("tempoPermanencia")}>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("tempoPermanencia")}
+              >
                 Permanência Após Ocorrências
               </th>
-              <th style={cellStyle} onClick={() => handleSort("motorista")}>Motorista</th>
+              <th style={cellStyle} onClick={() => handleSort("motorista")}>
+                Motorista
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -226,9 +273,15 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
                   </td>
                   <td style={cellStyle}>{item.nf}</td>
                   <td style={cellStyle}>{item.cliente}</td>
-                  <td style={cellStyle}>{formatarDataHora(item.horario_chegada)}</td>
-                  <td style={cellStyle}>{formatarDataHora(item.horario_ocorrencia)}</td>
-                  <td style={cellStyle}>{formatarDataHora(item.horario_saida)}</td>
+                  <td style={cellStyle}>
+                    {formatarDataHora(item.horario_chegada)}
+                  </td>
+                  <td style={cellStyle}>
+                    {formatarDataHora(item.horario_ocorrencia)}
+                  </td>
+                  <td style={cellStyle}>
+                    {formatarDataHora(item.horario_saida)}
+                  </td>
                   <td style={cellStyle}>{permanencia.formatado}</td>
                   <td style={cellStyle}>{item.motorista}</td>
                 </tr>
@@ -242,7 +295,12 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
       </div>
 
       {/* Modal para gerar CTE */}
-      <Modal isOpen={isCteModalOpen} toggle={toggleCteModal} backdrop="static" centered>
+      <Modal
+        isOpen={isCteModalOpen}
+        toggle={toggleCteModal}
+        backdrop="static"
+        centered
+      >
         <ModalHeader toggle={toggleCteModal}>Gerar Cobrança</ModalHeader>
         <ModalBody>
           <p>Informe o número do CTE para a nota selecionada:</p>

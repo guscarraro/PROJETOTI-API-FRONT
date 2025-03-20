@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "reactstrap";
 import ChartClientesNaoEntregues from "./ChartClientesNaoEntregues";
+import * as XLSX from "xlsx"; // ✅ Importa XLSX para exportação
 
 const ModalNaoEntregue = ({ data, onClose }) => {
   const [sortedData, setSortedData] = useState([...data]);
@@ -16,6 +17,25 @@ const ModalNaoEntregue = ({ data, onClose }) => {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+  const exportarParaExcel = () => {
+    const dadosFormatados = sortedData.map((item) => ({
+      "Nota Fiscal": item.nf,
+      Cliente: item.cliente,
+      "Hora de Chegada": formatarDataHora(item.horario_chegada),
+      "Hora da Ocorrência": formatarDataHora(item.horario_ocorrencia),
+      "Hora de Saída": formatarDataHora(item.horario_saida),
+      "Permanência Após Ocorrências": calcularTempoPermanencia(
+        item.horario_ocorrencia,
+        item.horario_saida
+      ).formatado,
+      Motorista: item.motorista,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(dadosFormatados);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Chamados_Nao_Entregues");
+    XLSX.writeFile(wb, "Chamados_Nao_Entregues.xlsx");
   };
 
   const calcularTempoPermanencia = (chegada, saida) => {
@@ -42,8 +62,14 @@ const ModalNaoEntregue = ({ data, onClose }) => {
 
     const sorted = [...sortedData].sort((a, b) => {
       if (key === "tempoPermanencia") {
-        const tempoA = calcularTempoPermanencia(a.horario_ocorrencia, a.horario_saida);
-        const tempoB = calcularTempoPermanencia(b.horario_ocorrencia, b.horario_saida);
+        const tempoA = calcularTempoPermanencia(
+          a.horario_ocorrencia,
+          a.horario_saida
+        );
+        const tempoB = calcularTempoPermanencia(
+          b.horario_ocorrencia,
+          b.horario_saida
+        );
         return direction === "asc"
           ? tempoA.horas - tempoB.horas || tempoA.minutos - tempoB.minutos
           : tempoB.horas - tempoA.horas || tempoB.minutos - tempoA.minutos;
@@ -98,7 +124,18 @@ const ModalNaoEntregue = ({ data, onClose }) => {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h4>Chamados Não Entregues</h4>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <h4>Chamados Não Entregues</h4>
+          <Button color="success" onClick={exportarParaExcel} size="sm">
+            Exportar para Excel
+          </Button>
+        </div>
 
         {/* Gráfico de Clientes */}
         <div style={{ marginBottom: 20 }}>
@@ -121,16 +158,25 @@ const ModalNaoEntregue = ({ data, onClose }) => {
               <th style={cellStyle} onClick={() => handleSort("cliente")}>
                 Cliente
               </th>
-              <th style={cellStyle} onClick={() => handleSort("horario_chegada")}>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("horario_chegada")}
+              >
                 Hora de Chegada
               </th>
-              <th style={cellStyle} onClick={() => handleSort("horario_ocorrencia")}>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("horario_ocorrencia")}
+              >
                 Hora da Ocorrência
               </th>
               <th style={cellStyle} onClick={() => handleSort("horario_saida")}>
                 Hora de Saída
               </th>
-              <th style={cellStyle} onClick={() => handleSort("tempoPermanencia")}>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("tempoPermanencia")}
+              >
                 Permanência Após Ocorrências
               </th>
               <th style={cellStyle} onClick={() => handleSort("motorista")}>
@@ -157,9 +203,15 @@ const ModalNaoEntregue = ({ data, onClose }) => {
                 >
                   <td style={cellStyle}>{item.nf}</td>
                   <td style={cellStyle}>{item.cliente}</td>
-                  <td style={cellStyle}>{formatarDataHora(item.horario_chegada)}</td>
-                  <td style={cellStyle}>{formatarDataHora(item.horario_ocorrencia)}</td>
-                  <td style={cellStyle}>{formatarDataHora(item.horario_saida)}</td>
+                  <td style={cellStyle}>
+                    {formatarDataHora(item.horario_chegada)}
+                  </td>
+                  <td style={cellStyle}>
+                    {formatarDataHora(item.horario_ocorrencia)}
+                  </td>
+                  <td style={cellStyle}>
+                    {formatarDataHora(item.horario_saida)}
+                  </td>
                   <td style={cellStyle}>{permanencia.formatado}</td>
                   <td style={cellStyle}>{item.motorista}</td>
                 </tr>

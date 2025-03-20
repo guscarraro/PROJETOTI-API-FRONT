@@ -6,7 +6,13 @@ import ChartOcorrencias from "./ChartOcorrencias";
 import LineOcorrenDias from "./LineOcorrenDias";
 import apiLocal from "../../../services/apiLocal";
 import { Box, CardStyle } from "./style";
-import { FaChartLine, FaClock, FaDollarSign, FaExclamationTriangle, FaTimesCircle } from "react-icons/fa";
+import {
+  FaChartLine,
+  FaClock,
+  FaDollarSign,
+  FaExclamationTriangle,
+  FaTimesCircle,
+} from "react-icons/fa";
 import { Button, Col, FormGroup, Input, Label, Row } from "reactstrap";
 import ChartEscadaClientes from "./ChartEscadaClientes";
 import ModalNaoCobranca from "./ModalNaocobranca";
@@ -14,6 +20,7 @@ import ModalNaoEntregue from "./ModalNaoEntregue";
 import ChartDestinatarios from "./ChartDestinatarios";
 import LoadingDots from "../../../components/Loading";
 import NoData from "../../../components/NoData";
+import ModalCteCobrado from "./ModalCteCobrados";
 
 const Dashboard = () => {
   const [motoristasData, setMotoristasData] = useState([]);
@@ -27,13 +34,16 @@ const Dashboard = () => {
   const [mediaOcorrenciasPorDia, setMediaOcorrenciasPorDia] = useState(0);
 
   const [qtdOcorrenciasSemCobranca, setQtdOcorrenciasSemCobranca] = useState(0);
-  const [qtdOcorrenciasNaoEntregues, setQtdOcorrenciasNaoEntregues] = useState(0);
+  const [qtdOcorrenciasNaoEntregues, setQtdOcorrenciasNaoEntregues] =
+    useState(0);
   const [ocorrenciasSemCobranca, setOcorrenciasSemCobranca] = useState([]);
 
   const [motoristasMap, setMotoristasMap] = useState({});
   const [clientesMap, setClientesMap] = useState({});
   const [showModalNaoCobranca, setShowModalNaoCobranca] = useState(false);
+  const [showModalCteCobrado, setShowModalCteCobrado] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [qtdCtesCobrados, setQtdCtesCobrados] = useState(0);
 
   // Filtros
   const [motoristas, setMotoristas] = useState([]);
@@ -53,31 +63,33 @@ const Dashboard = () => {
       .split("T")[0]; // Último dia do mês no formato YYYY-MM-DD
     return { firstDay, lastDay };
   };
-  
+
   const { firstDay, lastDay } = getDefaultDates();
 
   const [dtInicio, setDtInicio] = useState(firstDay); // Inicializa com o primeiro dia do mês
   const [dtFinal, setDtFinal] = useState(lastDay);
-
 
   const handleOpenModalNaoCobranca = () => setShowModalNaoCobranca(true);
   const handleCloseModalNaoCobranca = () => setShowModalNaoCobranca(false);
 
   const [showModalNaoEntregue, setShowModalNaoEntregue] = useState(false);
 
+  const handleOpenModalCteCobrado = () => setShowModalCteCobrado(true);
+  const handleCloseModalCteCobrado = () => setShowModalCteCobrado(false);
+
   const handleOpenModalNaoEntregue = () => setShowModalNaoEntregue(true);
   const handleCloseModalNaoEntregue = () => setShowModalNaoEntregue(false);
 
- useEffect(() => {
-  const filters = {
-    dtInicio: firstDay,
-    dtFinal: lastDay,
-    motoristas: [],
-    clientes: [],
-    destinos: [],
-  };
-  fetchDashboardData(filters); // Busca os dados com os filtros iniciais
-}, []);
+  useEffect(() => {
+    const filters = {
+      dtInicio: firstDay,
+      dtFinal: lastDay,
+      motoristas: [],
+      clientes: [],
+      destinos: [],
+    };
+    fetchDashboardData(filters); // Busca os dados com os filtros iniciais
+  }, []);
   useEffect(() => {
     const fetchFilters = async () => {
       try {
@@ -114,12 +126,13 @@ const Dashboard = () => {
   const fetchDashboardData = async (filters = {}) => {
     setIsLoading(true);
     try {
-
       const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
-      
-      const ocorrencias = Array.isArray(respOcorrencias.data) ? respOcorrencias.data : [];
+
+      const ocorrencias = Array.isArray(respOcorrencias.data)
+        ? respOcorrencias.data
+        : [];
       setTodasOcorrencias(ocorrencias);
-  
+
       // Caso nenhuma ocorrência seja encontrada, zere os dados
       if (ocorrencias.length === 0) {
         setMotoristasData([]);
@@ -134,39 +147,44 @@ const Dashboard = () => {
         setOcorrenciasSemCobranca([]);
         return; // Encerra o fluxo, pois não há dados para processar
       }
-  
+
       // Carrega motoristas
       const respMotoristas = await apiLocal.getMotoristas();
       const motoristasList = respMotoristas.data;
-  
+
       // Carrega clientes
       const respClientes = await apiLocal.getClientes();
       const clientesList = respClientes.data;
-  
+
       // Carrega tipos de ocorrência
       const respTipos = await apiLocal.getNomesOcorrencias();
       const tiposList = respTipos.data;
-  
+
       // Mapear motoristas e clientes
       const tempMotoristasMap = {};
       motoristasList.forEach((m) => (tempMotoristasMap[m.id] = m.nome));
       setMotoristasMap(tempMotoristasMap);
-  
+
       const tempClientesMap = {};
       clientesList.forEach((c) => (tempClientesMap[c.id] = c.nome));
       setClientesMap(tempClientesMap);
-      
+
       const ocorrenciasSemCobrancaData = ocorrencias.filter(
         (oc) => oc.status === "Resolvido" && oc.cobranca_adicional === "N"
       );
       setQtdOcorrenciasSemCobranca(ocorrenciasSemCobrancaData.length);
       setOcorrenciasSemCobranca(ocorrenciasSemCobrancaData);
-      
+
+      const ctesCobrados = ocorrencias.filter(
+        (oc) => oc.cobranca_adicional === "S" && oc.cte_gerado
+      ).length;
+      setQtdCtesCobrados(ctesCobrados);
+
       const ocorrenciasNaoEntregues = ocorrencias.filter(
         (oc) => oc.status === "Não entregue" // Corrige a capitalização para coincidir com os dados recebidos
       );
       setQtdOcorrenciasNaoEntregues(ocorrenciasNaoEntregues.length);
-      
+
       // Monta dados para gráfico de Motoristas
       const motoristasCountMap = {};
       ocorrencias.forEach((oc) => {
@@ -174,17 +192,19 @@ const Dashboard = () => {
         if (!motoristasCountMap[mId]) motoristasCountMap[mId] = 0;
         motoristasCountMap[mId]++;
       });
-  
+
       const motoristasDataFinal = motoristasList.map((m) => {
         const details = ocorrencias
           .filter((oc) => oc.motorista_id === m.id)
           .map((oc) => ({
             NF: oc.nf,
             cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
-            tipo: tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+            tipo:
+              tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)
+                ?.nome || "Desconhecido",
             data: new Date(oc.datainclusao).toLocaleDateString(),
           }));
-  
+
         return {
           id: m.id,
           nome: m.nome,
@@ -192,7 +212,7 @@ const Dashboard = () => {
           details: details,
         };
       });
-  
+
       setMotoristasData(motoristasDataFinal);
 
       // Carrega destinos
@@ -205,17 +225,21 @@ const Dashboard = () => {
         if (!destinatariosCountMap[dId]) destinatariosCountMap[dId] = 0;
         destinatariosCountMap[dId]++;
       });
-      
+
       const destinatariosDataFinal = destinosList.map((d) => {
-        const ocorrenciasDestino = ocorrencias.filter((oc) => oc.destino_id === d.id);
+        const ocorrenciasDestino = ocorrencias.filter(
+          (oc) => oc.destino_id === d.id
+        );
         const details = ocorrenciasDestino.map((oc) => ({
           NF: oc.nf,
           motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
           cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
-          tipo: tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+          tipo:
+            tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome ||
+            "Desconhecido",
           data: new Date(oc.datainclusao).toLocaleDateString(),
         }));
-      
+
         return {
           id: d.id,
           nome: d.nome,
@@ -224,9 +248,7 @@ const Dashboard = () => {
           details: details,
         };
       });
-      
-      
-      
+
       setDestinatariosData(destinatariosDataFinal);
       // Monta dados para gráfico de Clientes
       const clientesCountMap = {};
@@ -235,16 +257,20 @@ const Dashboard = () => {
         if (!clientesCountMap[cId]) clientesCountMap[cId] = 0;
         clientesCountMap[cId]++;
       });
-  
+
       const clientesDataFinal = clientesList.map((c) => {
-        const ocorrenciasCliente = ocorrencias.filter((oc) => oc.cliente_id === c.id);
+        const ocorrenciasCliente = ocorrencias.filter(
+          (oc) => oc.cliente_id === c.id
+        );
         const details = ocorrenciasCliente.map((oc) => ({
           NF: oc.nf,
           motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
-          tipo: tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+          tipo:
+            tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome ||
+            "Desconhecido",
           data: new Date(oc.datainclusao).toLocaleDateString(),
         }));
-      
+
         return {
           id: c.id,
           nome: c.nome,
@@ -252,13 +278,13 @@ const Dashboard = () => {
           details: details, // Detalhes das ocorrências
         };
       });
-      
+
       setClientesData(clientesDataFinal);
-  
+
       // Monta dados para gráfico de Ocorrências por Tipo
       const tipoCountMap = {};
       const tipoDetailsMap = {};
-  
+
       ocorrencias.forEach((oc) => {
         const tId = oc.tipoocorrencia_id;
         if (!tipoCountMap[tId]) {
@@ -266,26 +292,28 @@ const Dashboard = () => {
           tipoDetailsMap[tId] = [];
         }
         tipoCountMap[tId]++;
-  
+
         tipoDetailsMap[tId].push({
           NF: oc.nf,
           motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
           cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
         });
       });
-  
-      const ocorrenciasTipoFinal = tiposList.map((t) => ({
-        nome: t.nome,
-        quantidade: tipoCountMap[t.id] || 0,
-        details: tipoDetailsMap[t.id] || [],
-      })).filter((item) => item.quantidade !== 0);
-  
+
+      const ocorrenciasTipoFinal = tiposList
+        .map((t) => ({
+          nome: t.nome,
+          quantidade: tipoCountMap[t.id] || 0,
+          details: tipoDetailsMap[t.id] || [],
+        }))
+        .filter((item) => item.quantidade !== 0);
+
       setOcorrenciasTipoData(ocorrenciasTipoFinal);
-  
+
       // Calcula métricas adicionais
       const pendentes = ocorrencias.filter((oc) => oc.status === "Pendente");
       setQtdOcorrenciasAbertas(pendentes.length);
-  
+
       const resolvidas = ocorrencias.filter((oc) => oc.status === "Resolvido");
       if (resolvidas.length > 0) {
         let somaTempos = 0;
@@ -301,14 +329,16 @@ const Dashboard = () => {
       } else {
         setTempoMedioEntrega(0);
       }
-  
+
       if (ocorrencias.length > 0) {
         const distinctDays = new Set();
         ocorrencias.forEach((oc) => {
-          const dayString = new Date(oc.datainclusao).toISOString().split("T")[0];
+          const dayString = new Date(oc.datainclusao)
+            .toISOString()
+            .split("T")[0];
           distinctDays.add(dayString);
         });
-  
+
         const totalDays = distinctDays.size || 1;
         setMediaOcorrenciasPorDia((ocorrencias.length / totalDays).toFixed(0));
       } else {
@@ -318,7 +348,7 @@ const Dashboard = () => {
       console.error("Erro ao buscar dados para o dashboard", error);
     } finally {
       setIsLoading(false);
-  }
+    }
   };
 
   const handleApplyFilters = () => {
@@ -332,11 +362,16 @@ const Dashboard = () => {
     fetchDashboardData(filters);
   };
 
-  
-  
-
   return (
-    <Row style={{ display: "flex", flexDirection: "column", gap: 20, margin: 20, width:'100%' }}>
+    <Row
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+        margin: 20,
+        width: "100%",
+      }}
+    >
       <Row className="mb-4">
         {/* Campo de Data de Início */}
         <Col md={1}>
@@ -378,15 +413,15 @@ const Dashboard = () => {
               styles={{
                 option: (provided) => ({
                   ...provided,
-                  color: 'black', // Define a cor do texto como preto
+                  color: "black", // Define a cor do texto como preto
                 }),
                 singleValue: (provided) => ({
                   ...provided,
-                  color: 'black', // Texto selecionado preto
+                  color: "black", // Texto selecionado preto
                 }),
                 multiValue: (provided) => ({
                   ...provided,
-                  color: 'black', // Texto em seleções múltiplas preto
+                  color: "black", // Texto em seleções múltiplas preto
                 }),
               }}
             />
@@ -407,15 +442,15 @@ const Dashboard = () => {
               styles={{
                 option: (provided) => ({
                   ...provided,
-                  color: 'black', // Define a cor do texto como preto
+                  color: "black", // Define a cor do texto como preto
                 }),
                 singleValue: (provided) => ({
                   ...provided,
-                  color: 'black', // Texto selecionado preto
+                  color: "black", // Texto selecionado preto
                 }),
                 multiValue: (provided) => ({
                   ...provided,
-                  color: 'black', // Texto em seleções múltiplas preto
+                  color: "black", // Texto em seleções múltiplas preto
                 }),
               }}
             />
@@ -436,15 +471,15 @@ const Dashboard = () => {
               styles={{
                 option: (provided) => ({
                   ...provided,
-                  color: 'black', // Define a cor do texto como preto
+                  color: "black", // Define a cor do texto como preto
                 }),
                 singleValue: (provided) => ({
                   ...provided,
-                  color: 'black', // Texto selecionado preto
+                  color: "black", // Texto selecionado preto
                 }),
                 multiValue: (provided) => ({
                   ...provided,
-                  color: 'black', // Texto em seleções múltiplas preto
+                  color: "black", // Texto em seleções múltiplas preto
                 }),
               }}
             />
@@ -453,212 +488,243 @@ const Dashboard = () => {
 
         {/* Botão de Aplicar Filtros */}
         <Col
-  md={1}
-  style={{
-    textAlign: "left",
-    display: "flex",
-    alignItems: "center",
-    marginTop: "1%",
-    justifyContent: "space-between",
-  }}
->
-<Button color="primary" onClick={handleApplyFilters} disabled={isLoading} style={{minHeight:38 , minWidth:120}}>
-  {isLoading ? <LoadingDots /> : "Aplicar Filtros"}
-</Button>
- 
-</Col>
+          md={1}
+          style={{
+            textAlign: "left",
+            display: "flex",
+            alignItems: "center",
+            marginTop: "1%",
+            justifyContent: "space-between",
+          }}
+        >
+          <Button
+            color="primary"
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            style={{ minHeight: 38, minWidth: 120 }}
+          >
+            {isLoading ? <LoadingDots /> : "Aplicar Filtros"}
+          </Button>
+        </Col>
       </Row>
       {/* <h2>Dashboard</h2> */}
       {showModalNaoCobranca && (
-  <ModalNaoCobranca
-    data={ocorrenciasSemCobranca.map((oc) => ({
-      nf: oc.nf,
-      cliente: clientesMap[oc.cliente_id] || "Desconhecido",
-      horario_chegada: oc.horario_chegada,
-      horario_saida: oc.horario_saida,
-      horario_ocorrencia: oc.datainclusao,
-      motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
-    }))}
-    onClose={handleCloseModalNaoCobranca}
-    onRefresh={fetchDashboardData}
-  />
-)}
-{showModalNaoEntregue && (
-  <ModalNaoEntregue
-    data={todasOcorrencias
-      .filter((oc) => oc.status === "Não entregue")
-      .map((oc) => ({
-        nf: oc.nf,
-        cliente: clientesMap[oc.cliente_id] || "Desconhecido",
-        destinatario: motoristasMap[oc.motorista_id] || "Desconhecido",
-        horario_chegada: oc.horario_chegada,
-        horario_saida: oc.horario_saida,
-        horario_ocorrencia: oc.datainclusao,
-        motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
-      }))}
-    onClose={handleCloseModalNaoEntregue}
-  />
-)}
-
-
+        <ModalNaoCobranca
+          data={ocorrenciasSemCobranca.map((oc) => ({
+            nf: oc.nf,
+            cliente: clientesMap[oc.cliente_id] || "Desconhecido",
+            horario_chegada: oc.horario_chegada,
+            horario_saida: oc.horario_saida,
+            horario_ocorrencia: oc.datainclusao,
+            motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+          }))}
+          onClose={handleCloseModalNaoCobranca}
+          onRefresh={fetchDashboardData}
+        />
+      )}
+      {showModalNaoEntregue && (
+        <ModalNaoEntregue
+          data={todasOcorrencias
+            .filter((oc) => oc.status === "Não entregue")
+            .map((oc) => ({
+              nf: oc.nf,
+              cliente: clientesMap[oc.cliente_id] || "Desconhecido",
+              destinatario: motoristasMap[oc.motorista_id] || "Desconhecido",
+              horario_chegada: oc.horario_chegada,
+              horario_saida: oc.horario_saida,
+              horario_ocorrencia: oc.datainclusao,
+              motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+            }))}
+          onClose={handleCloseModalNaoEntregue}
+        />
+      )}
+      {showModalCteCobrado && (
+        <ModalCteCobrado
+          data={todasOcorrencias
+            .filter((oc) => oc.cobranca_adicional === "S" && oc.cte_gerado)
+            .map((oc) => ({
+              nf: oc.nf,
+              cliente: clientesMap[oc.cliente_id] || "Desconhecido",
+              cte: oc.cte_gerado,
+              horario_ocorrencia: oc.datainclusao,
+              motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+            }))}
+          onClose={handleCloseModalCteCobrado}
+        />
+      )}
 
       {/* Cards de métricas */}
-      <Row >
+      <Row>
         {/* Card 1: Ocorrências em Aberto */}
         <Col md={4}>
-    <CardStyle bgColor="rgba(255, 99, 71, 0.2)" iconColor="#FF6347">
-      <h3>
-        <FaExclamationTriangle /> Ocorrências em Aberto
-      </h3>
-      <p style={{ fontSize: 32, fontWeight: 700 }}>
-        {qtdOcorrenciasAbertas > 0 ? qtdOcorrenciasAbertas : "0"}
-      </p>
-    </CardStyle>
-  </Col>
+          <CardStyle bgColor="rgba(255, 99, 71, 0.2)" iconColor="#FF6347">
+            <h3>
+              <FaExclamationTriangle /> Ocorrências em Aberto
+            </h3>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {qtdOcorrenciasAbertas > 0 ? qtdOcorrenciasAbertas : "0"}
+            </p>
+          </CardStyle>
+        </Col>
 
-  <Col md={4}>
-    <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
-      <h3>
-        <FaClock /> Tempo Médio de Entrega
-      </h3>
-      <p style={{ fontSize: 32, fontWeight: 700 }}>
-        {tempoMedioEntrega > 0 ? `${tempoMedioEntrega} min` : "0 min"}
-      </p>
-    </CardStyle>
-  </Col>
+        <Col md={4}>
+          <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
+            <h3>
+              <FaClock /> Tempo Médio de Entrega
+            </h3>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {tempoMedioEntrega > 0 ? `${tempoMedioEntrega} min` : "0 min"}
+            </p>
+          </CardStyle>
+        </Col>
 
-  <Col md={4}>
-    <CardStyle bgColor="rgba(154, 205, 50, 0.2)" iconColor="#9ACD32">
-      <h3>
-        <FaChartLine /> Média Ocorrências/Dia
-      </h3>
-      <p style={{ fontSize: 32, fontWeight: 700 }}>
-        {mediaOcorrenciasPorDia > 0 ? mediaOcorrenciasPorDia : "0"}
-      </p>
-    </CardStyle>
-  </Col>
-  <Col md={6}>
-  <CardStyle
-    bgColor="rgba(72, 201, 176, 0.2)"
-    iconColor="#48C9B0"
-    onClick={handleOpenModalNaoCobranca}
-    style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
-  >
-    <h3>
-      <FaDollarSign /> Ocorrências sem Cobrança
-    </h3>
-    <p style={{ fontSize: 32, fontWeight: 700 }}>
-      {qtdOcorrenciasSemCobranca > 0
-        ? qtdOcorrenciasSemCobranca
-        : "Sem Dados para essa informação"}
-    </p>
-    {qtdOcorrenciasSemCobranca > 0 && (
-      <p style={{ fontSize: 12, fontStyle: "italic" }}>
-        Clique para mais informações
-      </p>
-    )}
-  </CardStyle>
-</Col>
+        <Col md={4}>
+          <CardStyle bgColor="rgba(154, 205, 50, 0.2)" iconColor="#9ACD32">
+            <h3>
+              <FaChartLine /> Média Ocorrências/Dia
+            </h3>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {mediaOcorrenciasPorDia > 0 ? mediaOcorrenciasPorDia : "0"}
+            </p>
+          </CardStyle>
+        </Col>
+        <Col md={4}>
+          <CardStyle
+            bgColor="rgba(255, 215, 0, 0.2)"
+            iconColor="#FFD700"
+            onClick={handleOpenModalNaoCobranca}
+            style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
+          >
+            <h3>
+              <FaDollarSign /> Ocorrências sem Cobrança
+            </h3>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {qtdOcorrenciasSemCobranca > 0
+                ? qtdOcorrenciasSemCobranca
+                : "Sem Dados para essa informação"}
+            </p>
+            {qtdOcorrenciasSemCobranca > 0 && (
+              <p style={{ fontSize: 12, fontStyle: "italic" }}>
+                Clique para mais informações
+              </p>
+            )}
+          </CardStyle>
+        </Col>
+        <Col md={4}>
+          <CardStyle
+            bgColor="rgba(72, 201, 176, 0.2)"
+            iconColor="#48C9B0"
+            onClick={handleOpenModalCteCobrado}
+            style={{ cursor: "pointer" }} // 🔥 Indica que é clicável
+          >
+            <h3>
+              <FaDollarSign /> CTEs Cobrados
+            </h3>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {qtdCtesCobrados > 0 ? qtdCtesCobrados : "0"}
+            </p>
+            {qtdCtesCobrados > 0 && (
+              <p style={{ fontSize: 12, fontStyle: "italic" }}>
+                Clique para mais informações
+              </p>
+            )}
+          </CardStyle>
+        </Col>
 
-<Col md={6}>
-  <CardStyle
-    bgColor="rgba(255, 69, 0, 0.2)"
-    iconColor="#FF4500"
-    onClick={handleOpenModalNaoEntregue}
-    style={{ cursor: "pointer" }}
-  >
-    <h3>
-      <FaTimesCircle /> Chamados Não Entregues
-    </h3>
-    <p style={{ fontSize: 32, fontWeight: 700 }}>
-      {qtdOcorrenciasNaoEntregues > 0
-        ? qtdOcorrenciasNaoEntregues
-        : "Sem Dados para essa informação"}
-    </p>
-    {qtdOcorrenciasNaoEntregues > 0 && (
-      <p style={{ fontSize: 12, fontStyle: "italic" }}>
-        Clique para mais informações
-      </p>
-    )}
-  </CardStyle>
-</Col>
-
-
+        <Col md={4}>
+          <CardStyle
+            bgColor="rgba(255, 69, 0, 0.2)"
+            iconColor="#FF4500"
+            onClick={handleOpenModalNaoEntregue}
+            style={{ cursor: "pointer" }}
+          >
+            <h3>
+              <FaTimesCircle /> Chamados Não Entregues
+            </h3>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {qtdOcorrenciasNaoEntregues > 0
+                ? qtdOcorrenciasNaoEntregues
+                : "Sem Dados para essa informação"}
+            </p>
+            {qtdOcorrenciasNaoEntregues > 0 && (
+              <p style={{ fontSize: 12, fontStyle: "italic" }}>
+                Clique para mais informações
+              </p>
+            )}
+          </CardStyle>
+        </Col>
       </Row>
 
       {/* Graficos */}
       <Row>
-  <Col md={7}>
-    <Box>
-      <h3>Ocorrências resolvidas/Não resolvidas por dia</h3>
-      {todasOcorrencias.length > 0 ? (
-        <LineOcorrenDias data={todasOcorrencias} />
-      ) : (
-        <NoData />
-      )}
-    </Box>
-  </Col>
+        <Col md={7}>
+          <Box>
+            <h3>Ocorrências resolvidas/Não resolvidas por dia</h3>
+            {todasOcorrencias.length > 0 ? (
+              <LineOcorrenDias data={todasOcorrencias} />
+            ) : (
+              <NoData />
+            )}
+          </Box>
+        </Col>
 
-  <Col md={5}>
-    <Box>
-      <h3>Top 7 Clientes com mais ocorrências</h3>
-      {clientesData.length > 0 ? (
-        <ChartClientes data={clientesData} />
-      ) : (
-        <NoData />
-      )}
-    </Box>
-  </Col>
-</Row>
+        <Col md={5}>
+          <Box>
+            <h3>Top 7 Clientes com mais ocorrências</h3>
+            {clientesData.length > 0 ? (
+              <ChartClientes data={clientesData} />
+            ) : (
+              <NoData />
+            )}
+          </Box>
+        </Col>
+      </Row>
 
-<Col md={12}>
-  <Box>
-    <h3>Ocorrências por Destinatário</h3>
-    {destinatariosData.length > 0 ? (
-      <ChartDestinatarios data={destinatariosData} />
-    ) : (
-      <NoData />
-    )}
-  </Box>
-</Col>
+      <Col md={12}>
+        <Box>
+          <h3>Ocorrências por Destinatário</h3>
+          {destinatariosData.length > 0 ? (
+            <ChartDestinatarios data={destinatariosData} />
+          ) : (
+            <NoData />
+          )}
+        </Box>
+      </Col>
 
-<Col md={12}>
-  <Box>
-    <h3>Ocorrências por Cliente</h3>
-    {clientesData.length > 0 ? (
-      <ChartEscadaClientes data={clientesData} />
-    ) : (
-      <NoData />
-    )}
-  </Box>
-</Col>
+      <Col md={12}>
+        <Box>
+          <h3>Ocorrências por Cliente</h3>
+          {clientesData.length > 0 ? (
+            <ChartEscadaClientes data={clientesData} />
+          ) : (
+            <NoData />
+          )}
+        </Box>
+      </Col>
 
-<Col md={12}>
-  <Box>
-    <h3>Quantidade ocorrências por Tipo</h3>
-    {ocorrenciasTipoData.length > 0 ? (
-      <ChartOcorrencias data={ocorrenciasTipoData} />
-    ) : (
-      <NoData />
-    )}
-  </Box>
-</Col>
+      <Col md={12}>
+        <Box>
+          <h3>Quantidade ocorrências por Tipo</h3>
+          {ocorrenciasTipoData.length > 0 ? (
+            <ChartOcorrencias data={ocorrenciasTipoData} />
+          ) : (
+            <NoData />
+          )}
+        </Box>
+      </Col>
 
-<Col md={12}>
-  <Box>
-    <h3>Ocorrências por Motorista</h3>
-    {motoristasData.length > 0 ? (
-      <ChartMotoristas data={motoristasData} />
-    ) : (
-      <NoData />
-    )}
-  </Box>
-</Col>
-
+      <Col md={12}>
+        <Box>
+          <h3>Ocorrências por Motorista</h3>
+          {motoristasData.length > 0 ? (
+            <ChartMotoristas data={motoristasData} />
+          ) : (
+            <NoData />
+          )}
+        </Box>
+      </Col>
     </Row>
   );
 };
-
-
 
 export default Dashboard;
