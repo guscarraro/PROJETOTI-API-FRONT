@@ -80,7 +80,7 @@ const apiLocal = {
 
   getCicloPedido: () => api.get("/processamento/ciclo-pedido/"),
   getBalanceteCarraro: () => api.get("/processamento/balancete-carraro/"),
-  getFechamentoOperacao: () => api.get("/processamento/fechamento-operacao/"),
+  getFechamentoOperacao: () => api.get("/processamento/fechamento-operacao"),
 };
 
 

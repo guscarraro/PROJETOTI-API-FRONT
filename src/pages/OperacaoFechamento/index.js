@@ -20,6 +20,7 @@ import TopTomadores from "./TopTomadores";
 import TopTomadoresQuantidade from "./TopTomadoresQuantidade";
 import FilialChart from "./FilialChart";
 import { StyledSelect } from "../../components/StyledSelect";
+import apiLocal from "../../services/apiLocal";
 
 const OperacaoFechamento = () => {
   const [data, setData] = useState([]);
@@ -28,37 +29,29 @@ const OperacaoFechamento = () => {
   const [selectedMonths, setSelectedMonths] = useState([]); // Armazena os meses selecionados
 
   const monthOptions = [
-    { value: "2024-01", label: "Janeiro 2024" },
-    { value: "2024-02", label: "Fevereiro 2024" },
-    { value: "2024-03", label: "Março 2024" },
-    { value: "2024-04", label: "Abril 2024" },
-    { value: "2024-05", label: "Maio 2024" },
-    { value: "2024-06", label: "Junho 2024" },
-    { value: "2024-07", label: "Julho 2024" },
-    { value: "2024-08", label: "Agosto 2024" },
-    { value: "2024-09", label: "Setembro 2024" },
     { value: "2024-10", label: "Outubro 2024" },
     { value: "2024-11", label: "Novembro 2024" },
     { value: "2024-12", label: "Dezembro 2024" },
     { value: "2025-01", label: "Janeiro 2025" },
     { value: "2025-02", label: "Fevereiro 2025" },
+    { value: "2025-03", label: "Março 2025" },
   ];
 
   // Função para buscar dados
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch(
-        "https://projetoti-api-production.up.railway.app/fechamento-operacao"
-      );
-      const jsonData = await response.json();
-      setData(jsonData);
-    } catch (error) {
-      console.error("Erro ao buscar os dados:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Certifique-se de importar corretamente
+
+const fetchData = async () => {
+  setLoading(true);
+  try {
+    const response = await apiLocal.getFechamentoOperacao(); // ✅ Utiliza o Axios
+    setData(response.data);
+  } catch (error) {
+    console.error("Erro ao buscar os dados:", error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchData();
