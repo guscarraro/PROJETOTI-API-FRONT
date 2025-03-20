@@ -14,7 +14,7 @@ const api = axios.create({
 
 const apiLocal = {
   getMotoristas: () => api.get("/motoristas/"),
-  createOrUpdateMotorista: (data) => api.post("/motoristas", data),
+  createOrUpdateMotorista: (data) => api.post("/motoristas/", data),
   deleteMotorista: (id) => api.delete(`/motoristas/${id}`),
 
   getClientes: () => api.get("/clientes/"),
