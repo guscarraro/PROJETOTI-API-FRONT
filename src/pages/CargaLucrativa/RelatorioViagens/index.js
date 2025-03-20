@@ -15,6 +15,7 @@ import {
   ActionButton,
 } from "./style";
 import ModalInfo from "./ModalInfo";
+import LoadingDots from "../../../components/Loading";
 
 const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [viagens, setViagens] = useState([]);
@@ -22,12 +23,16 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [modalDelOpen, setModalDelOpen] = useState(false);
   const [viagemSelecionada, setViagemSelecionada] = useState(null);
   const [modalInfoOpen, setModalInfoOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
 
   useEffect(() => {
+    setLoading(true); 
     carregarViagens();
   }, []);
 
   const carregarViagens = async () => {
+    setLoading(true);
     try {
       const responseViagens = await apiLocal.getViagens();
       const responseDocumentos = await apiLocal.getDocumentosTransporte(); // ✅ Obtém todos os documentos
@@ -53,6 +58,8 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
       }
     } catch (error) {
       console.error("Erro ao buscar viagens:", error);
+    }finally {
+      setLoading(false); // 🔥 Desativa o loading após a requisição
     }
   };
 
@@ -90,8 +97,9 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
       <ExportButton onClick={exportarParaExcel}>
         Exportar para Excel
       </ExportButton>
-
-      {viagens.length > 0 ? (
+      {loading ? (
+  <LoadingDots/> // 🔥 Substitua por <LoadingDots /> se desejar
+) : viagens.length > 0 ? (
         <Table>
           <thead>
             <TableRow>

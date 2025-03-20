@@ -16,7 +16,7 @@ import {
 import PDFViagem from "./PDFViagem";
 
 const ModalInfo = ({ viagem, onClose }) => {
-  console.log(viagem);
+  
   
   return (
     <ModalContainer>

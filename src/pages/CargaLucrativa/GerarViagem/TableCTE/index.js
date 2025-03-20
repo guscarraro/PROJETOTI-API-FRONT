@@ -9,7 +9,7 @@ import {
 } from "../style";
 
 const TableCTE = ({ ctes, removerCTE, tabelaCustosFrete }) => {
-  console.log(ctes);
+
   
   return (
     <>

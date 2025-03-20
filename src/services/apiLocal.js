@@ -62,7 +62,15 @@ const apiLocal = {
   updateViagem: (viagemId, data) => api.put(`/viagens/atualizar_viagem/${viagemId}`, data),
   getDocumentosTransporte: () => api.get("/documentos-transporte/"),
 
+  getGrupoEco: () => api.get("/grupo-eco/"),
+  createOrUpdateGrupoEco: (data) => api.post("/grupo-eco/", data),
+  deleteGrupoEco: (id) => api.delete(`/grupo-eco/${id}`),
 
+  getColetas: () => api.get("/coletas/"),
+  createOrUpdateColeta: (data) => api.post("/coletas/", data),
+  deleteColeta: (id) => api.delete(`/coletas/${id}`),
+  updateColetaParcial: (coletaId, data) => api.put(`/coletas/atualizar/${coletaId}`, data),
+  getColetaById: (id) => api.get(`/coletas/${id}`),
 
   getDocumentoTransporte: (numero_cte) => api.get(`/documentos-transporte/${numero_cte}`),
 
