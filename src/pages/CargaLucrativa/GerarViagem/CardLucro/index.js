@@ -14,10 +14,16 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
 
   let metaRentabilidade;
 
-  if (tipoOperacao === "MTZ - Metropolitana") {
-    metaRentabilidade = 30;
-  } else if (tipoOperacao === "MTZ - Raio 2") {
-    metaRentabilidade = 35;
+  if (tipoOperacao === "MTZ - 1") {
+    metaRentabilidade = 37;
+  } else if (tipoOperacao === "MTZ - 2") {
+    metaRentabilidade = 37;
+  } else if (tipoOperacao === "MTZ - 3") {
+    metaRentabilidade = 45;
+  } else if (tipoOperacao === "MTZ - 4") {
+    metaRentabilidade = 50;
+  } else if (tipoOperacao === "MTZ") {
+    metaRentabilidade = 25;
   } else if (tipoOperacao === "MTZ - Transferencia") {
     metaRentabilidade = 18;
   } else {

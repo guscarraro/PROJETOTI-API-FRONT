@@ -29,8 +29,11 @@ const tiposVeiculoOptions = [
 ];
 const tiposOperacaoOptions = [
   { value: "MTZ - Transferencia", label: "MTZ - Transferencia" },
-  { value: "MTZ - Metropolitana", label: "MTZ - Metropolitana" },
-  { value: "MTZ - Raio 2", label: "MTZ - Raio 2" },
+  { value: "MTZ", label: "MTZ" },
+  { value: "MTZ - 1", label: "MTZ - 1" },
+  { value: "MTZ - 2", label: "MTZ - 2" },
+  { value: "MTZ - 3", label: "MTZ - 3" },
+  { value: "MTZ - 4", label: "MTZ - 4" },
 ];
 
 const GerarViagem = ({ numeroViagemParam }) => {

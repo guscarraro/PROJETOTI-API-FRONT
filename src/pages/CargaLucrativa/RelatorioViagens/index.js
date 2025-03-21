@@ -124,8 +124,10 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
               return (
                 <TableRow key={index}
                   lucrativa={
-                    (viagem.tipo_operacao === "MTZ - Metropolitana" && margemCusto <= 30) ||
-                    (viagem.tipo_operacao === "MTZ - Raio 2" && margemCusto <= 35) ||
+                    (viagem.tipo_operacao === "MTZ - 1" && margemCusto <= 37) ||
+                    (viagem.tipo_operacao === "MTZ - 2" && margemCusto <= 37) ||
+                    (viagem.tipo_operacao === "MTZ - 3" && margemCusto <= 45) ||
+                    (viagem.tipo_operacao === "MTZ - 4" && margemCusto <= 50) ||
                     (viagem.tipo_operacao === "MTZ - Transferencia" && margemCusto <= 18) ||
                     (!viagem.tipo_operacao && margemCusto <= 18) // Padrão para outras operações
                   }
