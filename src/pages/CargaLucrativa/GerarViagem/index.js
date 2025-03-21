@@ -152,8 +152,6 @@ const GerarViagem = ({ numeroViagemParam }) => {
     try {
       const response = await fetchDocumento(numeroCTE);
 
-
-
       if (response.detalhe) {
         const novoCTE = {
           numero_cte: response.detalhe.docTransporte || numeroCTE,
@@ -198,7 +196,9 @@ const GerarViagem = ({ numeroViagemParam }) => {
           });
         }
 
-
+        if (!response.detalhe.valor_receita_sep?.valor_frete) {
+          toast.warning("CTE não possui FRETE VALOR! Favor revisar tabela.");
+        }
 
         // Verifica se a Filial Origem e Destino do novo CTE diverge da atual
         if (

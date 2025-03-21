@@ -66,7 +66,7 @@ export const LucroContainer = styled.div`
   text-align: center;
   box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.7);
   position: fixed;
-  top: 200px;
+  top: 100px;
   margin-right: 1%;
 `;
 

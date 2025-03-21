@@ -4,11 +4,11 @@ import { LucroContainer, CustoPercentual, SaveButton, MiniCard, MiniCardContaine
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
 import { Row, Col } from "reactstrap";
-import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine, FaDollarSign } from "react-icons/fa";
+import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine, FaDollarSign, FaCut, FaArrowUp, FaWallet, FaHandHoldingUsd } from "react-icons/fa";
 import LoadingDots from "../../../../components/Loading";
 
 const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,setFilialOrigem,setFilialDestino,setObs,setTipoVeiculo,setTipoOperacao, tipoVeiculo, obs, custoManual,setCargaDividida,setCustoManual, cargaDividida, tipoOperacao }) => {
-  const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0 });
+  const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0,receitaTotal: 0  });
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -62,7 +62,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
       custoPercentual: custoPercentual,
       lucroPercentual: lucroPercentual,
       lucroValor: receitaTotal !== 0 ? lucro : 0,
-
+      receitaTotal: receitaTotal,
       status:
         receitaTotal === 0 && custo === 0
           ? "Aguardando dados"
@@ -254,6 +254,32 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
 
             </MiniCard>
           </Col>
+          <Col md="6">
+  <MiniCard style={{ backgroundColor: rentabilidade.backgroundColor?.replace("0.35", "0.1") || "rgba(255, 255, 255, 1)" }}>
+    <FaHandHoldingUsd   size={24} />
+    <span>Reiceita faltante para Meta</span>
+    <strong>
+      R$ <CountUp 
+        end={Math.max(0, (custoViagem / (metaRentabilidade / 100)) - rentabilidade.receitaTotal)} 
+        duration={1.5} 
+        decimals={2} 
+      />
+    </strong>
+  </MiniCard>
+</Col>
+<Col md="6">
+  <MiniCard style={{ backgroundColor: rentabilidade.backgroundColor?.replace("0.35", "0.1") || "rgba(255, 255, 255, 1)" }}>
+    <FaCut  size={24} />
+    <span>Reduzir Custo para bater Meta</span>
+    <strong>
+      R$ -<CountUp 
+        end={Math.max(0, custoViagem - (rentabilidade.receitaTotal * (metaRentabilidade / 100)))} 
+        duration={1.5} 
+        decimals={2} 
+      />
+    </strong>
+  </MiniCard>
+</Col>
           <Col md="6">
             <MiniCard style={{ backgroundColor: rentabilidade.backgroundColor?.replace("0.35", "0.1") || "rgba(255, 255, 255, 1)" }}>
 
