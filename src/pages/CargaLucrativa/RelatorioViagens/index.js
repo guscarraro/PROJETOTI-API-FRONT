@@ -25,7 +25,22 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [modalInfoOpen, setModalInfoOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
-
+  const metas = {
+    "MTZ - 1": 37,
+    "MTZ - 2": 37,
+    "MTZ - 3": 45,
+    "MTZ - 4": 50,
+    "MTZ": 25,
+    "MTZ - Transferencia": 18,
+    "PTO - 1": 20,
+    "PTO - 2": 30,
+    "PTO - 3": 40,
+    "PTO - 4": 50,
+    "MGA - 1": 20,
+    "MGA - 2": 30,
+    "MGA - 3": 40,
+    "MGA - 4": 50
+  };
   useEffect(() => {
     setLoading(true); 
     carregarViagens();
@@ -90,7 +105,24 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
     XLSX.writeFile(wb, "Relatorio_Viagens.xlsx");
   };
 
+  const user = JSON.parse(localStorage.getItem("user"));
+  const setor = user?.setor;
 
+  // Filtrar viagens de acordo com o setor
+  const filtrarViagensPorSetor = (viagens) => {
+    console.log(viagens);
+    
+    if (setor == "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4") { // PTO
+      return viagens.filter(viagem => viagem.tipo_operacao?.startsWith("PTO"));
+    } 
+    else if (setor == "7a84e2cb-cb4c-4705-b676-9f0a0db5469a") { // MGA
+      return viagens.filter(viagem => viagem.tipo_operacao?.startsWith("MGA"));
+    }
+    return viagens; // Mostra todas para outros setores
+  };
+
+  // Viagens filtradas
+  const viagensFiltradas = filtrarViagensPorSetor(viagens);
   return (
     <Container>
       <h2>Relatório de Viagens</h2>
@@ -99,7 +131,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
       </ExportButton>
       {loading ? (
   <LoadingDots/> // 🔥 Substitua por <LoadingDots /> se desejar
-) : viagens.length > 0 ? (
+) : viagensFiltradas.length > 0 ? (
         <Table>
           <thead>
             <TableRow>
@@ -119,18 +151,13 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
             </TableRow>
           </thead>
           <tbody>
-            {viagens.map((viagem, index) => {
+            {viagensFiltradas.map((viagem, index) => {
               const margemCusto = parseFloat(viagem.margem_custo); // 🔥 Garante que é número
               return (
                 <TableRow key={index}
-                  lucrativa={
-                    (viagem.tipo_operacao === "MTZ - 1" && margemCusto <= 37) ||
-                    (viagem.tipo_operacao === "MTZ - 2" && margemCusto <= 37) ||
-                    (viagem.tipo_operacao === "MTZ - 3" && margemCusto <= 45) ||
-                    (viagem.tipo_operacao === "MTZ - 4" && margemCusto <= 50) ||
-                    (viagem.tipo_operacao === "MTZ - Transferencia" && margemCusto <= 18) ||
-                    (!viagem.tipo_operacao && margemCusto <= 18) // Padrão para outras operações
-                  }
+                lucrativa={
+                  margemCusto <= (metas[viagem.tipo_operacao] || 18)
+                }
                   onClick={() => {
                     setViagemSelecionada(viagem); // Define a viagem selecionada
                     setModalInfoOpen(true); // Abre o modal de informações

@@ -59,7 +59,9 @@ const App = () => {
       element={<CargaLucrativa />}
       allowedSectors={[
         '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
-        '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
+        '43350e26-12f4-4094-8cfb-2a66f250838d',
+        '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
+        '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4', // UUID do setor SAC
       ]}
     />
   }

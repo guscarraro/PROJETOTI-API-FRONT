@@ -61,6 +61,12 @@ function Login() {
         if (user.setor === 'd2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f') {
           return '/ti'; // Frete
         }
+        if (user.setor === '7a84e2cb-cb4c-4705-b676-9f0a0db5469a') {
+          return '/Frete/CargaLucrativa'; // Frete
+        }
+        if (user.setor === '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4') {
+          return '/Frete/CargaLucrativa'; // Frete
+        }
         // Para outros setores ou Admin (tipo de usuário)
         if (user.tipo === 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c') {
           return '/CicloPedido'; // Admin ou dashboard padrão

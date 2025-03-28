@@ -27,7 +27,13 @@ const tiposVeiculoOptions = [
   { value: "FIORINO", label: "FIORINO" },
   { value: "CARRETA", label: "CARRETA" },
 ];
-const tiposOperacaoOptions = [
+// Obter o setor do usuário (já corrigido anteriormente)
+// Obter o setor do usuário
+const user = JSON.parse(localStorage.getItem("user"));
+const setor = user?.setor;
+
+// Definir as opções padrão
+const tiposOperacaoPadrao = [
   { value: "MTZ - Transferencia", label: "MTZ - Transferencia" },
   { value: "MTZ", label: "MTZ" },
   { value: "MTZ - 1", label: "MTZ - 1" },
@@ -35,6 +41,36 @@ const tiposOperacaoOptions = [
   { value: "MTZ - 3", label: "MTZ - 3" },
   { value: "MTZ - 4", label: "MTZ - 4" },
 ];
+
+// Opções específicas para o setor PTO (7a84...)
+const tiposOperacaoPTO = [
+  { value: "PTO - 1", label: "PTO - 1" },
+  { value: "PTO - 2", label: "PTO - 2" },
+  { value: "PTO - 3", label: "PTO - 3" },
+  { value: "PTO - 4", label: "PTO - 4" },
+];
+
+// Opções específicas para o setor MGA (9f5c...)
+const tiposOperacaoMGA = [
+  { value: "MGA - 1", label: "MGA - 1" },
+  { value: "MGA - 2", label: "MGA - 2" },
+  { value: "MGA - 3", label: "MGA - 3" },
+  { value: "MGA - 4", label: "MGA - 4" },
+];
+
+// Definir as opções finais baseadas no setor
+const todasOperacoes = [
+  ...tiposOperacaoPadrao,
+  ...tiposOperacaoPTO,
+  ...tiposOperacaoMGA
+];
+
+const tiposOperacaoOptions = 
+  setor == "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4"
+    ? tiposOperacaoPTO 
+    : setor == "7a84e2cb-cb4c-4705-b676-9f0a0db5469a"
+    ? tiposOperacaoMGA
+    : todasOperacoes;
 
 const GerarViagem = ({ numeroViagemParam }) => {
   const { numero_viagem } = useParams(); // ✅ Pegando da URL, se existir

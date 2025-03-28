@@ -13,7 +13,7 @@ import {
   LoadingText,
 } from "./styles";
 import PizzaTopDezDistrib from './PizzaTopDezDistrib';
-import SummaryBox from "./SummaryBox"; 
+import SummaryBox from "./SummaryBox";
 import LineChartToneladas from "./LineChartToneladas";
 import { formatTomadorName } from "../../helpers";
 import TopTomadores from "./TopTomadores";
@@ -40,17 +40,17 @@ const OperacaoFechamento = () => {
   // Função para buscar dados
   // Certifique-se de importar corretamente
 
-const fetchData = async () => {
-  setLoading(true);
-  try {
-    const response = await apiLocal.getFechamentoOperacao(); // ✅ Utiliza o Axios
-    setData(response.data);
-  } catch (error) {
-    console.error("Erro ao buscar os dados:", error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const response = await apiLocal.getFechamentoOperacao(); // ✅ Utiliza o Axios
+      setData(response.data);
+    } catch (error) {
+      console.error("Erro ao buscar os dados:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 
   useEffect(() => {
@@ -69,7 +69,7 @@ const fetchData = async () => {
 
     return (
       item.status === "Encerrado" &&
-      item.tipo_servico === "Normal" &&
+      item.tipo_servico === "Normal" && // Mantém apenas Normal para os dados filtrados
       isMonthSelected &&
       isTomadorSelected
     );
@@ -106,51 +106,53 @@ const fetchData = async () => {
     .slice(0, 10);
 
   const totalsByStatus = (status) => {
-    const filtered = data.filter((item) => {
+    let valorBrutoNormal = 0;
+    let valorBrutoComplementar = 0;
+    let valorMercadoriaTotal = 0;
+    const pieData = {};
+
+    // Processa serviços normais
+    for (const item of data) {
       const itemMonth = item.emissao.split("-").slice(0, 2).join("-");
-      const isMonthSelected =
-        selectedMonths.length === 0 ||
+      const isMonthSelected = selectedMonths.length === 0 ||
         selectedMonths.some((month) => month.value === itemMonth);
+      const isTomadorSelected = selectedTomadores.length === 0 ||
+        selectedTomadores.some((t) => t.value === item.tomador_servico);
 
-      return (
-        item.status === status &&
-        item.tipo_servico === "Normal" &&
-        isMonthSelected &&
-        (selectedTomadores.length === 0 ||
-          selectedTomadores.some((t) => t.value === item.tomador_servico))
-      );
-    });
+      if (item.status === status && isMonthSelected && isTomadorSelected) {
+        if (item.tipo_servico === "Normal") {
+          valorBrutoNormal += item.valor_bruto || 0;
+          valorMercadoriaTotal += item.valor_mercadoria || 0;
 
-    const grouped = filtered.reduce(
-      (totals, item) => {
-        totals.valorBruto += item.valor_bruto || 0;
-        totals.valorMercadoria += item.valor_mercadoria || 0;
-        const key = item.fil_dest || "Não especificado";
-        if (!totals.pieData[key]) totals.pieData[key] = 0;
-        totals.pieData[key] += item.valor_bruto || 0;
-        return totals;
-      },
-      { valorBruto: 0, valorMercadoria: 0, pieData: {} }
-    );
+          const key = item.fil_dest || "Não especificado";
+          pieData[key] = (pieData[key] || 0) + (item.valor_bruto || 0);
+        } else if (item.tipo_servico === "Complementar") {
+          valorBrutoComplementar += item.valor_bruto || 0;
+        }
+      }
+    }
 
-    const barData = Object.entries(grouped.pieData).map(([key, value]) => ({
-      name: key,
+    const valorBrutoTotal = valorBrutoNormal + valorBrutoComplementar;
+
+    // Prepara dados para gráficos (apenas com valores normais)
+    const barData = Object.entries(pieData).map(([name, value]) => ({
+      name,
       value,
     }));
 
     const percentages = barData.map(({ name, value }) => ({
       name,
-      percent: grouped.valorBruto > 0 ? (value / grouped.valorBruto) * 100 : 0,
+      percent: valorBrutoNormal > 0 ? (value / valorBrutoNormal) * 100 : 0,
     }));
 
     return {
-      valorBruto: grouped.valorBruto,
-      valorMercadoria: grouped.valorMercadoria,
+      valorBruto: valorBrutoTotal,
+      valorMercadoria: valorMercadoriaTotal,
       barData,
       percentages,
+      valorBrutoNormal, // Adicionado para referência se necessário
     };
   };
-
   const totalsEncerrado = totalsByStatus("Encerrado");
 
   return (
@@ -192,12 +194,10 @@ const fetchData = async () => {
                   icon={MdDoneOutline}
                   bgColor="rgba(0, 255, 127, 0.35)"
                   data={{
-                    valorBruto: totalsEncerrado.valorBruto,
-                    valorMercadoria: totalsEncerrado.valorMercadoria,
+                    valorBruto: totalsEncerrado.valorBruto, // Já inclui complementares
+                    valorMercadoria: totalsEncerrado.valorMercadoria, // Apenas normais
                   }}
-                  documentData={filteredData.filter(
-                    (item) => item.status === "Encerrado"
-                  )}
+                  documentData={filteredData} // Apenas dados normais para as métricas
                 />
               </Col>
               <Col md="8">

@@ -12,23 +12,24 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  let metaRentabilidade;
-
-  if (tipoOperacao === "MTZ - 1") {
-    metaRentabilidade = 37;
-  } else if (tipoOperacao === "MTZ - 2") {
-    metaRentabilidade = 37;
-  } else if (tipoOperacao === "MTZ - 3") {
-    metaRentabilidade = 45;
-  } else if (tipoOperacao === "MTZ - 4") {
-    metaRentabilidade = 50;
-  } else if (tipoOperacao === "MTZ") {
-    metaRentabilidade = 25;
-  } else if (tipoOperacao === "MTZ - Transferencia") {
-    metaRentabilidade = 18;
-  } else {
-    metaRentabilidade = 30; // Padrão para outras operações
-  }
+  const metasPorOperacao = {
+    "MTZ - 1": 37,
+    "MTZ - 2": 37,
+    "MTZ - 3": 45,
+    "MTZ - 4": 50,
+    "MTZ": 25,
+    "MTZ - Transferencia": 18,
+    "PTO - 1": 20,
+    "PTO - 2": 30,
+    "PTO - 3": 40,
+    "PTO - 4": 50,
+    "MGA - 1": 20,
+    "MGA - 2": 30,
+    "MGA - 3": 40,
+    "MGA - 4": 50
+  };
+  
+  const metaRentabilidade = metasPorOperacao[tipoOperacao] || 30; // 30 é o valor padrão
 
   useEffect(() => {
     calcularRentabilidade(ctes, custoViagem);

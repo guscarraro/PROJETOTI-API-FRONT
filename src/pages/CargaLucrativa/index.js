@@ -16,10 +16,19 @@ import CustosTabela from "./CustosTabela";
 import LancarColeta from "./LancarColeta";
 import RelatorioColetas from "./RelatorioColetas"; // ✅ Adicionando o Relatório de Coletas
 
+
 const Navbar = ({ currentTab, setCurrentTab, setNumeroViagem }) => {
   const navigate = useNavigate();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const [selectedOption, setSelectedOption] = useState("Relatórios");
+ 
+  const user = JSON.parse(localStorage.getItem("user"));
+  const setor = user?.setor;
+
+const isRestrictedUser =
+    setor === "7a84e2cb-cb4c-4705-b676-9f0a0db5469a" ||
+    setor === "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4";
+
 
   const toggleDropdown = () => {
     setDropdownVisible(!dropdownVisible);
@@ -36,48 +45,78 @@ const Navbar = ({ currentTab, setCurrentTab, setNumeroViagem }) => {
 
   return (
     <NavbarContainer>
-      <NavButton
-        active={currentTab === "dashboard"}
-        onClick={() => handleSelection("Dashboard", "dashboard")}
-      >
-        Dashboard Viagens
-      </NavButton>
+      {!isRestrictedUser && (
+  <NavButton
+    active={currentTab === "dashboard"}
+    onClick={() => handleSelection("Dashboard", "dashboard")}
+  >
+    Dashboard Viagens
+  </NavButton>
+)}
 
-      <NavButton active={currentTab === "gerarViagem"} onClick={() => handleSelection("Gerar Viagem", "gerarViagem")}>
-        Gerar Viagem
-      </NavButton>
+<NavButton
+  active={currentTab === "gerarViagem"}
+  onClick={() => handleSelection("Gerar Viagem", "gerarViagem")}
+>
+  Gerar Viagem
+</NavButton>
 
-      <NavButton active={currentTab === "custosTabela"} onClick={() => handleSelection("Tabela de Custos", "custosTabela")}>
-        Tabela de custos
-      </NavButton>
+{!isRestrictedUser && (
+  <NavButton
+    active={currentTab === "custosTabela"}
+    onClick={() => handleSelection("Tabela de Custos", "custosTabela")}
+  >
+    Tabela de custos
+  </NavButton>
+)}
 
-      <NavButton active={currentTab === "lancarColeta"} onClick={() => handleSelection("Lançar Coleta", "lancarColeta")}>
-        Lançar Coleta
-      </NavButton>
+{!isRestrictedUser && (
+  <NavButton
+    active={currentTab === "lancarColeta"}
+    onClick={() => handleSelection("Lançar Coleta", "lancarColeta")}
+  >
+    Lançar Coleta
+  </NavButton>
+)}
 
-      {/* Dropdown de Relatórios */}
-     {/* Dropdown de Relatórios */}
-<NavButton onClick={toggleDropdown} className={currentTab.includes("relatorio") ? "active" : ""}>
+{/* Dropdown de Relatórios */}
+<NavButton
+  onClick={toggleDropdown}
+  className={currentTab.includes("relatorio") ? "active" : ""}
+>
   Relatórios <FaCaretDown />
   {dropdownVisible && (
     <Dropdown>
-      <DropdownItem onClick={() => handleSelection("Relatório de Viagens", "relatorioViagem")}>
+      <DropdownItem
+        onClick={() =>
+          handleSelection("Relatório de Viagens", "relatorioViagem")
+        }
+      >
         Relatório de Viagens
       </DropdownItem>
-      <DropdownItem onClick={() => handleSelection("Relatório de Coletas", "relatorioColetas")}>
-        Relatório de Coletas
-      </DropdownItem>
+
+      {!isRestrictedUser && (
+        <DropdownItem
+          onClick={() =>
+            handleSelection("Relatório de Coletas", "relatorioColetas")
+          }
+        >
+          Relatório de Coletas
+        </DropdownItem>
+      )}
     </Dropdown>
   )}
 </NavButton>
 
+{!isRestrictedUser && (
+  <NavButton onClick={() => navigate("/Frete")}>
+    <NavIcon>
+      <FaArrowRight />
+    </NavIcon>
+    Ir para Ocorrências
+  </NavButton>
+)}
 
-      <NavButton onClick={() => navigate("/Frete")}>
-        <NavIcon>
-          <FaArrowRight />
-        </NavIcon>
-        Ir para Ocorrências
-      </NavButton>
     </NavbarContainer>
   );
 };
