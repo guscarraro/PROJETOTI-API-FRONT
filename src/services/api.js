@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
+import { jsonrepair } from "jsonrepair";
 
 const SUPABASE_URL = 'https://sakcwetcknulwugphhft.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNha2N3ZXRja251bHd1Z3BoaGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI4MDIzNDMsImV4cCI6MjA0ODM3ODM0M30.Qjm_-RaDZuUxkxmuJglZ-y5h-fM3PAqTzhnpIzfBgY0';
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
-
 const API_AUTH_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/authorization';
 const API_INDICE_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/painel/IndiceAtendimentoPraca';
 const API_OCORRENCIAS_URL = 'https://cloud.escalasoft.com.br:8055/escalasoft/operacional/ocorrencia/ExportarOcorrencias';
@@ -120,6 +120,44 @@ export const fetchDocumento = async (chave) => {
     return {};
   }
 };
+
+
+
+export const fetchEntregasConfirmadas = async () => {
+  try {
+    const token = await getAuthToken();
+
+    const response = await axios.get(API_ENTREGA_CONFIRMADA, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      responseType: "text", // trata como string, não JSON
+    });
+
+    const rawText = response.data;
+
+    // 🔍 Extrai o array "ocorrencias": [...]
+    const match = rawText.match(/"ocorrencias"\s*:\s*(\[[\s\S]*?])\s*[},]/);
+    if (!match || !match[1]) {
+      console.warn("⚠️ Campo 'ocorrencias' não encontrado na resposta.");
+      return [];
+    }
+
+    const ocorrenciasRaw = match[1];
+
+    // 🚑 Corrige a string JSON quebrada com jsonrepair
+    const ocorrenciasReparadas = jsonrepair(ocorrenciasRaw);
+
+    // ✅ Faz o parse com segurança agora
+    const ocorrencias = JSON.parse(ocorrenciasReparadas);
+
+    return ocorrencias;
+  } catch (error) {
+    console.error("❌ Erro ao buscar entregas confirmadas:", error.message);
+    return [];
+  }
+};
+
 
 
 // Funções de API usando o token

@@ -35,6 +35,7 @@ import TodasOcorrenciasFalta from "./TodasOcorrenciasFalta";
 import TodasOcorrenciasSTH from "./TodasOcorrenciasSTH";
 import DashboardFalta from "./DashboardFaltas";
 import DashboardSTH from "./DashboardSTH";
+import DashboardBaixas from "./DashboardBaixas";
 
 const Navbar = ({ currentTab, setCurrentTab }) => {
   const [dropdownVisible, setDropdownVisible] = useState(null);
@@ -85,6 +86,11 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
               onClick={() => handleSelection("dashboard", "Dashboard STH", "dashboardSTH")}
             >
               Dashboard STH
+            </DropdownItem>
+            <DropdownItem
+              onClick={() => handleSelection("dashboard", "Dashboard Baixas", "dashboardBaixas")}
+            >
+              Dashboard Baixas
             </DropdownItem>
           </Dropdown>
         )}
@@ -256,6 +262,7 @@ const Frete = () => {
         {currentTab === "dashboard" && <Dashboard />}
         {currentTab === "dashboardFaltas" && <DashboardFalta />}
         {currentTab === "dashboardSTH" && <DashboardSTH />}
+        {currentTab === "dashboardBaixas" && <DashboardBaixas />}
         {currentTab === "ocorrencias" && <OcorrenAbertas />}
         {currentTab === "novaOcorrencia" && <LancarOcorren onActionComplete={setSuccessMessage} />}
         {currentTab === "ocorrenciaFalta" && <LancarFalta />}
