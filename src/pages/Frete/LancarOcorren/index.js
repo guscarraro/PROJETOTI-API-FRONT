@@ -402,6 +402,7 @@ const LancarOcorren = ({ onActionComplete }) => {
             value={ocorrencia.obs}
             onChange={handleInputChange}
             placeholder="Observações"
+            disabled
           />
         </FormGroup>
         <SubmitButton type="submit" disabled={isLoading}>

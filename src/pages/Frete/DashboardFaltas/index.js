@@ -26,9 +26,12 @@ const DashboardFalta = () => {
     motoristas: [],
     clientes: [],
     destinos: [],
+    responsaveis: [],
   });
   
   const [motoristas, setMotoristas] = useState([]);
+  const [responsaveis, setResponsaveis] = useState([]);
+
   const [clientes, setClientes] = useState([]);
   const [destinos, setDestinos] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -37,9 +40,6 @@ const DashboardFalta = () => {
     fetchFilters();
     setDefaultDateRange();
   }, []);
-    useEffect(() => {
-      fetchFaltasData();
-    }, [filters]); 
   
   const fetchFilters = async () => {
     try {
@@ -110,7 +110,9 @@ const DashboardFalta = () => {
         motoristas: filters.motoristas.map((m) => m.value),
         clientes: filters.clientes.map((c) => c.value),
         destinos: filters.destinos.map((d) => d.value),
+        responsaveis: filters.responsaveis.map((r) => r.value),
       });
+      
   
       const faltas = response.data.map((item) => ({
         ...item,
@@ -147,7 +149,9 @@ const DashboardFalta = () => {
         totalValorFaltas += parseFloat(item.valor_falta || 0);
       });
       setValorFaltas(totalValorFaltas);
-  
+      const responsaveisUnicos = [...new Set(response.data.map(item => item.responsavel).filter(Boolean))].map(r => ({ value: r, label: r }));
+setResponsaveis(responsaveisUnicos);
+
       // Monta dados para o gráfico de clientes
       const clientesMapData = {};
       faltas.forEach((f) => {
@@ -252,7 +256,38 @@ const DashboardFalta = () => {
       />
     </FormGroup>
   </Col>
-  <Col md={3}>
+  <Col md={2}>
+  <FormGroup>
+    <Label>Responsáveis</Label>
+    <Select
+      options={responsaveis}
+      isMulti
+      value={filters.responsaveis}
+      onChange={(value) => handleFilterChange("responsaveis", value)}
+      placeholder="Selecione responsáveis"
+      styles={{
+        option: (provided) => ({
+          ...provided,
+          color: "#000",
+        }),
+        singleValue: (provided) => ({
+          ...provided,
+          color: "#000",
+        }),
+        multiValue: (provided) => ({
+          ...provided,
+          color: "#000",
+        }),
+        placeholder: (provided) => ({
+          ...provided,
+          color: "#888",
+        }),
+      }}
+    />
+  </FormGroup>
+</Col>
+
+  <Col md={2}>
     <FormGroup>
       <Label>Clientes</Label>
       <Select
@@ -282,7 +317,7 @@ const DashboardFalta = () => {
       />
     </FormGroup>
   </Col>
-  <Col md={3}>
+  <Col md={2}>
     <FormGroup>
       <Label>Destinos</Label>
       <Select

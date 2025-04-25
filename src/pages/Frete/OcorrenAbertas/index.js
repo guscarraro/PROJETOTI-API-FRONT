@@ -194,6 +194,8 @@ const OcorrenAbertas = () => {
         horario_saida: horarioSaida,
         cobranca_adicional: cobrancaAdicional,
         cte_gerado: cteValue || null,
+        obs: selectedOcorrencia?.obs || null,
+
       });
       
   
@@ -315,6 +317,21 @@ const OcorrenAbertas = () => {
         />
     </FormGroup>
   )}
+  {cobrancaAdicional === "N" && (
+  <FormGroup>
+    <Label for="obs_encerramento">Observação</Label>
+    <Input
+      type="textarea"
+      id="obs_encerramento"
+      placeholder="Informe o motivo"
+      value={selectedOcorrencia?.obs || ""}
+      onChange={(e) =>
+        setSelectedOcorrencia((prev) => ({ ...prev, obs: e.target.value }))
+      }
+    />
+  </FormGroup>
+)}
+
 </ModalBody>
 
         <ModalFooter>
