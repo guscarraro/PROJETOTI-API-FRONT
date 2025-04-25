@@ -90,6 +90,8 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
       "Custo Total": `R$ ${viagem.total_custo.toFixed(2)}`,
       "Margem (%)": `${viagem.margem_custo > 0 ? "+" : ""}${viagem.margem_custo
         }%`,
+        "Tipo Veículo": viagem.tipo_veiculo,
+
       Placa: viagem.placa,
       Motorista: viagem.motorista,
       "Filial Origem": viagem.filial_origem,
@@ -112,13 +114,12 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const filtrarViagensPorSetor = (viagens) => {
     console.log(viagens);
     
-    if (setor == "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4") { // PTO
-      return viagens.filter(viagem => viagem.tipo_operacao?.startsWith("PTO"));
-    } 
-    else if (setor == "7a84e2cb-cb4c-4705-b676-9f0a0db5469a") { // MGA
-      return viagens.filter(viagem => viagem.tipo_operacao?.startsWith("MGA"));
+    if (setor === "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4") { // PTO
+      return viagens.filter(viagem => viagem.user_add === "base.pto");
+    } else if (setor === "7a84e2cb-cb4c-4705-b676-9f0a0db5469a") { // MGA
+      return viagens.filter(viagem => viagem.user_add === "base.mga");
     }
-    return viagens; // Mostra todas para outros setores
+    return viagens;
   };
 
   // Viagens filtradas
@@ -142,6 +143,8 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
               <TableHeader>Peso Total</TableHeader>
               <TableHeader>Custo Total</TableHeader>
               <TableHeader>Margem (%)</TableHeader>
+              <TableHeader>Tipo Veículo</TableHeader>
+
               <TableHeader>Placa</TableHeader>
               <TableHeader>Motorista</TableHeader>
               <TableHeader>Filial Origem</TableHeader>
@@ -179,6 +182,8 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
                   <TableCell>{viagem.total_peso} kg</TableCell>
                   <TableCell>R$ {viagem.total_custo.toFixed(2)}</TableCell>
                   <TableCell>{margemCusto}%</TableCell>
+                  <TableCell>{viagem.tipo_veiculo}</TableCell>
+
                   <TableCell>{viagem.placa}</TableCell>
                   <TableCell>{viagem.motorista}</TableCell>
                   <TableCell>{viagem.filial_origem}</TableCell>

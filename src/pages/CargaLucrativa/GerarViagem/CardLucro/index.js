@@ -139,7 +139,9 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
         custo_manual: custoManual ? "S" : "N",
         carga_dividida: cargaDividida ? "S" : "N",
         tipo_operacao: tipoOperacao || "",
-        tipo_veiculo: tipoVeiculo || ""
+        tipo_veiculo: tipoVeiculo || "",
+        user_add: JSON.parse(localStorage.getItem("user"))?.tipo || "",
+
     };
 
     try {

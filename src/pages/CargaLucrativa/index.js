@@ -122,7 +122,7 @@ const isRestrictedUser =
 };
 
 const CargaLucrativa = () => {
-  const [currentTab, setCurrentTab] = useState("dashboard");
+  const [currentTab, setCurrentTab] = useState("relatorioViagem");
   const [numeroViagem, setNumeroViagem] = useState(null);
 
   return (

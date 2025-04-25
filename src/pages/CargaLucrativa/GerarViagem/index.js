@@ -66,11 +66,12 @@ const todasOperacoes = [
 ];
 
 const tiposOperacaoOptions = 
-  setor == "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4"
-    ? tiposOperacaoPTO 
-    : setor == "7a84e2cb-cb4c-4705-b676-9f0a0db5469a"
+  user?.tipo === "base.pto"
+    ? tiposOperacaoPTO
+    : user?.tipo === "base.mga"
     ? tiposOperacaoMGA
-    : todasOperacoes;
+    : tiposOperacaoPadrao;
+
 
 const GerarViagem = ({ numeroViagemParam }) => {
   const { numero_viagem } = useParams(); // ✅ Pegando da URL, se existir
@@ -89,6 +90,10 @@ const GerarViagem = ({ numeroViagemParam }) => {
   const [filialOrigem, setFilialOrigem] = useState("");
   const [filialDestino, setFilialDestino] = useState("");
   const [loadingCTE, setLoadingCTE] = useState(false);
+  const [loadingViagem, setLoadingViagem] = useState(false);
+  const [tiposOperacaoDinamico, setTiposOperacaoDinamico] = useState([]);
+
+
   useEffect(() => {
     if (numeroViagemFinal) {
 
@@ -100,7 +105,19 @@ const GerarViagem = ({ numeroViagemParam }) => {
       carregarProximoNumeroViagem();
     }
   }, [numeroViagemFinal]);
-
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    const tipo = user?.tipo;
+  
+    if (tipo === "base.pto") {
+      setTiposOperacaoDinamico(tiposOperacaoPTO);
+    } else if (tipo === "base.mga") {
+      setTiposOperacaoDinamico(tiposOperacaoMGA);
+    } else {
+      setTiposOperacaoDinamico(tiposOperacaoPadrao);
+    }
+  }, []);
+  
   const carregarProximoNumeroViagem = async () => {
     try {
       const response = await apiLocal.getProximoNumeroViagem(); // Chama o novo endpoint do backend
@@ -113,18 +130,32 @@ const GerarViagem = ({ numeroViagemParam }) => {
     }
   };
   const carregarViagem = async (numeroViagem) => {
+    setLoadingViagem(true);
+
     try {
       const response = await apiLocal.getViagemByNumero(numeroViagem);
 
 
       if (response.data) {
         setNumeroViagem(response.data.numero_viagem);
-        setFilialOrigem(response.data.filial_origem);
-        setFilialDestino(response.data.filial_destino);
-        setTipoVeiculo(response.data.tipo_veiculo);
-        setTipoOperacao(response.data.tipo_operacao || null);
-        setObs(response.data.obs);
-        setCtes(response.data.documentos_transporte || []);
+        const ctesFormatados = (response.data.documentos_transporte || []).map(cte => ({
+          ...cte,
+          filialOrigem: cte.filialOrigem || cte.filial_origem || "",
+          filialDestino: cte.filialDestino || cte.filial_destino || "",
+        }));
+        setCtes(ctesFormatados);
+        
+
+  // Corrige Filial Origem e Destino baseado nos CTEs caso venha vazio
+  const filialOrigemCorrigida = response.data.filial_origem || [...new Set(ctes.map(cte => cte.filial_origem || cte.filialOrigem))].join("/");
+  const filialDestinoCorrigida = response.data.filial_destino || [...new Set(ctes.map(cte => cte.filial_destino || cte.filialDestino))].join("/");
+
+  setFilialOrigem(filialOrigemCorrigida);
+  setFilialDestino(filialDestinoCorrigida);
+
+  setTipoVeiculo(response.data.tipo_veiculo);
+  setTipoOperacao(response.data.tipo_operacao || null);
+  setObs(response.data.obs);
 
         // 🔥 Pegando o custo total da API (evita valores nulos)
         const custoAPI = response.data.total_custo ?? 0;
@@ -144,9 +175,11 @@ const GerarViagem = ({ numeroViagemParam }) => {
       } else {
         setCtes([]);
       }
+      setLoadingViagem(false);
     } catch (error) {
       toast.error("Erro ao carregar viagem.");
       setCtes([]);
+      setLoadingViagem(false);
     }
   };
 
@@ -434,6 +467,13 @@ const GerarViagem = ({ numeroViagemParam }) => {
 
   return (
     <Container>
+      {numeroViagemFinal && loadingViagem ? (
+        <>
+        <LoadingDots />
+        </>
+      ):(
+
+    <>
       <p
         style={{
           textAlign: "start",
@@ -499,7 +539,7 @@ const GerarViagem = ({ numeroViagemParam }) => {
 
             <Select
               name="tipo_operacao"
-              options={tiposOperacaoOptions}
+              options={tiposOperacaoDinamico}
               placeholder="Selecione o Tipo de Operação"
               value={
                 tiposOperacaoOptions.find(
@@ -726,6 +766,8 @@ const GerarViagem = ({ numeroViagemParam }) => {
           </Col>
         </Row>
       </CardContainer>
+      </>
+        )}
     </Container>
   );
 };
