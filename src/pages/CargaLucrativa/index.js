@@ -70,14 +70,14 @@ const isRestrictedUser =
   </NavButton>
 )}
 
-{!isRestrictedUser && (
+{/* {!isRestrictedUser && (
   <NavButton
     active={currentTab === "lancarColeta"}
     onClick={() => handleSelection("Lançar Coleta", "lancarColeta")}
   >
     Lançar Coleta
   </NavButton>
-)}
+)} */}
 
 {/* Dropdown de Relatórios */}
 <NavButton
@@ -95,7 +95,7 @@ const isRestrictedUser =
         Relatório de Viagens
       </DropdownItem>
 
-      {!isRestrictedUser && (
+      {/* {!isRestrictedUser && (
         <DropdownItem
           onClick={() =>
             handleSelection("Relatório de Coletas", "relatorioColetas")
@@ -103,7 +103,7 @@ const isRestrictedUser =
         >
           Relatório de Coletas
         </DropdownItem>
-      )}
+      )} */}
     </Dropdown>
   )}
 </NavButton>
@@ -140,12 +140,12 @@ const CargaLucrativa = () => {
       >
         {currentTab === "dashboard" && <Dashboard />}
         {currentTab === "gerarViagem" && <GerarViagem numeroViagemParam={numeroViagem} />}
-        {currentTab === "lancarColeta" && <LancarColeta />}
+        {/* {currentTab === "lancarColeta" && <LancarColeta />} */}
         {currentTab === "custosTabela" && <CustosTabela />}
         {currentTab === "relatorioViagem" && (
           <RelatorioViagens setCurrentTab={setCurrentTab} setNumeroViagem={setNumeroViagem} />
         )}
-        {currentTab === "relatorioColetas" && <RelatorioColetas />}
+        {/* {currentTab === "relatorioColetas" && <RelatorioColetas />} */}
       </div>
     </ContainerGeralCargaLucrativa>
   );

@@ -4,7 +4,8 @@ import * as XLSX from "xlsx";
 import { FaEdit, FaTrash } from "react-icons/fa"; // Ícones de edição e exclusão
 import ModalEdit from "./ModalEdit"; // Modal para editar CTEs
 import ModalDel from "./ModalDel"; // Modal para excluir viagem
-
+import { Button, Col, FormGroup, Input, Label, Row } from "reactstrap";
+import Select from "react-select";
 import {
   Container,
   Table,
@@ -24,6 +25,20 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [viagemSelecionada, setViagemSelecionada] = useState(null);
   const [modalInfoOpen, setModalInfoOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    dtInicio: "",
+    dtFinal: "",
+    filial_origem: [],
+    filial_destino: [],
+    tipo_veiculo: [],
+    tipo_operacao: [],
+  });
+  const [filiaisOrigemOptions, setFiliaisOrigemOptions] = useState([]);
+const [filiaisDestinoOptions, setFiliaisDestinoOptions] = useState([]);
+const [tipoVeiculoOptions, setTipoVeiculoOptions] = useState([]);
+const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
+
+  
 
   const metas = {
     "MTZ - 1": 37,
@@ -46,10 +61,34 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
     carregarViagens();
   }, []);
 
+  useEffect(() => {
+    async function carregarOpcoesFiltros() {
+      try {
+        const res = await apiLocal.getOpcoesFiltrosViagens();
+  
+        setFiliaisOrigemOptions(res.data.filial_origem.map(v => ({ value: v, label: v })));
+        setFiliaisDestinoOptions(res.data.filial_destino.map(v => ({ value: v, label: v })));
+        setTipoVeiculoOptions(res.data.tipo_veiculo.map(v => ({ value: v, label: v })));
+        setTipoOperacaoOptions(res.data.tipo_operacao.map(v => ({ value: v, label: v })));
+      } catch (err) {
+        console.error("Erro ao carregar filtros:", err);
+      }
+    }
+  
+    carregarOpcoesFiltros();
+  }, []);
+  
+
   const carregarViagens = async () => {
     setLoading(true);
     try {
-      const responseViagens = await apiLocal.getViagens();
+      const responseViagens = await apiLocal.getViagensFiltradas({
+        ...filters,
+        filial_origem: filters.filial_origem.map(f => f.value),
+        filial_destino: filters.filial_destino.map(f => f.value),
+        tipo_veiculo: filters.tipo_veiculo.map(t => t.value),
+        tipo_operacao: filters.tipo_operacao.map(t => t.value),
+      });
       const responseDocumentos = await apiLocal.getDocumentosTransporte(); // ✅ Obtém todos os documentos
 
       if (responseViagens.data && responseDocumentos.data) {
@@ -112,7 +151,6 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
 
   // Filtrar viagens de acordo com o setor
   const filtrarViagensPorSetor = (viagens) => {
-    console.log(viagens);
     
     if (setor === "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4") { // PTO
       return viagens.filter(viagem => viagem.user_add === "base.pto");
@@ -130,6 +168,107 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
       <ExportButton onClick={exportarParaExcel}>
         Exportar para Excel
       </ExportButton>
+      <Row style={{ alignContent:'center', width:'100%'}}>
+  <Col md={1}>
+    <FormGroup>
+      <Label>Data Início</Label>
+      <Input
+        type="date"
+        value={filters.dtInicio}
+        onChange={(e) => setFilters(prev => ({ ...prev, dtInicio: e.target.value }))}
+      />
+    </FormGroup>
+  </Col>
+  <Col md={1}>
+    <FormGroup>
+      <Label>Data Final</Label>
+      <Input
+        type="date"
+        value={filters.dtFinal}
+        onChange={(e) => setFilters(prev => ({ ...prev, dtFinal: e.target.value }))}
+      />
+    </FormGroup>
+  </Col>
+  <Col md={2}>
+    <FormGroup>
+      <Label>Filial Origem</Label>
+      <Select
+        isMulti
+        options={filiaisOrigemOptions}
+        value={filters.filial_origem}
+        onChange={(value) => setFilters(prev => ({ ...prev, filial_origem: value }))}
+        placeholder="Selecione"
+        styles={{
+          option: (provided) => ({ ...provided, color: "#000" }),
+          singleValue: (provided) => ({ ...provided, color: "#000" }),
+          multiValue: (provided) => ({ ...provided, color: "#000" }),
+          placeholder: (provided) => ({ ...provided, color: "#888" }),
+        }}
+      />
+    </FormGroup>
+  </Col>
+  <Col md={2}>
+    <FormGroup>
+      <Label>Filial Destino</Label>
+      <Select
+        isMulti
+        options={filiaisDestinoOptions}
+        value={filters.filial_destino}
+        onChange={(value) => setFilters(prev => ({ ...prev, filial_destino: value }))}
+        placeholder="Selecione"
+        styles={{
+          option: (provided) => ({ ...provided, color: "#000" }),
+          singleValue: (provided) => ({ ...provided, color: "#000" }),
+          multiValue: (provided) => ({ ...provided, color: "#000" }),
+          placeholder: (provided) => ({ ...provided, color: "#888" }),
+        }}
+      />
+    </FormGroup>
+  </Col>
+
+  <Col md={2}>
+    <FormGroup>
+      <Label>Tipo de Veículo</Label>
+      <Select
+        isMulti
+        options={tipoVeiculoOptions}
+        value={filters.tipo_veiculo}
+        onChange={(value) => setFilters(prev => ({ ...prev, tipo_veiculo: value }))}
+        placeholder="Selecione"
+        styles={{
+          option: (provided) => ({ ...provided, color: "#000" }),
+          singleValue: (provided) => ({ ...provided, color: "#000" }),
+          multiValue: (provided) => ({ ...provided, color: "#000" }),
+          placeholder: (provided) => ({ ...provided, color: "#888" }),
+        }}
+      />
+    </FormGroup>
+  </Col>
+  <Col md={2}>
+    <FormGroup>
+      <Label>Tipo de Operação</Label>
+      <Select
+        isMulti
+        options={tipoOperacaoOptions}
+        value={filters.tipo_operacao}
+        onChange={(value) => setFilters(prev => ({ ...prev, tipo_operacao: value }))}
+        placeholder="Selecione"
+        styles={{
+          option: (provided) => ({ ...provided, color: "#000" }),
+          singleValue: (provided) => ({ ...provided, color: "#000" }),
+          multiValue: (provided) => ({ ...provided, color: "#000" }),
+          placeholder: (provided) => ({ ...provided, color: "#888" }),
+        }}
+      />
+    </FormGroup>
+  </Col>
+  <Col md={2} style={{ display: "flex", alignItems: "flex-end", marginTop:'15px' }}>
+    <Button color="primary" onClick={carregarViagens} style={{ width: "100%" }} disabled={loading}>
+     {loading ? <LoadingDots/> : "Aplicar Filtros"} 
+    </Button>
+  </Col>
+</Row>
+
       {loading ? (
   <LoadingDots/> // 🔥 Substitua por <LoadingDots /> se desejar
 ) : viagensFiltradas.length > 0 ? (

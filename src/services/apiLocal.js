@@ -61,6 +61,9 @@ const apiLocal = {
   deleteViagem: (viagemId) => api.delete(`/viagens/delete/${viagemId}`),
   updateViagem: (viagemId, data) => api.put(`/viagens/atualizar_viagem/${viagemId}`, data),
   getDocumentosTransporte: () => api.get("/documentos-transporte/"),
+  getViagensFiltradas: (filters) => api.post("/viagens/filtrar", filters),
+  getOpcoesFiltrosViagens: () => api.get("/viagens/opcoes-filtros"),
+
 
   getGrupoEco: () => api.get("/grupo-eco/"),
   createOrUpdateGrupoEco: (data) => api.post("/grupo-eco/", data),
