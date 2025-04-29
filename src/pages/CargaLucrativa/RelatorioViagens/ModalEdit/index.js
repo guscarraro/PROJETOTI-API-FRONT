@@ -163,15 +163,19 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
           {/* Número da Viagem */}
           <label>Número da Viagem</label>
           <InputStyled
-            type="text"
-            value={numeroViagemLocal}
-            onChange={(e) => setNumeroViagemLocal(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Tab") {
-                fetchViagemData();
-              }
-            }}
-          />
+  type="text"
+  value={numeroViagemLocal}
+  onChange={(e) => {
+    const onlyNumbers = e.target.value.replace(/[^0-9]/g, "");
+    setNumeroViagemLocal(onlyNumbers);
+  }}
+  onKeyDown={(e) => {
+    if (e.key === "Tab") {
+      fetchViagemData();
+    }
+  }}
+/>
+
         </FormGroup>
 
         {/* Placa - Apenas para exibição */}

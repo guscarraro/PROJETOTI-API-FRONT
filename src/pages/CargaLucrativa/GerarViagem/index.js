@@ -34,7 +34,11 @@ const setor = user?.setor;
 
 // Definir as opções padrão
 const tiposOperacaoPadrao = [
-  { value: "MTZ - Transferencia", label: "MTZ - Transferencia" },
+  { value: "MTZ - Transferencia CAS", label: "MTZ - Transferencia CAS" },
+  { value: "MTZ - Transferencia GUA", label: "MTZ - Transferencia GUA" },
+  { value: "MTZ - Transferencia IBI", label: "MTZ - Transferencia IBI" },
+  { value: "MTZ - Transferencia MGA", label: "MTZ - Transferencia MGA" },
+  { value: "MTZ - Transferencia PTO", label: "MTZ - Transferencia PTO" },
   { value: "MTZ", label: "MTZ" },
   { value: "MTZ - 1", label: "MTZ - 1" },
   { value: "MTZ - 2", label: "MTZ - 2" },

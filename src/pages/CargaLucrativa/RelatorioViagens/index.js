@@ -46,7 +46,11 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
     "MTZ - 3": 45,
     "MTZ - 4": 50,
     "MTZ": 25,
-    "MTZ - Transferencia": 18,
+    "MTZ - Transferencia CAS": 18,
+    "MTZ - Transferencia GUA":18, 
+    "MTZ - Transferencia IBI":18,
+    "MTZ - Transferencia MGA":18, 
+    "MTZ - Transferencia PTO":18, 
     "PTO - 1": 20,
     "PTO - 2": 30,
     "PTO - 3": 40,
@@ -262,7 +266,7 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
       />
     </FormGroup>
   </Col>
-  <Col md={2} style={{ display: "flex", alignItems: "flex-end", marginTop:'15px' }}>
+  <Col md={2} style={{ display: "flex", alignItems: "center", marginTop:'15px' }}>
     <Button color="primary" onClick={carregarViagens} style={{ width: "100%" }} disabled={loading}>
      {loading ? <LoadingDots/> : "Aplicar Filtros"} 
     </Button>
