@@ -58,6 +58,9 @@ function Login() {
         if (user.setor === '958db54e-add5-45f6-8aef-739d6ba7cb4c') {
           return '/Frete'; // Frete
         }
+        if (user.setor === '2c17e352-ffcd-4c7b-a771-1964aaee1f79') {
+          return '/Frete'; // Frete
+        }
         if (user.setor === 'd2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f') {
           return '/ti'; // Frete
         }

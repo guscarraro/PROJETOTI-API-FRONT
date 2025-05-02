@@ -32,7 +32,8 @@ const App = () => {
         element={<Dashboard />}
         allowedSectors={[
           '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
-          '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
+          '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+          '2c17e352-ffcd-4c7b-a771-1964aaee1f79' // UUID do setor Frete
         ]}
       />
     }
@@ -46,7 +47,8 @@ const App = () => {
         element={<Frete />}
         allowedSectors={[
           '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
-          '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
+          '43350e26-12f4-4094-8cfb-2a66f250838d',
+          '2c17e352-ffcd-4c7b-a771-1964aaee1f79', // UUID do setor SAC
         ]}
       />
     }
@@ -61,7 +63,8 @@ const App = () => {
         '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
         '43350e26-12f4-4094-8cfb-2a66f250838d',
         '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
-        '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4', // UUID do setor SAC
+        '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4', 
+        '2c17e352-ffcd-4c7b-a771-1964aaee1f79',// UUID do setor SAC
       ]}
     />
   }
