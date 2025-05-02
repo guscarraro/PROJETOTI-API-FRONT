@@ -239,7 +239,8 @@ setSomaLucroTotal(somaReceitaTotal); // Aqui será a receita total como você pe
 
     <div style={{ textAlign: "center", flex: 1 }}>
       <h5><FiArrowDownRight style={{ marginRight: 5 }} />Custo Total</h5>
-      <h2>{isAdminFrete ? `R$ -${somaCustoTotal?.toFixed(2) || "0.00"}` : ``}</h2>
+      <h2>{isAdminFrete ? `-${somaCustoTotal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : ``}</h2>
+
 
     </div>
 
@@ -253,7 +254,8 @@ setSomaLucroTotal(somaReceitaTotal); // Aqui será a receita total como você pe
     {/* Receita Total - direita */}
     <div style={{ textAlign: "center", flex: 1 }}>
       <h5><FaArrowUp style={{ marginRight: 5 }} />Receita Total</h5>
-      <h2>{isAdminFrete ? `R$ ${somaLucroTotal?.toFixed(2) || "0.00"}` : ``}</h2>
+      <h2>{isAdminFrete ? somaLucroTotal?.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : ``}</h2>
+
 
     </div>
     </Row>
@@ -281,13 +283,15 @@ setSomaLucroTotal(somaReceitaTotal); // Aqui será a receita total como você pe
   <h5><FaArrowUp style={{ marginRight: 5 }} />Lucro Acima da Meta</h5>
   {valorAcimaMeta && parseFloat(valorAcimaMeta) > 0 ? (
     <>
-      <h2>{isAdminFrete ? `R$ ${valorAcimaMeta}` : `${percentualAcimaMeta}%`}</h2>
+      <h2>{isAdminFrete ? Number(valorAcimaMeta).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : `${percentualAcimaMeta}%`}</h2>
+
 
       <p style={{ fontSize:'20px'}}>{isAdminFrete ?`${percentualAcimaMeta}% acima da meta` : ''}</p>
     </>
   ) : (
     <>
-      <h3>{isAdminFrete ? `R$ -${Math.abs(valorAcimaMeta || 0).toFixed(2)}` : `${percentualAcimaMeta}%`}</h3>
+      <h3>{isAdminFrete ? `-${Math.abs(valorAcimaMeta || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}` : `${percentualAcimaMeta}%`}</h3>
+
 
       <p>{Math.abs(percentualAcimaMeta || 0)}% abaixo da meta</p>
     </>
@@ -353,9 +357,10 @@ setSomaLucroTotal(somaReceitaTotal); // Aqui será a receita total como você pe
           <h5 style={{ marginTop: 10 }}>{acimaMeta ? "Lucro" : "Perda"}:</h5>
           <p style={{ fontWeight: "bold", color: acimaMeta ? "white" : "white" }}>
   {isAdminFrete
-    ? `R$ ${lucroOuPreju.toFixed(2)} (${Math.abs(diferenca).toFixed(2)}%)`
+    ? `${lucroOuPreju.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (${Math.abs(diferenca).toFixed(2)}%)`
     : `${Math.abs(diferenca).toFixed(2)}%`}
 </p>
+
 
         </div>
       </CardStyle>
