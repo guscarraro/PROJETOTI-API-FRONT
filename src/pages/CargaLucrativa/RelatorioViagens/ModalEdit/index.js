@@ -11,6 +11,8 @@ import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
 import { fetchViagem } from "../../../../services/api";
 import { useNavigate } from "react-router-dom";
+import LoadingDots from "../../../../components/Loading";
+
 
 const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) => {
 
@@ -160,23 +162,40 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
 
         {/* Formulário com inputs alinhados */}
         <FormGroup>
-          {/* Número da Viagem */}
-          <label>Número da Viagem</label>
-          <InputStyled
-  type="text"
-  value={numeroViagemLocal}
-  onChange={(e) => {
-    const onlyNumbers = e.target.value.replace(/[^0-9]/g, "");
-    setNumeroViagemLocal(onlyNumbers);
-  }}
-  onKeyDown={(e) => {
-    if (e.key === "Tab") {
-      fetchViagemData();
-    }
-  }}
-/>
+  <label>Número da Viagem</label>
+  <div style={{ position: "relative" }}>
+    <InputStyled
+      type="text"
+      value={numeroViagemLocal}
+      onChange={(e) => {
+        const onlyNumbers = e.target.value.replace(/[^0-9]/g, "");
+        setNumeroViagemLocal(onlyNumbers);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Tab") {
+          fetchViagemData();
+        }
+      }}
+      style={{ paddingRight: "40px" }} // espaço pro loader
+      disabled={isLoadingViagem}
+    />
+    {isLoadingViagem && (
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          right: "10px",
+          transform: "translateY(-50%)",
+        }}
+      >
+        <LoadingDots />
+      </div>
+    )}
+  </div>
+</FormGroup>
 
-        </FormGroup>
+
+
 
         {/* Placa - Apenas para exibição */}
         <FormGroup>
@@ -215,11 +234,19 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
         >
           <CloseButton onClick={onClose}>Fechar</CloseButton>
           <ActionButton
-            style={{ background: "green", color: "#fff" }}
-            onClick={handleSave}
-          >
-            Salvar Alterações
-          </ActionButton>
+  style={{
+    background: isLoadingViagem ? "#004c99" : "#007bff", // tom mais escuro quando desabilitado
+    color: "#fff",
+    cursor: isLoadingViagem ? "not-allowed" : "pointer",
+    opacity: isLoadingViagem ? 0.8 : 1
+  }}
+  onClick={handleSave}
+  disabled={isLoadingViagem}
+>
+  {isLoadingViagem ? <LoadingDots /> : "Salvar Alterações"}
+</ActionButton>
+
+
         </div>
       </ModalContent>
     </ModalContainer>

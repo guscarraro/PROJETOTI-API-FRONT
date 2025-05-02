@@ -220,7 +220,7 @@ setSomaLucroTotal(somaReceitaTotal); // Aqui será a receita total como você pe
 
 
           <CardStyle style={{ marginTop: 10 }}>
-            <h5><FaTruck style={{ marginRight: 5 }} />Perfil por Veículo</h5>
+            <h5><FaTruck style={{ marginRight: 5 }} />Fator custo frete por Veículo</h5>
             {Object.entries(fatorPorTipoVeiculo).map(([tipo, dados]) => (
               <h2 key={tipo}>{tipo}: {dados.percentual}% ({dados.quantidade})</h2>
             ))}
