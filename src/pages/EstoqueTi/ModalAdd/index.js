@@ -311,7 +311,7 @@ function ModalAdd({ isOpen, toggle }) {
 
           {/* Campo de Observações */}
           <StyledFormGroup>
-            <Label for="observacoes">Observações</Label>
+            <Label for="observacoes">HostName</Label>
             <Input
               type="textarea"
               name="observacoes"

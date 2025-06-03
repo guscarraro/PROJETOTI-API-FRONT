@@ -24,6 +24,8 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
     { value: 'Teclado novo', label: 'Teclado novo' },
     { value: 'Mouse velho', label: 'Mouse velho' },
     { value: 'Teclado velho', label: 'Teclado velho' },
+    { value: 'Segundo Monitor', label: 'Segundo Monitor' },
+    { value: 'Fone de ouvido', label: 'Fone de ouvido' },
   ];
 
   const handleInputChange = (e) => {

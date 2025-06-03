@@ -53,6 +53,7 @@ function CardEquip({ equipamento, onClick, onEdit }) {
     }
   };
   
+console.log(equipamento);
 
   return (
     <CustomCard onClick={onClick} style={getStatusStyle(equipamento.status)}>
@@ -98,6 +99,7 @@ function CardEquip({ equipamento, onClick, onEdit }) {
         <p><strong>Responsável:</strong> {equipamento.pessoa_responsavel || 'Não informado'}</p>
         <p><strong>Email:</strong> {equipamento.email_utilizado || 'Não informado'}</p>
         <p><strong>Cloud:</strong> {equipamento.cloud_utilizado || 'Não informado'}</p>
+        <p><strong>HostName:</strong> {equipamento.observacoes || 'Não informado'}</p>
         </>}
       </div>
     </CustomCard>
