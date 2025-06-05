@@ -280,6 +280,7 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
           <thead>
             <TableRow>
               <TableHeader>Número</TableHeader>
+              <TableHeader>Rota</TableHeader>
               <TableHeader>Data</TableHeader>
               <TableHeader>Receita Total</TableHeader>
               <TableHeader>Total Entregas</TableHeader>
@@ -311,6 +312,7 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
                   style={{ cursor: "pointer" }}>
 
                   <TableCell>{viagem.numero_viagem}</TableCell>
+                  <TableCell>{viagem.tipo_operacao}</TableCell>
                   <TableCell>
                     {new Date(new Date(viagem.data_inclusao).getTime() - 3 * 60 * 60 * 1000).toLocaleString('pt-BR', {
                       day: '2-digit',

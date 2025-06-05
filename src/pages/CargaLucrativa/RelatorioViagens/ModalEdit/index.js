@@ -51,9 +51,18 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
         const isPeso = campo.toLowerCase().includes("peso");
         const cor = isCusto ? (diferenca > 0 ? "red" : "green") : (diferenca > 0 ? "green" : "red");
         const sinal = diferenca > 0 ? "+" : "";
-        const valorFormatado = isCusto ? `R$ ${valorApi}` : isPeso ? `${valorApi} kg` : valorApi;
-        const diferencaFormatada = isCusto ? `R$ ${sinal}${diferenca}` : isPeso ? `${sinal}${diferenca} kg` : `${sinal}${diferenca}`;
-  
+        const valorFormatado = isCusto
+  ? `R$ ${parseFloat(valorApi).toFixed(2)}`
+  : isPeso
+  ? `${parseFloat(valorApi).toFixed(2)} kg`
+  : parseFloat(valorApi).toFixed(2);
+
+const diferencaFormatada = isCusto
+  ? `R$ ${sinal}${Math.abs(diferenca).toFixed(2)}`
+  : isPeso
+  ? `${sinal}${Math.abs(diferenca).toFixed(2)} kg`
+  : `${sinal}${Math.abs(diferenca).toFixed(2)}`;
+
         return (
           <div style={{ fontSize: "14px", color: "#555" }}>
             <div>{campo}</div>

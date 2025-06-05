@@ -157,6 +157,15 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
               ))}
             </Input>
           </FormGroup>
+          <FormGroup>
+  <Label for="observacoes">Hostname (Obs)</Label>
+  <Input
+    type="text"
+    name="observacoes"
+    value={formData.observacoes || ""}
+    onChange={handleInputChange}
+  />
+</FormGroup>
         </Form>
       </ModalBody>
       <ModalFooter>

@@ -48,7 +48,7 @@ export const getAuthToken = async () => {
 const generateAndSaveToken = async () => {
   try {
     // Gera o token via API de autenticação
-    const credentials = btoa('gustavo.carraro:hatuna10');
+    const credentials = btoa('david.silva:1234');
     const response = await axios.post(
       API_AUTH_URL,
       {},
