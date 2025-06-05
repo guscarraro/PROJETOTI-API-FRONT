@@ -112,7 +112,9 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
           documentos_transporte: documentosMap[viagem.id] || [],
         }));
 
-        setViagens(viagensComDocumentos);
+        const ordenadas = viagensComDocumentos.sort((a, b) => new Date(b.data_inclusao) - new Date(a.data_inclusao));
+setViagens(ordenadas);
+
       }
     } catch (error) {
       console.error("Erro ao buscar viagens:", error);
