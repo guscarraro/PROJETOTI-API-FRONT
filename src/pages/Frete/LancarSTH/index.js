@@ -36,21 +36,41 @@ const LancarSTH = ({ onActionComplete }) => {
   const [clientesDuplicados, setClientesDuplicados] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const motivos = ["Demora na descarga",
-"Demora na confêrencia",
-"Nota sem agendamento",
-"Demora no carregamento",
-"Demora saída base",
-"Agendamento divergente",
-"Atraso do motorista",
-"Morosidade operação Carraro",
-"Falta de veículos",
-"Atraso na roterização",
-"Transito",
-"Falha Mecacnia",
-"Longa distancia entre destinos",
-"Excesso de entregas",
-"Horário de recebimento encerrado"]
+  const motivos = [
+    "DEMORA NA DESCARGA",
+    "DEMORA NA CONFERENCIA",
+    "NOTA SEM AGENDAMENTO",
+    "DEMORA NO CARREGAMENTO",
+    "DEMORA SAIDA BASE",
+    "AGENDAMENTO DIVERGENTE",
+    "ATRASO DO MOTORISTA",
+    "MOROSIDADE OPERACAO CARRARO",
+    "FALTA DE VEICULOS",
+    "ATRASO NA ROTEIRIZACAO",
+    "TRANSITO",
+    "FALHA MECACNIA",
+    "LONGA DISTANCIA ENTRE DESTINOS",
+    "EXCESSO DE ENTREGAS",
+    "HORARIO DE RECEBIMENTO ENCERRADO",
+    "ENDERECO DIVERGENTE",
+    "FALTA BOLETO",
+    "FALTA DE ESPACO NO CLIENTE",
+    "FALTA PRODUTO - RESSALVA",
+    "LOCAL NAO ENCONTRADO",
+    "MERCADORIA INVERTIDA",
+    "NOTA PENDENTE - RESSALVA",
+    "NOTA SEM BOLETO",
+    "PROBLEMA FISCAL",
+    "PRODUTO NAO CADASTRADO",
+    "RECEBIMENTO ENCERRADO",
+    "RESSALVA",
+    "RESSALVA - CLIENTE SEM SISTEMA",
+    "SEM PEDIDO",
+    "SEM RETORNO DA ATENDENTE",
+    "VALOR DIVERGENTE"
+  ];
+  
+  
   useEffect(() => {
     fetchMotoristas();
     fetchClientes();
