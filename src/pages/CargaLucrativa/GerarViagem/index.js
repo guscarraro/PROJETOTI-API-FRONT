@@ -17,6 +17,7 @@ import LoadingDots from "../../../components/Loading";
 import apiLocal from "../../../services/apiLocal";
 import TableCTE from "./TableCTE";
 import { useParams } from "react-router-dom";
+import ModalSelectDoc from "./ModalSelectDoc"; // Caminho onde estiver seu modal
 
 
 const tiposVeiculoOptions = [
@@ -96,7 +97,9 @@ const GerarViagem = ({ numeroViagemParam }) => {
   const [loadingCTE, setLoadingCTE] = useState(false);
   const [loadingViagem, setLoadingViagem] = useState(false);
   const [tiposOperacaoDinamico, setTiposOperacaoDinamico] = useState([]);
-
+  const [modalVisible, setModalVisible] = useState(false);
+  const [opcoesCTE, setOpcoesCTE] = useState([]);
+  
 
   useEffect(() => {
     if (numeroViagemFinal) {
@@ -227,7 +230,12 @@ const GerarViagem = ({ numeroViagemParam }) => {
 
     try {
       const response = await fetchDocumento(numeroCTE);
-
+      if (Array.isArray(response.detalhe) && response.detalhe.length > 1) {
+        setOpcoesCTE(response.detalhe);
+        setModalVisible(true);
+        return;
+      }
+      
       if (response.detalhe) {
         const novoCTE = {
           numero_cte: response.detalhe.docTransporte || numeroCTE,
@@ -471,6 +479,27 @@ const GerarViagem = ({ numeroViagemParam }) => {
 
   return (
     <Container>
+      <ModalSelectDoc
+  isOpen={modalVisible}
+  onClose={() => setModalVisible(false)}
+  opcoes={opcoesCTE}
+  onSelect={(cteSelecionado) => {
+    setModalVisible(false);
+    const processarCTESelecionado = (cte) => {
+      setNumeroCTE(cte.docTransporte || "");
+      // Simula o mesmo comportamento de quando vem só um resultado
+      fetchDocumento(cte.docTransporte).then((response) => {
+        if (response?.detalhe) {
+          // Ajusta o objeto para o formato usado em novoCTE
+          response.detalhe = cte;
+          buscarCTE(response); // ou refatore para permitir passagem do objeto diretamente
+        }
+      });
+    };
+     // você pode extrair a lógica de inclusão aqui
+  }}
+/>
+
       {numeroViagemFinal && loadingViagem ? (
         <>
         <LoadingDots />
