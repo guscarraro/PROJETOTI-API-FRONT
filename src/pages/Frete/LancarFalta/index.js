@@ -27,6 +27,12 @@ const LancarFalta = ({ onActionComplete }) => {
   const [motoristaId, setMotoristaId] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [loadingNota, setLoadingNota] = useState(false);
+  const [pontuadoEntrega, setPontuadoEntrega] = useState("");
+  const [etiquetada, setEtiquetada] = useState("");
+  const [volumeConfere, setVolumeConfere] = useState("");
+  const [maisDeUmaEntrega, setMaisDeUmaEntrega] = useState("");
+  const [perfilVeiculo, setPerfilVeiculo] = useState("");
+
   const [falta, setFalta] = useState({
     nf: "",
     cliente_id: "",
@@ -270,12 +276,18 @@ setDestinoNome(nota.destinatario);
   
       // Atualiza falta com os IDs corretos
       const faltaFormatada = {
-        ...falta,
-        cliente_id: clienteID,
-        destino_id: destinoID,
-        motorista_id: motoristaId,
-        valor_falta: falta.valor_falta_num, // Valor numérico para a API
-      };
+  ...falta,
+  cliente_id: clienteID,
+  destino_id: destinoID,
+  motorista_id: motoristaId,
+  valor_falta: falta.valor_falta_num, // Valor numérico para a API
+  pontuado_entrega: pontuadoEntrega,
+  etiquetada,
+  volume_confere: volumeConfere,
+  mais_de_uma_entrega: maisDeUmaEntrega,
+  perfil_veiculo: perfilVeiculo,
+};
+
   
   
       // Salva a falta na API
@@ -297,7 +309,14 @@ setDestinoNome(nota.destinatario);
           responsavel: "",
           autor_por: "",
           conferente: "",
+          
         });
+        setPontuadoEntrega("");
+setEtiquetada("");
+setVolumeConfere("");
+setMaisDeUmaEntrega("");
+setPerfilVeiculo("");
+
         setClienteNome("");
         setDestinoNome("");
         setMotoristaId("");
@@ -461,6 +480,85 @@ setDestinoNome(nota.destinatario);
           />
         </FormGroup>
         <FormGroup>
+  <Label>Essa Falta/Avaria/Inversão está sendo pontuada no ato da entrega?</Label>
+  <select value={pontuadoEntrega} onChange={(e) => setPontuadoEntrega(e.target.value)}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+    <option value="">Selecione</option>
+    <option value="S">Sim</option>
+    <option value="N">Não</option>
+  </select>
+</FormGroup>
+
+{pontuadoEntrega === "S" && (
+  <>
+    <FormGroup>
+      <Label>A mercadoria é etiquetada?</Label>
+      <select value={etiquetada} onChange={(e) => setEtiquetada(e.target.value)}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+        <option value="">Selecione</option>
+        <option value="S">Sim</option>
+        <option value="N">Não</option>
+      </select>
+    </FormGroup>
+
+    <FormGroup>
+      <Label>O volume de caixas confere com o número de etiquetas?</Label>
+      <select value={volumeConfere} onChange={(e) => setVolumeConfere(e.target.value)}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+        <option value="">Selecione</option>
+        <option value="S">Sim</option>
+        <option value="N">Não</option>
+      </select>
+    </FormGroup>
+
+    <FormGroup>
+      <Label>Possui mais de uma entrega desse mesmo fornecedor no veículo?</Label>
+      <select value={maisDeUmaEntrega} onChange={(e) => setMaisDeUmaEntrega(e.target.value)}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+        <option value="">Selecione</option>
+        <option value="S">Sim</option>
+        <option value="N">Não</option>
+      </select>
+    </FormGroup>
+
+    <FormGroup>
+      <Label>Qual o perfil do veículo?</Label>
+      <select value={perfilVeiculo} onChange={(e) => setPerfilVeiculo(e.target.value)}  style={{
+      width: "250px",
+      padding: "8px",
+      border: "1px solid #ccc",
+      borderRadius: "4px",
+      fontSize:'14px'
+    }}>
+        <option value="">Selecione</option>
+        <option value="paletizada">Carga Paletizada</option>
+        <option value="batida">Carreta Batida</option>
+      </select>
+    </FormGroup>
+  </>
+)}
+
+        <FormGroup>
           <Label>
             <FaBuilding /> Filial onde houve falta
           </Label>
@@ -566,7 +664,7 @@ setDestinoNome(nota.destinatario);
             name="obs"
             value={falta.obs}
             onChange={handleInputChange}
-            placeholder="Observações"
+            placeholder="Ex.: 2 CX / BATATA PALHA"
           />
         </FormGroup>
         <FormGroup>
