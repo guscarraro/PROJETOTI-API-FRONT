@@ -31,6 +31,13 @@ const LancarOcorren = ({ onActionComplete }) => {
   const [clientes, setClientes] = useState([]);
   const [destinos, setDestinos] = useState([]);
   const [tiposOcorrencia, setTiposOcorrencia] = useState([]);
+  const [pontuadoEntrega, setPontuadoEntrega] = useState("");
+  const [etiquetada, setEtiquetada] = useState("");
+  const [volumeConfere, setVolumeConfere] = useState("");
+  const [maisDeUmaEntrega, setMaisDeUmaEntrega] = useState("");
+  const [perfilVeiculo, setPerfilVeiculo] = useState("");
+  const [tipoOcorrenciaSelecionado, setTipoOcorrenciaSelecionado] = useState("");
+
   const [ocorrencia, setOcorrencia] = useState({
     nf: "",
     cliente_id: "",
@@ -231,6 +238,11 @@ const LancarOcorren = ({ onActionComplete }) => {
         horario_saida: ocorrencia.horario_saida || null,
         obs: ocorrencia.obs || null,
         cobranca_adicional: ocorrencia.cobranca_adicional || "N",
+         pontuado_entrega: pontuadoEntrega,
+  etiquetada,
+  volume_confere: volumeConfere,
+  mais_de_uma_entrega: maisDeUmaEntrega,
+  perfil_veiculo: perfilVeiculo,
       };
   
       const ocorrenciaResponse = await apiLocal.createOrUpdateOcorrencia(ocorrenciaFormatada);
@@ -247,6 +259,11 @@ const LancarOcorren = ({ onActionComplete }) => {
           obs: "",
           status: "Pendente",
         });
+         setPontuadoEntrega("");
+setEtiquetada("");
+setVolumeConfere("");
+setMaisDeUmaEntrega("");
+setPerfilVeiculo("");
         setClienteNome("");
         if (onActionComplete) onActionComplete("Ocorrência lançada com sucesso!");
       } else {
@@ -274,6 +291,7 @@ const LancarOcorren = ({ onActionComplete }) => {
 
   
   
+  console.log(tipoOcorrenciaSelecionado);
   
   
 
@@ -372,7 +390,12 @@ const LancarOcorren = ({ onActionComplete }) => {
           <Select
             name="tipoocorrencia_id"
             value={ocorrencia.tipoocorrencia_id}
-            onChange={handleInputChange}
+            onChange={(e) => {
+  handleInputChange(e);
+  const tipo = tiposOcorrencia.find((t) => t.id === parseInt(e.target.value));
+  setTipoOcorrenciaSelecionado(tipo?.nome?.toLowerCase() || "");
+}}
+
           >
             <option value="">Selecione um tipo de ocorrência</option>
             {tiposOcorrencia.map((tipo) => (
@@ -382,6 +405,61 @@ const LancarOcorren = ({ onActionComplete }) => {
             ))}
           </Select>
         </FormGroup>
+      {["falta no ato da entrega", "avaria", "inversão no ato da entrega", "falta / troca"].some((v) =>
+  tipoOcorrenciaSelecionado.includes(v)
+) && (
+  <>
+    <FormGroup>
+      <Label style={{maxWidth:250}}>Essa {tipoOcorrenciaSelecionado} está sendo pontuada no ato da entrega?</Label>
+      <select value={pontuadoEntrega} onChange={(e) => setPontuadoEntrega(e.target.value)} style={{ width: "250px", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px" }}>
+        <option value="">Selecione</option>
+        <option value="S">Sim</option>
+        <option value="N">Não</option>
+      </select>
+    </FormGroup>
+
+    {pontuadoEntrega === "S" && (
+      <>
+        <FormGroup>
+          <Label style={{maxWidth:250}}>A mercadoria é etiquetada?</Label>
+          <select value={etiquetada} onChange={(e) => setEtiquetada(e.target.value)} style={{ width: "250px", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px" }}>
+            <option value="">Selecione</option>
+            <option value="S">Sim</option>
+            <option value="N">Não</option>
+          </select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label style={{maxWidth:250}}>O volume de caixas confere com o número de etiquetas?</Label>
+          <select value={volumeConfere} onChange={(e) => setVolumeConfere(e.target.value)} style={{ width: "250px", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px" }}>
+            <option value="">Selecione</option>
+            <option value="S">Sim</option>
+            <option value="N">Não</option>
+          </select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label style={{maxWidth:250}}>Possui mais de uma entrega desse mesmo fornecedor no veículo?</Label>
+          <select value={maisDeUmaEntrega} onChange={(e) => setMaisDeUmaEntrega(e.target.value)} style={{ width: "250px", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px" }}>
+            <option value="">Selecione</option>
+            <option value="S">Sim</option>
+            <option value="N">Não</option>
+          </select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label style={{maxWidth:250}}>Qual o perfil do veículo?</Label>
+          <select value={perfilVeiculo} onChange={(e) => setPerfilVeiculo(e.target.value)} style={{ width: "250px", padding: "8px", border: "1px solid #ccc", borderRadius: "4px", fontSize: "14px" }}>
+            <option value="">Selecione</option>
+            <option value="paletizada">Carga Paletizada</option>
+            <option value="batida">Carreta Batida</option>
+          </select>
+        </FormGroup>
+      </>
+    )}
+  </>
+)}
+
         <FormGroup>
           <Label>
             <FaCalendar /> Data e Hora de Chegada
@@ -393,6 +471,7 @@ const LancarOcorren = ({ onActionComplete }) => {
             onChange={handleInputChange}
           />
         </FormGroup>
+
         <FormGroup>
           <Label>
             <FaFileInvoice /> Observações
