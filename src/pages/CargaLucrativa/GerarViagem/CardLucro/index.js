@@ -6,11 +6,17 @@ import { toast } from "react-toastify";
 import { Row, Col } from "reactstrap";
 import { FaWeightHanging, FaTruckMoving, FaMoneyBillWave, FaChartLine, FaDollarSign, FaCut, FaArrowUp, FaWallet, FaHandHoldingUsd } from "react-icons/fa";
 import LoadingDots from "../../../../components/Loading";
+import { useParams, useNavigate } from "react-router-dom";
+
+
+
 
 const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem,setFilialOrigem,setFilialDestino,setObs,setTipoVeiculo,setTipoOperacao, tipoVeiculo, obs, custoManual,setCargaDividida,setCustoManual, cargaDividida, tipoOperacao }) => {
   const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0,receitaTotal: 0  });
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const [loading, setLoading] = useState(false);
+  const { numero_viagem: numeroViagemFinal } = useParams();
+  const navigate = useNavigate();
 
   const metasPorOperacao = {
     "MTZ - 1": 37,
@@ -218,18 +224,11 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
         await apiLocal.createOrUpdateViagem(viagemData);
 
         toast.success("Viagem salva com sucesso!");
-        setLoading(false);
-        setCtes([]);
-        setNumeroViagem("");
-        setNumeroCTE("");
-        setCustoViagem(0);
-        setFilialOrigem("");
-        setFilialDestino("");
-        setTipoVeiculo(null);
-        setTipoOperacao(null);
-        setCargaDividida(false)
-        setCustoManual(false)
-        setObs("");
+setLoading(false);
+navigate(`/gerar-viagem`);
+window.location.reload(); // Isso já limpa tudo e força nova criação
+
+        
     } catch (error) {
         console.error("Erro ao salvar viagem:", error.response ? error.response.data : error);
         toast.error("Erro ao salvar viagem.");

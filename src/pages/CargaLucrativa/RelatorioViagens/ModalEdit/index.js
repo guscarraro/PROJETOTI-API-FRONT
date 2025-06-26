@@ -219,14 +219,13 @@ const diferencaFormatada = isCusto
         </FormGroup>
         <div style={{ marginTop: "20px", textAlign: "center" }}>
   <ActionButton
-    style={{ background: "#007bff", color: "#fff", padding: "10px 20px" }}
-    onClick={() => {
-      setCurrentTab("gerarViagem");
-      setNumeroViagem(viagem.numero_viagem);
-    }}
-  >
-    + Adicionar/ - Remover CTE
-  </ActionButton>
+  style={{ background: "#007bff", color: "#fff", padding: "10px 20px" }}
+  onClick={() => {
+    navigate(`/gerar-viagem/${viagem.numero_viagem}`);
+  }}
+>
+  + Adicionar/ - Remover CTE
+</ActionButton>
 </div>
 
 
