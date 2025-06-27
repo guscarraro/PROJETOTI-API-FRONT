@@ -36,6 +36,9 @@ import TodasOcorrenciasSTH from "./TodasOcorrenciasSTH";
 import DashboardFalta from "./DashboardFaltas";
 import DashboardSTH from "./DashboardSTH";
 import DashboardBaixas from "./DashboardBaixas";
+import GrupoEco from "./GrupoEco";
+import Responsavel from "./Responsavel";
+
 
 const Navbar = ({ currentTab, setCurrentTab }) => {
   const [dropdownVisible, setDropdownVisible] = useState(null);
@@ -153,9 +156,9 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         onClick={() => toggleDropdown("cadastros")}
         className={
           isActive("tiposOcorrencias") ||
-          isActive("motoristas") ||
-          isActive("clientes") ||
-          isActive("destino")
+            isActive("motoristas") ||
+            isActive("clientes") ||
+            isActive("destino")
             ? "active"
             : ""
         }
@@ -186,6 +189,17 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
             >
               Destinatários
             </DropdownItem>
+            <DropdownItem
+              onClick={() => handleSelection("cadastros", "Grupo Econômico", "grupoEco")}
+            >
+              Grupo Econômico
+            </DropdownItem>
+            <DropdownItem
+              onClick={() => handleSelection("cadastros", "Responsáveis", "responsavel")}
+            >
+              Responsáveis
+            </DropdownItem>
+
           </Dropdown>
         )}
       </NavButton>
@@ -195,8 +209,8 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         onClick={() => toggleDropdown("relatorios")}
         className={
           isActive("todasOcorrencias") ||
-          isActive("todasOcorrenciaFalta") ||
-          isActive("todasOcorrenciaSTH")
+            isActive("todasOcorrenciaFalta") ||
+            isActive("todasOcorrenciaSTH")
             ? "active"
             : ""
         }
@@ -238,7 +252,7 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         </NavIcon>
         Ir para SAC
       </NavButton>
-      
+
     </NavbarContainer>
   );
 };
@@ -275,6 +289,9 @@ const Frete = () => {
         {currentTab === "motoristas" && <Motorista />}
         {currentTab === "clientes" && <Cliente />}
         {currentTab === "destino" && <Destino />}
+        {currentTab === "grupoEco" && <GrupoEco />}
+        {currentTab === "responsavel" && <Responsavel />}
+
       </div>
     </ContainerGeralFrete>
   );

@@ -64,9 +64,19 @@ const apiLocal = {
   getViagensFiltradas: (filters) => api.post("/viagens/filtrar", filters),
   getOpcoesFiltrosViagens: () => api.get("/viagens/opcoes-filtros"),
 
-
+  // 🔧 Responsáveis
+  getResponsaveis: () => api.get("/responsaveis/"),
+  createResponsavel: (data) => api.post("/responsaveis/", data),
+  updateResponsavel: (id, data) => api.put(`/responsaveis/${id}`, data),
+  deleteResponsavel: (id) => api.delete(`/responsaveis/${id}`),
+  getResponsavelById: (id) => api.get(`/responsaveis/${id}`),
+  getRemetentesDoResponsavel: (responsavelId) => api.get(`/responsaveis/${responsavelId}/remetentes`),
+  // 🔧 Atualizar grupo econômico de um cliente
+  
   getGrupoEco: () => api.get("/grupo-eco/"),
   createOrUpdateGrupoEco: (data) => api.post("/grupo-eco/", data),
+  updateGrupoEco: (id, data) => api.put(`/grupo-eco/${id}`, data),
+
   deleteGrupoEco: (id) => api.delete(`/grupo-eco/${id}`),
 
   getColetas: () => api.get("/coletas/"),
