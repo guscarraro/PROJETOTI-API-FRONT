@@ -1,8 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Box, ProgressBar, NoteList, NoteItem, BtnOcultarGrafico, LoadingContainer, Loader, LoadingText } from './styles';
-import { Container, Row, Col } from 'reactstrap';
+import { Container, Row, Col, Button } from 'reactstrap';
 import { FaEye, FaExclamationTriangle, FaClipboardCheck, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-
+import * as XLSX from 'xlsx';
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
 import './style.css';
 import { LuMonitorX } from "react-icons/lu";
 import DailyDeliveryChart from './DailyDeliveryChart';
@@ -52,8 +54,8 @@ const Dashboard = () => {
         try {
           const res = await apiLocal.getRemetentesDoResponsavel(selectedResponsavel); // novo endpoint
           setRemetentesResponsavel(res.data.remetentes);
-          console.log(res);
-          
+
+
         } catch (err) {
           console.error("Erro ao buscar remetentes do responsável", err);
         }
@@ -71,6 +73,7 @@ const Dashboard = () => {
     try {
 
       const indiceData = await fetchIndiceAtendimento(dataInicial, dataFinal);
+
 
       if (indiceData && indiceData.length > 0) {
         setData(indiceData);
@@ -252,22 +255,132 @@ const Dashboard = () => {
 
     // Aplicar filtro de atendente
     if (selectedResponsavel !== 'Todos') {
-    filteredData = filteredData.filter((item) =>
-      remetentesResponsavel.some((rem) =>
-        item.remetente?.toUpperCase().includes(rem.toUpperCase())
-      )
-    );
-  }
+      filteredData = filteredData.filter((item) =>
+        remetentesResponsavel.some((rem) =>
+          item.remetente?.toUpperCase().includes(rem.toUpperCase())
+        )
+      );
+    }
 
-  // Filtro por remetente individual (continua o mesmo)
-  if (selectedRemetente !== 'Todos') {
-    filteredData = filteredData.filter((item) => item.remetente === selectedRemetente);
-  }
+    // Filtro por remetente individual (continua o mesmo)
+    if (selectedRemetente !== 'Todos') {
+      filteredData = filteredData.filter((item) => item.remetente === selectedRemetente);
+    }
 
-   
+
 
     return filteredData;
   };
+
+
+  const exportarParaExcel = async () => {
+    const workbook = new ExcelJS.Workbook();
+
+    const statusLabels = {
+      inTwoDays: "Pendentes para entregar em 2 dias",
+      tomorrow: "Pendentes para entregar em 1 dia",
+      today: "Entregas hoje",
+      overdue: "Atrasadas",
+    };
+
+    const colIndexMap = {
+      inTwoDays: 1,
+      tomorrow: 3,
+      today: 5,
+      overdue: 7,
+    };
+
+    for (const [statusKey, label] of Object.entries(statusLabels)) {
+      groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
+        const safeSheetName = remetente.replace(/[*?:\/\\[\]]/g, "-").substring(0, 31); // Excel limita a 31 caracteres
+        let sheet = workbook.getWorksheet(safeSheetName);
+
+        if (!sheet) {
+          sheet = workbook.addWorksheet(remetente);
+
+          // Cabeçalho formatado
+          sheet.addRow([
+            "Pendentes para entregar em 2 dias",
+            "",
+            "Pendentes para entregar em 1 dia",
+            "",
+            "Entregas hoje",
+            "",
+            "Atrasadas",
+            "Dias em atraso",
+          ]);
+
+          // Estilizar cabeçalho
+          sheet.getRow(1).eachCell((cell, colNumber) => {
+            cell.fill = {
+              type: "pattern",
+              pattern: "solid",
+              fgColor: { argb: "FFCCE5FF" },
+            };
+            cell.font = { bold: true };
+            cell.alignment = { vertical: "middle", horizontal: "center" };
+            sheet.getColumn(colNumber).width = 25;
+          });
+        }
+
+        notas.forEach((nf, i) => {
+          const rowIndex = i + 2;
+          let row = sheet.getRow(rowIndex);
+          const col = colIndexMap[statusKey];
+
+          const notaInfo = filteredData.find(item =>
+            item.NF?.split(",").map(s => s.trim()).includes(nf) &&
+            item.remetente === remetente
+          );
+
+          const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
+          const notaComMarcador = isAgendada ? `${nf} (agendado)` : nf;
+
+          row.getCell(col).value = notaComMarcador;
+
+          row.getCell(col).alignment = { vertical: "middle", horizontal: "center" };
+          row.getCell(col).border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+
+          if (statusKey === "overdue") {
+            const entregaInfo = filteredData.find(item =>
+              item.NF?.split(",").map(s => s.trim()).includes(nf)
+            );
+            let diasAtraso = "";
+
+            if (entregaInfo?.previsao_entrega) {
+              const dataEntrega = parseDate(entregaInfo.previsao_entrega);
+              const hoje = new Date();
+              const diff = Math.floor((hoje - dataEntrega) / (1000 * 60 * 60 * 24));
+              diasAtraso = diff > 0 ? diff : "";
+            }
+
+            row.getCell(col + 1).value = diasAtraso;
+            row.getCell(col + 1).alignment = { vertical: "middle", horizontal: "center" };
+            row.getCell(col + 1).border = {
+              top: { style: "thin" },
+              left: { style: "thin" },
+              bottom: { style: "thin" },
+              right: { style: "thin" },
+            };
+          }
+
+          row.commit(); // Importante ao usar getRow()
+        });
+      });
+    }
+
+    // Gerar arquivo
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    saveAs(blob, `Relatorio_Entregas_Formatado_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
+  };
+
+
 
 
 
@@ -458,48 +571,34 @@ const Dashboard = () => {
               <Row>
 
                 <Col md="12">
-                  <button
-                    onClick={() => navigate("/Frete")} // Navegar para Frete
+
+
+                  <label>Responsável:</label>
+                  <select
+                    value={selectedResponsavel}
+                    onChange={(e) => setSelectedResponsavel(e.target.value)}
                     style={{
-                      position: "absolute",
-                      top: 10,
-                      right: 10,
-                      padding: "10px 20px",
-                      backgroundColor: "#007bff",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "5px",
-                      cursor: "pointer",
+                      margin: '10px',
+                      padding: '8px',
+                      borderRadius: '5px',
+                      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                      color: '#fff',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
                     }}
                   >
-                    Ir para Ocorrências
-                  </button>
-                  <label>Responsável:</label>
-<select
-  value={selectedResponsavel}
-  onChange={(e) => setSelectedResponsavel(e.target.value)}
- style={{
-                margin: '10px',
-                padding: '8px',
-                borderRadius: '5px',
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                color: '#fff',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                outline: 'none',
-                cursor: 'pointer',
-                fontSize: '14px',
-                appearance: 'none',
-                WebkitAppearance: 'none',
-                MozAppearance: 'none',
-              }}
->
-  <option value="Todos">Todos</option>
-  {responsaveis.map((r) => (
-    <option key={r.id} value={r.id}>{r.nome}</option>
-  ))}
-</select>
+                    <option value="Todos">Todos</option>
+                    {responsaveis.map((r) => (
+                      <option key={r.id} value={r.id}>{r.nome}</option>
+                    ))}
+                  </select>
 
-                  
+
                   <label>Remetente:</label>
                   <select
                     value={selectedRemetente}
@@ -552,6 +651,22 @@ const Dashboard = () => {
                     <option value="last30Days">Últimos 30 Dias</option>
                     <option value="last15Days">Últimos 15 Dias</option>
                   </select>
+                  <Button color="success" onClick={exportarParaExcel} style={{ width: '200px', cursor: "pointer", }}>
+                    Exportar para Excel
+                  </Button>
+                  <Button
+                    onClick={() => navigate("/Frete")} // Navegar para Frete
+                    style={{
+                      marginLeft: 15,
+                      backgroundColor: "#007bff",
+                      color: "#fff",
+                      border: "none",
+                      borderRadius: "5px",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Ir para Ocorrências
+                  </Button>
                   <Col md="12" style={{ textAlign: "right", marginBottom: "10px" }}>
                     <button
                       onClick={handleFullScreen}
@@ -675,10 +790,31 @@ const Dashboard = () => {
                             </div>
                             {dropdownOpen[item.remetente] && (
                               <ul style={{ paddingLeft: '15px' }}>
-                                {item.notas.map((nf, noteIdx) => (
-                                  <li key={noteIdx}>NF: {nf}</li>
-                                ))}
+                                {item.notas.map((nf, noteIdx) => {
+                                  const notaInfo = filteredData.find((d) =>
+                                    d.NF?.split(",").map((n) => n.trim()).includes(nf) &&
+                                    d.remetente === item.remetente
+                                  );
+
+                                  const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
+
+                                  return (
+                                    <li
+                                      key={noteIdx}
+                                      style={{
+                                        backgroundColor: isAgendada ? "#007BFF" : "transparent",
+                                        color: isAgendada ? "#fff" : "#ffff",
+                                        padding: "4px 8px",
+                                        borderRadius: "5px",
+                                        marginBottom: "4px",
+                                      }}
+                                    >
+                                      NF: {nf} {isAgendada && <strong style={{ marginLeft: 6 }}>A</strong>}
+                                    </li>
+                                  );
+                                })}
                               </ul>
+
                             )}
                           </NoteItem>
                         ))}
