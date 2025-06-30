@@ -27,6 +27,9 @@ const Responsavel = () => {
   const [clientes, setClientes] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+const [responsavelToDelete, setResponsavelToDelete] = useState(null);
+
   const [selectedResponsavel, setSelectedResponsavel] = useState({
     id: null,
     nome: "",
@@ -122,17 +125,24 @@ const Responsavel = () => {
 };
 
 
-  const handleDelete = async (id) => {
-    if (window.confirm("Deseja excluir este responsável?")) {
-      try {
-        await apiLocal.deleteResponsavel(id);
-        toast.success("Responsável excluído com sucesso!");
-        fetchResponsaveis();
-      } catch (error) {
-        toast.error("Erro ao excluir responsável.");
-      }
-    }
-  };
+ const handleDelete = async () => {
+  try {
+    await apiLocal.deleteResponsavel(responsavelToDelete.id);
+    toast.success("Responsável excluído com sucesso!");
+    fetchResponsaveis();
+  } catch (error) {
+    toast.error("Erro ao excluir responsável.");
+  } finally {
+    setDeleteModalOpen(false);
+    setResponsavelToDelete(null);
+  }
+};
+
+const confirmDelete = (r) => {
+  setResponsavelToDelete(r);
+  setDeleteModalOpen(true);
+};
+
 
   const getContaLabel = (conta) => {
     if (conta.tipo === "cliente") {
@@ -158,9 +168,15 @@ const Responsavel = () => {
     };
   });
 
-  const filteredResponsaveis = responsaveis.filter((r) =>
-    r.nome.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredResponsaveis = responsaveis.filter((r) => {
+  const termo = searchTerm.toLowerCase();
+  const nomeMatch = r.nome.toLowerCase().includes(termo);
+  const contasMatch = (r.contas || [])
+    .map((conta) => getContaLabel(conta).toLowerCase())
+    .some((label) => label.includes(termo));
+  return nomeMatch || contasMatch;
+});
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh" }}>
@@ -180,29 +196,66 @@ const Responsavel = () => {
       {loading ? (
         <LoadingDots />
       ) : (
-        <Table>
-          <thead>
-            <TableRow>
-              <TableHeader>Nome</TableHeader>
-              <TableHeader>Contas Associadas</TableHeader>
-              <TableHeader>Ações</TableHeader>
-            </TableRow>
-          </thead>
-          <tbody>
-            {filteredResponsaveis.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>{r.nome}</TableCell>
-                <TableCell>
-                  {(r.contas || []).map(getContaLabel).join(", ")}
-                </TableCell>
-                <TableCell>
-                  <Button color="warning" size="sm" onClick={() => handleEdit(r)}><FaPen /></Button>{" "}
-                  <Button color="danger" size="sm" onClick={() => handleDelete(r.id)}><FaTrash /></Button>
-                </TableCell>
-              </TableRow>
-            ))}
-          </tbody>
-        </Table>
+       <div
+  style={{
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: "16px",
+    width: "100%",
+    padding: "20px",
+  }}
+>
+  {filteredResponsaveis.map((r) => (
+    <div
+      key={r.id}
+      style={{
+        border: "1px solid #ccc",
+        borderRadius: "8px",
+        padding: "16px",
+        width: "300px",
+        backgroundColor: "#fff",
+        boxShadow: "0 2px 4px rgba(0,0,0,0.9)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
+      <h5 style={{ marginBottom: "8px", color:'#000' }}>{r.nome}</h5>
+      <div style={{ fontSize: "14px", color: "#555", marginBottom: "12px" }}>
+  <strong>Contas:</strong>
+  <div style={{ marginTop: "8px", display: "flex", flexDirection: "column", gap: "6px" }}>
+    {(r.contas || []).map((conta, idx) => (
+      <span
+        key={idx}
+        style={{
+          backgroundColor: "#28a745", // verde suave
+          color: "#fff",
+          padding: "4px 8px",
+          borderRadius: "6px",
+          fontSize: "13px",
+          width: "fit-content",
+        }}
+      >
+        {getContaLabel(conta)}
+      </span>
+    ))}
+  </div>
+</div>
+
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <Button color="primary" size="sm" onClick={() => handleEdit(r)}>
+          <FaPen />
+        </Button>
+        <Button color="danger" size="sm" onClick={() => confirmDelete(r)}>
+  <FaTrash />
+</Button>
+
+      </div>
+    </div>
+  ))}
+</div>
+
       )}
 
       {/* Modal */}
@@ -243,6 +296,20 @@ const Responsavel = () => {
           <Button color="secondary" onClick={toggleModal}>Fechar</Button>
         </ModalFooter>
       </Modal>
+
+      <Modal isOpen={deleteModalOpen} toggle={() => setDeleteModalOpen(false)} centered>
+  <ModalHeader toggle={() => setDeleteModalOpen(false)}>
+    Confirmar Exclusão
+  </ModalHeader>
+  <ModalBody>
+    Tem certeza que deseja excluir <strong>{responsavelToDelete?.nome}</strong>?
+  </ModalBody>
+  <ModalFooter>
+    <Button color="danger" onClick={handleDelete}>Sim</Button>
+    <Button color="secondary" onClick={() => setDeleteModalOpen(false)}>Cancelar</Button>
+  </ModalFooter>
+</Modal>
+
     </div>
   );
 };
