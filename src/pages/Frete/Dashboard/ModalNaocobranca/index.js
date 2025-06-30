@@ -190,8 +190,9 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
           </Button>
         </div>
         <div style={{ marginBottom: 20 }}>
-          <h5>Top 7 Clientes com Mais Atrasos</h5>
-          <ChartClientesAtrasos data={clientesAtrasos.slice(0, 7)} />
+          <h5>Top 10 Clientes com Mais Atrasos</h5>
+          <ChartClientesAtrasos data={clientesAtrasos.slice(0, 10)} />
+
         </div>
         {selectedNota && (
           <Button
