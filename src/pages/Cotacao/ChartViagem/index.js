@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  CartesianGrid, Tooltip, ResponsiveContainer, Legend, LabelList, defs
 } from 'recharts';
 import { Card, CardBody, Label } from 'reactstrap';
 
@@ -36,16 +36,27 @@ const ChartViagem = ({ data }) => {
   return (
     <Card className="custom-card">
       <CardBody>
-        <Label>Viagens por Semana do Mês</Label>
-
+        <Label style={{ color: '#fff' }}>📅 Viagens por Semana do Mês</Label>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={dados}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="semana" />
-            <YAxis allowDecimals={false} />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="viagens" fill="#00FFFF" name="Viagens" />
+            <defs>
+              <linearGradient id="gradientViagens" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#00c6ff" />
+                <stop offset="100%" stopColor="#0072ff" />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+            <XAxis dataKey="semana" stroke="#fff" />
+            <YAxis allowDecimals={false} stroke="#fff" />
+            <Tooltip
+              contentStyle={{ backgroundColor: "#333", borderColor: "#888", color: "#fff" }}
+              labelStyle={{ color: '#fff' }}
+              itemStyle={{ color: '#fff' }}
+            />
+            <Legend wrapperStyle={{ color: '#fff' }} />
+            <Bar dataKey="viagens" fill="url(#gradientViagens)" name="Viagens">
+              <LabelList dataKey="viagens" position="top" fill="#fff" />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </CardBody>
