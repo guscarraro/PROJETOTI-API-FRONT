@@ -5,6 +5,7 @@ import AdminNavbar from './components/AdminNavbar'; // Importa a Navbar do Admin
 import Dashboard from './pages/Dashboard';
 import CicloPedido from './pages/CicloPedido';
 import ProjetoFrota from './pages/ProjetoFrota';
+import Cotacao from './pages/Cotacao';
 import Fiscal from './pages/Fiscal';
 import Frete from './pages/Frete';
 import CargaLucrativa from './pages/CargaLucrativa';
@@ -171,6 +172,15 @@ const App = () => {
     element={
       <PrivateRoute
         element={<ProjetoFrota />}
+        allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
+      />
+    }
+  />
+  <Route
+    path="/Cotacao"
+    element={
+      <PrivateRoute
+        element={<Cotacao />}
         allowedSectors={['c1b389cb-7dee-4f91-9687-b1fad9acbf4c']}
       />
     }
