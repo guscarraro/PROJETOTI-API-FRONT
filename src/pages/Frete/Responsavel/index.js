@@ -180,7 +180,7 @@ const confirmDelete = (r) => {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", minHeight: "100vh" }}>
-      <HeaderContainer>
+      <HeaderContainer style={{justifyContent:'center'}}>
         <FilterInput
           type="text"
           placeholder="Filtrar por nome..."
@@ -219,6 +219,7 @@ const confirmDelete = (r) => {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
+        height: 'min-content',
       }}
     >
       <h5 style={{ marginBottom: "8px", color:'#000' }}>{r.nome}</h5>
@@ -229,7 +230,7 @@ const confirmDelete = (r) => {
       <span
         key={idx}
         style={{
-          backgroundColor: "#28a745", // verde suave
+          backgroundColor: "#333333", // verde suave
           color: "#fff",
           padding: "4px 8px",
           borderRadius: "6px",

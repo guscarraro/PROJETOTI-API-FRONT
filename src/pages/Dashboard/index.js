@@ -295,10 +295,10 @@ const Dashboard = () => {
     for (const [statusKey, label] of Object.entries(statusLabels)) {
       groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
         const safeSheetName = remetente
-  .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
-  .replace(/[*?:\/\\[\]]/g, "-") // remove caracteres inválidos
-  .substring(0, 31); // limita a 31 caracteres
- // Excel limita a 31 caracteres
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+          .replace(/[*?:\/\\[\]]/g, "-") // remove caracteres inválidos
+          .substring(0, 31); // limita a 31 caracteres
+        // Excel limita a 31 caracteres
         let sheet = workbook.getWorksheet(safeSheetName);
 
         if (!sheet) {
