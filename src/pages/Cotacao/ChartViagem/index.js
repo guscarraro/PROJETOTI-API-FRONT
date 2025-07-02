@@ -52,6 +52,7 @@ const ChartViagem = ({ data }) => {
               contentStyle={{ backgroundColor: "#333", borderColor: "#888", color: "#fff" }}
               labelStyle={{ color: '#fff' }}
               itemStyle={{ color: '#fff' }}
+              cursor={{ fill: '#666', fillOpacity: 0.1 }}
             />
             <Legend wrapperStyle={{ color: '#fff' }} />
             <Bar dataKey="viagens" fill="url(#gradientViagens)" name="Viagens">

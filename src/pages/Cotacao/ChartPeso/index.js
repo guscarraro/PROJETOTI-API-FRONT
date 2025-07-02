@@ -25,9 +25,12 @@ const ChartPeso = ({ data }) => {
 
   for (const row of data) {
     const viagemId = row["Viagem"] || row["Número Viagem"] || row["Número CTE"];
-    const origem = row["UF Orig"] || row["UF Origem"];
-    const destino = row["UF Dest"] || row["UF Destino"];
-    const receita = parseValorBr(row["Valor bruto"]) || row["receita"] || 0;
+    const origem = (row["Origem"]?.split("/")[1] || "").trim();
+const destino = (row["Destino"]?.split("/")[1] || "").trim();
+
+    let receita = parseValorBr(row["Valor bruto"]);
+if (isNaN(receita)) receita = parseValorBr(row["receita"]);
+
 
     const peso = parseFloat(row["Peso2"]) || row["peso"] || 0;
 
@@ -65,9 +68,14 @@ const ChartPeso = ({ data }) => {
   }
 
   const dados = [];
-  for (const chave in ufMap) {
-    dados.push(ufMap[chave]);
-  }
+for (const chave in ufMap) {
+  const item = ufMap[chave];
+  dados.push({
+    ...item,
+    receita: parseFloat(item.receita.toFixed(2)), // arredondamento aqui!
+  });
+}
+
 
   let totalPeso = 0;
   let totalViagens = 0;
@@ -108,6 +116,7 @@ const ChartPeso = ({ data }) => {
               }}
               contentStyle={{ backgroundColor: '#333', borderColor: '#666', color: '#fff' }}
               labelStyle={{ color: '#fff' }}
+              cursor={{ fill: '#666', fillOpacity: 0.1 }}
             />
             <Legend wrapperStyle={{ color: '#fff' }} />
 
@@ -120,7 +129,26 @@ const ChartPeso = ({ data }) => {
             </Bar>
 
             <Bar yAxisId="right" dataKey="receita" fill="url(#colorReceita)" name="Receita (R$)">
-              <LabelList dataKey="receita" position="top" fill="#fff" />
+              <LabelList
+  dataKey="receita"
+  position="top"
+  fill="#fff"
+  content={({ value, x, y, width }) => {
+    const display = `R$ ${value.toFixed(2).replace('.', ',')}`;
+    return (
+      <text
+        x={x + width / 2}
+        y={y - 5}
+        fill="#fff"
+        textAnchor="middle"
+        fontSize={10}
+      >
+        {display}
+      </text>
+    );
+  }}
+/>
+
             </Bar>
 
             <Line
