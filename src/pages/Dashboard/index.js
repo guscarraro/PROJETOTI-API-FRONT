@@ -42,6 +42,8 @@ const Dashboard = () => {
       try {
         const response = await apiLocal.getResponsaveis();
         setResponsaveis(response.data);
+
+
       } catch (error) {
         console.error("Erro ao buscar responsáveis", error);
       }
@@ -74,9 +76,9 @@ const Dashboard = () => {
 
       const indiceData = await fetchIndiceAtendimento(dataInicial, dataFinal);
 
-
       if (indiceData && indiceData.length > 0) {
         setData(indiceData);
+
       } else {
         console.warn('Nenhum dado foi retornado pela API. Mantendo os dados antigos.');
       }
@@ -292,11 +294,16 @@ const Dashboard = () => {
 
     for (const [statusKey, label] of Object.entries(statusLabels)) {
       groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
-        const safeSheetName = remetente.replace(/[*?:\/\\[\]]/g, "-").substring(0, 31); // Excel limita a 31 caracteres
+        const safeSheetName = remetente
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+  .replace(/[*?:\/\\[\]]/g, "-") // remove caracteres inválidos
+  .substring(0, 31); // limita a 31 caracteres
+ // Excel limita a 31 caracteres
         let sheet = workbook.getWorksheet(safeSheetName);
 
         if (!sheet) {
-          sheet = workbook.addWorksheet(remetente);
+          sheet = workbook.addWorksheet(safeSheetName);
+
 
           // Cabeçalho formatado
           sheet.addRow([
@@ -334,7 +341,17 @@ const Dashboard = () => {
           );
 
           const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
-          const notaComMarcador = isAgendada ? `${nf} (agendado)` : nf;
+          const ehForaSJP = notaInfo?.praca_destino?.toUpperCase() !== "SJP";
+
+          let notaComMarcador = nf;
+          if (ehForaSJP && isAgendada) {
+            notaComMarcador += " (VIAGEM + AGENDADO)";
+          } else if (ehForaSJP) {
+            notaComMarcador += " (VIAGEM)";
+          } else if (isAgendada) {
+            notaComMarcador += " (AGENDADO)";
+          }
+
 
           row.getCell(col).value = notaComMarcador;
 
@@ -798,19 +815,34 @@ const Dashboard = () => {
 
                                   const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
 
+
                                   return (
                                     <li
                                       key={noteIdx}
                                       style={{
-                                        backgroundColor: isAgendada ? "#007BFF" : "transparent",
-                                        color: isAgendada ? "#fff" : "#ffff",
+                                        background:
+                                          isAgendada && notaInfo?.praca_destino !== "SJP"
+                                            ? "linear-gradient(90deg, orange, orange, #007BFF ,#007BFF, #007BFF )"
+                                            : isAgendada
+                                              ? "#007BFF"
+                                              : notaInfo?.praca_destino !== "SJP"
+                                                ? "orange"
+                                                : "transparent",
+                                        color:
+                                          isAgendada || notaInfo?.praca_destino !== "SJP"
+                                            ? "#fff"
+                                            : "#fff",
                                         padding: "4px 8px",
                                         borderRadius: "5px",
                                         marginBottom: "4px",
                                       }}
                                     >
-                                      NF: {nf} {isAgendada && <strong style={{ marginLeft: 6 }}>A</strong>}
+                                      NF: {nf} - ({notaInfo.praca_destino}) {notaInfo.destino}{" "}
+                                      {isAgendada && <strong style={{ marginLeft: 6 }}>A</strong>}
                                     </li>
+
+
+
                                   );
                                 })}
                               </ul>
