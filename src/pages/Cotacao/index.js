@@ -40,9 +40,15 @@ const Cotacao = () => {
   const [receitaEditando, setReceitaEditando] = useState(null);
   const [motoristaEditando, setMotoristaEditando] = useState(null);
   const [veiculoEditando, setVeiculoEditando] = useState(null);
-  const [custosVariaveis, setCustosVariaveis] = useState(null);
-  const [depreciacao, setDepreciacao] = useState(null);
-  const [remuneracao, setRemuneracao] = useState(null);
+  const [depreciacao, setDepreciacao] = useState({ valorVenda: 0, anosUso: 5 });
+  const [custoMensalTotal, setCustoMensalTotal] = useState(0);
+const [custoKmTotal, setCustoKmTotal] = useState(0);
+
+  
+  const [custosVariaveis, setCustosVariaveis] = useState({});
+  
+const [remuneracao, setRemuneracao] = useState({ taxa: 1 });
+
   const [licenciamento, setLicenciamento] = useState(0);
   const [ipva, setIpva] = useState(0);
   const [seguro, setSeguro] = useState(0);
@@ -147,108 +153,31 @@ const Cotacao = () => {
       viagensMensais += (receitas[i].quantidadeSemanal || 0) * 4;
     }
   }
-
-  const custoTotal = (() => {
-    let soma = 0;
-
-    // Veículos
-    for (let v of veiculos) {
-      soma += (v.custoMensal || 0) * v.quantidade;
-      soma += (v.kmMensal || 0) * (v.custoKm || 0) * v.quantidade;
-    }
-
-    // Motoristas
-    for (let m of motoristas) {
-      soma += (m.custoMensal || 0) * m.quantidade;
-    }
-
-    // Custos variáveis
-    if (custosVariaveis) {
-      const {
-        combustivelValor,
-        combustivelConsumo,
-        oleoKm,
-        oleoValor,
-        limpezaKm,
-        limpezaValor,
-        pneusKm,
-        pneusValor,
-      } = custosVariaveis;
-      const kmTotal = veiculos.reduce(
-        (acc, v) => acc + (v.kmMensal || 0) * v.quantidade,
-        0
-      );
-
-      if (kmTotal > 0) {
-        if (combustivelValor && combustivelConsumo)
-          soma += (kmTotal / combustivelConsumo) * combustivelValor;
-        if (oleoKm && oleoValor) soma += (kmTotal / oleoKm) * oleoValor;
-        if (limpezaKm && limpezaValor)
-          soma += (kmTotal / limpezaKm) * limpezaValor;
-        if (pneusKm && pneusValor) soma += (kmTotal / pneusKm) * pneusValor;
-      }
-    }
-
-    // Depreciação
-    if (depreciacao && depreciacao.valorVenda && depreciacao.anosUso) {
-      soma += depreciacao.valorVenda / (depreciacao.anosUso * 12);
-    }
-
-    // Remuneração de capital (1% do valor total dos veículos por mês)
-    if (remuneracao && remuneracao.taxa) {
-      const valorTotal = veiculos.reduce(
-        (acc, v) => acc + (v.valor || 0) * v.quantidade,
-        0
-      );
-      soma += (remuneracao.taxa / 100) * valorTotal;
-    }
-
-    // IPVA (anual), Seguro (mensal), Licenciamento (anual)
-    soma += veiculos.reduce((acc, v) => acc + ((v.valor || 0) * (ipva / 100)) / 12 * v.quantidade, 0);
-
-    soma += seguro;
-    soma += licenciamento / 12;
-
-    // Outros custos
-    if (Array.isArray(outrosCustos)) {
-      for (let item of outrosCustos) {
-        if (item.valor && item.periodicidade) {
-          let divisor =
-            {
-              mensal: 1,
-              trimestral: 3,
-              semestral: 6,
-              anual: 12,
-            }[item.periodicidade.toLowerCase()] || 1;
-          soma += item.valor / divisor;
-        }
-      }
-    }
-
-    return soma;
-  })();
-  const kmTotal = veiculos.reduce(
+const custoTotal = custoMensalTotal;
+ const kmTotal = veiculos.reduce(
     (acc, v) => acc + (v.kmMensal || 0) * v.quantidade,
     0
-  );
-  
-  const custoMensalTotal = veiculos.reduce(
-    (acc, v) => acc + (v.custoMensal || 0) * v.quantidade,
-    0
-  ) + motoristas.reduce(
-    (acc, m) => acc + (m.custoMensal || 0) * m.quantidade,
-    0
-  );
-  
-  const custoKmTotal = kmTotal > 0 ? custoMensalTotal / kmTotal : 0;
-  
+);
+
+
 
   const lucroBruto = receitaTotal - custoTotal;
   const margem = receitaTotal > 0 ? (lucroBruto / receitaTotal) * 100 : 0;
-  const sugestao =
-    margem < 5
-      ? "💡 Aumentar receita ou reduzir custos para atingir 5% de lucro líquido."
-      : "✅ Operação acima da meta de lucratividade.";
+const metaMargem = 5; // 5%
+const valorFaltante = margem < metaMargem 
+  ? (custoTotal / (1 - metaMargem/100)) - receitaTotal
+  : 0;
+
+const reducaoNecessaria = margem < metaMargem
+  ? receitaTotal * (metaMargem/100) - lucroBruto
+  : 0;
+
+const sugestao = margem < metaMargem
+  ? `💡 Para 5% de margem: 
+     ${valorFaltante > 0 
+       ? `Aumente receita em R$ ${valorFaltante.toFixed(2)}` 
+       : `Reduza custos em R$ ${Math.abs(reducaoNecessaria).toFixed(2)}`}`
+  : `✅ Operação dando lucro`;
 
   return (
     <div className="ContainerPagina2">
@@ -301,7 +230,7 @@ const Cotacao = () => {
                 <Col md="3">
                   <Card
                     className="customcard"
-                    style={{ background: "rgba(0, 255, 127, 0.35)" }}
+                    style={{ background: "rgba(0, 255, 127, 0.35)", height:'300px' }}
                   >
                     <CardBody>
                       <h5>
@@ -366,7 +295,7 @@ const Cotacao = () => {
                 <Col md="3">
                   <Card
                     className="customcard"
-                    style={{ background: "rgba(0, 0, 0, 0.35)" }}
+                    style={{ background: "rgba(0, 0, 0, 0.35)",height:'300px' }}
                   >
                     <CardBody>
                       <h5>
@@ -393,9 +322,12 @@ const Cotacao = () => {
                           />
                         </strong>
                       </p>
-                      <p style={{ color: margem < 5 ? "#ff0000" : "#007f00" }}>
-                        {sugestao}
-                      </p>
+                      <p style={{ 
+  color: margem < metaMargem ? "#ff0000" : "#007f00",
+  whiteSpace: 'pre-line' // Para manter as quebras de linha
+}}>
+  {sugestao}
+</p>
                       <p>
                         Viagens distintas: <strong>{viagensMensais}</strong>
                       </p>
@@ -405,96 +337,77 @@ const Cotacao = () => {
 
                 {/* Card 3 - Custos */}
                 <Col md="6">
-                  <Card
-                    className="customcard"
-                    style={{ background: "rgba(255, 69, 0, 0.35)" }}
-                  >
-                    <CardBody>
-                      <h5>
-                        <FaTruckMoving /> Custo Total
-                      </h5>
-                      <h4>
-                        R${" "}
-                        <CountUp
-                          end={custoTotal}
-                          duration={1.5}
-                          separator="."
-                          decimal=","
-                          decimals={2}
-                        />
-                      </h4>
-                      <Button
-                        color="warning"
-                        size="sm"
-                        className="mb-3 mt-2"
-                        onClick={() => setModalDespesaOpen(true)}
-                      >
-                        ✏️ Editar Despesas
-                      </Button>
+                 <Card className="customcard" style={{ background: "rgba(255, 69, 0, 0.35)" ,height:'300px'}}>
+  <CardBody style={{    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    width: '100%'}}>
+    
+      <h5 className="mb-0">
+        <FaTruckMoving /> Custos Operacionais
+      </h5>
+     
+   
 
-                      <h6>
-                        <FaTruckMoving /> Veículos
-                      </h6>
-                      {veiculos.length === 0 && (
-                        <p style={{ fontStyle: "italic" }}>
-                          Nenhum veículo adicionado.
-                        </p>
-                      )}
-                      {veiculos.map((v, idx) => {
-                        const custoMensalFormatado = v.custoMensal
-                          ? `R$ ${v.custoMensal.toLocaleString("pt-BR")}`
-                          : "R$ 0,00";
+    <Row className="mb-3">
+      <Col xs="5" className="border-end">
+        <div className="text-center">
+          <p className="mb-1"><strong>Custo por km</strong></p>
+          <h3 className="mb-0">
+            R$ <CountUp 
+              end={custoKmTotal} 
+              duration={1} 
+              separator="." 
+              decimal="," 
+              decimals={2} 
+            />
+          </h3>
+        </div>
+      </Col>
+      <Col xs="7">
+        <div className="text-center">
+          <p className="mb-1"><strong>Custo mensal</strong></p>
+          <h3 className="mb-0">
+            R$ <CountUp 
+              end={custoMensalTotal} 
+              duration={1} 
+              separator="." 
+              decimal="," 
+              decimals={2} 
+            />
+          </h3>
+        </div>
+        
+      </Col>
+    </Row>
 
-                        const custoKmFormatado = v.custoKm
-                          ? `R$ ${v.custoKm.toFixed(2)}`
-                          : "R$ 0,00";
+    <div className="small">
+      {veiculos.length > 0 ? (
+        <>
+          {/* <p className="mb-1">
+            <strong>Veículos:</strong> {veiculos.length} tipo(s) cadastrado(s)
+          </p> */}
+          <p className="mb-1">
+            <strong>Total veículos:</strong> {veiculos.reduce((acc, v) => acc + (v.quantidade || 1), 0)} unid.
+          </p>
+        </>
+      ) : (
+        <p className="mb-1 text-muted">Nenhum veículo cadastrado</p>
+      )}
 
-                        return (
-                          <p key={idx}>
-                            {v.tipo} | {v.quantidade} unid. |{" "}
-                            {custoMensalFormatado} + {v.kmMensal || 0}km ×{" "}
-                            {custoKmFormatado}
-
-                          </p>
-                        );
-                      })}
-                      <hr />
-
-
-
-                      <h6>
-                        <FaUserTie /> Motoristas
-                      </h6>
-                      {motoristas.length === 0 && (
-                        <p style={{ fontStyle: "italic" }}>
-                          Nenhum motorista adicionado.
-                        </p>
-                      )}
-                      {motoristas.map((m, idx) => (
-                        <p key={idx}>
-                          R${" "}
-                          {typeof m.custoMensal === "number"
-                            ? m.custoMensal.toLocaleString("pt-BR", {
-                                minimumFractionDigits: 2,
-                              })
-                            : "0,00"}
-                          
-                        </p>
-                      ))}
-                      <Row>
-  <Col xs="6">
-    <p><strong>Km total/mês:</strong></p>
-    <p><CountUp end={kmTotal} duration={1} separator="." /></p>
-    <p><strong>Custo/km:</strong></p>
-    <p>R$ <CountUp end={custoKmTotal} duration={1} separator="." decimal="," decimals={2} /></p>
-  </Col>
-  <Col xs="6">
-    <p><strong>Custo mensal:</strong></p>
-    <p>R$ <CountUp end={custoMensalTotal} duration={1} separator="." decimal="," decimals={2} /></p>
-  </Col>
-</Row>
-                    </CardBody>
-                  </Card>
+      <p className="mb-0">
+        <strong>Motoristas:</strong> {motoristas.length > 0 ? `${motoristas.length} cadastrado(s)` : 'Nenhum'}
+      </p>
+    </div>
+     <Button
+        color="primary"
+        size="sm"
+        onClick={() => setModalDespesaOpen(true)}
+      >
+        ✏️ Editar Despesas
+      </Button>
+  </CardBody>
+</Card>
                 </Col>
               </Row>
 
@@ -511,30 +424,33 @@ const Cotacao = () => {
                 receitaEditando={receitaEditando}
                 setReceitaEditando={setReceitaEditando}
               />
-              <ModalDespesa
-                isOpen={modalDespesaOpen}
-                setIsOpen={setModalDespesaOpen}
-                motoristas={motoristas}
-                setMotoristas={setMotoristas}
-                veiculos={veiculos}
-                setVeiculos={setVeiculos}
-                motoristaEditando={motoristaEditando}
-                setMotoristaEditando={setMotoristaEditando}
-                veiculoEditando={veiculoEditando}
-                setVeiculoEditando={setVeiculoEditando}
-                // ✅ Adicione esta função aqui!
-                onSalvar={(dados) => {
-                  setVeiculos(dados.veiculos || []);
-                  setMotoristas(dados.motoristas || []);
-                  setCustosVariaveis(dados.custosVariaveis || null);
-                  setDepreciacao(dados.depreciacao || null);
-                  setRemuneracao(dados.remuneracao || null);
-                  setLicenciamento(dados.licenciamento || 0);
-                  setIpva(dados.ipva || 0);
-                  setSeguro(dados.seguro || 0);
-                  setOutrosCustos(dados.outrosCustos || []);
-                }}
-              />
+             <ModalDespesa
+  isOpen={modalDespesaOpen}
+  setIsOpen={setModalDespesaOpen}
+  veiculos={veiculos}
+  motoristas={motoristas}
+  custosVariaveis={custosVariaveis}
+  depreciacao={depreciacao}
+  remuneracao={remuneracao}
+  licenciamento={licenciamento}
+  ipva={ipva}
+  seguro={seguro}
+  outrosCustos={outrosCustos}
+  onSalvar={(dados) => {
+    setVeiculos(dados.veiculos || []);
+    setMotoristas(dados.motoristas || []);
+    setCustosVariaveis(dados.custosVariaveis || null);
+    setDepreciacao(dados.depreciacao || null);
+    setRemuneracao(dados.remuneracao || null);
+    setLicenciamento(dados.licenciamento || 0);
+    setIpva(dados.ipva || 0);
+    setSeguro(dados.seguro || 0);
+    setOutrosCustos(dados.outrosCustos || []);
+    setCustoMensalTotal(dados.custoMensalTotal || 0);     // ✅ NOVO
+    setCustoKmTotal(dados.custoTotalKm || 0); 
+  }}
+/>
+
             </>
           )}
         </Container>
