@@ -33,11 +33,54 @@ const ModalDespesa = ({ isOpen, setIsOpen, onSalvar }) => {
   const adicionarOutroCusto = () => {
     setOutrosCustos([...outrosCustos, { nome: '', valor: 0, porcentagem: false, frequencia: 'mensal' }]);
   };
+  const calcularCustoMensal = (veiculo) => {
+    // Exemplo básico: amortização + IPVA mensal + manutenção
+    const mesesUso = veiculo.anosUso ? veiculo.anosUso * 12 : 60;
+    const depre = (veiculo.valor - (veiculo.valorVenda || 0)) / mesesUso;
+    const manutencao = (veiculo.valor * 0.05) / 12; // 5% ao ano
+    const ipva = (veiculo.valor * 0.015) / 12; // 1.5% ao ano
+  
+    return (depre || 0) + manutencao + ipva;
+  };
+  
+  const calcularCustoKm = (veiculo) => {
+    const consumo = custosVariaveis.combustivelConsumo || 7;
+    const valorLitro = custosVariaveis.combustivelValor || 6;
+  
+    return valorLitro / consumo;
+  };
+  
 
   const salvar = () => {
-    onSalvar({ veiculos, custosVariaveis, depreciacao, motoristas, remuneracao, licenciamento, ipva, seguro, outrosCustos });
+    const motoristasComCusto = motoristas.map(m => ({
+      ...m,
+      custoMensal: m.salario // ou aplique outros encargos aqui se necessário
+    }));
+  
+    const veiculosComCusto = veiculos.map(v => {
+      const custoMensal = calcularCustoMensal(v); // crie essa função se quiser detalhar
+      const custoKm = calcularCustoKm(v); // idem
+      return {
+        ...v,
+        custoMensal,
+        custoKm
+      };
+    });
+  
+    onSalvar({
+      veiculos: veiculosComCusto,
+      motoristas: motoristasComCusto,
+      custosVariaveis,
+      depreciacao,
+      remuneracao,
+      licenciamento,
+      ipva,
+      seguro,
+      outrosCustos
+    });
     setIsOpen(false);
   };
+  
 
   return (
     <Modal isOpen={isOpen} toggle={() => setIsOpen(!isOpen)} size="xl">
