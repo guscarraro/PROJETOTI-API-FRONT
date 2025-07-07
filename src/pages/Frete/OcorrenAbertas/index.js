@@ -47,7 +47,7 @@ const OcorrenAbertas = () => {
     try {
       const ocorrenciasResponse = await apiLocal.getOcorrenciasPendentes();
       const abertas = ocorrenciasResponse.data;
-      
+
       abertas.sort((a, b) => new Date(a.datainclusao) - new Date(b.datainclusao));
 
 
@@ -75,7 +75,7 @@ const OcorrenAbertas = () => {
     } catch (error) {
       toast.error("Erro ao buscar dados.");
       console.error(error);
-    }finally{
+    } finally {
       setIsLoading(false)
     }
   };
@@ -104,9 +104,9 @@ const OcorrenAbertas = () => {
       icon: <FaExclamationTriangle style={styles.redIcon} />,
     };
   };
-  
-  
-  
+
+
+
 
   const filteredOcorrencias = ocorrencias.filter((occ) => {
     const nomeMotorista = motoristas[occ.motorista_id] || "";
@@ -135,10 +135,10 @@ const OcorrenAbertas = () => {
       if (!cteValue.trim()) {
         throw new Error("O número do CTE é obrigatório para cobrança adicional.");
       }
-  
+
       const payload = { nf, cte_gerado: cteValue, cobranca_adicional: "S" }; // Atualiza também o cobranca_adicional para 'S'
       const response = await apiLocal.updateCobrancaAdicional(payload);
-  
+
       if (response.status === 200) {
         toast.success("CTE e cobrança adicional atualizados com sucesso!");
       } else {
@@ -149,8 +149,8 @@ const OcorrenAbertas = () => {
       toast.error("Erro ao atualizar CTE e cobrança adicional. Verifique os dados e tente novamente.");
     }
   };
-  
-  
+
+
 
   const handleCardClick = (ocorrencia) => {
     setSelectedOcorrencia(ocorrencia);
@@ -167,26 +167,26 @@ const OcorrenAbertas = () => {
       toast.error("Por favor, insira a data e hora de encerramento.");
       return;
     }
-  
+
     if (!cobrancaAdicional) {
       toast.error("Por favor, selecione se houve cobrança adicional.");
       return;
     }
-  
+
     if (cobrancaAdicional === "S" && !cteValue.trim()) {
       toast.error("O número do CTE é obrigatório para cobrança adicional.");
       return;
     }
-  
+
     const horarioChegadaDate = new Date(selectedOcorrencia.horario_chegada);
     const horarioSaidaDate = new Date(horarioSaida);
     const horarioOcorrenciaDate = new Date(selectedOcorrencia.datainclusao);
-  
+
     if (horarioSaida < horarioChegadaDate) {
       toast.error(`A data e hora de saída não podem ser menores que a de chegada: ${horarioSaidaDate}.`);
       return;
     }
-  
+
     try {
       await apiLocal.updateOcorrenciaStatus({
         id: selectedOcorrencia.id,
@@ -197,13 +197,13 @@ const OcorrenAbertas = () => {
         obs: selectedOcorrencia?.obs || null,
 
       });
-      
-  
+
+
       // Atualiza o campo cte_gerado separadamente se necessário
       if (cobrancaAdicional === "S" && cteValue.trim()) {
         await updateCteGerado(selectedOcorrencia.nf, cteValue);
       }
-  
+
       toast.success(`Ocorrência marcada como "${status}" com sucesso!`);
       toggleModal();
       fetchData();
@@ -212,8 +212,8 @@ const OcorrenAbertas = () => {
       console.error(error);
     }
   };
-  
-  
+
+
   return (
     <Container>
       <div style={{ marginBottom: 20, marginTop: 20, display: "flex", flexDirection: "column", alignItems: "center", gap: "10px" }}>
@@ -224,133 +224,140 @@ const OcorrenAbertas = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           style={{ maxWidth: "300px" }}
-          />
+        />
       </div>
 
-      {isLoading ? <LoadingDots style={{marginTop:500}}/> :
-      <>
-      <ContainerCards style={styles.cardContainer}>
-        {filteredOcorrencias.map((ocorrencia) => {
-          const { backgroundColor, icon } = calculateCardStyle(ocorrencia.datainclusao);
-          return (
-            <Card
-            key={ocorrencia.id}
-            style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "400px" }}
-            onClick={() => handleCardClick(ocorrencia)}
-            >
-              <CardBody
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                <CardTitle tag="h5">
-                  {icon} Nota Fiscal: {ocorrencia.nf}
-                </CardTitle>
-                <CardText>
-                  Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong>
-                </CardText>
-                <CardText>
-                  Tipo de ocorrencia: <strong>{tipoocorrencia[ocorrencia.tipoocorrencia_id] || "Desconhecido"}</strong>
-                </CardText>
-                <CardText>
-                  Hora de Chegada: <strong>{new Date(ocorrencia.horario_chegada).toLocaleString()}</strong>
-                </CardText>
-                <CardText>
-                  Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong>
-                </CardText>
-                <Button
-                  color="primary"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEncerrar(ocorrencia);
-                  }}
+      {isLoading ? <LoadingDots style={{ marginTop: 500 }} /> :
+        <>
+          <ContainerCards style={styles.cardContainer}>
+            {filteredOcorrencias.map((ocorrencia) => {
+              const { backgroundColor, icon } = calculateCardStyle(ocorrencia.datainclusao);
+              return (
+                <Card
+                  key={ocorrencia.id}
+                  style={{ ...styles.card, backgroundColor, color: "#fff", minHeight: "400px" }}
+                  onClick={() => handleCardClick(ocorrencia)}
+                >
+                  <CardBody
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                    }}
                   >
-                  Encerrar
-                </Button>
-              </CardBody>
-              <CardFooter>
-              <CardText>
-                  Hora abertura da ocorrência: <strong>{new Date(ocorrencia.datainclusao).toLocaleString()}</strong>
-                </CardText>
-              </CardFooter>
-            </Card>
-          );
-        })}
-      </ContainerCards>
+                    <CardTitle tag="h5">
+                      {icon} Nota Fiscal: {ocorrencia.nf}
+                    </CardTitle>
+                    <CardText>
+                      Motorista: <strong>{motoristas[ocorrencia.motorista_id] || "Desconhecido"}</strong>
+                    </CardText>
+                    <CardText>
+                      Tipo de ocorrencia: <strong>{tipoocorrencia[ocorrencia.tipoocorrencia_id] || "Desconhecido"}</strong>
+                    </CardText>
+                    <CardText>
+                      Hora de Chegada: <strong>{new Date(ocorrencia.horario_chegada).toLocaleString()}</strong>
+                    </CardText>
+                    <CardText>
+                      Cliente: <strong>{clientes[ocorrencia.cliente_id] || "Desconhecido"}</strong>
+                    </CardText>
+                    <CardText>
+                      Permanência:{" "}
+                      <strong>
+                        {Math.floor((new Date() - new Date(ocorrencia.datainclusao)) / 60000)} min
+                      </strong>
+                    </CardText>
 
-      <Modal isOpen={modalOpen} toggle={toggleModal}>
-        <ModalHeader toggle={toggleModal}>Encerrar Ocorrência</ModalHeader>
-        <ModalBody>
-  <FormGroup>
-    <Label for="horario_saida">Data e Hora de Saída</Label>
-    <Input
-      type="datetime-local"
-      id="horario_saida"
-      value={horarioSaida}
-      onChange={(e) => setHorarioSaida(e.target.value)}
-    />
-  </FormGroup>
-  <FormGroup>
-    <Label for="cobranca_adicional">Cobrança Adicional</Label>
-    <Input
-      type="select"
-      id="cobranca_adicional"
-      value={cobrancaAdicional}
-      onChange={(e) => setCobrancaAdicional(e.target.value)}
-      >
-      <option value="">Selecione</option>
-      <option value="S">Sim</option>
-      <option value="N">Não</option>
-    </Input>
-  </FormGroup>
-  {cobrancaAdicional === "S" && (
-    <FormGroup>
-      <Label for="cte_value">Número do CTE</Label>
-      <Input
-        type="text"
-        id="cte_value"
-        value={cteValue}
-        onChange={(e) => setCteValue(e.target.value)}
-        placeholder="Informe o número do CTE"
-        />
-    </FormGroup>
-  )}
-  {cobrancaAdicional === "N" && (
-  <FormGroup>
-    <Label for="obs_encerramento">Observação</Label>
-    <Input
-      type="textarea"
-      id="obs_encerramento"
-      placeholder="Informe o motivo"
-      value={selectedOcorrencia?.obs || ""}
-      onChange={(e) =>
-        setSelectedOcorrencia((prev) => ({ ...prev, obs: e.target.value }))
-      }
-    />
-  </FormGroup>
-)}
+                    <Button
+                      color="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEncerrar(ocorrencia);
+                      }}
+                    >
+                      Encerrar
+                    </Button>
+                  </CardBody>
+                  <CardFooter>
+                    <CardText>
+                      Hora abertura da ocorrência: <strong>{new Date(ocorrencia.datainclusao).toLocaleString()}</strong>
+                    </CardText>
+                  </CardFooter>
+                </Card>
+              );
+            })}
+          </ContainerCards>
 
-</ModalBody>
+          <Modal isOpen={modalOpen} toggle={toggleModal}>
+            <ModalHeader toggle={toggleModal}>Encerrar Ocorrência</ModalHeader>
+            <ModalBody>
+              <FormGroup>
+                <Label for="horario_saida">Data e Hora de Saída</Label>
+                <Input
+                  type="datetime-local"
+                  id="horario_saida"
+                  value={horarioSaida}
+                  onChange={(e) => setHorarioSaida(e.target.value)}
+                />
+              </FormGroup>
+              <FormGroup>
+                <Label for="cobranca_adicional">Cobrança Adicional</Label>
+                <Input
+                  type="select"
+                  id="cobranca_adicional"
+                  value={cobrancaAdicional}
+                  onChange={(e) => setCobrancaAdicional(e.target.value)}
+                >
+                  <option value="">Selecione</option>
+                  <option value="S">Sim</option>
+                  <option value="N">Não</option>
+                </Input>
+              </FormGroup>
+              {cobrancaAdicional === "S" && (
+                <FormGroup>
+                  <Label for="cte_value">Número do CTE</Label>
+                  <Input
+                    type="text"
+                    id="cte_value"
+                    value={cteValue}
+                    onChange={(e) => setCteValue(e.target.value)}
+                    placeholder="Informe o número do CTE"
+                  />
+                </FormGroup>
+              )}
+              {cobrancaAdicional === "N" && (
+                <FormGroup>
+                  <Label for="obs_encerramento">Observação</Label>
+                  <Input
+                    type="textarea"
+                    id="obs_encerramento"
+                    placeholder="Informe o motivo"
+                    value={selectedOcorrencia?.obs || ""}
+                    onChange={(e) =>
+                      setSelectedOcorrencia((prev) => ({ ...prev, obs: e.target.value }))
+                    }
+                  />
+                </FormGroup>
+              )}
 
-        <ModalFooter>
-        <Label>A nota foi entregue com sucesso?</Label>
-          <Button color="success" onClick={() => handleStatusUpdate("Resolvido")}>Sim</Button>
-          <Button color="danger" onClick={() => handleStatusUpdate("Não entregue")}>Não</Button>
-        </ModalFooter>
-      </Modal>
+            </ModalBody>
 
-      <Modal isOpen={obsModalOpen} toggle={toggleObsModal}>
-        <ModalHeader toggle={toggleObsModal}>Observações da Ocorrência</ModalHeader>
-        <ModalBody>
-          {selectedOcorrencia?.obs ? selectedOcorrencia.obs : "Nenhuma observação foi adicionada."}
-        </ModalBody>
-        <ModalFooter>
-          <Button color="secondary" onClick={toggleObsModal}>Fechar</Button>
-        </ModalFooter>
-      </Modal>
-      </>}
+            <ModalFooter>
+              <Label>A nota foi entregue com sucesso?</Label>
+              <Button color="success" onClick={() => handleStatusUpdate("Resolvido")}>Sim</Button>
+              <Button color="danger" onClick={() => handleStatusUpdate("Não entregue")}>Não</Button>
+            </ModalFooter>
+          </Modal>
+
+          <Modal isOpen={obsModalOpen} toggle={toggleObsModal}>
+            <ModalHeader toggle={toggleObsModal}>Observações da Ocorrência</ModalHeader>
+            <ModalBody>
+              {selectedOcorrencia?.obs ? selectedOcorrencia.obs : "Nenhuma observação foi adicionada."}
+            </ModalBody>
+            <ModalFooter>
+              <Button color="secondary" onClick={toggleObsModal}>Fechar</Button>
+            </ModalFooter>
+          </Modal>
+        </>}
     </Container>
   );
 };
