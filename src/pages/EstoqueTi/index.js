@@ -10,6 +10,8 @@ import { FaLaptop, FaDesktop, FaCloud, FaEnvelope, FaDatabase } from 'react-icon
 import ModalCloud from './ModalCloud';
 import ModalLicenca from './ModalLicenca';
 import ModalAparelho from './ModalAparelho';
+import ModalDel from './ModalDel';
+
 
 
 
@@ -22,11 +24,14 @@ function EstoqueTi() {
   const [cloudModalOpen, setCloudModalOpen] = useState(false);
   const [microsoftModalOpen, setMicrosoftModalOpen] = useState(false);
   const [aparelhoModalOpen, setAparelhoModalOpen] = useState(false);
-  
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
+
+
   const toggleAparelhoModal = () => setAparelhoModalOpen(!aparelhoModalOpen);
   const toggleCloudModal = () => setCloudModalOpen(!cloudModalOpen);
   const toggleMicrosoftModal = () => setMicrosoftModalOpen(!microsoftModalOpen);
-  
+
   const toggleModal = () => setIsModalOpen(!isModalOpen);
   const toggleEditModal = () => setIsEditModalOpen(!isEditModalOpen);
   const toggleDetailsModal = () => setSelectedEquipamento(null);
@@ -50,6 +55,22 @@ function EstoqueTi() {
     setEquipamentoToEdit(equipamento);
     setIsEditModalOpen(true);
   };
+ const confirmDeleteEquipamento = async () => {
+  if (!equipamentoToDelete) return;
+  try {
+    await apiLocal.deleteControleEstoque(equipamentoToDelete.id);
+    toast.success("Equipamento excluído com sucesso!");
+    fetchEquipamentos();
+  } catch (error) {
+    console.error("Erro ao excluir equipamento:", error);
+    toast.error("Erro ao excluir equipamento.");
+  } finally {
+    setIsDeleteModalOpen(false);
+    setEquipamentoToDelete(null);
+  }
+};
+
+
 
   const handleSaveEdit = async (updatedEquipamento) => {
     try {
@@ -90,29 +111,29 @@ function EstoqueTi() {
 
         {/* Cards Personalizados */}
         <Row>
-        <Col md={4}>
-  <CardStyle 
-    bgColor="rgba(70, 130, 180, 0.2)" 
-    iconColor="#4682B4"
-    onClick={toggleAparelhoModal} 
-    style={{ cursor: "pointer" }}
-  >
-    <h3>
-      <FaLaptop /> Quantidade de Aparelhos
-    </h3>
-    <p style={{ fontSize: 32, fontWeight: 700 }}>{equipamentos.length}</p>
-    <p style={{ fontSize: 14, fontStyle: "italic" }}>
-      Clique para mais informações
-    </p>
-  </CardStyle>
-</Col>
+          <Col md={4}>
+            <CardStyle
+              bgColor="rgba(70, 130, 180, 0.2)"
+              iconColor="#4682B4"
+              onClick={toggleAparelhoModal}
+              style={{ cursor: "pointer" }}
+            >
+              <h3>
+                <FaLaptop /> Quantidade de Aparelhos
+              </h3>
+              <p style={{ fontSize: 32, fontWeight: 700 }}>{equipamentos.length}</p>
+              <p style={{ fontSize: 14, fontStyle: "italic" }}>
+                Clique para mais informações
+              </p>
+            </CardStyle>
+          </Col>
 
 
           <Col md={4}>
-            <CardStyle 
-              bgColor="rgba(255, 140, 0, 0.2)" 
+            <CardStyle
+              bgColor="rgba(255, 140, 0, 0.2)"
               iconColor="#FF8C00"
-              onClick={toggleCloudModal} 
+              onClick={toggleCloudModal}
               style={{ cursor: "pointer" }}
             >
               <h3>
@@ -126,10 +147,10 @@ function EstoqueTi() {
           </Col>
 
           <Col md={4}>
-            <CardStyle 
-              bgColor="rgba(34, 139, 34, 0.2)" 
+            <CardStyle
+              bgColor="rgba(34, 139, 34, 0.2)"
               iconColor="#228B22"
-              onClick={toggleMicrosoftModal} 
+              onClick={toggleMicrosoftModal}
               style={{ cursor: "pointer" }}
             >
               <h3>
@@ -144,59 +165,71 @@ function EstoqueTi() {
         </Row>
         <Row className="mt-3">
 
-</Row>
+        </Row>
 
-{/* Exibição por Setor */}
-{setores.map((setor) => (
-<SetorSection key={setor}>
-  <h3>{setor}</h3>
-  <hr />
-  <Row style={{ maxWidth: '100%' }}>
-    {equipamentos
-      .filter((eq) => eq.setor === setor)
-      .map((equipamento) => (
-        <Col md={3} key={equipamento.id}>
-          <CardEquip
-            equipamento={equipamento}
-            onClick={() => setSelectedEquipamento(equipamento)}
-            onEdit={() => handleEditClick(equipamento)}
+        {/* Exibição por Setor */}
+        {setores.map((setor) => (
+          <SetorSection key={setor}>
+            <h3>{setor}</h3>
+            <hr />
+            <Row style={{ maxWidth: '100%' }}>
+              {equipamentos
+                .filter((eq) => eq.setor === setor)
+                .map((equipamento) => (
+                  <Col md={3} key={equipamento.id}>
+                    <CardEquip
+                      equipamento={equipamento}
+                      onClick={() => setSelectedEquipamento(equipamento)}
+                      onEdit={() => handleEditClick(equipamento)}
+                      onDelete={(equipamento) => {
+    setEquipamentoToDelete(equipamento);
+    setIsDeleteModalOpen(true);
+  }}
+                    />
+                    
+                  </Col>
+                ))}
+            </Row>
+          </SetorSection>
+        ))}
+
+        {/* Almoxarifado (Backup) - Só aparece se showBackup for verdadeiro */}
+
+
+        {/* Modal de Adicionar */}
+        {isModalOpen && <ModalAdd isOpen={isModalOpen} toggle={toggleModal} />}
+
+        {/* Modal de Edição */}
+        {isEditModalOpen && (
+          <ModalEdit
+            isOpen={isEditModalOpen}
+            toggle={toggleEditModal}
+            equipamento={equipamentoToEdit}
+            onSave={handleSaveEdit}
           />
-        </Col>
-      ))}
-  </Row>
-</SetorSection>
-))}
-
-{/* Almoxarifado (Backup) - Só aparece se showBackup for verdadeiro */}
-
-
-{/* Modal de Adicionar */}
-{isModalOpen && <ModalAdd isOpen={isModalOpen} toggle={toggleModal} />}
-
-{/* Modal de Edição */}
-{isEditModalOpen && (
-<ModalEdit
-  isOpen={isEditModalOpen}
-  toggle={toggleEditModal}
-  equipamento={equipamentoToEdit}
-  onSave={handleSaveEdit}
+        )}
+        <ModalDel
+  isOpen={isDeleteModalOpen}
+  toggle={() => setIsDeleteModalOpen(false)}
+  onConfirm={confirmDeleteEquipamento}
+  itemName={equipamentoToDelete?.tipo_aparelho}
 />
-)}
 
-{/* Modal de Detalhes */}
-{selectedEquipamento && (
-<Modal isOpen={true} toggle={toggleDetailsModal} size="md">
-  <ModalHeader toggle={toggleDetailsModal}>Detalhes do Equipamento</ModalHeader>
-  <ModalBody>
-    <p><strong>Tipo:</strong> {selectedEquipamento.tipo_aparelho}</p>
-    <p><strong>Responsável:</strong> {selectedEquipamento.pessoa_responsavel || 'Não informado'}</p>
-    <p><strong>Email:</strong> {selectedEquipamento.email_utilizado || 'Não informado'}</p>
-    <p><strong>Cloud:</strong> {selectedEquipamento.cloud_utilizado || 'Não informado'}</p>
-    <p><strong>Descrição:</strong> {selectedEquipamento.descricao}</p>
-    <p><strong>Localização Física:</strong> {selectedEquipamento.localizacao_fisica}</p>
-  </ModalBody>
-</Modal>
-)}
+
+        {/* Modal de Detalhes */}
+        {selectedEquipamento && (
+          <Modal isOpen={true} toggle={toggleDetailsModal} size="md">
+            <ModalHeader toggle={toggleDetailsModal}>Detalhes do Equipamento</ModalHeader>
+            <ModalBody>
+              <p><strong>Tipo:</strong> {selectedEquipamento.tipo_aparelho}</p>
+              <p><strong>Responsável:</strong> {selectedEquipamento.pessoa_responsavel || 'Não informado'}</p>
+              <p><strong>Email:</strong> {selectedEquipamento.email_utilizado || 'Não informado'}</p>
+              <p><strong>Cloud:</strong> {selectedEquipamento.cloud_utilizado || 'Não informado'}</p>
+              <p><strong>Descrição:</strong> {selectedEquipamento.descricao}</p>
+              <p><strong>Localização Física:</strong> {selectedEquipamento.localizacao_fisica}</p>
+            </ModalBody>
+          </Modal>
+        )}
       </Container>
     </StyledContainer>
   );

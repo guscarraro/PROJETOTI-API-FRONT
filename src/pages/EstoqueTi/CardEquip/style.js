@@ -33,7 +33,7 @@ export const Almoxarifado = styled.div`
 export const EditButton = styled.button`
   position: absolute;
   top: 10px;
-  right: 10px;
+  right: 50px;
   background-color: #007bff;
   color: white;
   border: none;

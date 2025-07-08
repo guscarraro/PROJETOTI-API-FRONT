@@ -2,6 +2,7 @@ import React from 'react';
 import { CustomCard, EditButton } from './style';
 import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaPencilAlt, FaMobileAlt, FaEnvelope ,FaBarcode } from 'react-icons/fa';
 import { LiaMicrochipSolid } from "react-icons/lia";
+import { Button, Row } from 'reactstrap';
 
 // Função para definir a cor com base no status
 const getStatusStyle = (status) => {
@@ -19,7 +20,7 @@ const getStatusStyle = (status) => {
   }
 };
 
-function CardEquip({ equipamento, onClick, onEdit }) {
+function CardEquip({ equipamento, onClick, onEdit, onDelete }) {
 
   const renderIcon = (tipo, descricao) => {
     switch (tipo) {
@@ -63,10 +64,37 @@ console.log(equipamento);
           e.stopPropagation(); // Impede o clique de abrir o modal de detalhes ao clicar em editar
           onEdit();
         }}
-      >
+        >
         <FaPencilAlt size={12} />
       </EditButton>
+       <Button
+  color="danger"
+  size="sm"
+  onClick={(e) => {
+    e.stopPropagation();
+    onDelete(equipamento); // <-- envia o objeto para o modal
+  }}
+  style={{
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: 'red',
+    color: 'white',
+    border: 'none',
+    padding: 5,
+    borderRadius: 10,
+    cursor: 'pointer',
+    width: '30px',
+    height: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }}
+>
+  🗑️
+</Button>
 
+         
       <div
         style={{
           padding: '20px',
