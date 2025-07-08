@@ -195,14 +195,28 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
 
         </div>
         {selectedNota && (
-          <Button
-            color="primary"
-            onClick={toggleCteModal}
-            style={{ marginLeft: 10, marginBottom: 10 }}
+          <div
+            style={{
+              position: 'sticky',
+              top: -20,
+              right: 10,
+              zIndex: 10,
+              display: 'flex',
+              justifyContent: 'flex-end',
+              padding: 10,
+              background: '#fff',
+            }}
           >
-            Gerar Cobrança
-          </Button>
+            <Button
+              color="primary"
+              onClick={toggleCteModal}
+              size="sm"
+            >
+              Gerar Cobrança
+            </Button>
+          </div>
         )}
+
         <table
           style={{
             width: "100%",
