@@ -527,6 +527,79 @@ const Dashboard = () => {
   }, [isFullScreen]); // O efeito depende do estado de fullscreen
 
 
+const exportarTudoSemClientes = async () => {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet("Notas Agendadas e Atrasadas");
+
+  // Cabeçalho da planilha
+  sheet.addRow([
+    "Nota Fiscal",
+    "Remetente",
+    "Destinatário",
+    "Praça Destino",
+    "Previsão de Entrega",
+    "Dias em Atraso",
+  ]);
+
+  // Estiliza o cabeçalho
+  sheet.getRow(1).eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.alignment = { vertical: "middle", horizontal: "center" };
+    cell.fill = {
+      type: "pattern",
+      pattern: "solid",
+      fgColor: { argb: "FFEFEFEF" },
+    };
+    cell.border = {
+      top: { style: "thin" },
+      left: { style: "thin" },
+      bottom: { style: "thin" },
+      right: { style: "thin" },
+    };
+  });
+
+  const hoje = new Date();
+
+  // Percorre os dois grupos: agendadas (today, tomorrow, inTwoDays) e atrasadas
+  const statusKeys = ['inTwoDays', 'tomorrow', 'today', 'overdue'];
+
+  statusKeys.forEach((statusKey) => {
+    groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
+      notas.forEach((nf) => {
+        const notaInfo = filteredData.find((item) =>
+          item.NF?.split(",").map((n) => n.trim()).includes(nf) &&
+          item.remetente === remetente
+        );
+
+        if (notaInfo) {
+          const previsao = notaInfo.previsao_entrega || "-";
+          const entregaDate = parseDate(previsao);
+          const diasAtraso =
+            statusKey === "overdue" && entregaDate
+              ? Math.floor((hoje - entregaDate) / (1000 * 60 * 60 * 24))
+              : "";
+
+          sheet.addRow([
+            statusKey === "overdue" ? "Atrasada" : "Agendada",
+            nf,
+            remetente,
+            notaInfo.destinatario,
+            notaInfo.praca_destino,
+            previsao,
+            diasAtraso,
+          ]);
+        }
+      });
+    });
+  });
+
+  // Gera e baixa o Excel
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+  saveAs(blob, `Relatorio_Notas_Agendadas_Atrasadas_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
+};
 
 
 
@@ -671,6 +744,10 @@ const Dashboard = () => {
                   <Button color="success" onClick={exportarParaExcel} style={{ width: '200px', cursor: "pointer", }}>
                     Exportar para Excel
                   </Button>
+                  <Button color="warning" onClick={() => exportarTudoSemClientes()} style={{ width: '250px', marginLeft: 10 }}>
+  Exportar tudo para Excel sem clientes
+</Button>
+
                   <Button
                     onClick={() => navigate("/Frete")} // Navegar para Frete
                     style={{

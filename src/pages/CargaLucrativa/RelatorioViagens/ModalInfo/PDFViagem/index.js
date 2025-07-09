@@ -41,6 +41,7 @@ const PDFViagem = ({ viagem }) => {
 
       {/* Elemento oculto para impressão */}
       <div style={{ display: "none" }}>
+        {/* <style>{`@page { size: landscape; }`}</style> */}
         <div ref={contentRef} style={styles.page}>
           {/* Cabeçalho */}
           <div style={styles.header}>
@@ -49,6 +50,52 @@ const PDFViagem = ({ viagem }) => {
               <strong>Data de Inclusão:</strong> {formatarData(viagem.data_inclusao)}
             </p>
           </div>
+{/* Notas Agendadas */}
+<div style={styles.statusBox}>
+  <h3 style={styles.subTitle}>Notas Agendadas</h3>
+  <ul style={{ margin: 0, paddingLeft: "16px" }}>
+    {viagem.documentos_transporte
+      .flatMap(doc =>
+        doc.agendamento && doc.notas_fiscais
+          ? doc.notas_fiscais.filter(nf => nf.numero_nf && nf.numero_nf !== "0").map(nf => ({
+              numero_nf: nf.numero_nf,
+              agendamento: doc.agendamento,
+              cte: doc.numero_cte
+            }))
+          : []
+      )
+      .map((nf, idx) => (
+        <li key={idx}>
+          NF {nf.numero_nf} (CTE {nf.cte}) - Agendada: {formatarData(nf.agendamento)}
+        </li>
+      ))}
+  </ul>
+</div>
+
+{/* Notas Atrasadas */}
+<div style={styles.statusBox}>
+  <h3 style={styles.subTitle}>Notas Atrasadas</h3>
+  <ul style={{ margin: 0, paddingLeft: "16px" }}>
+    {viagem.documentos_transporte
+      .flatMap(doc =>
+        doc.prazo_entrega &&
+        new Date(doc.prazo_entrega) < new Date() &&
+        !doc.agendamento &&
+        doc.notas_fiscais
+          ? doc.notas_fiscais.filter(nf => nf.numero_nf && nf.numero_nf !== "0").map(nf => ({
+              numero_nf: nf.numero_nf,
+              prazo: doc.prazo_entrega,
+              cte: doc.numero_cte
+            }))
+          : []
+      )
+      .map((nf, idx) => (
+        <li key={idx}>
+          NF {nf.numero_nf} (CTE {nf.cte}) - Prazo: {formatarData(nf.prazo)}
+        </li>
+      ))}
+  </ul>
+</div>
 
           {/* Informações Gerais */}
           <div style={styles.section}>
@@ -66,58 +113,67 @@ const PDFViagem = ({ viagem }) => {
             </div>
           </div>
 
-          {/* Box Separado para os CTEs */}
-          <div style={styles.cteBox}>
-            <h3 style={styles.subTitle}>CTEs Vinculados</h3>
-            <div style={styles.cteList}>
-            {viagem.documentos_transporte.map((cte, idx) => (
-  <span key={idx} style={styles.cteItem}>
-    {cte.numero_cte}{idx < viagem.documentos_transporte.length - 1 ? ", " : ""}
-  </span>
-))}
-
-            </div>
-          </div>
 
           {/* Entregas Agendadas e Atrasadas */}
-          <div style={styles.section}>
-            <div style={styles.statusBox}>
-              <h3 style={styles.subTitle}>Entregas Agendadas</h3>
-              <ul>
-                {viagem.documentos_transporte
-                  .filter(doc => doc.agendamento) 
+       {/* Tabela detalhada de CTEs e Notas Fiscais */}
+<div style={{ marginTop: "30px" }}>
+  <h3 style={styles.subTitle}>Detalhamento das Entregas</h3>
+  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+    <thead>
+      <tr style={{ background: "#eee" }}>
+        <th style={styles.th}>CTE</th>
+        <th style={styles.th}>Tomador</th>
+        <th style={styles.th}>Destino</th>
+        <th style={styles.th}>Cidade</th>
+        <th style={styles.th}>Notas Fiscais</th>
+        <th style={styles.th}>Previsão de Entrega</th>
+      </tr>
+    </thead>
+    <tbody>
+      {viagem.documentos_transporte.map((cte, i) => {
+        const isAgendada = !!cte.agendamento;
+        const prazo = cte.prazo_entrega ? new Date(cte.prazo_entrega) : null;
 
-                  .map((cte, idx) => (
-                    <li key={idx}>
-                      CTE: {cte.numero_cte} - {formatarData(cte.prazo_entrega)}
-                    </li>
-                  ))}
-              </ul>
-            </div>
-            <div style={styles.statusBox}>
-              <h3 style={styles.subTitle}>Entregas Atrasadas</h3>
-              <ul>
-                {viagem.documentos_transporte
-                  .filter(doc => doc.prazo_entrega && new Date(doc.prazo_entrega) < new Date())
-                  .map((cte, idx) => (
-                    <li key={idx}>
-                      CTE: {cte.numero_cte} - {formatarData(cte.prazo_entrega)}
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          </div>
+        return (
+          <tr key={i} style={{ borderBottom: "1px solid #ccc" }}>
+            <td style={styles.td}>{cte.numero_cte}</td>
+            <td style={styles.td}>{cte.tomador || "-"}</td>
+            <td style={styles.td}>{cte.destino}</td>
+            <td style={styles.td}>{cte.cidade}</td>
+            <td style={styles.td}>
+              {cte.notas_fiscais?.length ? (
+                <ul style={{ margin: 0, paddingLeft: "16px" }}>
+                  {cte.notas_fiscais
+                    .filter(nf => nf.numero_nf && nf.numero_nf !== "0")
+                    .map((nf, idx) => (
+                      <li key={idx}>{nf.numero_nf}</li>
+                    ))}
+                </ul>
+              ) : (
+                "-"
+              )}
+            </td>
+            <td style={styles.td}>
+              {isAgendada
+                ? new Date(cte.agendamento).toLocaleDateString("pt-BR")
+                : prazo
+                ? prazo.toLocaleDateString("pt-BR")
+                : "-"}
+            </td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</div>
 
-          {/* Roteirização (Parte inferior 50%) */}
-          <div style={styles.routeContainer}>
-            <h3 style={styles.subTitle}>Roteirização</h3>
-            <p style={{ textAlign: "center", color: "#777" }}>Aguardando informações da rota...</p>
-          </div>
         </div>
       </div>
     </>
   );
 };
+
+
 
 // 🔹 Estilos da página de impressão
 const styles = {
@@ -156,6 +212,17 @@ const styles = {
     backgroundColor: "#f8f8f8",
     boxShadow: "0px 1px 4px rgba(0, 0, 0, 0.1)",
   },
+    th: {
+    textAlign: "left",
+    padding: "8px",
+    borderBottom: "2px solid #ccc",
+    backgroundColor: "#f0f0f0",
+  },
+  td: {
+    padding: "6px 8px",
+    verticalAlign: "top",
+  },
+
   cteBox: {
     padding: "15px",
     borderRadius: "8px",

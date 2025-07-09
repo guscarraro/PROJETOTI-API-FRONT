@@ -142,7 +142,7 @@ const GerarViagem = ({ numeroViagemParam }) => {
 
     try {
       const response = await apiLocal.getViagemByNumero(numeroViagem);
-
+      console.log(response)
 
       if (response.data) {
         setNumeroViagem(response.data.numero_viagem);
@@ -267,7 +267,8 @@ const GerarViagem = ({ numeroViagemParam }) => {
       valor_mercadoria: detalhe.valor_mercadoria || 0,
       peso_total: detalhe.peso_total || 0,
       cubagem_total: detalhe.cubagem_total || 0,
-      nfs: detalhe.nfs || [],
+      notas_fiscais: detalhe.nfs || [],
+
     };
 
     if (ctes.length === 0) {

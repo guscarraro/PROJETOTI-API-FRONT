@@ -34,11 +34,11 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
     tipo_operacao: [],
   });
   const [filiaisOrigemOptions, setFiliaisOrigemOptions] = useState([]);
-const [filiaisDestinoOptions, setFiliaisDestinoOptions] = useState([]);
-const [tipoVeiculoOptions, setTipoVeiculoOptions] = useState([]);
-const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
+  const [filiaisDestinoOptions, setFiliaisDestinoOptions] = useState([]);
+  const [tipoVeiculoOptions, setTipoVeiculoOptions] = useState([]);
+  const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
 
-  
+
 
   const metas = {
     "MTZ - 1": 37,
@@ -47,10 +47,10 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
     "MTZ - 4": 50,
     "MTZ": 25,
     "MTZ - Transferencia CAS": 18,
-    "MTZ - Transferencia GUA":18, 
-    "MTZ - Transferencia IBI":18,
-    "MTZ - Transferencia MGA":18, 
-    "MTZ - Transferencia PTO":18, 
+    "MTZ - Transferencia GUA": 18,
+    "MTZ - Transferencia IBI": 18,
+    "MTZ - Transferencia MGA": 18,
+    "MTZ - Transferencia PTO": 18,
     "PTO - 1": 20,
     "PTO - 2": 30,
     "PTO - 3": 40,
@@ -61,7 +61,7 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
     "MGA - 4": 50
   };
   useEffect(() => {
-    setLoading(true); 
+    setLoading(true);
     carregarViagens();
   }, []);
 
@@ -69,7 +69,7 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
     async function carregarOpcoesFiltros() {
       try {
         const res = await apiLocal.getOpcoesFiltrosViagens();
-  
+
         setFiliaisOrigemOptions(res.data.filial_origem.map(v => ({ value: v, label: v })));
         setFiliaisDestinoOptions(res.data.filial_destino.map(v => ({ value: v, label: v })));
         setTipoVeiculoOptions(res.data.tipo_veiculo.map(v => ({ value: v, label: v })));
@@ -78,10 +78,10 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
         console.error("Erro ao carregar filtros:", err);
       }
     }
-  
+
     carregarOpcoesFiltros();
   }, []);
-  
+
 
   const carregarViagens = async () => {
     setLoading(true);
@@ -94,6 +94,7 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
         tipo_operacao: filters.tipo_operacao.map(t => t.value),
       });
       const responseDocumentos = await apiLocal.getDocumentosTransporte(); // ✅ Obtém todos os documentos
+      console.log(responseDocumentos);
 
       if (responseViagens.data && responseDocumentos.data) {
         // Criamos um mapa para associar documentos às suas viagens
@@ -113,12 +114,12 @@ const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
         }));
 
         const ordenadas = viagensComDocumentos.sort((a, b) => new Date(b.data_inclusao) - new Date(a.data_inclusao));
-setViagens(ordenadas);
+        setViagens(ordenadas);
 
       }
     } catch (error) {
       console.error("Erro ao buscar viagens:", error);
-    }finally {
+    } finally {
       setLoading(false); // 🔥 Desativa o loading após a requisição
     }
   };
@@ -135,7 +136,7 @@ setViagens(ordenadas);
       "Custo Total": `R$ ${viagem.total_custo.toFixed(2)}`,
       "Margem (%)": `${viagem.margem_custo > 0 ? "+" : ""}${viagem.margem_custo
         }%`,
-        "Tipo Veículo": viagem.tipo_veiculo,
+      "Tipo Veículo": viagem.tipo_veiculo,
 
       Placa: viagem.placa,
       Motorista: viagem.motorista,
@@ -157,7 +158,7 @@ setViagens(ordenadas);
 
   // Filtrar viagens de acordo com o setor
   const filtrarViagensPorSetor = (viagens) => {
-    
+
     if (setor === "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4") { // PTO
       return viagens.filter(viagem => viagem.user_add === "base.pto");
     } else if (setor === "7a84e2cb-cb4c-4705-b676-9f0a0db5469a") { // MGA
@@ -167,6 +168,8 @@ setViagens(ordenadas);
   };
 
   // Viagens filtradas
+  console.log(viagemSelecionada);
+  
   const viagensFiltradas = filtrarViagensPorSetor(viagens);
   return (
     <Container>
@@ -174,110 +177,110 @@ setViagens(ordenadas);
       <ExportButton onClick={exportarParaExcel}>
         Exportar para Excel
       </ExportButton>
-      <Row style={{ alignContent:'center', width:'100%'}}>
-  <Col md={1}>
-    <FormGroup>
-      <Label>Data Início</Label>
-      <Input
-        type="date"
-        value={filters.dtInicio}
-        onChange={(e) => setFilters(prev => ({ ...prev, dtInicio: e.target.value }))}
-      />
-    </FormGroup>
-  </Col>
-  <Col md={1}>
-    <FormGroup>
-      <Label>Data Final</Label>
-      <Input
-        type="date"
-        value={filters.dtFinal}
-        onChange={(e) => setFilters(prev => ({ ...prev, dtFinal: e.target.value }))}
-      />
-    </FormGroup>
-  </Col>
-  <Col md={2}>
-    <FormGroup>
-      <Label>Filial Origem</Label>
-      <Select
-        isMulti
-        options={filiaisOrigemOptions}
-        value={filters.filial_origem}
-        onChange={(value) => setFilters(prev => ({ ...prev, filial_origem: value }))}
-        placeholder="Selecione"
-        styles={{
-          option: (provided) => ({ ...provided, color: "#000" }),
-          singleValue: (provided) => ({ ...provided, color: "#000" }),
-          multiValue: (provided) => ({ ...provided, color: "#000" }),
-          placeholder: (provided) => ({ ...provided, color: "#888" }),
-        }}
-      />
-    </FormGroup>
-  </Col>
-  <Col md={2}>
-    <FormGroup>
-      <Label>Filial Destino</Label>
-      <Select
-        isMulti
-        options={filiaisDestinoOptions}
-        value={filters.filial_destino}
-        onChange={(value) => setFilters(prev => ({ ...prev, filial_destino: value }))}
-        placeholder="Selecione"
-        styles={{
-          option: (provided) => ({ ...provided, color: "#000" }),
-          singleValue: (provided) => ({ ...provided, color: "#000" }),
-          multiValue: (provided) => ({ ...provided, color: "#000" }),
-          placeholder: (provided) => ({ ...provided, color: "#888" }),
-        }}
-      />
-    </FormGroup>
-  </Col>
+      <Row style={{ alignContent: 'center', width: '100%' }}>
+        <Col md={1}>
+          <FormGroup>
+            <Label>Data Início</Label>
+            <Input
+              type="date"
+              value={filters.dtInicio}
+              onChange={(e) => setFilters(prev => ({ ...prev, dtInicio: e.target.value }))}
+            />
+          </FormGroup>
+        </Col>
+        <Col md={1}>
+          <FormGroup>
+            <Label>Data Final</Label>
+            <Input
+              type="date"
+              value={filters.dtFinal}
+              onChange={(e) => setFilters(prev => ({ ...prev, dtFinal: e.target.value }))}
+            />
+          </FormGroup>
+        </Col>
+        <Col md={2}>
+          <FormGroup>
+            <Label>Filial Origem</Label>
+            <Select
+              isMulti
+              options={filiaisOrigemOptions}
+              value={filters.filial_origem}
+              onChange={(value) => setFilters(prev => ({ ...prev, filial_origem: value }))}
+              placeholder="Selecione"
+              styles={{
+                option: (provided) => ({ ...provided, color: "#000" }),
+                singleValue: (provided) => ({ ...provided, color: "#000" }),
+                multiValue: (provided) => ({ ...provided, color: "#000" }),
+                placeholder: (provided) => ({ ...provided, color: "#888" }),
+              }}
+            />
+          </FormGroup>
+        </Col>
+        <Col md={2}>
+          <FormGroup>
+            <Label>Filial Destino</Label>
+            <Select
+              isMulti
+              options={filiaisDestinoOptions}
+              value={filters.filial_destino}
+              onChange={(value) => setFilters(prev => ({ ...prev, filial_destino: value }))}
+              placeholder="Selecione"
+              styles={{
+                option: (provided) => ({ ...provided, color: "#000" }),
+                singleValue: (provided) => ({ ...provided, color: "#000" }),
+                multiValue: (provided) => ({ ...provided, color: "#000" }),
+                placeholder: (provided) => ({ ...provided, color: "#888" }),
+              }}
+            />
+          </FormGroup>
+        </Col>
 
-  <Col md={2}>
-    <FormGroup>
-      <Label>Tipo de Veículo</Label>
-      <Select
-        isMulti
-        options={tipoVeiculoOptions}
-        value={filters.tipo_veiculo}
-        onChange={(value) => setFilters(prev => ({ ...prev, tipo_veiculo: value }))}
-        placeholder="Selecione"
-        styles={{
-          option: (provided) => ({ ...provided, color: "#000" }),
-          singleValue: (provided) => ({ ...provided, color: "#000" }),
-          multiValue: (provided) => ({ ...provided, color: "#000" }),
-          placeholder: (provided) => ({ ...provided, color: "#888" }),
-        }}
-      />
-    </FormGroup>
-  </Col>
-  <Col md={2}>
-    <FormGroup>
-      <Label>Tipo de Operação</Label>
-      <Select
-        isMulti
-        options={tipoOperacaoOptions}
-        value={filters.tipo_operacao}
-        onChange={(value) => setFilters(prev => ({ ...prev, tipo_operacao: value }))}
-        placeholder="Selecione"
-        styles={{
-          option: (provided) => ({ ...provided, color: "#000" }),
-          singleValue: (provided) => ({ ...provided, color: "#000" }),
-          multiValue: (provided) => ({ ...provided, color: "#000" }),
-          placeholder: (provided) => ({ ...provided, color: "#888" }),
-        }}
-      />
-    </FormGroup>
-  </Col>
-  <Col md={2} style={{ display: "flex", alignItems: "center", marginTop:'15px' }}>
-    <Button color="primary" onClick={carregarViagens} style={{ width: "100%" }} disabled={loading}>
-     {loading ? <LoadingDots/> : "Aplicar Filtros"} 
-    </Button>
-  </Col>
-</Row>
+        <Col md={2}>
+          <FormGroup>
+            <Label>Tipo de Veículo</Label>
+            <Select
+              isMulti
+              options={tipoVeiculoOptions}
+              value={filters.tipo_veiculo}
+              onChange={(value) => setFilters(prev => ({ ...prev, tipo_veiculo: value }))}
+              placeholder="Selecione"
+              styles={{
+                option: (provided) => ({ ...provided, color: "#000" }),
+                singleValue: (provided) => ({ ...provided, color: "#000" }),
+                multiValue: (provided) => ({ ...provided, color: "#000" }),
+                placeholder: (provided) => ({ ...provided, color: "#888" }),
+              }}
+            />
+          </FormGroup>
+        </Col>
+        <Col md={2}>
+          <FormGroup>
+            <Label>Tipo de Operação</Label>
+            <Select
+              isMulti
+              options={tipoOperacaoOptions}
+              value={filters.tipo_operacao}
+              onChange={(value) => setFilters(prev => ({ ...prev, tipo_operacao: value }))}
+              placeholder="Selecione"
+              styles={{
+                option: (provided) => ({ ...provided, color: "#000" }),
+                singleValue: (provided) => ({ ...provided, color: "#000" }),
+                multiValue: (provided) => ({ ...provided, color: "#000" }),
+                placeholder: (provided) => ({ ...provided, color: "#888" }),
+              }}
+            />
+          </FormGroup>
+        </Col>
+        <Col md={2} style={{ display: "flex", alignItems: "center", marginTop: '15px' }}>
+          <Button color="primary" onClick={carregarViagens} style={{ width: "100%" }} disabled={loading}>
+            {loading ? <LoadingDots /> : "Aplicar Filtros"}
+          </Button>
+        </Col>
+      </Row>
 
       {loading ? (
-  <LoadingDots/> // 🔥 Substitua por <LoadingDots /> se desejar
-) : viagensFiltradas.length > 0 ? (
+        <LoadingDots /> // 🔥 Substitua por <LoadingDots /> se desejar
+      ) : viagensFiltradas.length > 0 ? (
         <Table>
           <thead>
             <TableRow>
@@ -304,9 +307,9 @@ setViagens(ordenadas);
               const margemCusto = parseFloat(viagem.margem_custo); // 🔥 Garante que é número
               return (
                 <TableRow key={index}
-                lucrativa={
-                  margemCusto <= (metas[viagem.tipo_operacao] || 18)
-                }
+                  lucrativa={
+                    margemCusto <= (metas[viagem.tipo_operacao] || 18)
+                  }
                   onClick={() => {
                     setViagemSelecionada(viagem); // Define a viagem selecionada
                     setModalInfoOpen(true); // Abre o modal de informações
@@ -338,7 +341,7 @@ setViagens(ordenadas);
 
                   <TableCell>
 
-                   
+
                   </TableCell>
                   <TableCell>
                     <ActionButton
@@ -396,11 +399,12 @@ setViagens(ordenadas);
 
       )}
       {modalInfoOpen && (
-        <ModalInfo
-          viagem={viagemSelecionada}
-          onClose={() => setModalInfoOpen(false)}
-        />
-      )}
+  <ModalInfo
+    numeroViagem={viagemSelecionada.numero_viagem}
+    onClose={() => setModalInfoOpen(false)}
+  />
+)}
+
 
       {/* Modal para excluir viagem */}
       {modalDelOpen && (
