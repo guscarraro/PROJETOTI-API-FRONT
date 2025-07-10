@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import apiLocal from "../../../services/apiLocal";
 import * as XLSX from "xlsx";
 import { FaEdit, FaTrash } from "react-icons/fa"; // Ícones de edição e exclusão
-import ModalEdit from "./ModalEdit"; // Modal para editar CTEs
 import ModalDel from "./ModalDel"; // Modal para excluir viagem
 import { Button, Col, FormGroup, Input, Label, Row } from "reactstrap";
 import Select from "react-select";
@@ -20,7 +19,6 @@ import LoadingDots from "../../../components/Loading";
 
 const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [viagens, setViagens] = useState([]);
-  const [modalEditOpen, setModalEditOpen] = useState(false);
   const [modalDelOpen, setModalDelOpen] = useState(false);
   const [viagemSelecionada, setViagemSelecionada] = useState(null);
   const [modalInfoOpen, setModalInfoOpen] = useState(false);
@@ -37,7 +35,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [filiaisDestinoOptions, setFiliaisDestinoOptions] = useState([]);
   const [tipoVeiculoOptions, setTipoVeiculoOptions] = useState([]);
   const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
-const [loadingInfoModal, setLoadingInfoModal] = useState(false);
+  const [loadingInfoModal, setLoadingInfoModal] = useState(false);
 
 
 
@@ -94,7 +92,7 @@ const [loadingInfoModal, setLoadingInfoModal] = useState(false);
         tipo_veiculo: filters.tipo_veiculo.map(t => t.value),
         tipo_operacao: filters.tipo_operacao.map(t => t.value),
       });
-      const responseDocumentos = await apiLocal.getDocumentosTransporte(); 
+      const responseDocumentos = await apiLocal.getDocumentosTransporte();
 
       if (responseViagens.data && responseDocumentos.data) {
         // Criamos um mapa para associar documentos às suas viagens
@@ -167,7 +165,7 @@ const [loadingInfoModal, setLoadingInfoModal] = useState(false);
     return viagens;
   };
 
-  
+
   const viagensFiltradas = filtrarViagensPorSetor(viagens);
   return (
     <Container>
@@ -309,10 +307,10 @@ const [loadingInfoModal, setLoadingInfoModal] = useState(false);
                     margemCusto <= (metas[viagem.tipo_operacao] || 18)
                   }
                   onClick={() => {
-  setViagemSelecionada(viagem);
-  setLoadingInfoModal(true); // 👉 Ativa o loading
-  setModalInfoOpen(true);
-}}
+                    setViagemSelecionada(viagem);
+                    setLoadingInfoModal(true); // 👉 Ativa o loading
+                    setModalInfoOpen(true);
+                  }}
 
                   style={{ cursor: "pointer" }}>
 
@@ -344,27 +342,7 @@ const [loadingInfoModal, setLoadingInfoModal] = useState(false);
 
                   </TableCell>
                   <TableCell>
-                    <ActionButton
-                      style={{ background: "blue", color: "#fff", borderRadius: "5px 5px 0px 0px" }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setViagemSelecionada({
-                          id: viagem.id,
-                          numero_viagem: viagem.numero_viagem,
-                          total_custo: viagem.total_custo,
-                          placa: viagem.placa,
-                          motorista: viagem.motorista,
-                          total_receita: viagem.total_receita,  // ✅ Passa a receita total
-                          total_entregas: viagem.total_entregas,  // ✅ Passa a quantidade de entregas
-                          total_peso: viagem.total_peso,  // ✅ Passa o peso total
-                          documentos_transporte: viagem.documentos_transporte,
 
-                        });
-                        setModalEditOpen(true);
-                      }}
-                    >
-                      <FaEdit size={16} />
-                    </ActionButton>
                     <ActionButton
                       style={{ background: "red", color: "#fff", borderRadius: "0px 0px 5px 5px" }}
                       onClick={(e) => {
@@ -387,44 +365,34 @@ const [loadingInfoModal, setLoadingInfoModal] = useState(false);
         <p>Nenhuma viagem encontrada.</p>
       )}
 
-      {/* Modal para editar CTEs da viagem */}
-      {modalEditOpen && (
-        <ModalEdit
-          viagem={viagemSelecionada}
-          onClose={() => setModalEditOpen(false)}
-          onSave={carregarViagens}
-          setCurrentTab={setCurrentTab}   // 🔹 Adicionar esta linha
-          setNumeroViagem={setNumeroViagem} // 🔹 Adicionar esta linha
-        />
 
+      {modalInfoOpen && (
+        <>
+          <ModalInfo
+            numeroViagem={viagemSelecionada.numero_viagem}
+            onClose={() => {
+              setModalInfoOpen(false);
+              setLoadingInfoModal(false);
+            }}
+            onLoaded={() => setLoadingInfoModal(false)}
+          />
+          {loadingInfoModal && (
+            <div style={{
+              position: "fixed",
+              top: 0, left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(0,0,0,0.5)",
+              zIndex: 9999,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center"
+            }}>
+              <LoadingDots />
+            </div>
+          )}
+        </>
       )}
-    {modalInfoOpen && (
-  <>
-    <ModalInfo
-      numeroViagem={viagemSelecionada.numero_viagem}
-      onClose={() => {
-        setModalInfoOpen(false);
-        setLoadingInfoModal(false);
-      }}
-      onLoaded={() => setLoadingInfoModal(false)}
-    />
-    {loadingInfoModal && (
-      <div style={{
-        position: "fixed",
-        top: 0, left: 0,
-        width: "100vw",
-        height: "100vh",
-        backgroundColor: "rgba(0,0,0,0.5)",
-        zIndex: 9999,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center"
-      }}>
-        <LoadingDots />
-      </div>
-    )}
-  </>
-)}
 
 
 

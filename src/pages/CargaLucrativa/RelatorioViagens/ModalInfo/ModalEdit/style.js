@@ -11,20 +11,24 @@ export const ModalContainer = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index:1050;
 `;
 
 export const ModalContent = styled.div`
   background: white;
-  width: 50%; 
-  max-width: 450px;
-  padding: 20px;
+  width: 90%;
+  max-width: 800px; /* Aumenta largura */
+  max-height: 90vh;  /* Altura máxima do modal */
+  overflow-y: auto;  /* Scroll vertical */
+  padding: 30px 40px;
   border-radius: 8px;
   box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   color: #000;
 `;
+
 
 // Estilização do FormGroup para alinhar os inputs/selects
 export const FormGroup = styled.div`

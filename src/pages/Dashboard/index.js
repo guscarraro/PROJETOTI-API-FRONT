@@ -527,95 +527,110 @@ const Dashboard = () => {
   }, [isFullScreen]); // O efeito depende do estado de fullscreen
 
 
-const exportarTudoSemClientes = async () => {
-  const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet("Notas Agendadas e Atrasadas");
+  const exportarTudoSemClientes = async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Notas Agendadas e Atrasadas");
 
-  // Cabeçalho
-  sheet.addRow([
-    "Status",
-    "Nota Fiscal",
-    "Remetente",
-    "Destinatário",
-    "Praça Destino",
-    "Previsão de Entrega",
-    "Dias em Atraso"
-  ]);
+    // Cabeçalho
+    // Cabeçalho
+sheet.addRow([
+  "Status",
+  "Número do CTE", // ✅ NOVA COLUNA
+  "Nota Fiscal",
+  "Remetente",
+  "Destinatário",
+  "Praça Destino",
+  "Previsão de Entrega",
+  "Dias em Atraso"
+]);
 
-  // Estiliza o cabeçalho
-  sheet.getRow(1).eachCell((cell) => {
-    cell.font = { bold: true };
-    cell.alignment = { vertical: "middle", horizontal: "center" };
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFEFEFEF" },
-    };
-    cell.border = {
-      top: { style: "thin" },
-      left: { style: "thin" },
-      bottom: { style: "thin" },
-      right: { style: "thin" },
-    };
-  });
 
-  const hoje = new Date();
-  const statusLabels = {
-    inTwoDays: "Entrega em 2 dias",
-    tomorrow: "Entrega em 1 dia",
-    today: "Entrega hoje",
-    overdue: "Atrasada",
-  };
-
-  for (const statusKey of ['inTwoDays', 'tomorrow', 'today', 'overdue']) {
-    groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
-      notas.forEach((nf) => {
-        const notaInfo = filteredData.find((item) =>
-          item.NF?.split(",").map((n) => n.trim()).includes(nf) &&
-          item.remetente === remetente
-        );
-
-        if (notaInfo) {
-          const previsao = notaInfo.previsao_entrega || "-";
-          const entregaDate = parseDate(previsao);
-          const diasAtraso =
-            statusKey === "overdue" && entregaDate
-              ? Math.floor((hoje - entregaDate) / (1000 * 60 * 60 * 24))
-              : "";
-
-          const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
-          const ehForaSJP = notaInfo?.praca_destino?.toUpperCase() !== "SJP";
-
-          let notaComMarcador = nf;
-          if (ehForaSJP && isAgendada) {
-            notaComMarcador += " (VIAGEM + AGENDADO)";
-          } else if (ehForaSJP) {
-            notaComMarcador += " (VIAGEM)";
-          } else if (isAgendada) {
-            notaComMarcador += " (AGENDADO)";
-          }
-
-          sheet.addRow([
-            statusLabels[statusKey],
-            notaComMarcador,
-            remetente,
-            notaInfo.destinatario,
-            notaInfo.praca_destino,
-            previsao,
-            diasAtraso
-          ]);
-        }
-      });
+    // Estiliza o cabeçalho
+    sheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
+      cell.fill = {
+        type: "pattern",
+        pattern: "solid",
+        fgColor: { argb: "FFEFEFEF" },
+      };
+      cell.border = {
+        top: { style: "thin" },
+        left: { style: "thin" },
+        bottom: { style: "thin" },
+        right: { style: "thin" },
+      };
     });
-  }
 
-  // Gerar e salvar
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
-  saveAs(blob, `Relatorio_Entregas_GERAL_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
-};
+    const hoje = new Date();
+    const statusLabels = {
+      inTwoDays: "Entrega em 2 dias",
+      tomorrow: "Entrega em 1 dia",
+      today: "Entrega hoje",
+      overdue: "Atrasada",
+    };
+
+    for (const statusKey of ['inTwoDays', 'tomorrow', 'today', 'overdue']) {
+      groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
+        notas.forEach((nf) => {
+          const notaInfo = filteredData.find((item) =>
+            item.NF?.split(",").map((n) => n.trim()).includes(nf) &&
+            item.remetente === remetente
+          );
+
+          if (notaInfo) {
+            const previsao = notaInfo.previsao_entrega || "-";
+            const entregaDate = parseDate(previsao);
+            const diasAtraso =
+              statusKey === "overdue" && entregaDate
+                ? Math.floor((hoje - entregaDate) / (1000 * 60 * 60 * 24))
+                : "";
+
+            const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
+            const ehForaSJP = notaInfo?.praca_destino?.toUpperCase() !== "SJP";
+
+            let notaComMarcador = nf;
+            if (ehForaSJP && isAgendada) {
+              notaComMarcador += " (VIAGEM + AGENDADO)";
+            } else if (ehForaSJP) {
+              notaComMarcador += " (VIAGEM)";
+            } else if (isAgendada) {
+              notaComMarcador += " (AGENDADO)";
+            }
+            // Verificação de status composto (agendado, viagem, atraso)
+let statusComposto = statusLabels[statusKey]; // Ex: "Atrasada"
+if (ehForaSJP && isAgendada) {
+  statusComposto += " + VIAGEM + AGENDADO";
+} else if (ehForaSJP) {
+  statusComposto += " + VIAGEM";
+} else if (isAgendada) {
+  statusComposto += " + AGENDADO";
+}
+
+
+           sheet.addRow([
+  statusComposto,
+  notaInfo.CTE || "-",
+  notaComMarcador,
+  remetente,
+  notaInfo.destinatario,
+  notaInfo.praca_destino,
+  previsao,
+  diasAtraso
+]);
+
+          }
+        });
+      });
+    }
+
+    // Gerar e salvar
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(blob, `Relatorio_Entregas_GERAL_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
+  };
 
 
 
@@ -761,9 +776,9 @@ const exportarTudoSemClientes = async () => {
                   <Button color="success" onClick={exportarParaExcel} style={{ width: '250px', cursor: "pointer", }}>
                     Exportar Excel por cliente
                   </Button>
-                  <Button color="success" onClick={() => exportarTudoSemClientes()} style={{ width: '250px', color:"#fff",marginLeft: 10 }}>
-  Exportar Excel geral
-</Button>
+                  <Button color="success" onClick={() => exportarTudoSemClientes()} style={{ width: '250px', color: "#fff", marginLeft: 10 }}>
+                    Exportar Excel geral
+                  </Button>
 
                   <Button
                     onClick={() => navigate("/Frete")} // Navegar para Frete

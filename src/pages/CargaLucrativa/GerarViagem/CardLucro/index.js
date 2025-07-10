@@ -11,7 +11,7 @@ import { useParams, useNavigate } from "react-router-dom";
 
 
 
-const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem, setFilialOrigem, setFilialDestino, setObs, setTipoVeiculo, setTipoOperacao, tipoVeiculo, obs, custoManual, setCargaDividida, setCustoManual, cargaDividida, tipoOperacao }) => {
+const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, setNumeroCTE, setCustoViagem, setFilialOrigem, setFilialDestino, setObs, setTipoVeiculo, setTipoOperacao, tipoVeiculo, obs,anexoImg, custoManual, setCargaDividida, setCustoManual, cargaDividida, tipoOperacao }) => {
   const [rentabilidade, setRentabilidade] = useState({ custoPercentual: 0, lucroPercentual: 0, status: "", totalPeso: 0, lucroValor: 0, receitaTotal: 0 });
   const [oldCustoPercentual, setOldCustoPercentual] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -146,6 +146,7 @@ const CardLucro = ({ ctes, custoViagem, numeroViagem, setCtes, setNumeroViagem, 
       placa: "NA",
       motorista: "NA",
       obs: obs || "",
+      anexo_imagem: anexoImg || "",
       custo_manual: custoManual ? "S" : "N",
       carga_dividida: cargaDividida ? "S" : "N",
       tipo_operacao: tipoOperacao || "",
