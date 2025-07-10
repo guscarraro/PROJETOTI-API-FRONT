@@ -104,8 +104,8 @@ const PDFViagem = ({ viagem }) => {
               <p><strong>Motorista:</strong> {viagem.motorista}</p>
             </div>
             <div style={styles.infoBox}>
-              <p><strong>Receita Total:</strong> R$ {viagem.total_receita.toFixed(2)}</p>
-              <p><strong>Custo Total:</strong> R$ {viagem.total_custo.toFixed(2)}</p>
+              <p><strong>Tipo operacao:</strong> {viagem.tipo_operacao}</p>
+              {/* <p><strong>Custo Total:</strong> R$ {viagem.total_custo.toFixed(2)}</p> */}
             </div>
             <div style={styles.infoBox}>
               <p><strong>Margem de Custo:</strong> {viagem.margem_custo}%</p>

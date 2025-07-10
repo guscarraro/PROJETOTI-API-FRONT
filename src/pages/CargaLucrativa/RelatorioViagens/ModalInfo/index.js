@@ -14,20 +14,25 @@ import {
 import PDFViagem from "./PDFViagem";
 import apiLocal from "../../../../services/apiLocal";
 
-const ModalInfo = ({ numeroViagem, onClose }) => {
+const ModalInfo = ({ numeroViagem, onClose, onLoaded }) => {
+
   const [viagem, setViagem] = useState(null);
 
-  useEffect(() => {
-    if (numeroViagem) {
-      apiLocal.getViagemByNumero(numeroViagem).then((res) => {
+useEffect(() => {
+  if (numeroViagem) {
+    apiLocal.getViagemByNumero(numeroViagem)
+      .then((res) => {
         setViagem(res.data);
+      })
+      .finally(() => {
+        if (onLoaded) onLoaded(); // ✅ desliga o loading externo
       });
-    }
-  }, [numeroViagem]);
+  }
+}, [numeroViagem]);
+
 
 
   if (!viagem) return null; // ou <Loading />
-console.log(viagem);
 
   
 
@@ -62,23 +67,23 @@ console.log(viagem);
   </Card>
  
   <Card>
-    <InfoLabel>Total de Entregas</InfoLabel>
-    <InfoValue>{viagem.total_entregas}</InfoValue>
-  </Card>
-  <Card>
     <InfoLabel>Peso Total</InfoLabel>
     <InfoValue>{viagem.total_peso} kg</InfoValue>
-  </Card>
-  <Card>
-    <InfoLabel>Observação</InfoLabel>
-    <InfoValue>{viagem.obs || "Nenhuma observação."}</InfoValue>
   </Card>
   <Card>
     <InfoLabel>Custo</InfoLabel>
     <InfoValue>R$ {viagem.total_custo || "Nenhum custo."}</InfoValue>
   </Card>
+  <Card>
+    <InfoLabel>Observação</InfoLabel>
+    <InfoValue>{viagem.obs || "Nenhuma observação."}</InfoValue>
+  </Card>
 
   {/* ✅ Cards de resumo corrigidos */}
+  <Card>
+    <InfoLabel>Total de Entregas</InfoLabel>
+    <InfoValue>{viagem.total_entregas}</InfoValue>
+  </Card>
   <Card style={{ background: "#007bff", color: "#fff" }}>
     <InfoLabel style={{  color: "#fff" }}>Entregas Agendadas</InfoLabel>
     <InfoValue style={{  color: "#fff" }}>

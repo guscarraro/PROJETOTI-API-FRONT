@@ -531,14 +531,15 @@ const exportarTudoSemClientes = async () => {
   const workbook = new ExcelJS.Workbook();
   const sheet = workbook.addWorksheet("Notas Agendadas e Atrasadas");
 
-  // Cabeçalho da planilha
+  // Cabeçalho
   sheet.addRow([
+    "Status",
     "Nota Fiscal",
     "Remetente",
     "Destinatário",
     "Praça Destino",
     "Previsão de Entrega",
-    "Dias em Atraso",
+    "Dias em Atraso"
   ]);
 
   // Estiliza o cabeçalho
@@ -559,11 +560,14 @@ const exportarTudoSemClientes = async () => {
   });
 
   const hoje = new Date();
+  const statusLabels = {
+    inTwoDays: "Entrega em 2 dias",
+    tomorrow: "Entrega em 1 dia",
+    today: "Entrega hoje",
+    overdue: "Atrasada",
+  };
 
-  // Percorre os dois grupos: agendadas (today, tomorrow, inTwoDays) e atrasadas
-  const statusKeys = ['inTwoDays', 'tomorrow', 'today', 'overdue'];
-
-  statusKeys.forEach((statusKey) => {
+  for (const statusKey of ['inTwoDays', 'tomorrow', 'today', 'overdue']) {
     groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
       notas.forEach((nf) => {
         const notaInfo = filteredData.find((item) =>
@@ -579,27 +583,40 @@ const exportarTudoSemClientes = async () => {
               ? Math.floor((hoje - entregaDate) / (1000 * 60 * 60 * 24))
               : "";
 
+          const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
+          const ehForaSJP = notaInfo?.praca_destino?.toUpperCase() !== "SJP";
+
+          let notaComMarcador = nf;
+          if (ehForaSJP && isAgendada) {
+            notaComMarcador += " (VIAGEM + AGENDADO)";
+          } else if (ehForaSJP) {
+            notaComMarcador += " (VIAGEM)";
+          } else if (isAgendada) {
+            notaComMarcador += " (AGENDADO)";
+          }
+
           sheet.addRow([
-            statusKey === "overdue" ? "Atrasada" : "Agendada",
-            nf,
+            statusLabels[statusKey],
+            notaComMarcador,
             remetente,
             notaInfo.destinatario,
             notaInfo.praca_destino,
             previsao,
-            diasAtraso,
+            diasAtraso
           ]);
         }
       });
     });
-  });
+  }
 
-  // Gera e baixa o Excel
+  // Gerar e salvar
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
-  saveAs(blob, `Relatorio_Notas_Agendadas_Atrasadas_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
+  saveAs(blob, `Relatorio_Entregas_GERAL_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
 };
+
 
 
 
@@ -741,11 +758,11 @@ const exportarTudoSemClientes = async () => {
                     <option value="last30Days">Últimos 30 Dias</option>
                     <option value="last15Days">Últimos 15 Dias</option>
                   </select>
-                  <Button color="success" onClick={exportarParaExcel} style={{ width: '200px', cursor: "pointer", }}>
-                    Exportar para Excel
+                  <Button color="success" onClick={exportarParaExcel} style={{ width: '250px', cursor: "pointer", }}>
+                    Exportar Excel por cliente
                   </Button>
-                  <Button color="warning" onClick={() => exportarTudoSemClientes()} style={{ width: '250px', marginLeft: 10 }}>
-  Exportar tudo para Excel sem clientes
+                  <Button color="success" onClick={() => exportarTudoSemClientes()} style={{ width: '250px', color:"#fff",marginLeft: 10 }}>
+  Exportar Excel geral
 </Button>
 
                   <Button

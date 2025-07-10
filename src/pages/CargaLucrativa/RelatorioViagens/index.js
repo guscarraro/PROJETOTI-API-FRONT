@@ -37,6 +37,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
   const [filiaisDestinoOptions, setFiliaisDestinoOptions] = useState([]);
   const [tipoVeiculoOptions, setTipoVeiculoOptions] = useState([]);
   const [tipoOperacaoOptions, setTipoOperacaoOptions] = useState([]);
+const [loadingInfoModal, setLoadingInfoModal] = useState(false);
 
 
 
@@ -93,8 +94,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
         tipo_veiculo: filters.tipo_veiculo.map(t => t.value),
         tipo_operacao: filters.tipo_operacao.map(t => t.value),
       });
-      const responseDocumentos = await apiLocal.getDocumentosTransporte(); // ✅ Obtém todos os documentos
-      console.log(responseDocumentos);
+      const responseDocumentos = await apiLocal.getDocumentosTransporte(); 
 
       if (responseViagens.data && responseDocumentos.data) {
         // Criamos um mapa para associar documentos às suas viagens
@@ -167,8 +167,6 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
     return viagens;
   };
 
-  // Viagens filtradas
-  console.log(viagemSelecionada);
   
   const viagensFiltradas = filtrarViagensPorSetor(viagens);
   return (
@@ -311,9 +309,11 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
                     margemCusto <= (metas[viagem.tipo_operacao] || 18)
                   }
                   onClick={() => {
-                    setViagemSelecionada(viagem); // Define a viagem selecionada
-                    setModalInfoOpen(true); // Abre o modal de informações
-                  }}
+  setViagemSelecionada(viagem);
+  setLoadingInfoModal(true); // 👉 Ativa o loading
+  setModalInfoOpen(true);
+}}
+
                   style={{ cursor: "pointer" }}>
 
                   <TableCell>{viagem.numero_viagem}</TableCell>
@@ -398,12 +398,35 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
         />
 
       )}
-      {modalInfoOpen && (
-  <ModalInfo
-    numeroViagem={viagemSelecionada.numero_viagem}
-    onClose={() => setModalInfoOpen(false)}
-  />
+    {modalInfoOpen && (
+  <>
+    <ModalInfo
+      numeroViagem={viagemSelecionada.numero_viagem}
+      onClose={() => {
+        setModalInfoOpen(false);
+        setLoadingInfoModal(false);
+      }}
+      onLoaded={() => setLoadingInfoModal(false)}
+    />
+    {loadingInfoModal && (
+      <div style={{
+        position: "fixed",
+        top: 0, left: 0,
+        width: "100vw",
+        height: "100vh",
+        backgroundColor: "rgba(0,0,0,0.5)",
+        zIndex: 9999,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center"
+      }}>
+        <LoadingDots />
+      </div>
+    )}
+  </>
 )}
+
+
 
 
       {/* Modal para excluir viagem */}
