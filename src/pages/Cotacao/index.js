@@ -66,8 +66,14 @@ const [remuneracao, setRemuneracao] = useState({ taxa: 1 });
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json(sheet);
 
-      const parseFloatPtBr = (val) =>
-        parseFloat(String(val).replace(/\./g, "").replace(",", ".")) || 0;
+     const parseFloatPtBr = (val) => {
+  if (typeof val === "number") return val;
+  if (typeof val === "string") {
+    return parseFloat(val.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+  return 0;
+};
+
 
       const parsed = json.map((row, i) => {
         const bruto = parseFloatPtBr(row["Valor bruto"]);

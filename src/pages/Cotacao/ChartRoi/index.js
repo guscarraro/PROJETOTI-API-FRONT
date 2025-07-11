@@ -21,32 +21,44 @@ const ChartRoi = ({ receitaTotal, custoTotal }) => {
       maximumFractionDigits: 2,
     })}`;
 
-  const projecao = [
-    {
-      periodo: "6 meses",
-      receita: receitaTotal * 6,
-      custo: custoTotal * 6,
-      retorno: lucroMes * 6,
-    },
-    {
-      periodo: "1 ano",
-      receita: receitaTotal * 12,
-      custo: custoTotal * 12,
-      retorno: lucroMes * 12,
-    },
-    {
-      periodo: "2 anos",
-      receita: receitaTotal * 24,
-      custo: custoTotal * 24,
-      retorno: lucroMes * 24,
-    },
-    {
-      periodo: "3 anos",
-      receita: receitaTotal * 36,
-      custo: custoTotal * 36,
-      retorno: lucroMes * 36,
-    },
-  ];
+ const projecao = [
+  {
+    periodo: "1 mês",
+    receita: receitaTotal * 1,
+    custo: custoTotal * 1,
+    retorno: lucroMes * 1,
+  },
+  {
+    periodo: "3 meses",
+    receita: receitaTotal * 3,
+    custo: custoTotal * 3,
+    retorno: lucroMes * 3,
+  },
+  {
+    periodo: "6 meses",
+    receita: receitaTotal * 6,
+    custo: custoTotal * 6,
+    retorno: lucroMes * 6,
+  },
+  {
+    periodo: "1 ano",
+    receita: receitaTotal * 12,
+    custo: custoTotal * 12,
+    retorno: lucroMes * 12,
+  },
+  {
+    periodo: "2 anos",
+    receita: receitaTotal * 24,
+    custo: custoTotal * 24,
+    retorno: lucroMes * 24,
+  },
+  {
+    periodo: "3 anos",
+    receita: receitaTotal * 36,
+    custo: custoTotal * 36,
+    retorno: lucroMes * 36,
+  },
+];
 
   return (
     <Card className="custom-card">
