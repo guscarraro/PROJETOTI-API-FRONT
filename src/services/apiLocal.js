@@ -17,6 +17,8 @@ const apiLocal = {
   createOrUpdateMotorista: (data) => api.post("/motoristas/", data),
   deleteMotorista: (id) => api.delete(`/motoristas/${id}`),
 
+  updateCamposCliente: (clienteId, data) => api.put(`/clientes/${clienteId}/campos-opcionais`, data),
+
   getClientes: () => api.get("/clientes/"),
   createOrUpdateCliente: (data) => api.post("/clientes/", data),
   deleteCliente: (id) => api.delete(`/clientes/${id}`),

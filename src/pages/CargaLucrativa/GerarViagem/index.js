@@ -302,10 +302,17 @@ const GerarViagem = ({ numeroViagemParam }) => {
         return;
       }
 
-      if (ctes.some((cte) => cte.numero_cte === novoCTE.numero_cte)) {
-        toast.warning("Já existe esse CTE nessa viagem!");
+      const normalizarCTE = (numero) => String(numero).replace(/\D/g, "").replace(/^0+/, "");
+
+      const cteDigitado = normalizarCTE(novoCTE.numero_cte);
+
+      if (
+        ctes.some((cte) => normalizarCTE(cte.numero_cte) === cteDigitado)
+      ) {
+        toast.warning("Esse CTE já está na viagem!");
         return;
       }
+
 
       setCtes((prev) => [...prev, novoCTE]);
       calcularCustoViagem();
