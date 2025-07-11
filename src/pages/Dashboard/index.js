@@ -16,6 +16,7 @@ import { formatDate } from '../../helpers';
 import { fetchIndiceAtendimento } from '../../services/api';
 import { useNavigate } from "react-router-dom";
 import apiLocal from '../../services/apiLocal';
+import CarouselCards from './CarouselCards';
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -279,6 +280,8 @@ const Dashboard = () => {
     const workbook = new ExcelJS.Workbook();
 
     const statusLabels = {
+      inThreeDays: "Pendentes para entregar em 3 dias",
+
       inTwoDays: "Pendentes para entregar em 2 dias",
       tomorrow: "Pendentes para entregar em 1 dia",
       today: "Entregas hoje",
@@ -286,35 +289,33 @@ const Dashboard = () => {
     };
 
     const colIndexMap = {
-      inTwoDays: 1,
-      tomorrow: 3,
-      today: 5,
-      overdue: 7,
+      inThreeDays: 1,
+      inTwoDays: 3,
+      tomorrow: 5,
+      today: 7,
+      overdue: 9,
     };
 
     for (const [statusKey, label] of Object.entries(statusLabels)) {
       groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
         const safeSheetName = remetente
-          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
-          .replace(/[*?:\/\\[\]]/g, "-") // remove caracteres inválidos
-          .substring(0, 31); // limita a 31 caracteres
-        // Excel limita a 31 caracteres
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[*?:\/\\[\]]/g, "-")
+          .substring(0, 31);
+
         let sheet = workbook.getWorksheet(safeSheetName);
 
         if (!sheet) {
           sheet = workbook.addWorksheet(safeSheetName);
 
-
-          // Cabeçalho formatado
+          // Cabeçalho
           sheet.addRow([
-            "Pendentes para entregar em 2 dias",
-            "",
-            "Pendentes para entregar em 1 dia",
-            "",
-            "Entregas hoje",
-            "",
-            "Atrasadas",
-            "Dias em atraso",
+            "Pendentes para entregar em 3 dias", "Destino",
+
+            "Pendentes para entregar em 2 dias", "Destino",
+            "Pendentes para entregar em 1 dia", "Destino",
+            "Entregas hoje", "Destino",
+            "Atrasadas", "Destino", "Dias em atraso"
           ]);
 
           // Estilizar cabeçalho
@@ -352,9 +353,8 @@ const Dashboard = () => {
             notaComMarcador += " (AGENDADO)";
           }
 
-
+          // Coluna da nota
           row.getCell(col).value = notaComMarcador;
-
           row.getCell(col).alignment = { vertical: "middle", horizontal: "center" };
           row.getCell(col).border = {
             top: { style: "thin" },
@@ -363,6 +363,18 @@ const Dashboard = () => {
             right: { style: "thin" },
           };
 
+          // Coluna do destino (com praça)
+          const destinoFormatado = `${notaInfo?.destino || "-"} (${notaInfo?.praca_destino || "-"})`;
+          row.getCell(col + 1).value = destinoFormatado;
+          row.getCell(col + 1).alignment = { vertical: "middle", horizontal: "center" };
+          row.getCell(col + 1).border = {
+            top: { style: "thin" },
+            left: { style: "thin" },
+            bottom: { style: "thin" },
+            right: { style: "thin" },
+          };
+
+          // Dias em atraso (somente para "overdue")
           if (statusKey === "overdue") {
             const entregaInfo = filteredData.find(item =>
               item.NF?.split(",").map(s => s.trim()).includes(nf)
@@ -376,9 +388,9 @@ const Dashboard = () => {
               diasAtraso = diff > 0 ? diff : "";
             }
 
-            row.getCell(col + 1).value = diasAtraso;
-            row.getCell(col + 1).alignment = { vertical: "middle", horizontal: "center" };
-            row.getCell(col + 1).border = {
+            row.getCell(col + 2).value = diasAtraso;
+            row.getCell(col + 2).alignment = { vertical: "middle", horizontal: "center" };
+            row.getCell(col + 2).border = {
               top: { style: "thin" },
               left: { style: "thin" },
               bottom: { style: "thin" },
@@ -386,14 +398,16 @@ const Dashboard = () => {
             };
           }
 
-          row.commit(); // Importante ao usar getRow()
+          row.commit(); // Importante para aplicar alterações
         });
       });
     }
 
     // Gerar arquivo
     const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
     saveAs(blob, `Relatorio_Entregas_Formatado_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
   };
 
@@ -415,6 +429,8 @@ const Dashboard = () => {
     inTwoDays.setDate(today.getDate() + 2);
     const startOfInTwoDays = new Date(inTwoDays.setHours(0, 0, 0, 0)).getTime();
     const endOfInTwoDays = new Date(inTwoDays.setHours(23, 59, 59, 999)).getTime();
+
+
 
     const result = [];
 
@@ -453,6 +469,18 @@ const Dashboard = () => {
           break;
         default:
           break;
+        case 'inThreeDays':
+          const inThreeDays = new Date();
+          inThreeDays.setDate(today.getDate() + 3);
+          const startOfInThreeDays = new Date(inThreeDays.setHours(0, 0, 0, 0)).getTime();
+          const endOfInThreeDays = new Date(inThreeDays.setHours(23, 59, 59, 999)).getTime();
+
+          include =
+            deliveryDate >= startOfInThreeDays &&
+            deliveryDate <= endOfInThreeDays &&
+            item.cte_entregue !== 1;
+          break;
+
       }
 
       if (include) {
@@ -533,16 +561,18 @@ const Dashboard = () => {
 
     // Cabeçalho
     // Cabeçalho
-sheet.addRow([
-  "Status",
-  "Número do CTE", // ✅ NOVA COLUNA
-  "Nota Fiscal",
-  "Remetente",
-  "Destinatário",
-  "Praça Destino",
-  "Previsão de Entrega",
-  "Dias em Atraso"
-]);
+    sheet.addRow([
+      "Status",
+      "Número do CTE",
+      "Nota Fiscal",
+      "Destino", // ✅ NOVO
+      "Praça Destino",
+      "Remetente",
+      "Destinatário",
+      "Previsão de Entrega",
+      "Dias em Atraso"
+    ]);
+
 
 
     // Estiliza o cabeçalho
@@ -564,13 +594,14 @@ sheet.addRow([
 
     const hoje = new Date();
     const statusLabels = {
+      inThreeDays: "Entrega em 3 dias",
       inTwoDays: "Entrega em 2 dias",
       tomorrow: "Entrega em 1 dia",
       today: "Entrega hoje",
       overdue: "Atrasada",
     };
 
-    for (const statusKey of ['inTwoDays', 'tomorrow', 'today', 'overdue']) {
+    for (const statusKey of ['inThreeDays', 'inTwoDays', 'tomorrow', 'today', 'overdue']) {
       groupedDataByStatus[statusKey].forEach(({ remetente, notas }) => {
         notas.forEach((nf) => {
           const notaInfo = filteredData.find((item) =>
@@ -598,26 +629,28 @@ sheet.addRow([
               notaComMarcador += " (AGENDADO)";
             }
             // Verificação de status composto (agendado, viagem, atraso)
-let statusComposto = statusLabels[statusKey]; // Ex: "Atrasada"
-if (ehForaSJP && isAgendada) {
-  statusComposto += " + VIAGEM + AGENDADO";
-} else if (ehForaSJP) {
-  statusComposto += " + VIAGEM";
-} else if (isAgendada) {
-  statusComposto += " + AGENDADO";
-}
+            let statusComposto = statusLabels[statusKey]; // Ex: "Atrasada"
+            if (ehForaSJP && isAgendada) {
+              statusComposto += " + VIAGEM + AGENDADO";
+            } else if (ehForaSJP) {
+              statusComposto += " + VIAGEM";
+            } else if (isAgendada) {
+              statusComposto += " + AGENDADO";
+            }
 
 
-           sheet.addRow([
-  statusComposto,
-  notaInfo.CTE || "-",
-  notaComMarcador,
-  remetente,
-  notaInfo.destinatario,
-  notaInfo.praca_destino,
-  previsao,
-  diasAtraso
-]);
+            sheet.addRow([
+              statusComposto,
+              notaInfo.CTE || "-",
+              notaComMarcador,
+              notaInfo.destino || "-", // ✅ NOVA COLUNA DESTINO
+              notaInfo.praca_destino,
+              remetente,
+              notaInfo.destinatario,
+              previsao,
+              diasAtraso
+            ]);
+
 
           }
         });
@@ -648,6 +681,8 @@ if (ehForaSJP && isAgendada) {
     today: groupByRemetente(filterDataByStatus(filteredData, 'today')),
     tomorrow: groupByRemetente(filterDataByStatus(filteredData, 'tomorrow')),
     inTwoDays: groupByRemetente(filterDataByStatus(filteredData, 'inTwoDays')),
+    inThreeDays: groupByRemetente(filterDataByStatus(filteredData, 'inThreeDays')),
+
     overdue: groupByRemetente(filterDataByStatus(filteredData, 'overdue')),
   };
 
@@ -844,126 +879,14 @@ if (ehForaSJP && isAgendada) {
                   </Col>
                 </Row>
               )}
-
-              <Row>
-                {['inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
-                  <Col md="6" lg="3" key={index}>
-                    <Box bgColor={boxColors[status]} isPulsing={status === 'overdue'}>
-                      {status === 'inTwoDays' && (
-                        <>
-                          <FaClipboardCheck size={30} color="#FFA500" />
-                          <h5>Entregas em 2 Dias</h5>
-                        </>
-                      )}
-                      {status === 'today' && (
-                        <>
-                          <FaEye size={30} color="#FFD700" />
-                          <h5>Entregas Hoje</h5>
-                        </>
-                      )}
-                      {status === 'tomorrow' && (
-                        <>
-                          <FaClipboardCheck size={30} color="#00FF7F" />
-                          <h5>Entregas em 1 Dia</h5>
-                        </>
-                      )}
-                      {status === 'overdue' && (
-                        <>
-                          <FaExclamationTriangle size={30} color="#FF4500" />
-                          <h5>Atrasadas</h5>
-                        </>
-                      )}
-                      <p className="lead">
-                        {calculateTotalNotesByStatus(groupedDataByStatus[status])}
-                      </p>
-                      <ProgressBar
-                        progress={
-                          groupedDataByStatus[status].length > 0
-                            ? (calculateTotalNotesByStatus(groupedDataByStatus[status]) /
-                              calculateOverallNotes(groupedDataByStatus)) *
-                            100
-                            : 0
-                        }
-                      />
-                      <NoteList>
-                        {groupedDataByStatus[status].map((item, idx) => (
-                          <NoteItem key={idx} isOpen={dropdownOpen[item.remetente]}>
-                            <div
-                              onClick={() => toggleDropdown(item.remetente)}
-                              style={{
-                                cursor: 'pointer',
-                                display: 'flex',
-                                flexDirection: 'column',
-                              }}
-                            >
-                              {item.remetente}:<br />
-                              <span
-                                style={{
-                                  fontSize: '20px',
-                                  fontWeight: 500,
-                                  display: 'flex',
-                                  justifyContent: 'space-between',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                {item.count} {item.count === 1 ? 'nota' : 'notas'}
-                                {dropdownOpen[item.remetente] ? (
-                                  <FaChevronUp />
-                                ) : (
-                                  <FaChevronDown />
-                                )}
-                              </span>
-                            </div>
-                            {dropdownOpen[item.remetente] && (
-                              <ul style={{ paddingLeft: '15px' }}>
-                                {item.notas.map((nf, noteIdx) => {
-                                  const notaInfo = filteredData.find((d) =>
-                                    d.NF?.split(",").map((n) => n.trim()).includes(nf) &&
-                                    d.remetente === item.remetente
-                                  );
-
-                                  const isAgendada = notaInfo?.destinatario?.includes("(AGENDADO)");
-
-
-                                  return (
-                                    <li
-                                      key={noteIdx}
-                                      style={{
-                                        background:
-                                          isAgendada && notaInfo?.praca_destino !== "SJP"
-                                            ? "linear-gradient(90deg, orange, orange, #007BFF ,#007BFF, #007BFF )"
-                                            : isAgendada
-                                              ? "#007BFF"
-                                              : notaInfo?.praca_destino !== "SJP"
-                                                ? "orange"
-                                                : "transparent",
-                                        color:
-                                          isAgendada || notaInfo?.praca_destino !== "SJP"
-                                            ? "#fff"
-                                            : "#fff",
-                                        padding: "4px 8px",
-                                        borderRadius: "5px",
-                                        marginBottom: "4px",
-                                      }}
-                                    >
-                                      NF: {nf} - ({notaInfo.praca_destino}) {notaInfo.destino}{" "}
-                                      {isAgendada && <strong style={{ marginLeft: 6 }}>A</strong>}
-                                    </li>
-
-
-
-                                  );
-                                })}
-                              </ul>
-
-                            )}
-                          </NoteItem>
-                        ))}
-                      </NoteList>
-                    </Box>
-                  </Col>
-                ))}
-              </Row>
+              <CarouselCards
+                groupedDataByStatus={groupedDataByStatus}
+                calculateTotalNotesByStatus={calculateTotalNotesByStatus}
+                calculateOverallNotes={calculateOverallNotes}
+                dropdownOpen={dropdownOpen}
+                toggleDropdown={toggleDropdown}
+                filteredData={filteredData}
+              />
 
             </>
           )}
