@@ -18,6 +18,7 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
   const [selectedNota, setSelectedNota] = useState(null);
   const [isCteModalOpen, setIsCteModalOpen] = useState(false);
   const [cteValue, setCteValue] = useState("");
+    const [isValid, setIsValid] = useState(true);
 
   const toggleCteModal = () => setIsCteModalOpen(!isCteModalOpen);
 
@@ -43,6 +44,21 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Ocorrencias_Sem_Cobranca");
     XLSX.writeFile(wb, "Ocorrencias_Sem_Cobranca.xlsx");
+  };
+
+  const handleChange = (e) => {
+    const value = e.target.value;
+
+    if (value === 'ACORDO COMERCIAL VIGENTE') {
+      setCteValue(value);
+      setIsValid(true);
+    } else if (/^\d+$/.test(value)) {
+      setCteValue(value);
+      setIsValid(true);
+    } else {
+      setCteValue(value);
+      setIsValid(false);
+    }
   };
 
   const handleSaveCte = async () => {
@@ -280,12 +296,15 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
                   }}
                 >
                   <td style={cellStyle}>
-                    <input
-                      type="checkbox"
-                      checked={item.nf === selectedNota}
-                      onChange={() => handleCheckboxChange(item.nf)}
-                    />
-                  </td>
+  {isTempoExcedido && (
+    <input
+      type="checkbox"
+      checked={item.nf === selectedNota}
+      onChange={() => handleCheckboxChange(item.nf)}
+    />
+  )}
+</td>
+
                   <td style={cellStyle}>{item.nf}</td>
                   <td style={cellStyle}>{item.cliente}</td>
                   <td style={cellStyle}>
@@ -320,11 +339,17 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
         <ModalBody>
           <p>Informe o número do CTE para a nota selecionada:</p>
           <Input
-            type="number"
-            value={cteValue}
-            onChange={(e) => setCteValue(e.target.value)}
-            placeholder="Número do CTE"
-          />
+  type="text"
+  value={cteValue}
+  onChange={handleChange}
+  placeholder="Número do CTE ou selecione"
+  list="cte-options"
+  invalid={!isValid}
+/>
+<datalist id="cte-options">
+  <option value="ACORDO COMERCIAL VIGENTE" />
+</datalist>
+
         </ModalBody>
         <ModalFooter>
           <Button color="primary" onClick={handleSaveCte}>

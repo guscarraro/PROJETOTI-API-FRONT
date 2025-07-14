@@ -34,7 +34,8 @@ const App = () => {
         allowedSectors={[
           '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
           '958db54e-add5-45f6-8aef-739d6ba7cb4c',
-          '2c17e352-ffcd-4c7b-a771-1964aaee1f79' // UUID do setor Frete
+          '2c17e352-ffcd-4c7b-a771-1964aaee1f79',
+          '442ec24d-4c7d-4b7e-b1dd-8261c9376d0f' // UUID do setor Frete
         ]}
       />
     }

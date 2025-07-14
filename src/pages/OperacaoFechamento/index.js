@@ -4,6 +4,7 @@ import {
   Container,
   Row,
   Col,
+  Button,
 } from "reactstrap";
 import { MdDoneOutline } from "react-icons/md";
 import {
@@ -21,12 +22,17 @@ import TopTomadoresQuantidade from "./TopTomadoresQuantidade";
 import FilialChart from "./FilialChart";
 import { StyledSelect } from "../../components/StyledSelect";
 import apiLocal from "../../services/apiLocal";
+import { useNavigate } from "react-router-dom";
+
 
 const OperacaoFechamento = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedTomadores, setSelectedTomadores] = useState([]); // Armazena os tomadores selecionados
   const [selectedMonths, setSelectedMonths] = useState([]); // Armazena os meses selecionados
+  const navigate = useNavigate();
+
+
 
   const monthOptions = [
     { value: "2024-10", label: "Outubro 2024" },
@@ -188,6 +194,12 @@ const OperacaoFechamento = () => {
                   onChange={setSelectedMonths}
                   value={selectedMonths}
                 />
+              </Col>
+              <Col md="4" style={{display:'flex', alignItems:'center'}}>
+                <Button onClick={() => navigate("/SAC")} style={{marginBottom:-15, background:'primary'}}>
+                  Ir para SAC
+                </Button>
+
               </Col>
             </Row>
 
