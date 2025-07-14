@@ -142,7 +142,7 @@ const GerarViagem = ({ numeroViagemParam }) => {
     setLoadingViagem(true);
 
     try {
-      const response = await apiLocal.getViagemByNumero(numeroViagem);
+      const response = await apiLocal.getViagemById(numeroViagem);
       console.log(response)
 
       if (response.data) {

@@ -277,7 +277,7 @@ const ModalEdit = ({ viagem, onClose, onSave, setCurrentTab, setNumeroViagem }) 
           <ActionButton
             style={{ background: "#007bff", color: "#fff", padding: "10px 20px" }}
             onClick={() => {
-              navigate(`/gerar-viagem/${viagem.numero_viagem}`);
+              navigate(`/gerar-viagem/${viagem.id}`);
             }}
           >
             + Adicionar/ - Remover CTE

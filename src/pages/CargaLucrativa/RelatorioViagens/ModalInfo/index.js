@@ -107,28 +107,30 @@ const ModalInfo = ({ viagemId, onClose, onLoaded }) => {
                 }
               </InfoValue>
             </Card>
-            <Card style={{ background: "#dc3545", color: "#fff" }}>
-              <InfoLabel style={{ color: "#fff" }}>Entregas Atrasadas</InfoLabel>
-              <InfoValue style={{ color: "#fff" }}>
-                {
-                  viagem.documentos_transporte.filter(cte => {
-                    const prazo = cte.prazo_entrega ? new Date(cte.prazo_entrega) : null;
-                    const hoje = new Date();
-                    return prazo && prazo < hoje && !cte.agendamento;
-                  }).length
-                }
-              </InfoValue>
-            </Card>
-           {viagem.anexo_imagem && (
-  <Card style={{ flex: "1 1 100%" }}>
-    <InfoLabel>Anexo da Viagem</InfoLabel>
-    <img
-      src={viagem.anexo_imagem}
-      alt="Anexo da Viagem"
-      style={{ width: "100%", maxHeight: "600px", objectFit: "contain", borderRadius: "8px" }}
-    />
-  </Card>
-)}
+           <Card style={{ background: "#dc3545", color: "#fff" }}>
+  <InfoLabel style={{ color: "#fff" }}>Entregas Atrasadas</InfoLabel>
+  <InfoValue style={{ color: "#fff" }}>
+    {
+      viagem.documentos_transporte.filter(cte => {
+        const prazo = cte.prazo_entrega ? new Date(cte.prazo_entrega) : null;
+        const hoje = new Date();
+        return prazo && prazo < hoje; // ← conta todas atrasadas, inclusive agendadas
+      }).length
+    }
+  </InfoValue>
+</Card>
+
+
+            {viagem.anexo_imagem && (
+              <Card style={{ flex: "1 1 100%" }}>
+                <InfoLabel>Anexo da Viagem</InfoLabel>
+                <img
+                  src={viagem.anexo_imagem}
+                  alt="Anexo da Viagem"
+                  style={{ width: "100%", maxHeight: "600px", objectFit: "contain", borderRadius: "8px" }}
+                />
+              </Card>
+            )}
 
             {/* Tabela de CTEs */}
             <Card style={{ flex: "1 1 100%" }}>
@@ -149,7 +151,8 @@ const ModalInfo = ({ viagemId, onClose, onLoaded }) => {
                     const isAgendada = !!cte.agendamento;
                     const prazo = cte.prazo_entrega ? new Date(cte.prazo_entrega) : null;
                     const hoje = new Date();
-                    const isAtrasada = prazo && prazo < hoje && !isAgendada;
+                    const isAtrasada = prazo && prazo < hoje;
+
 
                     return (
                       <tr key={cte.numero_cte}>
@@ -165,7 +168,8 @@ const ModalInfo = ({ viagemId, onClose, onLoaded }) => {
                                 <li
                                   key={nf.numero_nf}
                                   style={{
-                                    background: isAgendada ? "#007bff" : isAtrasada ? "#dc3545" : "transparent",
+                                    background: isAgendada && isAtrasada ? "linear-gradient(to right, #007bff, #dc3545)" : isAgendada ? "#007bff" : isAtrasada ? "#dc3545" : "transparent",
+
                                     color: isAgendada || isAtrasada ? "#fff" : "#000",
                                     borderRadius: "4px",
                                     padding: "2px 6px",
@@ -173,8 +177,8 @@ const ModalInfo = ({ viagemId, onClose, onLoaded }) => {
                                     display: "inline-block"
                                   }}
                                 >
-                                  {isAgendada ? "A " : ""}
-                                  {nf.numero_nf}
+                                  {nf.numero_nf}{isAgendada && isAtrasada ? " A" : isAgendada ? " A" : ""}
+
                                 </li>
                               ))}
                           </ul>
