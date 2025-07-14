@@ -65,6 +65,7 @@ const apiLocal = {
   getDocumentosTransporte: () => api.get("/documentos-transporte/"),
   getViagensFiltradas: (filters) => api.post("/viagens/filtrar", filters),
   getOpcoesFiltrosViagens: () => api.get("/viagens/opcoes-filtros"),
+  getViagemById: (viagemId) => api.get(`/viagens/id/${viagemId}`),
 
   // 🔧 Responsáveis
   getResponsaveis: () => api.get("/responsaveis/"),

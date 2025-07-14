@@ -19,14 +19,14 @@ import apiLocal from "../../../../services/apiLocal";
 import { ActionButton } from "../style";
 import { Row } from "reactstrap";
 
-const ModalInfo = ({ numeroViagem, onClose, onLoaded }) => {
+const ModalInfo = ({ viagemId, onClose, onLoaded }) => {
 
   const [modalEditOpen, setModalEditOpen] = useState(false);
   const [viagem, setViagem] = useState(null);
 
   useEffect(() => {
-    if (numeroViagem) {
-      apiLocal.getViagemByNumero(numeroViagem)
+    if (viagemId) {
+      apiLocal.getViagemById(viagemId)
         .then((res) => {
           setViagem(res.data);
         })
@@ -34,7 +34,7 @@ const ModalInfo = ({ numeroViagem, onClose, onLoaded }) => {
           if (onLoaded) onLoaded(); // ✅ desliga o loading externo
         });
     }
-  }, [numeroViagem]);
+  }, [viagemId]);
 
 
 

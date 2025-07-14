@@ -369,7 +369,7 @@ const RelatorioViagens = ({ setCurrentTab, setNumeroViagem }) => {
       {modalInfoOpen && (
         <>
           <ModalInfo
-            numeroViagem={viagemSelecionada.numero_viagem}
+            viagemId={viagemSelecionada.id}
             onClose={() => {
               setModalInfoOpen(false);
               setLoadingInfoModal(false);
