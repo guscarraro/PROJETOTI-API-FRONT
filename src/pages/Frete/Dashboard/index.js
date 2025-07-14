@@ -37,6 +37,7 @@ const Dashboard = () => {
   const [qtdOcorrenciasNaoEntregues, setQtdOcorrenciasNaoEntregues] =
     useState(0);
   const [ocorrenciasSemCobranca, setOcorrenciasSemCobranca] = useState([]);
+  const [qtdOcorrenciasVermelhas, setQtdOcorrenciasVermelhas] = useState(0);
 
   const [motoristasMap, setMotoristasMap] = useState({});
   const [clientesMap, setClientesMap] = useState({});
@@ -174,6 +175,18 @@ const Dashboard = () => {
       );
       setQtdOcorrenciasSemCobranca(ocorrenciasSemCobrancaData.length);
       setOcorrenciasSemCobranca(ocorrenciasSemCobrancaData);
+      const vermelhas = ocorrenciasSemCobrancaData.filter((item) => {
+        const chegadaDate = new Date(item.horario_chegada);
+        const saidaDate = new Date(item.horario_saida);
+        const ocorrenDate = new Date(item.datainclusao);
+        if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate) return false;
+
+        const diffMs = saidaDate - ocorrenDate;
+        const diffMin = Math.floor(diffMs / 60000);
+        const horas = Math.floor(diffMin / 60);
+        return horas >= 1;
+      });
+      setQtdOcorrenciasVermelhas(vermelhas.length);
 
       const ctesCobrados = ocorrencias.filter(
         (oc) => oc.cobranca_adicional === "S" && oc.cte_gerado
@@ -520,6 +533,7 @@ const Dashboard = () => {
           }))}
           onClose={handleCloseModalNaoCobranca}
           onRefresh={fetchDashboardData}
+          onContagemVermelhas={setQtdOcorrenciasVermelhas}
         />
       )}
       {showModalNaoEntregue && (
@@ -556,7 +570,7 @@ const Dashboard = () => {
       {/* Cards de métricas */}
       <Row>
         {/* Card 1: Ocorrências em Aberto */}
-        <Col md={4}>
+        <Col md={3}>
           <CardStyle bgColor="rgba(255, 99, 71, 0.2)" iconColor="#FF6347">
             <h3>
               <FaExclamationTriangle /> Ocorrências em Aberto
@@ -567,7 +581,7 @@ const Dashboard = () => {
           </CardStyle>
         </Col>
 
-        <Col md={4}>
+        <Col md={3}>
           <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
             <h3>
               <FaClock /> Tempo Médio de Entrega
@@ -577,8 +591,20 @@ const Dashboard = () => {
             </p>
           </CardStyle>
         </Col>
+        <Col md={3}>
+          <CardStyle bgColor="rgba(30, 144, 255, 0.2)" iconColor="#1E90FF">
+            <h3>
+              <FaClock /> Total de ocorrências
+            </h3>
+           <p style={{ fontSize: 32, fontWeight: 700 }}>
+              {qtdOcorrenciasSemCobranca > 0
+                ? qtdOcorrenciasSemCobranca
+                : "Sem Dados para essa informação"}
+            </p>
+          </CardStyle>
+        </Col>
 
-        <Col md={4}>
+        <Col md={3}>
           <CardStyle bgColor="rgba(154, 205, 50, 0.2)" iconColor="#9ACD32">
             <h3>
               <FaChartLine /> Média Ocorrências/Dia
@@ -596,13 +622,14 @@ const Dashboard = () => {
             style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
           >
             <h3>
-              <FaDollarSign /> Ocorrências sem Cobrança
-            </h3>
+              <FaDollarSign /> Ocorrências mais de uma hora
+            </h3>   
             <p style={{ fontSize: 32, fontWeight: 700 }}>
-              {qtdOcorrenciasSemCobranca > 0
-                ? qtdOcorrenciasSemCobranca
+              {qtdOcorrenciasVermelhas > 0
+                ? qtdOcorrenciasVermelhas
                 : "Sem Dados para essa informação"}
             </p>
+                
             {qtdOcorrenciasSemCobranca > 0 && (
               <p style={{ fontSize: 12, fontStyle: "italic" }}>
                 Clique para mais informações

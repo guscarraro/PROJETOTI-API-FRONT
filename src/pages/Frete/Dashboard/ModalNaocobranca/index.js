@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Button,
   Modal,
@@ -12,15 +12,30 @@ import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx"; // ✅ Importa XLSX para exportação
 
-const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
+const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => {
   const [sortedData, setSortedData] = useState([...data]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [selectedNota, setSelectedNota] = useState(null);
   const [isCteModalOpen, setIsCteModalOpen] = useState(false);
   const [cteValue, setCteValue] = useState("");
-    const [isValid, setIsValid] = useState(true);
+  const [isValid, setIsValid] = useState(true);
 
   const toggleCteModal = () => setIsCteModalOpen(!isCteModalOpen);
+
+  useEffect(() => {
+    const vermelhas = sortedData.filter((item) => {
+      const permanencia = calcularTempoPermanencia(
+        item.horario_chegada,
+        item.horario_saida,
+        item.horario_ocorrencia
+      );
+      return permanencia.horas >= 1;
+    });
+
+    if (onContagemVermelhas) {
+      onContagemVermelhas(vermelhas.length);
+    }
+  }, [sortedData, onContagemVermelhas]);
 
   const handleCheckboxChange = (nf) => {
     setSelectedNota(nf === selectedNota ? null : nf);
@@ -49,7 +64,7 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
   const handleChange = (e) => {
     const value = e.target.value;
 
-    if (value === 'ACORDO COMERCIAL VIGENTE') {
+    if (value === 'ACORDO COMERCIAL VIGENTE' || value === 'CARGA LOTAÇÃO NO DESTINATARIO') {
       setCteValue(value);
       setIsValid(true);
     } else if (/^\d+$/.test(value)) {
@@ -296,14 +311,14 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
                   }}
                 >
                   <td style={cellStyle}>
-  {isTempoExcedido && (
-    <input
-      type="checkbox"
-      checked={item.nf === selectedNota}
-      onChange={() => handleCheckboxChange(item.nf)}
-    />
-  )}
-</td>
+                    {isTempoExcedido && (
+                      <input
+                        type="checkbox"
+                        checked={item.nf === selectedNota}
+                        onChange={() => handleCheckboxChange(item.nf)}
+                      />
+                    )}
+                  </td>
 
                   <td style={cellStyle}>{item.nf}</td>
                   <td style={cellStyle}>{item.cliente}</td>
@@ -339,16 +354,17 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh }) => {
         <ModalBody>
           <p>Informe o número do CTE para a nota selecionada:</p>
           <Input
-  type="text"
-  value={cteValue}
-  onChange={handleChange}
-  placeholder="Número do CTE ou selecione"
-  list="cte-options"
-  invalid={!isValid}
-/>
-<datalist id="cte-options">
-  <option value="ACORDO COMERCIAL VIGENTE" />
-</datalist>
+            type="text"
+            value={cteValue}
+            onChange={handleChange}
+            placeholder="Número do CTE ou selecione"
+            list="cte-options"
+            invalid={!isValid}
+          />
+          <datalist id="cte-options">
+            <option value="ACORDO COMERCIAL VIGENTE" />
+            <option value="CARGA LOTAÇÃO NO DESTINATARIO" />
+          </datalist>
 
         </ModalBody>
         <ModalFooter>
