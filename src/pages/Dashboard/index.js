@@ -17,6 +17,42 @@ import { fetchIndiceAtendimento } from '../../services/api';
 import { useNavigate } from "react-router-dom";
 import apiLocal from '../../services/apiLocal';
 import CarouselCards from './CarouselCards';
+// import MedidorLeadTime from './MedidorLeadTime';
+
+// const fluxosPorTpVg = {
+//   ETPFRA: [
+//     "ENTRADA DE XML NO SISTEMA",
+//     "DOCUMENTO EMITIDO",
+//     "MERCADORIA SEPARADA/CONFERIDA",
+//     "AGUARDANDO ROTERIZACAO",
+//     "VIAGEM CRIADA",
+//     "EM ROTA",
+//     "CHEGADA NO LOCAL",
+//     "INICIO DE DESCARGA",
+//     "FIM DE DESCARGA",
+//   ],
+//   TRANS: [
+//     "ENTRADA DE XML NO SISTEMA",
+//     "DOCUMENTO EMITIDO",
+//     "MERCADORIA SEPARADA/CONFERIDA",
+//     "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
+//     "VIAGEM CRIADA",
+//     "EM ROTA DE TRANSFERENCIA",
+//     "CHEGADA NA BASE/FILIAL",
+//     "EM ROTA",
+//     "CHEGADA NO LOCAL",
+//     "INICIO DE DESCARGA",
+//     "FIM DE DESCARGA",
+//   ],
+//   FRA: [
+//     "ENTRADA DE XML NO SISTEMA",
+//     "DOCUMENTO EMITIDO",
+//     "MERCADORIA SEPARADA/CONFERIDA",
+//     "AGUARDANDO ROTERIZACAO",
+//     "VIAGEM CRIADA",
+//     "EM ROTA",
+//   ],
+// };
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -37,6 +73,8 @@ const Dashboard = () => {
   const [responsaveis, setResponsaveis] = useState([]);
   const [selectedResponsavel, setSelectedResponsavel] = useState('Todos');
   const [remetentesResponsavel, setRemetentesResponsavel] = useState([]);
+  // const [etapaPendenteSelecionada, setEtapaPendenteSelecionada] = useState("Todas");
+// const todasEtapasUnicas = Array.from(new Set(Object.values(fluxosPorTpVg).flat()));
 
   useEffect(() => {
     const fetchResponsaveis = async () => {
@@ -68,6 +106,7 @@ const Dashboard = () => {
     };
     fetchRemetentes();
   }, [selectedResponsavel]);
+
 
 
   const fetchData = async (silentUpdate = false) => {
@@ -252,6 +291,19 @@ const Dashboard = () => {
     return overallTotal;
   };
 
+//   const etapasFixas = [
+//   { nome: "ENTRADA DE XML NO SISTEMA", status: "verde" },
+//   { nome: "DOCUMENTO EMITIDO", status: "verde" },
+//   { nome: "MERCADORIA SEPARADA/CONFERIDA", status: "vermelha" },
+//   { nome: "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA", status: "verde" },
+//   { nome: "EM ROTA DE TRANSFERENCIA", status: "verde" },
+//   { nome: "CHEGADA NA BASE/FILIAL", status: "verde" },
+//   { nome: "EM ROTA", status: "verde" },
+//   { nome: "CHEGADA NO LOCAL", status: "verde" },
+//   { nome: "INICIO DE DESCARGA", status: "branca" },
+//   { nome: "FIM DE DESCARGA", status: "branca" },
+// ];
+
 
   const applyFilters = () => {
     let filteredData = [...data];
@@ -264,6 +316,16 @@ const Dashboard = () => {
         )
       );
     }
+//     if (etapaPendenteSelecionada !== "Todas") {
+//   filteredData = filteredData.filter(() => {
+//     const etapasPendentes = etapasFixas.filter(
+//       (etapa) => etapa.status === "branca"
+//     ).map((etapa) => etapa.nome);
+
+//     return etapasPendentes.includes(etapaPendenteSelecionada);
+//   });
+// }
+
 
     // Filtro por remetente individual (continua o mesmo)
     if (selectedRemetente !== 'Todos') {
@@ -279,6 +341,7 @@ const Dashboard = () => {
   const exportarParaExcel = async () => {
     const workbook = new ExcelJS.Workbook();
 
+  
     const statusLabels = {
       inThreeDays: "Pendentes para entregar em 3 dias",
 
@@ -755,6 +818,28 @@ const Dashboard = () => {
                     ))}
                   </select>
 
+{/* <label>Etapa pendente:</label>
+<select
+  value={etapaPendenteSelecionada}
+  onChange={(e) => setEtapaPendenteSelecionada(e.target.value)}
+  style={{
+    margin: '10px',
+    padding: '8px',
+    borderRadius: '5px',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    color: '#fff',
+    border: '1px solid rgba(255, 255, 255, 0.2)',
+    outline: 'none',
+    cursor: 'pointer',
+    fontSize: '14px',
+    appearance: 'none'
+  }}
+>
+  <option value="Todas">Todas</option>
+  {todasEtapasUnicas.map((etapa, idx) => (
+    <option key={idx} value={etapa}>{etapa}</option>
+  ))}
+</select> */}
 
                   <label>Remetente:</label>
                   <select
@@ -877,6 +962,13 @@ const Dashboard = () => {
                       <DailyDeliveryChart data={filteredData} dataFinal={dataFinal} dataInicial={dataInicial} />
                     </Box>
                   </Col>
+                  {/* <Col md="12">
+                    <Box>
+                
+<MedidorLeadTime data={filteredData} />
+
+                    </Box>
+                  </Col> */}
                 </Row>
               )}
               <CarouselCards
