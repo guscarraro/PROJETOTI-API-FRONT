@@ -251,20 +251,38 @@ export const fetchNotaFiscal = async (notaFiscal) => {
 
 
 
-export const fetchOcorrencias = async (dataInicial) => {
+export const fetchOcorrencias = async () => {
   try {
     const token = await getAuthToken();
 
     const response = await axios.get(API_OCORRENCIAS_URL, {
-      params: { dataInicial },
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      responseType: 'text', // recebe como texto
     });
 
-    return response.data.ocorrencia || [];
+    const rawText = response.data;
+
+    // ✅ Repara o JSON inteiro (mesmo que malformado)
+    const jsonReparado = jsonrepair(rawText);
+
+    // ✅ Faz o parse completo do JSON reparado
+    const json = JSON.parse(jsonReparado);
+
+    // ✅ Retorna o array notaFiscal (esperado)
+    if (Array.isArray(json.notaFiscal)) {
+      return json.notaFiscal;
+    }
+
+    console.warn("⚠️ 'notaFiscal' não encontrado ou não é array");
+    return [];
   } catch (error) {
-    console.error('Erro ao buscar ocorrências:', error.message);
+    console.error("❌ Erro ao buscar ocorrências:", error.message);
     return [];
   }
 };
+
+
+
+

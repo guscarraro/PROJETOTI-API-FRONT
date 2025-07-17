@@ -7,10 +7,11 @@ import {
   Bolinha,
   LinhaVertical,
   TextoEtapa,
+  TextoPrazo, // Adicione isso no seu styles se ainda não tiver
 } from "./styles";
 
 const fluxosPorTpVg = {
-  ETPFRA: [
+  ETPF: [
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
     "MERCADORIA SEPARADA/CONFERIDA",
@@ -21,7 +22,7 @@ const fluxosPorTpVg = {
     "INICIO DE DESCARGA",
     "FIM DE DESCARGA",
   ],
-  TRANS: [
+  TRFFIL: [
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
     "MERCADORIA SEPARADA/CONFERIDA",
@@ -44,45 +45,109 @@ const fluxosPorTpVg = {
   ],
 };
 
-// Etapas fixas apenas para simulação visual
-const etapasFixas = [
-  { nome: "ENTRADA DE XML NO SISTEMA", status: "verde", data: "30/06/2025 09:27" },
-  { nome: "DOCUMENTO EMITIDO", status: "verde", data: "30/06/2025 09:36" },
-  { nome: "MERCADORIA SEPARADA/CONFERIDA", status: "vermelha", data: "01/07/2025 08:20" },
-  { nome: "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA", status: "verde", data: "01/07/2025 10:00" },
-  { nome: "EM ROTA DE TRANSFERENCIA", status: "verde", data: "02/07/2025 08:30" },
-  { nome: "CHEGADA NA BASE/FILIAL", status: "verde", data: "02/07/2025 13:00" },
-  { nome: "EM ROTA", status: "verde", data: "03/07/2025 07:40" },
-  { nome: "CHEGADA NO LOCAL", status: "verde", data: "03/07/2025 10:15" },
-  { nome: "INICIO DE DESCARGA", status: "branca", data: null },
-  { nome: "FIM DE DESCARGA", status: "branca", data: null },
-];
+const EtapaNota = ({
+  tipoViagem = "ETPF",
+  ocorrencias = [],
+  cte,
+  dtCTE,
+  Vg,
+  TpVg,
+  prevE,
+}) => {
+  const etapas = fluxosPorTpVg[tipoViagem] || [];
 
-// Componente principal
-const EtapaNota = ({ tipoViagem = "ETPFRA" }) => {
-  const etapasDoFluxo = fluxosPorTpVg[tipoViagem] || [];
+  const ocorrenciasMap = ocorrencias.reduce((map, o) => {
+    map[o.tipo.toUpperCase()] = o.data;
+    return map;
+  }, {});
 
-  // Filtra só as etapas do fluxo com base nas fixas (mock por enquanto)
-  const etapasFiltradas = etapasFixas.filter((etapa) =>
-    etapasDoFluxo.includes(etapa.nome)
-  );
+let encontrouEtapaConcluida = false;
+let bloqueiaPendencias = false;
+
+const etapasRenderizadas = etapas.map((etapa, idx) => {
+  let status = "branca";
+  let detalhe = null;
+  const tipo = etapa.toUpperCase();
+
+  let foiExecutada = false;
+
+  if (tipo === "ENTRADA DE XML NO SISTEMA" && ocorrenciasMap[tipo]) {
+    status = "verde";
+    detalhe = ocorrenciasMap[tipo];
+    foiExecutada = true;
+  } else if (tipo === "DOCUMENTO EMITIDO" && cte) {
+    status = "verde";
+    detalhe = `${cte} - ${dtCTE}`;
+    foiExecutada = true;
+  } else if (tipo === "VIAGEM CRIADA" && Vg && Vg !== 0) {
+    status = "verde";
+    detalhe = `${Vg} - ${TpVg}`;
+    foiExecutada = true;
+  } else if (ocorrenciasMap[tipo]) {
+    status = "verde";
+    detalhe = ocorrenciasMap[tipo];
+    foiExecutada = true;
+  }
+
+  return {
+    nome: etapa,
+    tipo,
+    detalhe,
+    foiExecutada,
+    index: idx,
+  };
+});
+
+// Descobre o maior índice de etapa executada
+const maiorExecutada = Math.max(
+  ...etapasRenderizadas
+    .map((et, idx) => (et.foiExecutada ? idx : -1))
+    .filter((idx) => idx !== -1)
+);
+
+// Marca os status finais com base nos critérios
+let encontrouPrimeiraFalha = false;
+const etapasComStatus = etapasRenderizadas.map((etapa, idx) => {
+  if (etapa.foiExecutada) {
+    return { ...etapa, status: "verde" };
+  }
+
+  if (idx < maiorExecutada) {
+    // está entre etapas que já passaram, mas não foi feita
+    return { ...etapa, status: "vermelha" };
+  } else {
+    // está no futuro (ainda pendente)
+    return { ...etapa, status: "branca" };
+  }
+});
+
+
+
+
 
   return (
     <Container>
-      {etapasFiltradas.map((etapa, idx) => (
+      {prevE && (
+        <p>
+          <strong>Previsão de Entrega:</strong> {prevE}
+        </p>
+      )}
+
+      {etapasComStatus.map((etapa, idx) => (
+
         <LinhaEtapa key={idx}>
           <Bolinha status={etapa.status}>
             {etapa.status === "verde" && <FaCheck size={9} />}
             {etapa.status === "vermelha" && <FaTimes size={9} />}
           </Bolinha>
 
-          {idx < etapasFiltradas.length - 1 && (
+          {idx < etapasRenderizadas.length - 1 && (
             <LinhaVertical status={etapa.status} />
           )}
 
           <TextoEtapa status={etapa.status}>
             <strong>{etapa.nome}</strong>
-            {etapa.data && <small>{etapa.data}</small>}
+            {etapa.detalhe && <small>{etapa.detalhe}</small>}
           </TextoEtapa>
         </LinhaEtapa>
       ))}

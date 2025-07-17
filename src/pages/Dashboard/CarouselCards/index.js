@@ -10,6 +10,7 @@ const CarouselCards = ({
   dropdownOpen,
   toggleDropdown,
   filteredData,
+  ocorrenciasPorNota,
 }) => {
   const scrollRef = useRef(null);
   const isDragging = useRef(false);
@@ -144,6 +145,7 @@ const hoverStyle = {
               filteredData={filteredData}
               bgColor={boxColors[status]}
               filteredDataByStatus={groupedDataByStatus} 
+              ocorrenciasPorNota={ocorrenciasPorNota}
             />
           </div>
         ))}

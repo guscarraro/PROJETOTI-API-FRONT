@@ -34,6 +34,7 @@ const Card = ({
   toggleDropdown,
   filteredDataByStatus,
   filteredData,
+  ocorrenciasPorNota,
 }) => {
   const getTotalNotesRenderizadas = () => {
     let total = 0;
@@ -57,7 +58,7 @@ const Card = ({
   };
 
   return (
-    <Box bgColor={bgColor} isPulsing={status === "overdue"} >
+    <Box bgColor={bgColor} isPulsing={status === "overdue"}>
       {/* ... */}
 
       {iconMap[status]}
@@ -124,6 +125,9 @@ const Card = ({
                         .map((n) => n.trim())
                         .includes(nf) && d.remetente === item.remetente
                   );
+                  const infoNota = ocorrenciasPorNota.find(
+                    (o) => String(o.NF) === nf
+                  );
 
                   const isAgendada =
                     notaInfo?.destinatario?.includes("(AGENDADO)");
@@ -156,7 +160,15 @@ const Card = ({
                       {isAgendada && (
                         <strong style={{ marginLeft: 6 }}>A</strong>
                       )}
-                      {/* <EtapaNota /> */}
+                      {/* <EtapaNota
+                        tipoViagem={infoNota?.TpVg || "ETPF"}
+                        ocorrencias={infoNota?.Ocorren || []}
+                        cte={infoNota?.cte || null}
+                        dtCTE={infoNota?.dtCTE || null}
+                        Vg={infoNota?.Vg || null}
+                        TpVg={infoNota?.TpVg || null}
+                        prevE={infoNota?.prevE || null}
+                      /> */}
                     </li>
                   );
                 })}

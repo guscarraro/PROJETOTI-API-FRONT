@@ -13,46 +13,46 @@ import ServiceLevelChart from './ServiceLevelChart';
 import TelevisaoLayout from './TelevisaoLayout';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
 import { formatDate } from '../../helpers';
-import { fetchIndiceAtendimento } from '../../services/api';
+import { fetchIndiceAtendimento ,fetchOcorrencias} from '../../services/api';
 import { useNavigate } from "react-router-dom";
 import apiLocal from '../../services/apiLocal';
 import CarouselCards from './CarouselCards';
 // import MedidorLeadTime from './MedidorLeadTime';
 
-// const fluxosPorTpVg = {
-//   ETPFRA: [
-//     "ENTRADA DE XML NO SISTEMA",
-//     "DOCUMENTO EMITIDO",
-//     "MERCADORIA SEPARADA/CONFERIDA",
-//     "AGUARDANDO ROTERIZACAO",
-//     "VIAGEM CRIADA",
-//     "EM ROTA",
-//     "CHEGADA NO LOCAL",
-//     "INICIO DE DESCARGA",
-//     "FIM DE DESCARGA",
-//   ],
-//   TRANS: [
-//     "ENTRADA DE XML NO SISTEMA",
-//     "DOCUMENTO EMITIDO",
-//     "MERCADORIA SEPARADA/CONFERIDA",
-//     "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
-//     "VIAGEM CRIADA",
-//     "EM ROTA DE TRANSFERENCIA",
-//     "CHEGADA NA BASE/FILIAL",
-//     "EM ROTA",
-//     "CHEGADA NO LOCAL",
-//     "INICIO DE DESCARGA",
-//     "FIM DE DESCARGA",
-//   ],
-//   FRA: [
-//     "ENTRADA DE XML NO SISTEMA",
-//     "DOCUMENTO EMITIDO",
-//     "MERCADORIA SEPARADA/CONFERIDA",
-//     "AGUARDANDO ROTERIZACAO",
-//     "VIAGEM CRIADA",
-//     "EM ROTA",
-//   ],
-// };
+const fluxosPorTpVg = {
+  ETPF: [
+    "ENTRADA DE XML NO SISTEMA",
+    "DOCUMENTO EMITIDO",
+    "MERCADORIA SEPARADA/CONFERIDA",
+    "AGUARDANDO ROTERIZACAO",
+    "VIAGEM CRIADA",
+    "EM ROTA",
+    "CHEGADA NO LOCAL",
+    "INICIO DE DESCARGA",
+    "FIM DE DESCARGA",
+  ],
+  TRFFIL: [
+    "ENTRADA DE XML NO SISTEMA",
+    "DOCUMENTO EMITIDO",
+    "MERCADORIA SEPARADA/CONFERIDA",
+    "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
+    "VIAGEM CRIADA",
+    "EM ROTA DE TRANSFERENCIA",
+    "CHEGADA NA BASE/FILIAL",
+    "EM ROTA",
+    "CHEGADA NO LOCAL",
+    "INICIO DE DESCARGA",
+    "FIM DE DESCARGA",
+  ],
+  FRA: [
+    "ENTRADA DE XML NO SISTEMA",
+    "DOCUMENTO EMITIDO",
+    "MERCADORIA SEPARADA/CONFERIDA",
+    "AGUARDANDO ROTERIZACAO",
+    "VIAGEM CRIADA",
+    "EM ROTA",
+  ],
+};
 
 const Dashboard = () => {
   const [data, setData] = useState([]);
@@ -73,6 +73,29 @@ const Dashboard = () => {
   const [responsaveis, setResponsaveis] = useState([]);
   const [selectedResponsavel, setSelectedResponsavel] = useState('Todos');
   const [remetentesResponsavel, setRemetentesResponsavel] = useState([]);
+  const [ocorrenciasPorNota, setOcorrenciasPorNota] = useState([]);
+
+const dataOcorrencias = async () => {
+  try {
+    const res = await fetchOcorrencias();
+
+
+    if (Array.isArray(res)) {
+      setOcorrenciasPorNota(res);
+    } else {
+      setOcorrenciasPorNota([]);
+    }
+  } catch (err) {
+    console.error("❌ Erro ao buscar ocorrências:", err);
+    setOcorrenciasPorNota([]);
+  }
+};
+
+
+
+
+
+
   // const [etapaPendenteSelecionada, setEtapaPendenteSelecionada] = useState("Todas");
 // const todasEtapasUnicas = Array.from(new Set(Object.values(fluxosPorTpVg).flat()));
 
@@ -149,6 +172,7 @@ const Dashboard = () => {
       // Verifica se as datas mudaram antes de chamar o fetchData
       if (dataInicial !== prevDataInicial.current || dataFinal !== prevDataFinal.current) {
         fetchData();
+        dataOcorrencias();
       }
 
       // Atualiza as refs com as novas datas
@@ -978,6 +1002,7 @@ const Dashboard = () => {
                 dropdownOpen={dropdownOpen}
                 toggleDropdown={toggleDropdown}
                 filteredData={filteredData}
+                ocorrenciasPorNota={ocorrenciasPorNota}
               />
 
             </>
