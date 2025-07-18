@@ -1,9 +1,9 @@
 import React from 'react';
-import { Card, CardBody, CardTitle, Row, Table } from 'reactstrap';
+import { Card, CardBody, Row, Table, Badge } from 'reactstrap';
 import { FaClock, FaRoad, FaTruck, FaFileAlt, FaBoxes } from 'react-icons/fa';
 
 const fluxosPorTpVg = {
-  ETPFRA: [
+  ETPF: [
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
     "MERCADORIA SEPARADA/CONFERIDA",
@@ -14,14 +14,28 @@ const fluxosPorTpVg = {
     "INICIO DE DESCARGA",
     "FIM DE DESCARGA",
   ],
-  TRANS: [
+  TRFBAS: [
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
     "MERCADORIA SEPARADA/CONFERIDA",
     "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
     "VIAGEM CRIADA",
     "EM ROTA DE TRANSFERENCIA",
-    "CHEGADA NA BASE/FILIAL",
+    "CHEGADA NA BASE",
+    "EM ROTA",
+    "CHEGADA NO LOCAL",
+    "INICIO DE DESCARGA",
+    "FIM DE DESCARGA",
+  ],
+  TRFFIL: [
+    "ENTRADA DE XML NO SISTEMA",
+    "DOCUMENTO EMITIDO",
+    "MERCADORIA SEPARADA/CONFERIDA",
+    "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
+    "VIAGEM CRIADA",
+    "EM ROTA DE TRANSFERENCIA",
+    "CHEGADA NA FILIAL",
+    "MERCADORIA RECEBIDA NA FILIAL",
     "EM ROTA",
     "CHEGADA NO LOCAL",
     "INICIO DE DESCARGA",
@@ -31,89 +45,139 @@ const fluxosPorTpVg = {
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
     "MERCADORIA SEPARADA/CONFERIDA",
+    "AGUARDANDO ROTERIZACAO",
+    "VIAGEM CRIADA",
     "EM ROTA",
   ],
 };
 
 const icones = {
-  "ENTRADA DE XML NO SISTEMA": <FaFileAlt size={16} />, 
-  "DOCUMENTO EMITIDO": <FaFileAlt size={16} />, 
-  "MERCADORIA SEPARADA/CONFERIDA": <FaBoxes size={16} />, 
-  "AGUARDANDO ROTERIZACAO": <FaClock size={16} />, 
-  "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA": <FaClock size={16} />, 
-  "VIAGEM CRIADA": <FaTruck size={16} />, 
-  "EM ROTA": <FaRoad size={16} />, 
-  "EM ROTA DE TRANSFERENCIA": <FaRoad size={16} />, 
-  "CHEGADA NO LOCAL": <FaTruck size={16} />, 
-  "CHEGADA NA BASE/FILIAL": <FaTruck size={16} />, 
-  "INICIO DE DESCARGA": <FaBoxes size={16} />, 
-  "FIM DE DESCARGA": <FaBoxes size={16} />, 
+  "ENTRADA DE XML NO SISTEMA": <FaFileAlt size={16} />,
+  "DOCUMENTO EMITIDO": <FaFileAlt size={16} />,
+  "MERCADORIA SEPARADA/CONFERIDA": <FaBoxes size={16} />,
+  "AGUARDANDO ROTERIZACAO": <FaClock size={16} />,
+  "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA": <FaClock size={16} />,
+  "VIAGEM CRIADA": <FaTruck size={16} />,
+  "EM ROTA": <FaRoad size={16} />,
+  "EM ROTA DE TRANSFERENCIA": <FaRoad size={16} />,
+  "CHEGADA NO LOCAL": <FaTruck size={16} />,
+  "CHEGADA NA BASE": <FaTruck size={16} />,
+  "CHEGADA NA FILIAL": <FaTruck size={16} />,
+  "MERCADORIA RECEBIDA NA FILIAL": <FaBoxes size={16} />,
+  "INICIO DE DESCARGA": <FaBoxes size={16} />,
+  "FIM DE DESCARGA": <FaBoxes size={16} />,
 };
 
-const mediasFalsas = {
-  "ENTRADA DE XML NO SISTEMA → DOCUMENTO EMITIDO": "00:15",
-  "DOCUMENTO EMITIDO → MERCADORIA SEPARADA/CONFERIDA": "01:10",
-  "MERCADORIA SEPARADA/CONFERIDA → AGUARDANDO ROTERIZACAO": "00:45",
-  "AGUARDANDO ROTERIZACAO → VIAGEM CRIADA": "02:00",
-  "VIAGEM CRIADA → EM ROTA": "00:30",
-  "EM ROTA → CHEGADA NO LOCAL": "05:20",
-  "CHEGADA NO LOCAL → INICIO DE DESCARGA": "00:20",
-  "INICIO DE DESCARGA → FIM DE DESCARGA": "00:50",
-  "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA → VIAGEM CRIADA": "01:20",
-  "VIAGEM CRIADA → EM ROTA DE TRANSFERENCIA": "04:30",
-  "EM ROTA DE TRANSFERENCIA → CHEGADA NA BASE/FILIAL": "02:40",
-  "CHEGADA NA BASE/FILIAL → EM ROTA": "01:15",
-  "MERCADORIA SEPARADA/CONFERIDA → EM ROTA": "02:00",
-};
+const MedidorLeadTime = ({ notas, ocorrenciasPorNota }) => {
+  const calcularLeadTimePorNota = (nota) => {
+    const infoNota = ocorrenciasPorNota.find((o) => String(o.NF) === String(nota));
+    if (!infoNota || !infoNota.Ocorren) return [];
 
-const MedidorLeadTime = () => {
-  const renderResumoGeral = () => (
-    <Card style={{ backgroundColor: '#212121', color: '#fff', padding: 16, marginBottom: 20 }}>
-      <h5 style={{ marginBottom: 10 }}>Resumo Geral</h5>
-      <Row>
-        <div style={{ fontWeight: 600, fontSize: 16, padding: '0 16px' }}>Média Geral: 03:42</div>
-        <div style={{ padding: '0 16px' }}>ETPFRA: 03:30</div>
-        <div style={{ padding: '0 16px' }}>TRANS: 04:20</div>
-        <div style={{ padding: '0 16px' }}>FRA: 02:50</div>
-      </Row>
-    </Card>
-  );
+    const fluxo = fluxosPorTpVg[infoNota.TpVg] || fluxosPorTpVg['ETPF'];
+    const ocorrencias = infoNota.Ocorren;
+
+    const mapOcorrencias = ocorrencias.reduce((map, oc) => {
+      map[oc.tipo.toUpperCase()] = new Date(oc.data);
+      return map;
+    }, {});
+
+    const leadTimes = [];
+
+    for (let i = 0; i < fluxo.length - 1; i++) {
+      const etapa1 = fluxo[i].toUpperCase();
+      const etapa2 = fluxo[i + 1].toUpperCase();
+
+      const data1 = mapOcorrencias[etapa1];
+      const data2 = mapOcorrencias[etapa2];
+
+      if (data1 && data2) {
+        const diffMin = Math.round((data2 - data1) / 60000);
+        const h = Math.floor(diffMin / 60);
+        const m = diffMin % 60;
+        leadTimes.push({
+          tipoViagem: infoNota.TpVg || 'ETPF',
+          transicao: `${etapa1} → ${etapa2}`,
+          tempo: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+          diffMin,
+          etapa1,
+          etapa2,
+        });
+      }
+    }
+
+    return leadTimes;
+  };
+
+  const calcularMediaLeadTimePorTransicao = () => {
+    const temposPorTipo = {};
+
+    notas.forEach((nf) => {
+      const leadTimes = calcularLeadTimePorNota(nf);
+      leadTimes.forEach(({ tipoViagem, transicao, diffMin }) => {
+        if (!temposPorTipo[tipoViagem]) temposPorTipo[tipoViagem] = {};
+        if (!temposPorTipo[tipoViagem][transicao]) temposPorTipo[tipoViagem][transicao] = [];
+        temposPorTipo[tipoViagem][transicao].push(diffMin);
+      });
+    });
+
+    const mediasFormatadas = {};
+
+    for (const tipo in temposPorTipo) {
+      mediasFormatadas[tipo] = {};
+      for (const transicao in temposPorTipo[tipo]) {
+        const tempos = temposPorTipo[tipo][transicao];
+        const mediaMin = Math.round(tempos.reduce((a, b) => a + b, 0) / tempos.length);
+        const h = Math.floor(mediaMin / 60).toString().padStart(2, '0');
+        const m = (mediaMin % 60).toString().padStart(2, '0');
+        mediasFormatadas[tipo][transicao] = `${h}:${m}`;
+      }
+    }
+
+    return mediasFormatadas;
+  };
+
+  const medias = calcularMediaLeadTimePorTransicao();
 
   const renderTabelaEtapas = (tipo) => {
     const etapas = fluxosPorTpVg[tipo];
+    const mediasTipo = medias[tipo] || {};
+
     return (
-      <div style={{ marginBottom: 32 }}>
-        <h6 style={{ color: '#888', marginBottom: 8 }}>Lead Time por etapa: {tipo}</h6>
-        <Table responsive bordered size="sm">
-          <thead>
-            <tr style={{ backgroundColor: '#f5f5f5' }}>
-              <th>Etapa</th>
-              <th>Destino</th>
-              <th>Tempo Médio</th>
-            </tr>
-          </thead>
-          <tbody>
-            {etapas.slice(0, -1).map((etapa, idx) => {
-              const destino = etapas[idx + 1];
-              const desc = `${etapa} → ${destino}`;
-              const tempo = mediasFalsas[desc] || '--:--';
-              return (
-                <tr key={desc}>
-                  <td>{icones[etapa]} {etapa}</td>
-                  <td>{icones[destino]} {destino}</td>
-                  <td style={{ fontWeight: 'bold' }}>{tempo}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </Table>
-      </div>
+      <Card style={{ backgroundColor: '#1e1e1e', color: '#fff', marginBottom: 20 }}>
+        <CardBody>
+          <h5 style={{ marginBottom: 16, borderBottom: '1px solid #444', paddingBottom: 6 }}>
+            Lead Time por Etapa — <Badge color="info">{tipo}</Badge>
+          </h5>
+          <Table responsive hover bordered size="sm" style={{ backgroundColor: '#2b2b2b', color: '#fff' }}>
+            <thead>
+              <tr style={{ backgroundColor: '#333', color: '#ccc' }}>
+                <th>De</th>
+                <th>Para</th>
+                <th>Tempo Médio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {etapas.slice(0, -1).map((etapa, idx) => {
+                const destino = etapas[idx + 1];
+                const desc = `${etapa.toUpperCase()} → ${destino.toUpperCase()}`;
+                const tempo = mediasTipo[desc] || '--:--';
+                return (
+                  <tr key={desc}>
+                    <td>{icones[etapa]} <span style={{ marginLeft: 8 }}>{etapa}</span></td>
+                    <td>{icones[destino]} <span style={{ marginLeft: 8 }}>{destino}</span></td>
+                    <td><Badge color="success" pill>{tempo}</Badge></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </CardBody>
+      </Card>
     );
   };
 
   return (
-    <div style={{ padding: 16 }}>
-      {renderResumoGeral()}
+    <div style={{ padding: '0 16px' }}>
       {Object.keys(fluxosPorTpVg).map((tipo) => renderTabelaEtapas(tipo))}
     </div>
   );

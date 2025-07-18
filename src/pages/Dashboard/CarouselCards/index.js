@@ -11,6 +11,7 @@ const CarouselCards = ({
   toggleDropdown,
   filteredData,
   ocorrenciasPorNota,
+  loadingOcorrencias
 }) => {
   const scrollRef = useRef(null);
   const isDragging = useRef(false);
@@ -53,6 +54,8 @@ const CarouselCards = ({
     inTwoDays: 'rgba(255, 165, 0, 0.35)',
     overdue: 'rgba(255, 69, 0, 0.35)',
     inThreeDays: 'rgba(32, 178, 170, 0.35)',
+    aguardandoAgendamento: 'rgba(105, 105, 105, 0.5)', // cinza escuro
+  semPrevisao: 'rgba(70, 70, 70, 0.5)',
   };
   const buttonStyle = {
   position: 'absolute',
@@ -128,7 +131,8 @@ const hoverStyle = {
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
       >
-        {['inThreeDays', 'inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
+        {[ 'aguardandoAgendamento', 'semPrevisao','inThreeDays', 'inTwoDays', 'tomorrow', 'today', 'overdue'].map((status, index) => (
+
           <div
             key={index}
             style={{
@@ -138,7 +142,9 @@ const hoverStyle = {
             <Card
               status={status}
               data={groupedDataByStatus[status]}
-              calculateTotalNotesByStatus={calculateTotalNotesByStatus}
+               calculateTotalNotesByStatus={(group) =>
+    calculateTotalNotesByStatus(group, status)
+  }
               calculateOverallNotes={calculateOverallNotes}
               dropdownOpen={dropdownOpen}
               toggleDropdown={toggleDropdown}
@@ -146,6 +152,7 @@ const hoverStyle = {
               bgColor={boxColors[status]}
               filteredDataByStatus={groupedDataByStatus} 
               ocorrenciasPorNota={ocorrenciasPorNota}
+              loadingOcorrencias={loadingOcorrencias} 
             />
           </div>
         ))}

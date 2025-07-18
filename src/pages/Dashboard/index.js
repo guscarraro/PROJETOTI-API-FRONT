@@ -13,11 +13,12 @@ import ServiceLevelChart from './ServiceLevelChart';
 import TelevisaoLayout from './TelevisaoLayout';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
 import { formatDate } from '../../helpers';
-import { fetchIndiceAtendimento ,fetchOcorrencias} from '../../services/api';
+import { fetchIndiceAtendimento, fetchOcorrencias } from '../../services/api';
 import { useNavigate } from "react-router-dom";
 import apiLocal from '../../services/apiLocal';
 import CarouselCards from './CarouselCards';
-// import MedidorLeadTime from './MedidorLeadTime';
+import Select from "react-select";
+import MedidorLeadTime from './MedidorLeadTime';
 
 const fluxosPorTpVg = {
   ETPF: [
@@ -74,22 +75,33 @@ const Dashboard = () => {
   const [selectedResponsavel, setSelectedResponsavel] = useState('Todos');
   const [remetentesResponsavel, setRemetentesResponsavel] = useState([]);
   const [ocorrenciasPorNota, setOcorrenciasPorNota] = useState([]);
+  const [loadingOcorrencias, setLoadingOcorrencias] = useState(true);
+  const [etapasSelecionadas, setEtapasSelecionadas] = useState([]);
+  const [statusEtapasSelecionados, setStatusEtapasSelecionados] = useState([]);
 
-const dataOcorrencias = async () => {
-  try {
-    const res = await fetchOcorrencias();
 
+  const todasEtapasUnicas = Array.from(new Set(Object.values(fluxosPorTpVg).flat()));
+  const todasCoresStatus = ["verde", "branca", "vermelha"];
 
-    if (Array.isArray(res)) {
-      setOcorrenciasPorNota(res);
-    } else {
+  const dataOcorrencias = async () => {
+    setLoadingOcorrencias(true); // ⬅️ Inicia o loading
+
+    try {
+      const res = await fetchOcorrencias();
+
+      if (Array.isArray(res)) {
+        setOcorrenciasPorNota(res);
+      } else {
+        setOcorrenciasPorNota([]);
+      }
+    } catch (err) {
+      console.error("❌ Erro ao buscar ocorrências:", err);
       setOcorrenciasPorNota([]);
+    } finally {
+      setLoadingOcorrencias(false); // ⬅️ Finaliza o loading
     }
-  } catch (err) {
-    console.error("❌ Erro ao buscar ocorrências:", err);
-    setOcorrenciasPorNota([]);
-  }
-};
+  };
+
 
 
 
@@ -97,7 +109,7 @@ const dataOcorrencias = async () => {
 
 
   // const [etapaPendenteSelecionada, setEtapaPendenteSelecionada] = useState("Todas");
-// const todasEtapasUnicas = Array.from(new Set(Object.values(fluxosPorTpVg).flat()));
+  // const todasEtapasUnicas = Array.from(new Set(Object.values(fluxosPorTpVg).flat()));
 
   useEffect(() => {
     const fetchResponsaveis = async () => {
@@ -118,8 +130,6 @@ const dataOcorrencias = async () => {
         try {
           const res = await apiLocal.getRemetentesDoResponsavel(selectedResponsavel); // novo endpoint
           setRemetentesResponsavel(res.data.remetentes);
-
-
         } catch (err) {
           console.error("Erro ao buscar remetentes do responsável", err);
         }
@@ -298,13 +308,35 @@ const dataOcorrencias = async () => {
     const [day, month, year] = dateString.split('/');
     return new Date(`${year}-${month}-${day}T00:00:00`);
   };
-  const calculateTotalNotesByStatus = (group) => {
+  const calculateTotalNotesByStatus = (group, status, ocorrenciasPorNota) => {
     let total = 0;
+
     group.forEach((item) => {
-      total += item.count || 0; // Soma a contagem de notas
+      const notasValidas = item.notas.filter((nf) => {
+        const infoNota = ocorrenciasPorNota.find((o) => String(o.NF) === nf);
+
+        const isAguardandoSemAgendada =
+          infoNota?.Ocorren?.some((oc) => oc.tipo === "AGUARDANDO AGENDAMENTO DO CLIENTE") &&
+          !infoNota?.Ocorren?.some((oc) => oc.tipo === "ENTREGA AGENDADA");
+
+        // Aplicar o filtro em todos os status (exceto "aguardandoAgendamento" e "semPrevisao")
+        if (
+          ["today", "tomorrow", "inTwoDays", "inThreeDays", "overdue"].includes(status) &&
+          isAguardandoSemAgendada
+        ) {
+          return false;
+        }
+
+        return true;
+      });
+
+      total += notasValidas.length;
     });
+
     return total;
   };
+
+
 
   const calculateOverallNotes = (dataByStatus) => {
     let overallTotal = 0;
@@ -315,18 +347,18 @@ const dataOcorrencias = async () => {
     return overallTotal;
   };
 
-//   const etapasFixas = [
-//   { nome: "ENTRADA DE XML NO SISTEMA", status: "verde" },
-//   { nome: "DOCUMENTO EMITIDO", status: "verde" },
-//   { nome: "MERCADORIA SEPARADA/CONFERIDA", status: "vermelha" },
-//   { nome: "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA", status: "verde" },
-//   { nome: "EM ROTA DE TRANSFERENCIA", status: "verde" },
-//   { nome: "CHEGADA NA BASE/FILIAL", status: "verde" },
-//   { nome: "EM ROTA", status: "verde" },
-//   { nome: "CHEGADA NO LOCAL", status: "verde" },
-//   { nome: "INICIO DE DESCARGA", status: "branca" },
-//   { nome: "FIM DE DESCARGA", status: "branca" },
-// ];
+  //   const etapasFixas = [
+  //   { nome: "ENTRADA DE XML NO SISTEMA", status: "verde" },
+  //   { nome: "DOCUMENTO EMITIDO", status: "verde" },
+  //   { nome: "MERCADORIA SEPARADA/CONFERIDA", status: "vermelha" },
+  //   { nome: "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA", status: "verde" },
+  //   { nome: "EM ROTA DE TRANSFERENCIA", status: "verde" },
+  //   { nome: "CHEGADA NA BASE/FILIAL", status: "verde" },
+  //   { nome: "EM ROTA", status: "verde" },
+  //   { nome: "CHEGADA NO LOCAL", status: "verde" },
+  //   { nome: "INICIO DE DESCARGA", status: "branca" },
+  //   { nome: "FIM DE DESCARGA", status: "branca" },
+  // ];
 
 
   const applyFilters = () => {
@@ -340,15 +372,76 @@ const dataOcorrencias = async () => {
         )
       );
     }
-//     if (etapaPendenteSelecionada !== "Todas") {
-//   filteredData = filteredData.filter(() => {
-//     const etapasPendentes = etapasFixas.filter(
-//       (etapa) => etapa.status === "branca"
-//     ).map((etapa) => etapa.nome);
+    // Filtro por etapas e status
+    if (etapasSelecionadas.length > 0 && statusEtapasSelecionados.length > 0) {
+      filteredData = filteredData.filter((item) => {
+        const notas = item.NF?.split(",").map((nf) => nf.trim()) || [];
 
-//     return etapasPendentes.includes(etapaPendenteSelecionada);
-//   });
-// }
+        return notas.some((nf) => {
+          const infoNota = ocorrenciasPorNota.find((o) => String(o.NF) === nf);
+          if (!infoNota || !infoNota.Ocorren) return false;
+
+          // Simula o mesmo cálculo de status da EtapaNota
+          const etapas = fluxosPorTpVg[infoNota?.TpVg || "ETPF"] || [];
+
+          const ocorrenciasMap = infoNota.Ocorren.reduce((map, o) => {
+            map[o.tipo.toUpperCase()] = o.data;
+            return map;
+          }, {});
+
+        const etapasRenderizadas = etapas.map((etapa, idx) => {
+  const tipo = etapa.toUpperCase();
+  let foiExecutada = false;
+
+  if (tipo === "ENTRADA DE XML NO SISTEMA" && ocorrenciasMap[tipo]) {
+    foiExecutada = true;
+  } else if (tipo === "DOCUMENTO EMITIDO" && infoNota.cte) {
+    foiExecutada = true;
+  } else if (tipo === "VIAGEM CRIADA" && infoNota.Vg && infoNota.Vg !== 0) {
+    foiExecutada = true;
+  } else if (ocorrenciasMap[tipo]) {
+    foiExecutada = true;
+  }
+
+  return {
+    nome: etapa,
+    foiExecutada,
+    index: idx
+  };
+});
+
+const ultimaExecutadaIndex = etapasRenderizadas.reduce(
+  (max, etapa) => (etapa.foiExecutada ? etapa.index : max),
+  -1
+);
+
+const etapasComStatus = etapasRenderizadas.map((etapa, idx) => {
+  let status = "branca";
+  if (etapa.foiExecutada) {
+    status = "verde";
+  } else if (idx < ultimaExecutadaIndex) {
+    status = "vermelha";
+  }
+
+  return {
+    nome: etapa.nome,
+    status,
+  };
+});
+
+
+          // Verifica se alguma etapa filtrada com o status desejado existe
+         return etapasSelecionadas.every((etapaNome) => {
+  const etapa = etapasComStatus.find((et) => et.nome === etapaNome);
+  if (!etapa) return false;
+  return statusEtapasSelecionados.includes(etapa.status);
+});
+
+
+
+        });
+      });
+    }
 
 
     // Filtro por remetente individual (continua o mesmo)
@@ -365,7 +458,7 @@ const dataOcorrencias = async () => {
   const exportarParaExcel = async () => {
     const workbook = new ExcelJS.Workbook();
 
-  
+
     const statusLabels = {
       inThreeDays: "Pendentes para entregar em 3 dias",
 
@@ -765,11 +858,12 @@ const dataOcorrencias = async () => {
 
   const filteredData = applyFilters();
   const groupedDataByStatus = {
+    aguardandoAgendamento: groupByRemetente(filterDataByStatus(filteredData, 'aguardandoAgendamento')),
+    semPrevisao: groupByRemetente(filterDataByStatus(filteredData, 'semPrevisao')),
     today: groupByRemetente(filterDataByStatus(filteredData, 'today')),
     tomorrow: groupByRemetente(filterDataByStatus(filteredData, 'tomorrow')),
     inTwoDays: groupByRemetente(filterDataByStatus(filteredData, 'inTwoDays')),
     inThreeDays: groupByRemetente(filterDataByStatus(filteredData, 'inThreeDays')),
-
     overdue: groupByRemetente(filterDataByStatus(filteredData, 'overdue')),
   };
 
@@ -814,10 +908,10 @@ const dataOcorrencias = async () => {
             <>
               <Row>
 
-                <Col md="12">
-
-
+                <Col md="1">
                   <label>Responsável:</label>
+
+
                   <select
                     value={selectedResponsavel}
                     onChange={(e) => setSelectedResponsavel(e.target.value)}
@@ -841,35 +935,98 @@ const dataOcorrencias = async () => {
                       <option key={r.id} value={r.id}>{r.nome}</option>
                     ))}
                   </select>
+                </Col>
+                {/* Filtro por Etapas */}
+                <Col md="3">
+                  <label style={{ color: '#fff', paddingBottom: 10 }}>Etapas:</label>
+                  <Select
+                    isMulti
+                    options={todasEtapasUnicas.map((etapa) => ({
+                      value: etapa,
+                      label: etapa,
+                    }))}
+                    value={etapasSelecionadas.map((etapa) => ({
+                      value: etapa,
+                      label: etapa,
+                    }))}
+                    onChange={(selected) =>
+                      setEtapasSelecionadas(selected.map((opt) => opt.value))
+                    }
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        color: '#000',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        color: '#000',
+                      }),
+                      singleValue: (base) => ({ ...base, color: '#000' }),
+                      multiValue: (base) => ({
+                        ...base,
+                        backgroundColor: '#007bff',
+                        color: '#000',
+                      }),
+                      multiValueLabel: (base) => ({
+                        ...base,
+                        color: '#000',
+                      }),
+                    }}
+                    placeholder="Selecione etapas"
+                  />
 
-{/* <label>Etapa pendente:</label>
-<select
-  value={etapaPendenteSelecionada}
-  onChange={(e) => setEtapaPendenteSelecionada(e.target.value)}
-  style={{
-    margin: '10px',
-    padding: '8px',
-    borderRadius: '5px',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    color: '#fff',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    outline: 'none',
-    cursor: 'pointer',
-    fontSize: '14px',
-    appearance: 'none'
-  }}
->
-  <option value="Todas">Todas</option>
-  {todasEtapasUnicas.map((etapa, idx) => (
-    <option key={idx} value={etapa}>{etapa}</option>
-  ))}
-</select> */}
+                </Col>
+                {/* Filtro por Status da Etapa */}
+                <Col md="2">
+                  <label style={{ color: '#fff', paddingBottom: 10 }}>Status da Etapa:</label>
+                  <Select
+                    isMulti
+                    options={todasCoresStatus.map((status) => ({
+                      value: status,
+                      label: status.toUpperCase(),
+                    }))}
+                    value={statusEtapasSelecionados.map((status) => ({
+                      value: status,
+                      label: status.toUpperCase(),
+                    }))}
+                    onChange={(selected) =>
+                      setStatusEtapasSelecionados(selected.map((opt) => opt.value))
+                    }
+                    styles={{
+                      control: (base) => ({
+                        ...base,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        color: '#000',
+                      }),
+                      option: (base, state) => ({
+                        ...base,
+                        color: '#000',
+                      }),
+                      singleValue: (base) => ({ ...base, color: '#000' }),
+                      multiValue: (base) => ({
+                        ...base,
+                        backgroundColor: '#007bff',
+                        color: '#000',
+                      }),
+                      multiValueLabel: (base) => ({
+                        ...base,
+                        color: '#000',
+                      }),
+                    }}
+                    placeholder="Selecione status"
+                  />
+                </Col>
 
+                <Col md="3">
                   <label>Remetente:</label>
                   <select
                     value={selectedRemetente}
                     onChange={(e) => setSelectedRemetente(e.target.value)}
                     style={{
+                      width: '80%',
                       margin: '10px',
                       padding: '8px',
                       borderRadius: '5px',
@@ -893,6 +1050,8 @@ const dataOcorrencias = async () => {
                         </option>
                       ))}
                   </select>
+                </Col>
+                <Col md="2">
                   <label> Filtrar por data:</label>
                   <select
                     value={selectedDateFilter}
@@ -917,6 +1076,8 @@ const dataOcorrencias = async () => {
                     <option value="last30Days">Últimos 30 Dias</option>
                     <option value="last15Days">Últimos 15 Dias</option>
                   </select>
+                </Col>
+                <Col md="12">
                   <Button color="success" onClick={exportarParaExcel} style={{ width: '250px', cursor: "pointer", }}>
                     Exportar Excel por cliente
                   </Button>
@@ -937,29 +1098,30 @@ const dataOcorrencias = async () => {
                   >
                     Ir para Ocorrências
                   </Button>
-                  <Col md="12" style={{ textAlign: "right", marginBottom: "10px" }}>
-                    <button
-                      onClick={handleFullScreen}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: "#fff",
-                        cursor: "pointer",
-                        fontSize: "18px",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <MdOutlineScreenshotMonitor size={24} style={{ marginRight: "5px" }} />
-                      Tela Cheia
-                    </button>
-
-                  </Col>
-
-
-
+                </Col>
+                <Col md="12" style={{ textAlign: "right", marginBottom: "10px" }}>
+                  <button
+                    onClick={handleFullScreen}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: "#fff",
+                      cursor: "pointer",
+                      fontSize: "18px",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    <MdOutlineScreenshotMonitor size={24} style={{ marginRight: "5px" }} />
+                    Tela Cheia
+                  </button>
 
                 </Col>
+
+
+
+
+
                 <Col md="12">
                   <BtnOcultarGrafico
                     showCharts={showCharts}
@@ -989,7 +1151,11 @@ const dataOcorrencias = async () => {
                   {/* <Col md="12">
                     <Box>
                 
-<MedidorLeadTime data={filteredData} />
+<MedidorLeadTime
+  notas={filteredData.flatMap(item => item.NF.split(',').map(n => n.trim()))}
+  ocorrenciasPorNota={ocorrenciasPorNota}
+/>
+
 
                     </Box>
                   </Col> */}
@@ -997,12 +1163,15 @@ const dataOcorrencias = async () => {
               )}
               <CarouselCards
                 groupedDataByStatus={groupedDataByStatus}
-                calculateTotalNotesByStatus={calculateTotalNotesByStatus}
+                calculateTotalNotesByStatus={(group, status) =>
+                  calculateTotalNotesByStatus(group, status, ocorrenciasPorNota)
+                }
                 calculateOverallNotes={calculateOverallNotes}
                 dropdownOpen={dropdownOpen}
                 toggleDropdown={toggleDropdown}
                 filteredData={filteredData}
                 ocorrenciasPorNota={ocorrenciasPorNota}
+                loadingOcorrencias={loadingOcorrencias}
               />
 
             </>

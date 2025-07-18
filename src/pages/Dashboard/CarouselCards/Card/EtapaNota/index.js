@@ -1,4 +1,3 @@
-// EtapaNota/index.js
 import React from "react";
 import { FaCheck, FaTimes } from "react-icons/fa";
 import {
@@ -7,7 +6,6 @@ import {
   Bolinha,
   LinhaVertical,
   TextoEtapa,
-  TextoPrazo, // Adicione isso no seu styles se ainda não tiver
 } from "./styles";
 
 const fluxosPorTpVg = {
@@ -22,6 +20,19 @@ const fluxosPorTpVg = {
     "INICIO DE DESCARGA",
     "FIM DE DESCARGA",
   ],
+  TRFBAS: [
+    "ENTRADA DE XML NO SISTEMA",
+    "DOCUMENTO EMITIDO",
+    "MERCADORIA SEPARADA/CONFERIDA",
+    "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
+    "VIAGEM CRIADA",
+    "EM ROTA DE TRANSFERENCIA",
+    "CHEGADA NA BASE",
+    "EM ROTA",
+    "CHEGADA NO LOCAL",
+    "INICIO DE DESCARGA",
+    "FIM DE DESCARGA",
+  ],
   TRFFIL: [
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
@@ -29,7 +40,8 @@ const fluxosPorTpVg = {
     "AGUARDANDO ROTERIZACAO DE TRANSFERENCIA",
     "VIAGEM CRIADA",
     "EM ROTA DE TRANSFERENCIA",
-    "CHEGADA NA BASE/FILIAL",
+    "CHEGADA NA FILIAL",
+    "MERCADORIA RECEBIDA NA FILIAL",
     "EM ROTA",
     "CHEGADA NO LOCAL",
     "INICIO DE DESCARGA",
@@ -61,69 +73,50 @@ const EtapaNota = ({
     return map;
   }, {});
 
-let encontrouEtapaConcluida = false;
-let bloqueiaPendencias = false;
+  const etapasRenderizadas = etapas.map((etapa, idx) => {
+    const tipo = etapa.toUpperCase();
+    let foiExecutada = false;
+    let detalhe = null;
 
-const etapasRenderizadas = etapas.map((etapa, idx) => {
-  let status = "branca";
-  let detalhe = null;
-  const tipo = etapa.toUpperCase();
+    if (tipo === "ENTRADA DE XML NO SISTEMA" && ocorrenciasMap[tipo]) {
+      foiExecutada = true;
+      detalhe = ocorrenciasMap[tipo];
+    } else if (tipo === "DOCUMENTO EMITIDO" && cte) {
+      foiExecutada = true;
+      detalhe = `${cte} - ${dtCTE}`;
+    } else if (tipo === "VIAGEM CRIADA" && Vg && Vg !== 0) {
+      foiExecutada = true;
+      detalhe = `${Vg} - ${TpVg}`;
+    } else if (ocorrenciasMap[tipo]) {
+      foiExecutada = true;
+      detalhe = ocorrenciasMap[tipo];
+    }
 
-  let foiExecutada = false;
+    return {
+      nome: etapa,
+      foiExecutada,
+      detalhe,
+      index: idx,
+    };
+  });
 
-  if (tipo === "ENTRADA DE XML NO SISTEMA" && ocorrenciasMap[tipo]) {
-    status = "verde";
-    detalhe = ocorrenciasMap[tipo];
-    foiExecutada = true;
-  } else if (tipo === "DOCUMENTO EMITIDO" && cte) {
-    status = "verde";
-    detalhe = `${cte} - ${dtCTE}`;
-    foiExecutada = true;
-  } else if (tipo === "VIAGEM CRIADA" && Vg && Vg !== 0) {
-    status = "verde";
-    detalhe = `${Vg} - ${TpVg}`;
-    foiExecutada = true;
-  } else if (ocorrenciasMap[tipo]) {
-    status = "verde";
-    detalhe = ocorrenciasMap[tipo];
-    foiExecutada = true;
-  }
+  const ultimaExecutadaIndex = etapasRenderizadas.reduce(
+    (max, etapa) => (etapa.foiExecutada ? etapa.index : max),
+    -1
+  );
 
-  return {
-    nome: etapa,
-    tipo,
-    detalhe,
-    foiExecutada,
-    index: idx,
-  };
-});
-
-// Descobre o maior índice de etapa executada
-const maiorExecutada = Math.max(
-  ...etapasRenderizadas
-    .map((et, idx) => (et.foiExecutada ? idx : -1))
-    .filter((idx) => idx !== -1)
-);
-
-// Marca os status finais com base nos critérios
-let encontrouPrimeiraFalha = false;
-const etapasComStatus = etapasRenderizadas.map((etapa, idx) => {
-  if (etapa.foiExecutada) {
-    return { ...etapa, status: "verde" };
-  }
-
-  if (idx < maiorExecutada) {
-    // está entre etapas que já passaram, mas não foi feita
-    return { ...etapa, status: "vermelha" };
-  } else {
-    // está no futuro (ainda pendente)
-    return { ...etapa, status: "branca" };
-  }
-});
-
-
-
-
+  const etapasComStatus = etapasRenderizadas.map((etapa, idx) => {
+    let status = "branca";
+    if (etapa.foiExecutada) {
+      status = "verde";
+    } else if (idx < ultimaExecutadaIndex) {
+      status = "vermelha";
+    }
+    return {
+      ...etapa,
+      status,
+    };
+  });
 
   return (
     <Container>
@@ -134,14 +127,13 @@ const etapasComStatus = etapasRenderizadas.map((etapa, idx) => {
       )}
 
       {etapasComStatus.map((etapa, idx) => (
-
         <LinhaEtapa key={idx}>
           <Bolinha status={etapa.status}>
             {etapa.status === "verde" && <FaCheck size={9} />}
             {etapa.status === "vermelha" && <FaTimes size={9} />}
           </Bolinha>
 
-          {idx < etapasRenderizadas.length - 1 && (
+          {idx < etapasComStatus.length - 1 && (
             <LinhaVertical status={etapa.status} />
           )}
 
