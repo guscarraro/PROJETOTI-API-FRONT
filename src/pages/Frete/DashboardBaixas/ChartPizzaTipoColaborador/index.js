@@ -5,7 +5,6 @@ const COLORS = ["#1E90FF", "#FF6347", "#FFD700", "#9ACD32", "#FF69B4"];
 
 const ChartPizzaTipoColaborador = ({ data }) => {
   const contagem = {};
-  console.log("🍕 Dados do gráfico de pizza:", data);
 
   data.forEach((item) => {
     const tipo = item.tp_colaborador?.trim() || "Desconhecido";

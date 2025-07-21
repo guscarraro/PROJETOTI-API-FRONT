@@ -54,7 +54,6 @@ function CardEquip({ equipamento, onClick, onEdit, onDelete }) {
     }
   };
   
-console.log(equipamento);
 
   return (
     <CustomCard onClick={onClick} style={getStatusStyle(equipamento.status)}>

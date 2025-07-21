@@ -38,33 +38,37 @@ const TopRemetentesChart = ({ data }) => {
         item.atraso_cliente === 0 // Verifica se o atraso não é culpa do cliente
       );
     });
-  
+
     const remetenteCount = {};
     const remetenteDetails = {};
-  
+
     overdueNotes.forEach((item) => {
       const remetente = item.remetente;
-  
+
       // Dividir o campo NF em notas individuais
       const notas = item.NF ? item.NF.split(",").map((nf) => nf.trim()) : [];
-  
+
       if (!remetenteCount[remetente]) {
         remetenteCount[remetente] = 0;
         remetenteDetails[remetente] = [];
       }
-  
+     
+
       // Incrementar o contador e armazenar detalhes para cada nota
       notas.forEach((nota) => {
         remetenteCount[remetente] += 1;
+       
         remetenteDetails[remetente].push({
           NF: nota,
           destinatario: item.destinatario,
           entregue_em: item.entregue_em,
           previsao_entrega: item.previsao_entrega,
+          praca_destino: item.praca_destino, // Aqui o campo está correto!
         });
       });
+
     });
-  
+
     const sortedRemetentes = Object.entries(remetenteCount)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 7)
@@ -73,10 +77,12 @@ const TopRemetentesChart = ({ data }) => {
         count,
         details: remetenteDetails[remetente],
       }));
-  
+
     setTopRemetentes(sortedRemetentes);
   };
-  
+
+  const thStyle = { border: '1px solid #ddd', padding: '8px', textAlign: 'left' };
+  const tdStyle = { border: '1px solid #ddd', padding: '8px' };
 
   const toggleModal = (remetenteData) => {
     setModalData(remetenteData);
@@ -87,26 +93,34 @@ const TopRemetentesChart = ({ data }) => {
     if (!modalData) return;
 
     const tableHeader = `
-      <table border="1" style="border-collapse: collapse; width: 100%;">
-        <thead>
-          <tr>
-            <th style="padding: 8px; text-align: left;">Número da Nota</th>
-            <th style="padding: 8px; text-align: left;">Destinatário</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
+  <table border="1" style="border-collapse: collapse; width: 100%;">
+    <thead>
+      <tr>
+        <th style="padding: 8px;">Número da Nota</th>
+        <th style="padding: 8px;">Destinatário</th>
+        <th style="padding: 8px;">Entrega Realizada</th>
+        <th style="padding: 8px;">Prazo de Entrega</th>
+        <th style="padding: 8px;">Praça Destino</th>
+      </tr>
+    </thead>
+    <tbody>
+`;
+
 
     const tableBody = modalData.details
       .map(
         (item) => `
-          <tr>
-            <td style="padding: 8px;">${item.NF}</td>
-            <td style="padding: 8px;">${item.destinatario}</td>
-          </tr>
-        `
+      <tr>
+        <td style="padding: 8px;">${item.NF}</td>
+        <td style="padding: 8px;">${item.destinatario}</td>
+        <td style="padding: 8px;">${item.entregue_em}</td>
+        <td style="padding: 8px;">${item.previsao_entrega}</td>
+        <td style="padding: 8px;">${item.praca_destino}</td>
+      </tr>
+    `
       )
       .join('');
+
 
     const tableFooter = `</tbody></table>`;
 
@@ -152,10 +166,8 @@ const TopRemetentesChart = ({ data }) => {
     '#FF9400', // Laranja claro médio
     '#FF9900', // Laranja claro médio
   ];
-  
-  
-  
-  
+
+
   const getBarColor = (index) => {
     return colors[index % colors.length]; // Retorna uma cor com base no índice
   };
@@ -170,64 +182,64 @@ const TopRemetentesChart = ({ data }) => {
     <>
       <h5>Top 7 Clientes com maior atraso</h5>
       <ResponsiveContainer width="100%" height={350}>
-      <BarChart
-  data={topRemetentes}
-  margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
-  onClick={(e) => {
-    if (e && e.activePayload && e.activePayload.length) {
-      const remetenteData = e.activePayload[0].payload;
-      toggleModal(remetenteData);
-    }
-  }}
->
-  <CartesianGrid strokeDasharray="3 3" />
-  <XAxis
-    dataKey="remetente"
-    interval={0}
-    style={{ fontSize: 16 }}
-    tick={{
-      fill: '#fff',
-      dy: (tick, index) => (index % 2 === 0 ? 0 : 15), // Adiciona margem para itens ímpares
-    }}
-    tickFormatter={(tick, index) => {
-      const maxLength = 15; // Define o tamanho máximo do nome
-      return tick.length > maxLength ? `${tick.substring(0, maxLength)}...` : tick;
-    }}
-  />
-  <YAxis style={{ fontSize: 16, fill: '#fff' }} />
-  <Tooltip content={<CustomTooltip />} />
-  <Bar
-  dataKey="count"
-  label={{
-    position: 'insideTop',
-    fill: '#fff',
-    fontSize: 20,
-    fontWeight: 'bold',
-  }}
-  shape={(props) => {
-    const { x, y, width, height, index } = props;
-    const color = getBarColor(index);
-    return (
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        fill={color}
-        stroke="#000"
-        strokeWidth={1}
-      />
-    );
-  }}
-/>
+        <BarChart
+          data={topRemetentes}
+          margin={{ top: 10, right: 20, left: 10, bottom: 5 }}
+          onClick={(e) => {
+            if (e && e.activePayload && e.activePayload.length) {
+              const remetenteData = e.activePayload[0].payload;
+              toggleModal(remetenteData);
+            }
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis
+            dataKey="remetente"
+            interval={0}
+            style={{ fontSize: 16 }}
+            tick={{
+              fill: '#fff',
+              dy: (tick, index) => (index % 2 === 0 ? 0 : 15), // Adiciona margem para itens ímpares
+            }}
+            tickFormatter={(tick, index) => {
+              const maxLength = 15; // Define o tamanho máximo do nome
+              return tick.length > maxLength ? `${tick.substring(0, maxLength)}...` : tick;
+            }}
+          />
+          <YAxis style={{ fontSize: 16, fill: '#fff' }} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar
+            dataKey="count"
+            label={{
+              position: 'insideTop',
+              fill: '#fff',
+              fontSize: 20,
+              fontWeight: 'bold',
+            }}
+            shape={(props) => {
+              const { x, y, width, height, index } = props;
+              const color = getBarColor(index);
+              return (
+                <rect
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  fill={color}
+                  stroke="#000"
+                  strokeWidth={1}
+                />
+              );
+            }}
+          />
 
 
-</BarChart>
+        </BarChart>
 
       </ResponsiveContainer>
 
       {modalData && (
-        <Modal isOpen={isModalOpen} toggle={() => toggleModal(null)} style={{ height: '420px' }}>
+        <Modal isOpen={isModalOpen} toggle={() => toggleModal(null)} style={{ height: '420px', minWidth:"90%" }}>
           <ModalHeader toggle={() => toggleModal(null)}>
             Detalhes do Remetente: {modalData.remetente}
           </ModalHeader>
@@ -240,17 +252,25 @@ const TopRemetentesChart = ({ data }) => {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Número da Nota</th>
-                  <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>Destinatário</th>
+                  <th style={thStyle}>Número da Nota</th>
+                  <th style={thStyle}>Destinatário</th>
+                  <th style={thStyle}>Entrega Realizada</th>
+                  <th style={thStyle}>Prazo de Entrega</th>
+                  <th style={thStyle}>Praça Destino</th>
                 </tr>
               </thead>
+
               <tbody>
                 {modalData.details.map((item, index) => (
                   <tr key={index}>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.NF}</td>
-                    <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.destinatario}</td>
+                    <td style={tdStyle}>{item.NF}</td>
+                    <td style={tdStyle}>{item.destinatario}</td>
+                    <td style={tdStyle}>{item.entregue_em}</td>
+                    <td style={tdStyle}>{item.previsao_entrega}</td>
+                    <td style={tdStyle}>{item.praca_destino}</td>
                   </tr>
                 ))}
+
               </tbody>
             </table>
           </ModalBody>

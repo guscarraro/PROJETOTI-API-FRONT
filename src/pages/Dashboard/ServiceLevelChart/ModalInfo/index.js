@@ -2,6 +2,7 @@ import React from 'react';
 import { Modal, ModalHeader, ModalBody, Table } from 'reactstrap';
 
 const ModalInfo = ({ isOpen, toggle, title, data }) => {
+    
   return (
     <Modal isOpen={isOpen} toggle={toggle} size="lg">
       <ModalHeader toggle={toggle}>{title}</ModalHeader>
@@ -14,6 +15,7 @@ const ModalInfo = ({ isOpen, toggle, title, data }) => {
               <th>Prazo de Entrega</th>
               <th>Número da Nota</th>
               <th>Remetente</th>
+              <th>Fil Dest</th>
             </tr>
           </thead>
           <tbody>
@@ -24,6 +26,7 @@ const ModalInfo = ({ isOpen, toggle, title, data }) => {
                 <td>{item.previsao_entrega}</td>
                 <td>{item.NF}</td>
                 <td>{item.remetente}</td>
+                <td>{item.praca_destino}</td>
               </tr>
             ))}
           </tbody>

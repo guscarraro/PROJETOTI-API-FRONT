@@ -50,29 +50,49 @@ const [modalTitle, setModalTitle] = useState('');
   };
   
   
-const handleSliceClick = (entry, index, chartType) => {
+const handleSliceClick = (entry, index, chartType, selectedPraça = null) => {
+
   let filteredData = [];
-  const titlePrefix = chartType === 'general' ? '' : `${serviceLevelByPraça[index].praça} - `;
+
+  // Nome da praça, se for gráfico por praça
+ const praça = chartType === 'praça' ? selectedPraça : null;
+
+  const titlePrefix = praça ? `${praça} - ` : '';
 
   if (entry.name.includes('No Prazo')) {
-    filteredData = data.filter(item => 
-      item.cte_entregue === 1 && 
-      (item.atraso_cliente === 1 || 
-       (parseDate(item.entregue_em) <= parseDate(item.previsao_entrega) && item.atraso_cliente === 0))
-    );
+    filteredData = data.filter(item => {
+      const entrega = parseDate(item.entregue_em);
+      const previsao = parseDate(item.previsao_entrega);
+
+      return (
+        item.cte_entregue === 1 &&
+        (item.atraso_cliente === 1 || (entrega && previsao && entrega <= previsao && item.atraso_cliente === 0)) &&
+        (!praça || item.praca_destino === praça)
+      );
+    });
+
     setModalTitle(`${titlePrefix}CTEs Entregues no Prazo`);
   } else {
-    filteredData = data.filter(item => 
-      item.cte_entregue === 1 && 
-      parseDate(item.entregue_em) > parseDate(item.previsao_entrega) && 
-      item.atraso_cliente === 0
-    );
+    filteredData = data.filter(item => {
+      const entrega = parseDate(item.entregue_em);
+      const previsao = parseDate(item.previsao_entrega);
+
+      return (
+        item.cte_entregue === 1 &&
+        entrega && previsao &&
+        entrega > previsao &&
+        item.atraso_cliente === 0 &&
+        (!praça || item.praca_destino === praça)
+      );
+    });
+
     setModalTitle(`${titlePrefix}CTEs Entregues com Atraso`);
   }
 
   setModalData(filteredData);
   setModalIsOpen(true);
 };
+
   
   
   const calculateServiceLevelByPraça = (filteredData) => {
@@ -182,7 +202,8 @@ const handleSliceClick = (entry, index, chartType) => {
   dataKey="value"
   outerRadius={80}
   label={false}
-  onClick={(entry, index) => handleSliceClick(entry, index, 'praça')}
+  onClick={(entry) => handleSliceClick(entry, null, 'praça', praçaData.praça)}
+
 >
                   {[{ name: 'No Prazo', value: praçaData.onTime }, { name: 'Atrasadas', value: praçaData.late }].map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={index === 0 ? '#00FF7F' : '#FF4500'} />
