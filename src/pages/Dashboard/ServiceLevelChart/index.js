@@ -1,7 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
+import ModalInfo from './ModalInfo'
+import { Modal, ModalHeader, ModalBody } from 'reactstrap';
 
 const ServiceLevelChart = ({ data }) => {
+    const [modalIsOpen, setModalIsOpen] = useState(false);
+const [modalData, setModalData] = useState([]);
+const [modalTitle, setModalTitle] = useState('');
   const [generalServiceLevel, setGeneralServiceLevel] = useState({ onTime: 0, late: 0, level: 0 });
   const [serviceLevelByPraça, setServiceLevelByPraça] = useState([]);
 
@@ -45,7 +50,29 @@ const ServiceLevelChart = ({ data }) => {
   };
   
   
-  
+const handleSliceClick = (entry, index, chartType) => {
+  let filteredData = [];
+  const titlePrefix = chartType === 'general' ? '' : `${serviceLevelByPraça[index].praça} - `;
+
+  if (entry.name.includes('No Prazo')) {
+    filteredData = data.filter(item => 
+      item.cte_entregue === 1 && 
+      (item.atraso_cliente === 1 || 
+       (parseDate(item.entregue_em) <= parseDate(item.previsao_entrega) && item.atraso_cliente === 0))
+    );
+    setModalTitle(`${titlePrefix}CTEs Entregues no Prazo`);
+  } else {
+    filteredData = data.filter(item => 
+      item.cte_entregue === 1 && 
+      parseDate(item.entregue_em) > parseDate(item.previsao_entrega) && 
+      item.atraso_cliente === 0
+    );
+    setModalTitle(`${titlePrefix}CTEs Entregues com Atraso`);
+  }
+
+  setModalData(filteredData);
+  setModalIsOpen(true);
+};
   
   
   const calculateServiceLevelByPraça = (filteredData) => {
@@ -118,16 +145,17 @@ const ServiceLevelChart = ({ data }) => {
       <h2>{generalServiceLevel.level} %</h2>
       <ResponsiveContainer width="100%" height={280}>
         <PieChart>
-          <Pie
-            data={[
-              { name: `No Prazo (${generalServiceLevel.onTime})`, value: generalServiceLevel.onTime },
-              { name: `Atrasadas (${generalServiceLevel.late})`, value: generalServiceLevel.late },
-            ]}
-            dataKey="value"
-            nameKey="name"
-            outerRadius={100}
-            label={({ name, value }) => `${name}: ${value}`}
-          >
+        <Pie
+  data={[
+    { name: `No Prazo (${generalServiceLevel.onTime})`, value: generalServiceLevel.onTime },
+    { name: `Atrasadas (${generalServiceLevel.late})`, value: generalServiceLevel.late },
+  ]}
+  dataKey="value"
+  nameKey="name"
+  outerRadius={100}
+  label={({ name, value }) => `${name}: ${value}`}
+  onClick={(entry, index) => handleSliceClick(entry, index, 'general')}
+>
             {[{ name: 'No Prazo', value: generalServiceLevel.onTime }, { name: 'Atrasadas', value: generalServiceLevel.late }].map((entry, index) => (
               <Cell key={`cell-${index}`} fill={index === 0 ? '#00FF7F' : '#FF4500'} />
             ))}
@@ -146,15 +174,16 @@ const ServiceLevelChart = ({ data }) => {
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie
-                  data={[
-                    { name: `No Prazo (${praçaData.onTime})`, value: praçaData.onTime },
-                    { name: `Atrasadas (${praçaData.late})`, value: praçaData.late },
-                  ]}
-                  dataKey="value"
-                  outerRadius={80}
-                  label={false}
-                >
+             <Pie
+  data={[
+    { name: `No Prazo (${praçaData.onTime})`, value: praçaData.onTime },
+    { name: `Atrasadas (${praçaData.late})`, value: praçaData.late },
+  ]}
+  dataKey="value"
+  outerRadius={80}
+  label={false}
+  onClick={(entry, index) => handleSliceClick(entry, index, 'praça')}
+>
                   {[{ name: 'No Prazo', value: praçaData.onTime }, { name: 'Atrasadas', value: praçaData.late }].map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={index === 0 ? '#00FF7F' : '#FF4500'} />
                   ))}
@@ -166,6 +195,12 @@ const ServiceLevelChart = ({ data }) => {
           </div>
         ))}
       </div>
+    <ModalInfo 
+  isOpen={modalIsOpen} 
+  toggle={() => setModalIsOpen(!modalIsOpen)} 
+  title={modalTitle} 
+  data={modalData} 
+/>
     </>
   );
 };
