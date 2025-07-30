@@ -5,6 +5,7 @@ import TopRemetentesChart from "../TopRemetentesChart";
 import DailyDeliveryChartByPraça from "../DailyDeliveryChart";
 import InfoOcorren from "./InfoOcorren";
 import apiLocal from "../../../services/apiLocal";
+import '../style.css';
 
 const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -95,16 +96,27 @@ const TelevisaoLayout = ({ data, dataFinal, dataInicial }) => {
   };
 
   return (
-    <div style={{ width: "99%", height: "99%", color: "#fff" }}>
+    <div  className="boxGeneral" style={{ minWidth: "99%", height: "99%", color: "#fff" }}>
+      <button
+  onClick={() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    }
+  }}
+  style={{ position: "absolute", top: 10, right: 10, zIndex: 1000 }}
+>
+  Sair da Tela Cheia
+</button>
+
       {currentSlide === 0 && (
-        <div style={{ padding: "20px" }}>
+        <div style={{ padding: "20px", minWidth: "99%" }}>
           <Box>
             <ServiceLevelChart data={data} />
           </Box>
         </div>
       )}
       {currentSlide === 1 && (
-        <div style={{ padding: "20px" }}>
+        <div style={{ padding: "20px", minWidth: "99%" }}>
           <Box>
             <TopRemetentesChart data={data} />
           </Box>

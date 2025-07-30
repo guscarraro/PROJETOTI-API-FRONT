@@ -141,3 +141,37 @@ export const LoadingText = styled.h5`
   font-size: 1.2rem;
   
 `;
+export const CarouselWrapper = styled.div`
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+
+  .scroll-container {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    gap: 20px;
+    scroll-behavior: smooth;
+    padding: 0 40px;
+    cursor: grab;
+  }
+
+  .scroll-container:active {
+    cursor: grabbing;
+  }
+
+  .card-wrapper {
+    flex: 0 0 auto;
+    width: 370px;
+    min-width: 370px;
+  }
+
+  .hide-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+`;

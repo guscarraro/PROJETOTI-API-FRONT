@@ -11,7 +11,8 @@ const CarouselCards = ({
   toggleDropdown,
   filteredData,
   ocorrenciasPorNota,
-  loadingOcorrencias
+  loadingOcorrencias,
+  totalNotasDashboard
 }) => {
   const scrollRef = useRef(null);
   const isDragging = useRef(false);
@@ -74,7 +75,7 @@ const CarouselCards = ({
 const hoverStyle = {
   transform: 'scale(1.1)',
 };
-
+ 
 
   return (
     <div style={{ position: 'relative' }}>
@@ -151,6 +152,7 @@ const hoverStyle = {
               filteredData={filteredData}
               bgColor={boxColors[status]}
               filteredDataByStatus={groupedDataByStatus} 
+              totalNotasDashboard={totalNotasDashboard}
               ocorrenciasPorNota={ocorrenciasPorNota}
               loadingOcorrencias={loadingOcorrencias} 
             />

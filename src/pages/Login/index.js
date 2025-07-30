@@ -49,6 +49,9 @@ function Login() {
         if (user.setor === '43350e26-12f4-4094-8cfb-2a66f250838d') {
           return '/SAC'; // SAC
         }
+        if (user.setor === 'b1122334-56ab-78cd-90ef-123456789abc') {
+          return '/SAC'; // SAC
+        }
         if (user.setor === '442ec24d-4c7d-4b7e-b1dd-8261c9376d0f') {
           return '/Operacao'; // Operação
         }
@@ -72,7 +75,7 @@ function Login() {
         }
         // Para outros setores ou Admin (tipo de usuário)
         if (user.tipo === 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c') {
-          return '/CicloPedido'; // Admin ou dashboard padrão
+          return '/SAC'; // Admin ou dashboard padrão
         }
         return '/'; // Redireciona para login se nenhum setor/tipo for identificado
       })();

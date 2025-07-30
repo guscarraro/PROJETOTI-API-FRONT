@@ -49,7 +49,7 @@ const LancarFalta = ({ onActionComplete }) => {
 
   const filiais = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP"];
   const responsavel = ["SJP", "MGA", "PTO", "CAS", "NPP", "GUA", "SC", "SP","MOTORISTA","CLIENTE"]
-  const autores = ["Maicon", "Fernanda", "Gean", "Michelen","Mikael", "Vinicius", "sem autorização"];
+  const autores = ["Maicon", "Fernanda", "Gean", "Michelen","Mikael", "Vinicius","Ademir"];
 
 
   const toggleModalImage = () => {
