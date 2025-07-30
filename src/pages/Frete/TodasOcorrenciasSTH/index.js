@@ -19,32 +19,43 @@ const TodasOcorrenciasSTH = () => {
   const [filteredOcorrenciasSTH, setFilteredOcorrenciasSTH] = useState([]);
   const [motoristaFilter, setMotoristaFilter] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [loadingFiltro, setLoadingFiltro] = useState(false);
+
 
   useEffect(() => {
-    fetchData();
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const formatar = (data) => data.toISOString().split("T")[0];
+
+    setDataInicio(formatar(primeiroDia));
+    setDataFim(formatar(ultimoDia));
+
+    fetchData(formatar(primeiroDia), formatar(ultimoDia), "");
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
 
+  const fetchData = async (inicio = "", fim = "", motoristaId = "") => {
+    setLoading(true);
     try {
       const [
         ocorrenciasSTHRes,
         clientesRes,
         motoristasRes,
         destinosRes,
-        ocorrenciasRes, // Adicionando a chamada ao getOcorrencias
-        tiposOcorrenciasRes, // Endpoint para tipos de ocorrências
+        ocorrenciasRes,
+        tiposOcorrenciasRes,
       ] = await Promise.all([
         apiLocal.getOcorrenciasSTH(),
         apiLocal.getClientes(),
         apiLocal.getMotoristas(),
         apiLocal.getDestinos(),
-        apiLocal.getOcorrencias(), // Chamada ao endpoint de ocorrências
-        apiLocal.getNomesOcorrencias(), // Chamada ao endpoint de tipos de ocorrências
+        apiLocal.getOcorrencias(),
+        apiLocal.getNomesOcorrencias(),
       ]);
 
-      // Mapeamento de IDs para nomes
       const clientesMap = {};
       clientesRes.data.forEach((cliente) => {
         clientesMap[cliente.id] = cliente.nome;
@@ -65,8 +76,22 @@ const TodasOcorrenciasSTH = () => {
         tiposOcorrenciasMap[tipo.id] = tipo.nome;
       });
 
-      // Confrontar ocorrências STH com ocorrências do endpoint `getOcorrencias`
-      const ocorrenciasWithNames = ocorrenciasSTHRes.data.map((ocorrenciaSTH) => {
+      let filtradas = ocorrenciasSTHRes.data;
+
+      if (inicio && fim) {
+        const dIni = new Date(inicio);
+        const dFim = new Date(fim);
+        filtradas = filtradas.filter((o) => {
+          const dataViagem = new Date(o.data_viagem);
+          return dataViagem >= dIni && dataViagem <= dFim;
+        });
+      }
+
+      if (motoristaId) {
+        filtradas = filtradas.filter((o) => o.motorista_id === parseInt(motoristaId));
+      }
+
+      const ocorrenciasWithNames = filtradas.map((ocorrenciaSTH) => {
         const matchingOcorrencia = ocorrenciasRes.data.find(
           (ocorrencia) =>
             ocorrencia.nf === ocorrenciaSTH.nf &&
@@ -96,18 +121,20 @@ const TodasOcorrenciasSTH = () => {
         };
       });
 
+      // Ordenar por ID decrescente
+      ocorrenciasWithNames.sort((a, b) => b.id - a.id);
+
       setOcorrenciasSTH(ocorrenciasWithNames);
       setFilteredOcorrenciasSTH(ocorrenciasWithNames);
-      setMotoristas(motoristasRes.data); // Popula motoristas para o filtro
-      setLoading(false);
+      setMotoristas(motoristasRes.data);
     } catch (error) {
       toast.error("Erro ao buscar dados das ocorrências STH.");
       console.error(error);
-
     } finally {
       setLoading(false);
     }
   };
+
 
   const calcularPermanencia = (chegada, saida) => {
     if (!chegada || !saida) return "N/A";
@@ -154,7 +181,12 @@ const TodasOcorrenciasSTH = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "OcorrenciasSTH");
     XLSX.writeFile(workbook, "TodasOcorrenciasSTH.xlsx");
   };
-
+  const aplicarFiltroCompleto = () => {
+    setLoadingFiltro(true);
+    fetchData(dataInicio, dataFim, motoristaFilter).finally(() =>
+      setLoadingFiltro(false)
+    );
+  };
 
   const handleFilter = (motoristaId) => {
     setMotoristaFilter(motoristaId);
@@ -168,7 +200,7 @@ const TodasOcorrenciasSTH = () => {
       );
     }
   };
- 
+
 
   return (
     <div
@@ -186,12 +218,32 @@ const TodasOcorrenciasSTH = () => {
         <Button color="success" onClick={handleExportExcel}>
           <FaFileExcel /> Exportar para Excel
         </Button>
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          <div>
+            <label>Data Início:</label>
+            <Input
+              type="date"
+              value={dataInicio}
+              onChange={(e) => setDataInicio(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Data Fim:</label>
+            <Input
+              type="date"
+              value={dataFim}
+              onChange={(e) => setDataFim(e.target.value)}
+            />
+          </div>
+
+        </div>
+
 
         {/* Filtro por Motorista */}
         <Input
           type="select"
           value={motoristaFilter}
-          onChange={(e) => handleFilter(e.target.value)}
+          onChange={(e) => setMotoristaFilter(e.target.value)}
           style={{ width: 250 }}
         >
           <option value="">Todos os Motoristas</option>
@@ -201,10 +253,19 @@ const TodasOcorrenciasSTH = () => {
             </option>
           ))}
         </Input>
+        <div style={{ display: "flex", alignItems: "end" }}>
+          <Button
+            color="primary"
+            onClick={aplicarFiltroCompleto}
+            disabled={loadingFiltro}
+          >
+            {loadingFiltro ? "Filtrando..." : "Filtrar"}
+          </Button>
+        </div>
       </HeaderContainer>
 
       {loading ? (
-          <LoadingDots /> // Ou use um componente de loading
+        <LoadingDots /> // Ou use um componente de loading
       ) : (
         <Table>
           <thead>

@@ -4,10 +4,12 @@ import { FaFileExcel } from "react-icons/fa";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import apiLocal from "../../../services/apiLocal";
-import { HeaderContainer, Table,
+import {
+  HeaderContainer, Table,
   TableRow,
   TableCell,
-  TableHeader} from "./style";
+  TableHeader
+} from "./style";
 import LoadingDots from "../../../components/Loading";
 
 const TodasOcorrencias = () => {
@@ -16,15 +18,28 @@ const TodasOcorrencias = () => {
   const [statusFilter, setStatusFilter] = useState("");
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [loading, setLoading] = useState(false);
-
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [loadingFiltro, setLoadingFiltro] = useState(false);
 
   useEffect(() => {
-    fetchData();
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+    const formatar = (data) => data.toISOString().split("T")[0];
+    const inicio = formatar(primeiroDia);
+    const fim = formatar(ultimoDia);
+
+    setDataInicio(inicio);
+    setDataFim(fim);
+    fetchData(inicio, fim);
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
 
+
+  const fetchData = async (inicio = "", fim = "", status = "") => {
+    setLoading(true);
     try {
       const [
         ocorrenciasRes,
@@ -60,32 +75,44 @@ const TodasOcorrencias = () => {
         nomesOcorrenciasMap[tipo.id] = tipo.nome;
       });
 
-      const ocorrenciasWithNames = ocorrenciasRes.data.map((ocorrencia) => ({
+      let ocorrenciasFiltradas = ocorrenciasRes.data;
+
+      if (inicio && fim) {
+        const inicioDate = new Date(inicio);
+        const fimDate = new Date(fim);
+        ocorrenciasFiltradas = ocorrenciasFiltradas.filter((o) => {
+          const data = new Date(o.datainclusao);
+          return data >= inicioDate && data <= fimDate;
+        });
+      }
+
+      if (status) {
+        ocorrenciasFiltradas = ocorrenciasFiltradas.filter((o) => o.status === status);
+      }
+
+      const ocorrenciasWithNames = ocorrenciasFiltradas.map((ocorrencia) => ({
         ...ocorrencia,
         cliente_nome: clientesMap[ocorrencia.cliente_id] || "N/A",
         motorista_nome: motoristasMap[ocorrencia.motorista_id] || "N/A",
         destino_nome: destinosMap[ocorrencia.destino_id] || "N/A",
         tipo_ocorrencia: nomesOcorrenciasMap[ocorrencia.tipoocorrencia_id] || "N/A",
-        permanencia: calcularPermanencia(
-          ocorrencia.horario_chegada,
-          ocorrencia.horario_saida
-        ),
-        tempo_para_abrir: calcularTempoParaAbrir(
-          ocorrencia.datainclusao,
-          ocorrencia.horario_chegada
-        ),
+        permanencia: calcularPermanencia(ocorrencia.horario_chegada, ocorrencia.horario_saida),
+        tempo_para_abrir: calcularTempoParaAbrir(ocorrencia.datainclusao, ocorrencia.horario_chegada),
       }));
+
+      ocorrenciasWithNames.sort((a, b) => b.id - a.id);
+
       setOcorrencias(ocorrenciasWithNames);
       setFilteredOcorrencias(ocorrenciasWithNames);
-      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar dados das ocorrências.");
       console.error(error);
     } finally {
       setLoading(false);
+      setLoadingFiltro(false);
     }
-
   };
+
 
   const calcularPermanencia = (chegada, saida) => {
     if (!chegada || !saida) return "N/A";
@@ -119,6 +146,13 @@ const TodasOcorrencias = () => {
     setSortConfig({ key, direction });
   };
 
+  const filtrarPorData = () => {
+    setLoadingFiltro(true);
+    fetchData(dataInicio, dataFim, statusFilter);
+  };
+
+
+
   const handleExportExcel = () => {
     if (filteredOcorrencias.length === 0) {
       toast.warning("Nenhuma ocorrência para exportar.");
@@ -150,16 +184,6 @@ const TodasOcorrencias = () => {
     XLSX.writeFile(workbook, "TodasOcorrencias.xlsx");
   };
 
-  const handleFilter = (status) => {
-    setStatusFilter(status);
-    if (status === "") {
-      setFilteredOcorrencias(ocorrencias);
-    } else {
-      setFilteredOcorrencias(
-        ocorrencias.filter((ocorrencia) => ocorrencia.status === status)
-      );
-    }
-  };
 
   return (
     <div
@@ -176,11 +200,33 @@ const TodasOcorrencias = () => {
         <Button color="success" onClick={handleExportExcel}>
           <FaFileExcel /> Exportar para Excel
         </Button>
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+
+          <div>
+            <label>Data Início:</label>
+            <Input
+              type="date"
+              value={dataInicio}
+              onChange={(e) => setDataInicio(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Data Fim:</label>
+            <Input
+              type="date"
+              value={dataFim}
+              onChange={(e) => setDataFim(e.target.value)}
+            />
+          </div>
+
+        </div>
+
+
 
         <Input
           type="select"
           value={statusFilter}
-          onChange={(e) => handleFilter(e.target.value)}
+          onChange={(e) => setStatusFilter(e.target.value)}
           style={{ width: 250 }}
         >
           <option value="">Todos os Status</option>
@@ -188,10 +234,20 @@ const TodasOcorrencias = () => {
           <option value="Resolvido">Resolvido</option>
           <option value="Não entregue">Não entregue</option>
         </Input>
+
+        <div style={{ display: "flex", alignItems: "end" }}>
+          <Button
+            color="primary"
+            onClick={filtrarPorData}
+            disabled={loadingFiltro}
+          >
+            {loadingFiltro ? "Filtrando..." : "Filtrar"}
+          </Button>
+        </div>
       </HeaderContainer>
 
       {loading ? (
-        <LoadingDots/> // Ou utilize um componente de loading
+        <LoadingDots /> // Ou utilize um componente de loading
       ) : (
         <Table>
           <thead>

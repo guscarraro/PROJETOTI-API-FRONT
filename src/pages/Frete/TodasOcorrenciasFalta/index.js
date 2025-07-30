@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Button } from "reactstrap";
+import { Button, Input } from "reactstrap";
 import { FaFileExcel } from "react-icons/fa";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -17,14 +17,28 @@ const TodasOcorrenciasFalta = () => {
   const [filteredFaltas, setFilteredFaltas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");
+  const [clientes, setClientes] = useState([]);
+  const [clienteFilter, setClienteFilter] = useState("");
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  const [loadingFiltro, setLoadingFiltro] = useState(false);
+
 
   useEffect(() => {
-    fetchData();
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+    const formatar = (data) => data.toISOString().split("T")[0];
+
+    setDataInicio(formatar(primeiroDia));
+    setDataFim(formatar(ultimoDia));
+
+    fetchData(formatar(primeiroDia), formatar(ultimoDia), "");
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
 
+  const fetchData = async (inicio = "", fim = "", clienteId = "") => {
+    setLoading(true);
     try {
       const [faltasRes, clientesRes, motoristasRes, destinosRes] = await Promise.all([
         apiLocal.getFaltas(),
@@ -33,7 +47,6 @@ const TodasOcorrenciasFalta = () => {
         apiLocal.getDestinos(),
       ]);
 
-      // Mapeamento de IDs para nomes
       const clientesMap = {};
       clientesRes.data.forEach((cliente) => {
         clientesMap[cliente.id] = cliente.nome;
@@ -49,24 +62,40 @@ const TodasOcorrenciasFalta = () => {
         destinosMap[destino.id] = destino.nome;
       });
 
-      // Adiciona nomes às faltas
-      const faltasWithNames = faltasRes.data.map((falta) => ({
+      let filtradas = faltasRes.data;
+
+      if (inicio && fim) {
+        const dIni = new Date(inicio);
+        const dFim = new Date(fim);
+        filtradas = filtradas.filter((f) => {
+          const data = new Date(f.data_inclusao);
+          return data >= dIni && data <= dFim;
+        });
+      }
+
+      if (clienteId) {
+        filtradas = filtradas.filter((f) => f.cliente_id === parseInt(clienteId));
+      }
+
+      const faltasWithNames = filtradas.map((falta) => ({
         ...falta,
         cliente_nome: clientesMap[falta.cliente_id] || "N/A",
         motorista_nome: motoristasMap[falta.motorista_id] || "N/A",
         destino_nome: destinosMap[falta.destino_id] || "N/A",
       }));
 
-      setFaltas(faltasWithNames.sort((a, b) => a.id - b.id)); // Ordena por ID
+      // Ordenar por ID decrescente
+      faltasWithNames.sort((a, b) => b.id - a.id);
+
+      setClientes(clientesRes.data);
+      setFaltas(faltasWithNames);
       setFilteredFaltas(faltasWithNames);
-      setLoading(false);
     } catch (error) {
       toast.error("Erro ao buscar dados das faltas.");
       console.error(error);
     } finally {
       setLoading(false);
     }
-
   };
 
   const handleExportExcel = () => {
@@ -104,7 +133,12 @@ const TodasOcorrenciasFalta = () => {
       );
     }
   };
-
+  const aplicarFiltroCompleto = () => {
+    setLoadingFiltro(true);
+    fetchData(dataInicio, dataFim, clienteFilter).finally(() =>
+      setLoadingFiltro(false)
+    );
+  };
   return (
     <div
       style={{
@@ -121,19 +155,52 @@ const TodasOcorrenciasFalta = () => {
         <Button color="success" onClick={handleExportExcel}>
           <FaFileExcel /> Exportar para Excel
         </Button>
+        <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+          <div>
+            <label>Data Início:</label>
+            <Input
+              type="date"
+              value={dataInicio}
+              onChange={(e) => setDataInicio(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Data Fim:</label>
+            <Input
+              type="date"
+              value={dataFim}
+              onChange={(e) => setDataFim(e.target.value)}
+            />
+          </div>
+          <div>
+            <label>Cliente:</label>
+            <Input
+              type="select"
+              value={clienteFilter}
+              onChange={(e) => setClienteFilter(e.target.value)}
+              style={{ width: 200 }}
+            >
+              <option value="">Todos os Clientes</option>
+              {clientes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nome}
+                </option>
+              ))}
+            </Input>
+          </div>
 
-        {/* Filtro por Status */}
-        {/* <Input
-          type="select"
-          value={statusFilter}
-          onChange={(e) => handleFilter(e.target.value)}
-          style={{ width: 250 }}
-        >
-          <option value="">Todos os Status</option>
-          <option value="Pendente">Pendente</option>
-          <option value="Resolvido">Resolvido</option>
-          <option value="Não entregue">Não entregue</option>
-        </Input> */}
+          <div style={{ display: "flex", alignItems: "end" }}>
+            <Button
+              color="primary"
+              onClick={aplicarFiltroCompleto}
+              disabled={loadingFiltro}
+            >
+              {loadingFiltro ? "Filtrando..." : "Filtrar"}
+            </Button>
+          </div>
+        </div>
+
+
       </HeaderContainer>
 
       {loading ? (
