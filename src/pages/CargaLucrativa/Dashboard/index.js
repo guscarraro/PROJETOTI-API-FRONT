@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import apiLocal from "../../../services/apiLocal";
 import { Box, CardStyle } from "./style";
-import { Row, Col, Nav, NavItem, NavLink } from "reactstrap";
+import { Row, Col, Nav, NavItem, NavLink, Input } from "reactstrap";
 import { FiArrowDownRight } from "react-icons/fi";
 import { FaArrowUp, FaTruck } from "react-icons/fa";
 import classnames from "classnames";
@@ -36,12 +36,28 @@ const DashboardViagens = () => {
   const user = JSON.parse(localStorage.getItem("user"));
   const tipoUsuario = user?.tipo;
   const isAdminFrete = tipoUsuario === "FreteAdmin" || tipoUsuario === "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+
+
 
   const [mediaGeral, setMediaGeral] = useState(0);
   const [quantidadeTotal, setQuantidadeTotal] = useState(0);
   const [somaCustoTotal, setSomaCustoTotal] = useState(0);
   const [somaLucroTotal, setSomaLucroTotal] = useState(0);
   const [fatorPorTipoVeiculo, setFatorPorTipoVeiculo] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const hoje = new Date();
+    const primeiroDia = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    const ultimoDia = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
+
+    const formatarData = (data) => data.toISOString().split("T")[0];
+    setDataInicio(formatarData(primeiroDia));
+    setDataFim(formatarData(ultimoDia));
+  }, []);
+
 
   useEffect(() => {
     fetchViagens();
@@ -49,7 +65,13 @@ const DashboardViagens = () => {
 
   const fetchViagens = async () => {
     try {
-      const response = await apiLocal.getViagens();
+      setLoading(true);
+      const filtros = {};
+      if (dataInicio && dataFim) {
+        filtros.dtInicio = dataInicio;
+        filtros.dtFinal = dataFim;
+      }
+      const response = await apiLocal.getViagensFiltradas(filtros);
       const viagensData = response.data;
       setViagens(viagensData);
 
@@ -113,8 +135,11 @@ const DashboardViagens = () => {
         }
       });
       setMediasPorOperacao(operacoesMedias);
+      setLoading(false);
     } catch (error) {
       console.error("Erro ao buscar viagens", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -140,19 +165,46 @@ const DashboardViagens = () => {
 
   return (
     <div style={{ margin: 20, minWidth: '95%', maxWidth: '95%' }}>
-      <Nav tabs style={{ marginBottom: 20 }}>
-        {['geral', 'transferencias', 'pto', 'mtz', 'mga'].map((tab) => (
-          <NavItem key={tab}>
-            <NavLink
-              style={{ color: abaAtiva === tab ? '#000' : '#fff' }}
-              className={classnames({ active: abaAtiva === tab })}
-              onClick={() => setAbaAtiva(tab)}
-            >
-              {tab.toUpperCase()}
-            </NavLink>
-          </NavItem>
-        ))}
-      </Nav>
+      <Row style={{ marginBottom: 20, alignItems: 'center', justifyContent: 'space-between' }}>
+        <Col md="auto">
+          <Nav tabs>
+            {['geral', 'transferencias', 'pto', 'mtz', 'mga'].map((tab) => (
+              <NavItem key={tab}>
+                <NavLink
+                  style={{ color: abaAtiva === tab ? '#000' : '#fff' }}
+                  className={classnames({ active: abaAtiva === tab })}
+                  onClick={() => setAbaAtiva(tab)}
+                >
+                  {tab.toUpperCase()}
+                </NavLink>
+              </NavItem>
+            ))}
+          </Nav>
+        </Col>
+        <Col md="auto" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <label style={{minWidth:80, color: 'white' }}>Data Início:</label>
+          <Input
+            type="date"
+            value={dataInicio}
+            onChange={(e) => setDataInicio(e.target.value)}
+          />
+          <label style={{minWidth:80, color: 'white' }}>Data Fim:</label>
+          <Input
+            type="date"
+            value={dataFim}
+            onChange={(e) => setDataFim(e.target.value)}
+          />
+          <button
+            onClick={fetchViagens}
+            className="btn btn-primary"
+            disabled={loading}
+          >
+            {loading ? "Carregando..." : "Filtrar"}
+          </button>
+
+        </Col>
+      </Row>
+
 
       {/* CARDS GERAIS */}
       <Row style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
