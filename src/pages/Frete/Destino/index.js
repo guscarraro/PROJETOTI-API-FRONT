@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-} from "reactstrap";
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
 import { toast } from "react-toastify";
 import { FaPen, FaTrash, FaPlus } from "react-icons/fa";
 
@@ -21,6 +15,7 @@ import {
   FilterInput,
 } from "./style";
 import LoadingDots from "../../../components/Loading";
+import ModalEdit from "./ModalEdit";
 
 const Destino = () => {
   const [destinos, setDestinos] = useState([]);
@@ -35,6 +30,19 @@ const Destino = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [destinoToDelete, setDestinoToDelete] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [modalEditOpen, setModalEditOpen] = useState(false);
+  const [destinoSelecionadoParaEditar, setDestinoSelecionadoParaEditar] =
+    useState(null);
+
+  const openModalEdit = (destino) => {
+    setDestinoSelecionadoParaEditar(destino);
+    setModalEditOpen(true);
+  };
+
+  const closeModalEdit = () => {
+    setModalEditOpen(false);
+    setDestinoSelecionadoParaEditar(null);
+  };
 
   useEffect(() => {
     fetchDestinos();
@@ -49,7 +57,7 @@ const Destino = () => {
     } catch (error) {
       toast.error("Erro ao buscar destinos.");
       console.error(error);
-    }finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -131,6 +139,18 @@ const Destino = () => {
         minHeight: "100vh",
       }}
     >
+      {modalEditOpen && (
+        <ModalEdit
+          destino={destinoSelecionadoParaEditar}
+          isOpen={modalEditOpen}
+          onClose={closeModalEdit}
+          onSaveSuccess={() => {
+            fetchDestinos();
+            closeModalEdit();
+          }}
+        />
+      )}
+
       <HeaderContainer>
         <FilterInput
           type="text"
@@ -144,28 +164,56 @@ const Destino = () => {
       </HeaderContainer>
 
       {loading ? (
-  <LoadingDots/> // Ou utilize um componente de loading
-) : (
-  <Table>
-    <thead>
-      <TableRow>
-        <TableHeader>Nome</TableHeader>
-        <TableHeader>Endereço</TableHeader>
-        <TableHeader>Cidade</TableHeader>
-      </TableRow>
-    </thead>
-    <tbody>
-      {filteredDestinos.map((destino) => (
-        <TableRow key={destino.id}>
-          <TableCell>{destino.nome}</TableCell>
-          <TableCell>{destino.endereco || "N/A"}</TableCell>
-          <TableCell>{destino.cidade || "N/A"}</TableCell>
-        </TableRow>
-      ))}
-    </tbody>
-  </Table>
-)}
+        <LoadingDots /> // Ou utilize um componente de loading
+      ) : (
+        <Table>
+          <thead>
+            <TableRow>
+              <TableHeader>Nome</TableHeader>
+              <TableHeader>Endereço</TableHeader>
+              <TableHeader>Cidade</TableHeader>
+              <TableHeader>Paletizado</TableHeader>
+              <TableHeader>Valor do Pallet</TableHeader>
+              <TableHeader>Ações</TableHeader>
+            </TableRow>
+          </thead>
+          <tbody>
+            {filteredDestinos.map((destino) => (
+              <TableRow key={destino.id}>
+                <TableCell>{destino.nome}</TableCell>
+                <TableCell>{destino.endereco || "N/A"}</TableCell>
+                <TableCell>{destino.cidade || "N/A"}</TableCell>
+                <TableCell>
+                  {Boolean(destino.paletizado) ? (
+                    <span style={{ color: "green" }}>✔️</span>
+                  ) : (
+                    <span style={{ color: "red" }}>❌</span>
+                  )}
+                </TableCell>
 
+                <TableCell>
+                  {destino.valor_palet !== null &&
+                  destino.valor_palet !== undefined
+                    ? `R$ ${Number(destino.valor_palet)
+                        .toFixed(2)
+                        .replace(".", ",")}`
+                    : "—"}
+                </TableCell>
+
+                <TableCell>
+                  <Button
+                    size="sm"
+                    color="info"
+                    onClick={() => openModalEdit(destino)}
+                  >
+                    <FaPen />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </tbody>
+        </Table>
+      )}
 
       <Modal isOpen={modalOpen} toggle={toggleModal}>
         <ModalHeader toggle={toggleModal}>

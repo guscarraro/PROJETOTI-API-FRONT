@@ -58,6 +58,9 @@ function Login() {
         if (user.setor === '37edd156-ba95-4864-8247-642ff20d8587') {
           return '/Financeiro'; // Financeiro
         }
+        if (user.setor === '123e4567-e89b-12d3-a456-426614174000') {
+          return '/Frete'; // Frete
+        }
         if (user.setor === '958db54e-add5-45f6-8aef-739d6ba7cb4c') {
           return '/Frete'; // Frete
         }

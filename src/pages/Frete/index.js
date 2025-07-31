@@ -38,9 +38,15 @@ import DashboardSTH from "./DashboardSTH";
 import DashboardBaixas from "./DashboardBaixas";
 import GrupoEco from "./GrupoEco";
 import Responsavel from "./Responsavel";
+import LancarPaletizacao from "./LancarPaletizacao";
+import TodasPaletizacoes from "./TodasPaletizacoes";
 
-
-const Navbar = ({ currentTab, setCurrentTab }) => {
+const Navbar = ({
+  currentTab,
+  setCurrentTab,
+  podeLancarPaletizacao,
+  isOperador,
+}) => {
   const [dropdownVisible, setDropdownVisible] = useState(null);
   const [selectedOption, setSelectedOption] = useState({
     dashboard: "Dashboard",
@@ -48,6 +54,7 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
     cadastros: "Cadastros",
     relatorios: "Relatórios",
   });
+
   const navigate = useNavigate();
 
   const toggleDropdown = (menu) => {
@@ -64,45 +71,65 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
 
   return (
     <NavbarContainer>
-      {/* Dashboard com Dropdown */}
-      <NavButton
-        onClick={() => toggleDropdown("dashboard")}
-        className={isActive("dashboard") || isActive("dashboardFaltas") || isActive("dashboardSTH") ? "active" : ""}
-      >
-        <NavIcon>
-          <FaTachometerAlt />
-        </NavIcon>
-        {selectedOption.dashboard} <FaCaretDown />
-        {dropdownVisible === "dashboard" && (
-          <Dropdown>
-            <DropdownItem
-              onClick={() => handleSelection("dashboard", "Dashboard Ocorrência", "dashboard")}
-            >
-              Dashboard Ocorrência
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("dashboard", "Dashboard Faltas", "dashboardFaltas")}
-            >
-              Dashboard Faltas
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("dashboard", "Dashboard STH", "dashboardSTH")}
-            >
-              Dashboard STH
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("dashboard", "Dashboard Baixas", "dashboardBaixas")}
-            >
-              Dashboard Baixas
-            </DropdownItem>
-          </Dropdown>
-        )}
-      </NavButton>
+      {!isOperador && (
+        <NavButton
+          onClick={() => toggleDropdown("dashboard")}
+          className={
+            isActive("dashboard") ||
+            isActive("dashboardFaltas") ||
+            isActive("dashboardSTH")
+              ? "active"
+              : ""
+          }
+        >
+          <NavIcon>
+            <FaTachometerAlt />
+          </NavIcon>
+          {selectedOption.dashboard} <FaCaretDown />
+          {dropdownVisible === "dashboard" && (
+            <Dropdown>
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("dashboard", "Dashboard Ocorrência", "dashboard")
+                }
+              >
+                Dashboard Ocorrência
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("dashboard", "Dashboard Faltas", "dashboardFaltas")
+                }
+              >
+                Dashboard Faltas
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("dashboard", "Dashboard STH", "dashboardSTH")
+                }
+              >
+                Dashboard STH
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("dashboard", "Dashboard Baixas", "dashboardBaixas")
+                }
+              >
+                Dashboard Baixas
+              </DropdownItem>
+            </Dropdown>
+          )}
+        </NavButton>
+      )}
 
-      {/* Lançar Nova Ocorrência com Dropdown */}
       <NavButton
         onClick={() => toggleDropdown("novaOcorrencia")}
-        className={isActive("novaOcorrencia") || isActive("ocorrenciaFalta") || isActive("ocorrenciaSTH") ? "active" : ""}
+        className={
+          isActive("novaOcorrencia") ||
+          isActive("ocorrenciaFalta") ||
+          isActive("ocorrenciaSTH")
+            ? "active"
+            : ""
+        }
       >
         <NavIcon>
           <FaPlusCircle />
@@ -110,107 +137,137 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         {selectedOption.novaOcorrencia} <FaCaretDown />
         {dropdownVisible === "novaOcorrencia" && (
           <Dropdown>
-            <DropdownItem
-              onClick={() => handleSelection("novaOcorrencia", "Lançar Nova Ocorrência", "novaOcorrencia")}
-            >
-              Lançar Nova Ocorrência
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("novaOcorrencia", "Lançar Falta", "ocorrenciaFalta")}
-            >
-              Lançar Falta
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("novaOcorrencia", "Lançar STH", "ocorrenciaSTH")}
-            >
-              Lançar STH
-            </DropdownItem>
+            {!isOperador && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("novaOcorrencia", "Lançar Nova Ocorrência", "novaOcorrencia")
+                }
+              >
+                Lançar Nova Ocorrência
+              </DropdownItem>
+            )}
+            {!isOperador && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("novaOcorrencia", "Lançar Falta", "ocorrenciaFalta")
+                }
+              >
+                Lançar Falta
+              </DropdownItem>
+            )}
+            {!isOperador && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("novaOcorrencia", "Lançar STH", "ocorrenciaSTH")
+                }
+              >
+                Lançar STH
+              </DropdownItem>
+            )}
+            {(podeLancarPaletizacao || !isOperador) && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("novaOcorrencia", "Lançar Paletizacao", "Paletizacao")
+                }
+              >
+                Lançar Paletizacao
+              </DropdownItem>
+            )}
           </Dropdown>
         )}
       </NavButton>
 
-      {/* Ocorrências em Aberto */}
-      <NavButton
-        onClick={() => setCurrentTab("ocorrencias")}
-        className={isActive("ocorrencias") ? "active" : ""}
-      >
-        <NavIcon>
-          <FaClipboardList />
-        </NavIcon>
-        Ocorrências em Aberto
-      </NavButton>
+      {!isOperador && (
+        <NavButton
+          onClick={() => setCurrentTab("ocorrencias")}
+          className={isActive("ocorrencias") ? "active" : ""}
+        >
+          <NavIcon>
+            <FaClipboardList />
+          </NavIcon>
+          Ocorrências em Aberto
+        </NavButton>
+      )}
 
-      {/* Rastreamento de Motorista */}
-      {/* <NavButton
-        onClick={() => setCurrentTab("rastreio")}
-        className={isActive("rastreio") ? "active" : ""}
-      >
-        <NavIcon>
-          <SiGooglemaps />
-        </NavIcon>
-        Rastreio motorista
-      </NavButton> */}
-
-      {/* Menu Cadastros */}
-      <NavButton
-        onClick={() => toggleDropdown("cadastros")}
-        className={
-          isActive("tiposOcorrencias") ||
-            isActive("motoristas") ||
-            isActive("clientes") ||
-            isActive("destino")
-            ? "active"
-            : ""
-        }
-      >
-        <NavIcon>
-          <FaClipboardList />
-        </NavIcon>
-        {selectedOption.cadastros} <FaCaretDown />
-        {dropdownVisible === "cadastros" && (
-          <Dropdown>
+      {(isOperador || !isOperador) && (
+  <NavButton
+    onClick={() => toggleDropdown("cadastros")}
+    className={
+      isActive("tiposOcorrencias") ||
+      isActive("motoristas") ||
+      isActive("clientes") ||
+      isActive("destino")
+        ? "active"
+        : ""
+    }
+  >
+    <NavIcon>
+      <FaClipboardList />
+    </NavIcon>
+    {selectedOption.cadastros} <FaCaretDown />
+    {dropdownVisible === "cadastros" && (
+      <Dropdown>
+        {!isOperador && (
+          <>
             <DropdownItem
-              onClick={() => handleSelection("cadastros", "Tipo de Ocorrência", "tiposOcorrencias")}
+              onClick={() =>
+                handleSelection("cadastros", "Tipo de Ocorrência", "tiposOcorrencias")
+              }
             >
               Tipo de Ocorrência
             </DropdownItem>
             <DropdownItem
-              onClick={() => handleSelection("cadastros", "Motoristas", "motoristas")}
+              onClick={() =>
+                handleSelection("cadastros", "Motoristas", "motoristas")
+              }
             >
               Motoristas
             </DropdownItem>
+           
             <DropdownItem
-              onClick={() => handleSelection("cadastros", "Clientes", "clientes")}
-            >
-              Clientes
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("cadastros", "Destinatários", "destino")}
-            >
-              Destinatários
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("cadastros", "Grupo Econômico", "grupoEco")}
+              onClick={() =>
+                handleSelection("cadastros", "Grupo Econômico", "grupoEco")
+              }
             >
               Grupo Econômico
             </DropdownItem>
             <DropdownItem
-              onClick={() => handleSelection("cadastros", "Responsáveis", "responsavel")}
+              onClick={() =>
+                handleSelection("cadastros", "Responsáveis", "responsavel")
+              }
             >
               Responsáveis
             </DropdownItem>
-
-          </Dropdown>
+          </>
         )}
-      </NavButton>
 
-      {/* Menu Relatórios */}
+        {/* Cliente disponível para todos, inclusive operador */}
+        <DropdownItem
+          onClick={() =>
+            handleSelection("cadastros", "Clientes", "clientes")
+          }
+        >
+          Clientes
+        </DropdownItem>
+         <DropdownItem
+              onClick={() =>
+                handleSelection("cadastros", "Destinatários", "destino")
+              }
+            >
+              Destinatários
+            </DropdownItem>
+      </Dropdown>
+    )}
+  </NavButton>
+)}
+
+
       <NavButton
         onClick={() => toggleDropdown("relatorios")}
         className={
           isActive("todasOcorrencias") ||
-            isActive("todasOcorrenciaFalta") ||
-            isActive("todasOcorrenciaSTH")
+          isActive("todasOcorrenciaFalta") ||
+          isActive("todasOcorrenciaSTH")
             ? "active"
             : ""
         }
@@ -221,38 +278,60 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
         {selectedOption.relatorios} <FaCaretDown />
         {dropdownVisible === "relatorios" && (
           <Dropdown>
-            <DropdownItem
-              onClick={() => handleSelection("relatorios", "Todas as Ocorrências", "todasOcorrencias")}
-            >
-              Todas as Ocorrências
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("relatorios", "Faltas", "todasOcorrenciaFalta")}
-            >
-              Todas as Faltas
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => handleSelection("relatorios", "STH", "todasOcorrenciaSTH")}
-            >
-              Todos os STH
-            </DropdownItem>
+            {!isOperador && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("relatorios", "Todas as Ocorrências", "todasOcorrencias")
+                }
+              >
+                Todas as Ocorrências
+              </DropdownItem>
+            )}
+            {!isOperador && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("relatorios", "Faltas", "todasOcorrenciaFalta")
+                }
+              >
+                Todas as Faltas
+              </DropdownItem>
+            )}
+            {!isOperador && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("relatorios", "STH", "todasOcorrenciaSTH")
+                }
+              >
+                Todos os STH
+              </DropdownItem>
+            )}
+            {(podeLancarPaletizacao || !isOperador) && (
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("relatorios", "Paletizacoes", "todasPaletizacoes")
+                }
+              >
+                Todas as paletizacoes
+              </DropdownItem>
+            )}
           </Dropdown>
         )}
       </NavButton>
+ {!isOperador && (
       <NavButton onClick={() => navigate("/gerar-viagem")}>
         <NavIcon>
           <FaTruck />
         </NavIcon>
         Ir para Carga Lucrativa
       </NavButton>
-      {/* SAC Navigation */}
+)
+};
       <NavButton onClick={() => navigate("/SAC")}>
         <NavIcon>
           <FaArrowRight />
         </NavIcon>
         Ir para SAC
       </NavButton>
-
     </NavbarContainer>
   );
 };
@@ -261,6 +340,12 @@ const Navbar = ({ currentTab, setCurrentTab }) => {
 const Frete = () => {
   const [currentTab, setCurrentTab] = useState("ocorrencias");
   const [successMessage, setSuccessMessage] = useState(null);
+
+  const user = JSON.parse(localStorage.getItem("user"));
+  const tipo = user?.tipo;
+  const isOperador = tipo === "Operacao";
+
+  const podeLancarPaletizacao = isOperador;
 
   useEffect(() => {
     if (successMessage) {
@@ -271,19 +356,41 @@ const Frete = () => {
 
   return (
     <ContainerGeralFrete>
-      <Navbar currentTab={currentTab} setCurrentTab={setCurrentTab} />
-      <div style={{ width: "100%", height: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "flex-start" }}>
-        {currentTab === "dashboard" && <Dashboard />}
+      <Navbar
+        currentTab={currentTab}
+        setCurrentTab={setCurrentTab}
+        podeLancarPaletizacao={podeLancarPaletizacao}
+        isOperador={isOperador}
+      />
+      <div
+        style={{
+          width: "100%",
+          height: "auto",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
+        }}
+      >
+        {!isOperador && currentTab === "dashboard" && <Dashboard />}
         {currentTab === "dashboardFaltas" && <DashboardFalta />}
         {currentTab === "dashboardSTH" && <DashboardSTH />}
         {currentTab === "dashboardBaixas" && <DashboardBaixas />}
-        {currentTab === "ocorrencias" && <OcorrenAbertas />}
-        {currentTab === "novaOcorrencia" && <LancarOcorren onActionComplete={setSuccessMessage} />}
+        {!isOperador && currentTab === "ocorrencias" && <OcorrenAbertas />}
+        {currentTab === "novaOcorrencia" && (
+          <LancarOcorren onActionComplete={setSuccessMessage} />
+        )}
         {currentTab === "ocorrenciaFalta" && <LancarFalta />}
         {currentTab === "ocorrenciaSTH" && <LancarSTH />}
+        {podeLancarPaletizacao && currentTab === "Paletizacao" && (
+          <LancarPaletizacao />
+        )}
+        {currentTab === "todasPaletizacoes" && <TodasPaletizacoes />}
         {currentTab === "rastreio" && <RastreioMotorista />}
         {currentTab === "tiposOcorrencias" && <TipoOcorren />}
-        {currentTab === "todasOcorrencias" && <TodasOcorrencias />}
+        {!isOperador && currentTab === "todasOcorrencias" && (
+          <TodasOcorrencias />
+        )}
         {currentTab === "todasOcorrenciaFalta" && <TodasOcorrenciasFalta />}
         {currentTab === "todasOcorrenciaSTH" && <TodasOcorrenciasSTH />}
         {currentTab === "motoristas" && <Motorista />}
@@ -291,10 +398,10 @@ const Frete = () => {
         {currentTab === "destino" && <Destino />}
         {currentTab === "grupoEco" && <GrupoEco />}
         {currentTab === "responsavel" && <Responsavel />}
-
       </div>
     </ContainerGeralFrete>
   );
 };
+
 
 export default Frete;
