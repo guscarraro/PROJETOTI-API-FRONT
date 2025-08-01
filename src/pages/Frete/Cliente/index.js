@@ -57,7 +57,15 @@ const Cliente = () => {
   };
 
   const handleAddNew = () => {
-    setSelectedCliente({ id: null, nome: "", hr_permanencia: "", tde: "", valor_permanencia: "" });
+    setSelectedCliente({
+      id: null,
+      nome: "",
+      hr_permanencia: "",
+      tde: "não",
+      valor_permanencia: "",
+      paletizado: "não",
+      valor_pallet: ""
+    });
     toggleModal();
   };
 
@@ -70,9 +78,9 @@ const Cliente = () => {
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        <AddButton color="success" onClick={handleAddNew}>
+        {/* <AddButton color="success" onClick={handleAddNew}>
           <FaPlus /> Adicionar Cliente
-        </AddButton>
+        </AddButton> */}
       </HeaderContainer>
 
       {loading ? (
@@ -84,7 +92,9 @@ const Cliente = () => {
               <TableHeader>Nome</TableHeader>
               <TableHeader>Hr Permanência</TableHeader>
               <TableHeader>TDE</TableHeader>
-              <TableHeader>Valor</TableHeader>
+              <TableHeader>Valor TDE</TableHeader>
+              <TableHeader>Paletizado</TableHeader>
+              <TableHeader>Valor Pallet</TableHeader>
               <TableHeader>Ações</TableHeader>
             </TableRow>
           </thead>
@@ -95,6 +105,10 @@ const Cliente = () => {
                 <TableCell>{cliente.hr_perm || '-'}</TableCell>
                 <TableCell style={{ color: cliente.tde === 'sim' ? 'green' : 'red' }}>{cliente.tde === 'sim' ? 'Sim' : 'Não'}</TableCell>
                 <TableCell>{cliente.valor_permanencia ? `R$ ${cliente.valor_permanencia}` : '-'}</TableCell>
+                <TableCell style={{ color: cliente.paletizado === 'sim' ? 'green' : 'red' }}>
+                  {cliente.paletizado === 'sim' ? 'Sim' : 'Não'}
+                </TableCell>
+                <TableCell>{cliente.valor_pallet ? `R$ ${cliente.valor_pallet}` : '-'}</TableCell>
                 <TableCell>
                   <Button color="primary" size="sm" onClick={() => handleEdit(cliente)}>
                     <FaPen />
@@ -107,7 +121,7 @@ const Cliente = () => {
       )}
 
       <ModalEdit
-       
+
         isOpen={modalOpen}
         toggle={toggleModal}
         cliente={selectedCliente}

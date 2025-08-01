@@ -173,7 +173,7 @@ const Destino = () => {
               <TableHeader>Endereço</TableHeader>
               <TableHeader>Cidade</TableHeader>
               <TableHeader>Paletizado</TableHeader>
-              <TableHeader>Valor do Pallet</TableHeader>
+              {/* <TableHeader>Valor do Pallet</TableHeader> */}
               <TableHeader>Ações</TableHeader>
             </TableRow>
           </thead>
@@ -191,14 +191,14 @@ const Destino = () => {
                   )}
                 </TableCell>
 
-                <TableCell>
+                {/* <TableCell>
                   {destino.valor_palet !== null &&
                   destino.valor_palet !== undefined
                     ? `R$ ${Number(destino.valor_palet)
                         .toFixed(2)
                         .replace(".", ",")}`
                     : "—"}
-                </TableCell>
+                </TableCell> */}
 
                 <TableCell>
                   <Button

@@ -24,6 +24,8 @@ const TodasPaletizacoes = () => {
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(false);
   const [clientes, setClientes] = useState([]);
+  const [destinos, setDestinos] = useState([]);
+
   const [clienteFilter, setClienteFilter] = useState("");
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -46,15 +48,11 @@ const TodasPaletizacoes = () => {
   const fetchData = async (inicio = "", fim = "", clienteId = "") => {
     setLoading(true);
     try {
-      const [palRes, clientesRes] = await Promise.all([
+      const [palRes, clientesRes, destinosRes] = await Promise.all([
         apiLocal.getPaletizacoes(),
         apiLocal.getClientes(),
+        apiLocal.getDestinos(),
       ]);
-
-      const clientesMap = {};
-      clientesRes.data.forEach((c) => {
-        clientesMap[c.id] = c.nome;
-      });
 
       let data = palRes.data;
 
@@ -71,22 +69,55 @@ const TodasPaletizacoes = () => {
         data = data.filter((item) => item.cliente_id === parseInt(clienteId));
       }
 
-      const finalData = data.map((p) => ({
-        ...p,
-        cliente_nome: clientesMap[p.cliente_id] || "N/A",
-      }));
-
-      finalData.sort((a, b) => b.id - a.id);
+      data.sort((a, b) => b.id - a.id);
 
       setClientes(clientesRes.data);
-      setPaletizacoes(finalData);
-      setFiltered(finalData);
+      setDestinos(destinosRes.data);
+      setPaletizacoes(data); // apenas dados crus, enriquecimento será feito no useEffect
     } catch (err) {
       toast.error("Erro ao carregar paletizações");
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
+
+useEffect(() => {
+  if (!paletizacoes.length || !destinos.length || !clientes.length) return;
+
+  const destinosMap = {};
+  destinos.forEach((d) => {
+    destinosMap[d.id?.toString()] = { nome: d.nome, cidade: d.cidade };
+  });
+
+  const clientesMap = {};
+  clientes.forEach((c) => {
+    clientesMap[c.id?.toString()] = c.nome;
+  });
+
+  const enriched = paletizacoes.map((p) => {
+    const destinoIdStr = p.destino_id?.toString();
+    const clienteIdStr = p.cliente_id?.toString();
+
+    const destino = destinosMap[destinoIdStr];
+    const cliente = clientesMap[clienteIdStr];
+
+
+
+    return {
+      ...p,
+      cliente_nome: cliente || "N/A",
+      destino_nome: destino?.nome || "N/A",
+      destino_cidade: destino?.cidade || "N/A",
+      cte_numero: p.documento_transporte?.length === 44
+  ? p.documento_transporte.slice(24, 33)
+  : p.documento_transporte,
+
+    };
+  });
+
+  setFiltered(enriched);
+}, [paletizacoes, destinos, clientes]);
 
   const handleExportExcel = () => {
     if (filtered.length === 0) {
@@ -99,7 +130,8 @@ const TodasPaletizacoes = () => {
       "Documento Transporte": p.documento_transporte,
       "NF Referência": p.nf_ref,
       Cliente: p.cliente_nome,
-      Destino: p.destino_id,
+      Destino: p.destino_nome,
+      Cidade: p.destino_cidade,
       "Data Inclusão": new Date(p.dt_inclusao).toLocaleString(),
       "Data Início": p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : "",
       "Data Final": p.dt_final ? new Date(p.dt_final).toLocaleString() : "",
@@ -203,6 +235,7 @@ const TodasPaletizacoes = () => {
               <TableHeader>NF Referência</TableHeader>
               <TableHeader>Cliente</TableHeader>
               <TableHeader>Destino</TableHeader>
+              <TableHeader>Cidade</TableHeader>
               <TableHeader>Dt Inclusão</TableHeader>
               <TableHeader>Início</TableHeader>
               <TableHeader>Fim</TableHeader>
@@ -211,26 +244,22 @@ const TodasPaletizacoes = () => {
               <TableHeader>Valor</TableHeader>
               <TableHeader>Verificado</TableHeader>
               <TableHeader>Nº Cobrança</TableHeader>
-              <TableHeader></TableHeader> {/* Botão editar */}
+              <TableHeader></TableHeader>
             </TableRow>
           </thead>
           <tbody>
             {filtered.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>{p.id}</TableCell>
-                <TableCell>{p.documento_transporte}</TableCell>
+                <TableCell>{p.cte_numero}</TableCell>
+
                 <TableCell>{p.nf_ref}</TableCell>
                 <TableCell>{p.cliente_nome}</TableCell>
-                <TableCell>{p.destino_id}</TableCell>
-                <TableCell>
-                  {new Date(p.dt_inclusao).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  {p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : ""}
-                </TableCell>
-                <TableCell>
-                  {p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}
-                </TableCell>
+                <TableCell>{p.destino_nome}</TableCell>
+                <TableCell>{p.destino_cidade}</TableCell>
+                <TableCell>{new Date(p.dt_inclusao).toLocaleString()}</TableCell>
+                <TableCell>{p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : ""}</TableCell>
+                <TableCell>{p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}</TableCell>
                 <TableCell>{p.qtde_palet}</TableCell>
                 <TableCell>{p.agendamento ? "Sim" : "Não"}</TableCell>
                 <TableCell>{parseFloat(p.valor || 0).toFixed(2)}</TableCell>
@@ -241,7 +270,6 @@ const TodasPaletizacoes = () => {
                     <FaTimesCircle color="red" />
                   )}
                 </TableCell>
-
                 <TableCell>{p.nr_cobranca || ""}</TableCell>
                 <TableCell>
                   <button

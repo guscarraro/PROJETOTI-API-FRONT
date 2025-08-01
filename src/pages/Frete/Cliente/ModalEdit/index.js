@@ -9,7 +9,9 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
     nome: cliente.nome || "",
     hr_permanencia: cliente.hr_perm || "",
     tde: cliente.tde || "não",
-    valor_permanencia: cliente.valor_permanencia || ""
+    valor_permanencia: cliente.valor_permanencia || "",
+    paletizado: cliente.paletizado || "não",
+    valor_pallet: cliente.valor_pallet || ""
   });
 
   useEffect(() => {
@@ -18,7 +20,9 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
       nome: cliente.nome || "",
       hr_permanencia: cliente.hr_perm || "",
       tde: cliente.tde || "não",
-      valor_permanencia: cliente.valor_permanencia || ""
+      valor_permanencia: cliente.valor_permanencia || "",
+      paletizado: cliente.paletizado || "não",
+      valor_pallet: cliente.valor_pallet || ""
     });
   }, [cliente]);
 
@@ -44,8 +48,11 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
         nome: formData.nome,
         hr_permanencia: formatTime(formData.hr_permanencia),
         tde: formData.tde,
-        valor_permanencia: formData.valor_permanencia
+        valor_permanencia: formData.valor_permanencia,
+        paletizado: formData.paletizado,
+        valor_pallet: formData.valor_pallet
       };
+
 
       await apiLocal.updateCamposCliente(formData.id, dataToSend);
       toast.success("Cliente atualizado com sucesso.");
@@ -97,6 +104,28 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
             onChange={(e) => handleChange("valor_permanencia", e.target.value)}
           />
         </div>
+        <div className="mb-3">
+          <Label>Paletizado</Label>
+          <Input
+            type="select"
+            value={formData.paletizado}
+            onChange={(e) => handleChange("paletizado", e.target.value)}
+          >
+            <option value="sim">Sim</option>
+            <option value="não">Não</option>
+          </Input>
+        </div>
+
+        <div className="mb-3">
+          <Label>Valor pallet (R$)</Label>
+          <Input
+            type="text"
+            placeholder="Ex: 7,00"
+            value={formData.valor_pallet}
+            onChange={(e) => handleChange("valor_pallet", e.target.value)}
+          />
+        </div>
+
       </ModalBody>
 
       <ModalFooter>

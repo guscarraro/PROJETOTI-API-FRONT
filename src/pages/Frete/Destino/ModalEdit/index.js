@@ -1,24 +1,27 @@
 import React, { useState } from "react";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
-import { toast } from "react-toastify"; // ✅ importar o toast
+import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Label, Input } from "reactstrap";
+import { toast } from "react-toastify";
 import apiLocal from "../../../../services/apiLocal";
 
 const ModalEdit = ({ destino, isOpen, onClose, onSaveSuccess }) => {
-  const [paletizado, setPaletizado] = useState(destino.paletizado || false);
-  const [valorPalet, setValorPalet] = useState(destino.valor_palet || "");
+  // Converte booleano para string "sim"/"não" para exibir
+  const [paletizado, setPaletizado] = useState(destino.paletizado === true ? "sim" : "não");
 
   const handleSave = async () => {
     try {
+      // Converte "sim"/"não" de volta para booleano
+      const paletizadoBool = paletizado === "sim";
+
       await apiLocal.updateCamposPaletizacaoDestino(destino.id, {
-        paletizado,
-        valor_palet: parseFloat(valorPalet.replace(",", ".") || 0),
+        paletizado: paletizadoBool,
+        valor_palet: null, // remove o valor do pallet
       });
 
-      toast.success("Paletização atualizada com sucesso!"); // ✅ toast de sucesso
+      toast.success("Paletização atualizada com sucesso!");
       onSaveSuccess();
     } catch (error) {
       console.error("Erro ao atualizar destino:", error);
-      toast.error("Erro ao atualizar paletização."); // ❌ toast de erro
+      toast.error("Erro ao atualizar paletização.");
     }
   };
 
@@ -26,26 +29,17 @@ const ModalEdit = ({ destino, isOpen, onClose, onSaveSuccess }) => {
     <Modal isOpen={isOpen} toggle={onClose}>
       <ModalHeader toggle={onClose}>Editar Paletização</ModalHeader>
       <ModalBody>
-        <div className="form-check mb-3">
-          <input
-            className="form-check-input"
-            type="checkbox"
-            checked={paletizado}
-            onChange={(e) => setPaletizado(e.target.checked)}
-            id="paletizadoCheck"
-          />
-          <label className="form-check-label" htmlFor="paletizadoCheck">
-            Paletizado
-          </label>
-        </div>
         <div className="mb-3">
-          <label>Valor do Pallet (R$):</label>
-          <input
-            type="text"
-            className="form-control"
-            value={valorPalet}
-            onChange={(e) => setValorPalet(e.target.value)}
-          />
+          <Label for="paletizadoSelect">Paletizado</Label>
+          <Input
+            type="select"
+            id="paletizadoSelect"
+            value={paletizado}
+            onChange={(e) => setPaletizado(e.target.value)}
+          >
+            <option value="sim">Sim</option>
+            <option value="não">Não</option>
+          </Input>
         </div>
       </ModalBody>
       <ModalFooter>

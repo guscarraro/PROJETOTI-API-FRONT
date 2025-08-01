@@ -382,9 +382,8 @@ const Frete = () => {
         )}
         {currentTab === "ocorrenciaFalta" && <LancarFalta />}
         {currentTab === "ocorrenciaSTH" && <LancarSTH />}
-        {podeLancarPaletizacao && currentTab === "Paletizacao" && (
-          <LancarPaletizacao />
-        )}
+        {currentTab === "Paletizacao" && <LancarPaletizacao />}
+
         {currentTab === "todasPaletizacoes" && <TodasPaletizacoes />}
         {currentTab === "rastreio" && <RastreioMotorista />}
         {currentTab === "tiposOcorrencias" && <TipoOcorren />}
