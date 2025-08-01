@@ -11,6 +11,7 @@ import ModalCloud from './ModalCloud';
 import ModalLicenca from './ModalLicenca';
 import ModalAparelho from './ModalAparelho';
 import ModalDel from './ModalDel';
+import TabelaEquipamentos from './TabelaEquipamentos';
 
 
 
@@ -25,7 +26,7 @@ function EstoqueTi() {
   const [microsoftModalOpen, setMicrosoftModalOpen] = useState(false);
   const [aparelhoModalOpen, setAparelhoModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
+  const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
 
 
   const toggleAparelhoModal = () => setAparelhoModalOpen(!aparelhoModalOpen);
@@ -55,20 +56,20 @@ const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
     setEquipamentoToEdit(equipamento);
     setIsEditModalOpen(true);
   };
- const confirmDeleteEquipamento = async () => {
-  if (!equipamentoToDelete) return;
-  try {
-    await apiLocal.deleteControleEstoque(equipamentoToDelete.id);
-    toast.success("Equipamento excluído com sucesso!");
-    fetchEquipamentos();
-  } catch (error) {
-    console.error("Erro ao excluir equipamento:", error);
-    toast.error("Erro ao excluir equipamento.");
-  } finally {
-    setIsDeleteModalOpen(false);
-    setEquipamentoToDelete(null);
-  }
-};
+  const confirmDeleteEquipamento = async () => {
+    if (!equipamentoToDelete) return;
+    try {
+      await apiLocal.deleteControleEstoque(equipamentoToDelete.id);
+      toast.success("Equipamento excluído com sucesso!");
+      fetchEquipamentos();
+    } catch (error) {
+      console.error("Erro ao excluir equipamento:", error);
+      toast.error("Erro ao excluir equipamento.");
+    } finally {
+      setIsDeleteModalOpen(false);
+      setEquipamentoToDelete(null);
+    }
+  };
 
 
 
@@ -168,30 +169,25 @@ const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
         </Row>
 
         {/* Exibição por Setor */}
-        {setores.map((setor) => (
-          <SetorSection key={setor}>
-            <h3>{setor}</h3>
-            <hr />
-            <Row style={{ maxWidth: '100%' }}>
-              {equipamentos
-                .filter((eq) => eq.setor === setor)
-                .map((equipamento) => (
-                  <Col md={3} key={equipamento.id}>
-                    <CardEquip
-                      equipamento={equipamento}
-                      onClick={() => setSelectedEquipamento(equipamento)}
-                      onEdit={() => handleEditClick(equipamento)}
-                      onDelete={(equipamento) => {
-    setEquipamentoToDelete(equipamento);
-    setIsDeleteModalOpen(true);
-  }}
-                    />
-                    
-                  </Col>
-                ))}
-            </Row>
-          </SetorSection>
-        ))}
+        {setores.map((setor) => {
+  const equipamentosDoSetor = equipamentos.filter(eq => eq.setor === setor);
+  return (
+    <SetorSection key={setor}>
+      <h3>{setor}</h3>
+      <hr />
+      <TabelaEquipamentos
+        equipamentos={equipamentosDoSetor}
+        onEdit={handleEditClick}
+        onDelete={(equipamento) => {
+          setEquipamentoToDelete(equipamento);
+          setIsDeleteModalOpen(true);
+        }}
+        onInfo={setSelectedEquipamento}
+      />
+    </SetorSection>
+  );
+})}
+
 
         {/* Almoxarifado (Backup) - Só aparece se showBackup for verdadeiro */}
 
@@ -209,11 +205,11 @@ const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
           />
         )}
         <ModalDel
-  isOpen={isDeleteModalOpen}
-  toggle={() => setIsDeleteModalOpen(false)}
-  onConfirm={confirmDeleteEquipamento}
-  itemName={equipamentoToDelete?.tipo_aparelho}
-/>
+          isOpen={isDeleteModalOpen}
+          toggle={() => setIsDeleteModalOpen(false)}
+          onConfirm={confirmDeleteEquipamento}
+          itemName={equipamentoToDelete?.tipo_aparelho}
+        />
 
 
         {/* Modal de Detalhes */}
@@ -227,6 +223,8 @@ const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
               <p><strong>Cloud:</strong> {selectedEquipamento.cloud_utilizado || 'Não informado'}</p>
               <p><strong>Descrição:</strong> {selectedEquipamento.descricao}</p>
               <p><strong>Localização Física:</strong> {selectedEquipamento.localizacao_fisica}</p>
+              <p><strong>Obs adicional:</strong> {selectedEquipamento.observacoes || 'Não informado'}</p>
+              <p><strong>Numero serie:</strong> {selectedEquipamento.numero_serie || 'Não informado'}</p>
             </ModalBody>
           </Modal>
         )}
