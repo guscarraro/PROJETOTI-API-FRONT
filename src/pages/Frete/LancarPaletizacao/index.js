@@ -17,7 +17,7 @@ import {
   FaCalendar,
   FaDollarSign,
 } from "react-icons/fa";
-import { fetchDocumento } from "../../../services/api";
+import { fetchDocumento, fetchNotaFiscal } from "../../../services/api";
 import LoadingDots from "../../../components/Loading";
 import apiLocal from "../../../services/apiLocal";
 import ModalSelectDoc from "./ModalSelectDoc/indexs";
@@ -29,6 +29,9 @@ const LancarPaletizacao = ({ onActionComplete }) => {
   const [loadingCTE, setLoadingCTE] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
   const [opcoesCTE, setOpcoesCTE] = useState([]);
+  const [tipoBusca, setTipoBusca] = useState("CTE"); // "CTE" ou "NF"
+  const [numeroBusca, setNumeroBusca] = useState("");
+
 
   const [paletizacao, setPaletizacao] = useState({
     documento_transporte: "",
@@ -71,15 +74,55 @@ const LancarPaletizacao = ({ onActionComplete }) => {
     const { name, value } = e.target;
     setPaletizacao({ ...paletizacao, [name]: value });
   };
+  const buscarNF = async () => {
+    if (!numeroBusca) return;
+    setLoadingCTE(true);
+    try {
+      const response = await fetchNotaFiscal(numeroBusca.trim());
+
+      if (!response || !Array.isArray(response)) throw new Error("Resposta inválida da API.");
+
+      const dados = response.filter(n => n.NF?.toString().trim() === numeroBusca.trim());
+
+      if (dados.length > 1) {
+        setOpcoesCTE(dados);
+        setModalVisible(true);
+        return;
+      }
+
+      const data = dados[0];
+      if (!data) {
+        toast.error("Nota Fiscal não encontrada.");
+        return;
+      }
+
+      setPaletizacao(prev => ({
+        ...prev,
+        nf_ref: data.NF || "",
+        cliente_id: data.remetente,
+        destino_id: data.destinatario,
+      }));
+
+      toast.success("Dados da NF carregados com sucesso.");
+    } catch (err) {
+      toast.error("Erro ao buscar NF.");
+    } finally {
+      setLoadingCTE(false);
+    }
+  };
+
 
   const buscarCTE = async (cteSelecionado = null) => {
-    if (!paletizacao.documento_transporte && !cteSelecionado) return;
+    const numero = cteSelecionado ? null : numeroBusca.trim();
+if (!numero && !cteSelecionado) return;
+
     setLoadingCTE(true);
 
     try {
       const response = cteSelecionado
         ? { detalhe: cteSelecionado }
-        : await fetchDocumento(paletizacao.documento_transporte);
+        : await fetchDocumento(numero);
+
 
       if (Array.isArray(response) && response.length > 1) {
         setOpcoesCTE(response);
@@ -230,6 +273,14 @@ const LancarPaletizacao = ({ onActionComplete }) => {
       setIsLoading(false);
     }
   };
+  const preencherDadosNF = (data) => {
+    setPaletizacao(prev => ({
+      ...prev,
+      nf_ref: data.NF || "",
+      cliente_id: data.remetente,
+      destino_id: data.destinatario,
+    }));
+  };
 
   return (
     <Container>
@@ -238,27 +289,38 @@ const LancarPaletizacao = ({ onActionComplete }) => {
         isOpen={modalVisible}
         onClose={() => setModalVisible(false)}
         opcoes={opcoesCTE}
-        onSelect={(cteSelecionado) => {
+        onSelect={(itemSelecionado) => {
           setModalVisible(false);
-          buscarCTE(cteSelecionado);
+          tipoBusca === "CTE" ? buscarCTE(itemSelecionado) : preencherDadosNF(itemSelecionado);
         }}
+
       />
       <StyledForm onSubmit={handleSubmit}>
         <FormGroup>
-          <Label>
-            <FaClipboardList /> Documento Transporte (CTE)
-          </Label>
+          <Label>Buscar por:</Label>
+          <Select value={tipoBusca} onChange={(e) => {
+            setTipoBusca(e.target.value);
+            setNumeroBusca("");
+          }}>
+            <option value="CTE">CTE</option>
+            <option value="NF">Nota Fiscal</option>
+          </Select>
+        </FormGroup>
+
+        <FormGroup>
+          <Label>{tipoBusca === "CTE" ? "Documento Transporte (CTE)" : "Nota Fiscal"}</Label>
           <div style={{ position: "relative" }}>
             <Input
               type="text"
-              name="documento_transporte"
-              value={paletizacao.documento_transporte}
-              onChange={handleInputChange}
+              name={tipoBusca === "CTE" ? "documento_transporte" : "nota_fiscal"}
+              value={numeroBusca}
+              onChange={(e) => setNumeroBusca(e.target.value)}
               onKeyDown={(e) =>
-                (e.key === "Enter" || e.key === "Tab") && buscarCTE()
+                (e.key === "Enter" || e.key === "Tab") &&
+                (tipoBusca === "CTE" ? buscarCTE() : buscarNF())
               }
               disabled={loadingCTE}
-              style={{ paddingRight: "30px" }} // Espaço para o loader não cobrir texto
+              style={{ paddingRight: "30px" }}
             />
             {loadingCTE && (
               <div
@@ -275,6 +337,7 @@ const LancarPaletizacao = ({ onActionComplete }) => {
             )}
           </div>
         </FormGroup>
+
 
         <FormGroup>
           <Label>

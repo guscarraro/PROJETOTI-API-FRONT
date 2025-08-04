@@ -7,18 +7,27 @@ const ModalSelectDoc = ({ isOpen, onClose, opcoes, onSelect }) => {
       <ModalHeader toggle={onClose}>Selecionar Documento</ModalHeader>
       <ModalBody>
         <p>Foram encontrados múltiplos documentos com o mesmo número:</p>
-        <ul>
-          {opcoes.map((cte, index) => (
-            <li
-              key={index}
-              style={{ cursor: "pointer", marginBottom: "8px" }}
-              onClick={() => onSelect(cte)}
-            >
-              <strong>Remetente:</strong> {cte.remetente} <br />
-              <strong>Destinatário:</strong> {cte.destinatario} <br />
-              <strong>Chave NF:</strong> {(cte.nfs || [])[0]?.chave || "N/A"}
-            </li>
-          ))}
+        <ul style={{ listStyle: "none", paddingLeft: 0 }}>
+          {opcoes.map((doc, index) => {
+            const remetente = doc.remetente || "Remetente não informado";
+            const destinatario = doc.destinatario || "Destinatário não informado";
+            const chave =
+              doc?.nfs?.[0]?.chave || // formato CTE
+              doc?.chave ||           // formato NF simples
+              "Chave não disponível";
+
+            return (
+              <li
+                key={index}
+                style={{ cursor: "pointer", marginBottom: "12px", padding: "8px", border: "1px solid #ddd", borderRadius: "6px" }}
+                onClick={() => onSelect(doc)}
+              >
+                <strong>Remetente:</strong> {remetente} <br />
+                <strong>Destinatário:</strong> {destinatario} <br />
+                <strong>Chave:</strong> {chave}
+              </li>
+            );
+          })}
         </ul>
       </ModalBody>
       <ModalFooter>
