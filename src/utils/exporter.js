@@ -268,8 +268,8 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
 
           const statusViagem =
             isAgendada && ehForaSJP ? "VIAGEM + AGENDADO" :
-            isAgendada ? "AGENDADO" :
-            ehForaSJP ? "VIAGEM" : "NORMAL";
+              isAgendada ? "AGENDADO" :
+                ehForaSJP ? "VIAGEM" : "NORMAL";
 
           const row = [
             remetente,
@@ -397,7 +397,21 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Todas Notas");
 
-  // Cabeçalho
+  const etapasPadrao = [
+    "ENTRADA DE XML NO SISTEMA",
+    "DOCUMENTO EMITIDO",
+    "MERCADORIA SEPARADA/CONFERIDA",
+    "VIAGEM CRIADA",
+    "EM ROTA DE TRANSFERENCIA",
+    "CHEGADA NA BASE",
+    "CHEGADA NA FILIAL",
+    "MERCADORIA RECEBIDA NA FILIAL",
+    "EM ROTA",
+    "CHEGADA NO LOCAL",
+    "INICIO DE DESCARGA",
+    "FIM DE DESCARGA"
+  ];
+
   worksheet.addRow([
     "Status",
     "Remetente/Tomador",
@@ -405,52 +419,48 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
     "CT-e",
     "Destino",
     "Praça Destino",
+    ...etapasPadrao,
     "Previsão Entrega",
     "Dias Atraso",
-    "Status Viagem",
-    ...fluxosPorTpVg.ETPF // Adiciona todas as etapas
+    "Dias Referência",
+    "Status Viagem"
   ]);
 
-  // Estilizar cabeçalho
   worksheet.getRow(1).eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFCCE5FF" },
-    };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFCCE5FF" } };
     cell.font = { bold: true };
     cell.alignment = { vertical: "middle", horizontal: "center" };
   });
 
-  // Preencher dados para cada status
   for (const [statusKey, statusLabel] of Object.entries({
     aguardandoAgendamento: "Aguardando Agendamento",
     semPrevisao: "Sem Previsão",
-    inThreeDays: "Entrega em 3 Dias",
-    inTwoDays: "Entrega em 2 Dias",
-    tomorrow: "Entrega em 1 Dia",
+    inThreeDays: "Entregas em 3 Dias",
+    inTwoDays: "Entregas em 2 Dias",
+    tomorrow: "Entregas em 1 Dia",
     today: "Entregas Hoje",
     overdue: "Atrasadas"
   })) {
     const statusData = groupedDataByStatus[statusKey] || [];
 
     for (const group of statusData) {
-      const itens = group?.notas ?? group?.itens ?? group?.ocorrencias ?? [];
+      const remetente = group?.remetente || group?.tom || "Desconhecido";
+      const notas = Array.isArray(group?.notas) ? group.notas : [group];
 
-
-
-      for (const item of itens) {
-        const nfs = item.NF?.split(",").map(nf => nf.trim()) || [];
+      for (const item of notas) {
+        const nfs = typeof item.NF === "string"
+          ? item.NF.split(",").map(nf => nf.trim())
+          : item.nf
+            ? [String(item.nf).trim()]
+            : [];
 
         for (const nf of nfs) {
-          const notaInfo = ocorrenciasPorNota.find(o =>
-            String(o.NF).split(",").map(x => x.trim()).includes(nf)) || item;
+          const notaInfo = unificarNotaInfo(nf, remetente, filteredData, ocorrenciasPorNota);
+          if (!notaInfo) continue;
 
-          // Determinar tipo de viagem e etapas
           const tipoViagem = notaInfo.TpVg || "ETPF";
           const etapasComStatus = getEtapasComStatus(notaInfo, tipoViagem);
 
-          // Verificar se é agendamento e/ou viagem
           const isAgendada = notaInfo.destinatario?.includes("(AGENDADO)") ||
             (notaInfo.Ocorren || []).some(oc => oc.tipo === "ENTREGA AGENDADA");
           const ehForaSJP = notaInfo.praca_destino?.toUpperCase() !== "SJP";
@@ -459,96 +469,54 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
               isAgendada ? "AGENDADO" :
                 ehForaSJP ? "VIAGEM" : "NORMAL";
 
-          // Criar linha com informações básicas
           const row = [
             statusLabel,
-            group.remetente,
+            remetente,
             nf,
             notaInfo.cte || "",
             notaInfo.destino || "",
-            notaInfo.praca_destino || "",
-            notaInfo.prevE || "",
-            statusKey === "overdue" ? calcularDiasAtraso(notaInfo.prevE) : "",
-            statusViagem
+            notaInfo.praca_destino || ""
           ];
 
-          // Adicionar informações de cada etapa
-          for (const etapa of fluxosPorTpVg.ETPF) {
-            const etapaInfo = etapasComStatus.find(e => e.nome === etapa);
-
-            if (etapaInfo) {
-              row.push(etapaInfo.foiExecutada ?
-                `${etapaInfo.detalhe || "Concluído"}` :
-                etapaInfo.status === "vermelha" ? "Pendente" : "");
+          for (const etapaNome of etapasPadrao) {
+            const etapa = etapasComStatus.find(e => e.nome === etapaNome);
+            if (!etapa) {
+              row.push("-"); // inexistente
+            } else if (etapa.foiExecutada) {
+              row.push(etapa?.detalhe || "Concluído");
             } else {
-              row.push(""); // Etapa não aplicável
+              row.push(""); // existente, mas não concluída
             }
           }
 
-          worksheet.addRow(row);
+          row.push(
+            notaInfo.prevE || "",
+            statusKey === "overdue" ? calcularDiasAtraso(notaInfo.prevE) : "",
+            diasEntreHoje(notaInfo.prevE),
+            statusViagem
+          );
 
-          // Aplicar formatação condicional
-          const rowNumber = worksheet.rowCount;
-          const rowObj = worksheet.getRow(rowNumber);
+          const rowObj = worksheet.addRow(row);
 
-          // Colorir linha conforme status
           if (statusKey === "overdue") {
-            rowObj.eachCell((cell) => {
-              cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: "FFFFCCCB" }, // Vermelho claro
-              };
-            });
+            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFCCCB" } });
           } else if (statusKey === "today") {
-            rowObj.eachCell((cell) => {
-              cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: "FFFFFFE0" }, // Amarelo claro
-              };
-            });
-          } else if (isAgendada && ehForaSJP) {
-            // Gradiente laranja/azul para ambos
-            rowObj.eachCell((cell) => {
-              cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: "FFE6E6FA" }, // Lavanda (mistura)
-              };
-            });
-          } else if (isAgendada) {
-            // Azul para agendamento
-            rowObj.eachCell((cell) => {
-              cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: "FFADD8E6" }, // Azul claro
-              };
-            });
-          } else if (ehForaSJP) {
-            // Laranja para viagem
-            rowObj.eachCell((cell) => {
-              cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: "FFFFA07A" }, // Laranja claro
-              };
-            });
+            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFE0" } });
+          } else if (statusViagem === "VIAGEM + AGENDADO") {
+            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E6FA" } });
+          } else if (statusViagem === "AGENDADO") {
+            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFADD8E6" } });
+          } else if (statusViagem === "VIAGEM") {
+            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFA07A" } });
           }
 
-          // Colorir células de etapa concluída em verde
-          etapasComStatus.forEach((etapa, idx) => {
-            if (etapa.foiExecutada) {
-              const colIndex = 9 + fluxosPorTpVg.ETPF.indexOf(etapa.nome) + 1;
-              if (colIndex > 9) {
-                const cell = rowObj.getCell(colIndex);
-                cell.fill = {
-                  type: "pattern",
-                  pattern: "solid",
-                  fgColor: { argb: "FF90EE90" }, // Verde claro
-                };
-              }
+          etapasPadrao.forEach((etapaNome, idx) => {
+            const etapa = etapasComStatus.find(e => e.nome === etapaNome);
+            const cell = rowObj.getCell(7 + idx); // começa na 7ª col (Destino), então + idx
+            if (!etapa) {
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDDDDDD" } }; // cinza
+            } else if (etapa.foiExecutada) {
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } }; // verde
             }
           });
         }
@@ -556,22 +524,21 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
     }
   }
 
-  // Ajustar largura das colunas
   worksheet.columns.forEach(column => {
     const header = typeof column.header === "string" ? column.header : "";
     column.width = header.length < 12 ? 12 : header.length + 5;
   });
 
-  // Aplicar estilos comuns
   applyCommonStyles(worksheet, worksheet.rowCount, worksheet.columnCount);
 
-  // Gerar arquivo
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   });
   saveAs(blob, `Relatorio_Entregas_GERAL_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
 };
+
+
 // Adicione esta função no exporter.js
 export const exportarExcelDetalhadoPorStatus = async (groupedDataByStatus, filteredData, ocorrenciasPorNota) => {
   const workbook = new ExcelJS.Workbook();

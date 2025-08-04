@@ -2,13 +2,16 @@ import React from 'react';
 import { MdOutlineScreenshotMonitor } from 'react-icons/md';
 import { Col, Button } from 'reactstrap';
 
-const DashboardActions = ({ exportarDetalhado, exportarParaExcel, navigate, handleFullScreen }) => {
+const DashboardActions = ({ exportarTudoSemClientes, exportarParaExcel, navigate, handleFullScreen }) => {
   const user = JSON.parse(localStorage.getItem('user'));
   const setorBloqueado = 'b1122334-56ab-78cd-90ef-123456789abc';
 
   return (
     <Col md="12" style={{ marginTop: '5px' }}>
       <Button color="success" onClick={exportarParaExcel}>Exportar Excel</Button>
+      <Button onClick={exportarTudoSemClientes}>
+        Exportar Geral (1 aba)
+      </Button>
 
       {/* Só exibe se o setor não for o bloqueado */}
       {user?.setor !== setorBloqueado && (

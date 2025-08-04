@@ -36,7 +36,7 @@ const Dashboard = () => {
     filters,
     exportarDetalhado,
     exportarParaExcel,
-    exportarTudoSemClientes: handleExportarTudo,
+    exportarTudoSemClientes,
     handlers,
   } = useDashboardData();
 
@@ -99,7 +99,7 @@ const toggleFullScreen = () => {
 
             <DashboardActions
               exportarParaExcel={exportarParaExcel}
-              exportarTudoSemClientes={handleExportarTudo}
+              exportarTudoSemClientes={exportarTudoSemClientes}
               exportarDetalhado={exportarDetalhado}
               navigate={navigate}
               handleFullScreen={toggleFullScreen}
