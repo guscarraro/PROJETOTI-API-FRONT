@@ -10,32 +10,73 @@ import {
 import ChartClientesAtrasos from "./ChartClientesAtrasos";
 import apiLocal from "../../../../services/apiLocal";
 import { toast } from "react-toastify";
+import { FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+
 import * as XLSX from "xlsx"; // ✅ Importa XLSX para exportação
 
-const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => {
+const ModalNaoCobranca = ({ data, clientes = [], onClose, onRefresh, onContagemVermelhas }) => {
   const [sortedData, setSortedData] = useState([...data]);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: "asc" });
   const [selectedNota, setSelectedNota] = useState(null);
   const [isCteModalOpen, setIsCteModalOpen] = useState(false);
   const [cteValue, setCteValue] = useState("");
   const [isValid, setIsValid] = useState(true);
-
   const toggleCteModal = () => setIsCteModalOpen(!isCteModalOpen);
 
   useEffect(() => {
     const vermelhas = sortedData.filter((item) => {
+      const clienteInfo = getClienteInfo(item.cliente_id);
       const permanencia = calcularTempoPermanencia(
         item.horario_chegada,
         item.horario_saida,
         item.horario_ocorrencia
       );
-      return permanencia.horas >= 1;
+      const cobranca = calcularValorCobranca(clienteInfo, permanencia);
+      return !cobranca.dentroDoPrazo && cobranca.excedente > 0;
     });
 
     if (onContagemVermelhas) {
       onContagemVermelhas(vermelhas.length);
     }
   }, [sortedData, onContagemVermelhas]);
+
+
+  const parseHorasPermitidas = (str) => {
+    if (!str) return 0;
+    const [h, m] = str.split(":").map(Number);
+    return h + m / 60;
+  };
+
+
+  const getClienteInfo = (clienteId) => {
+    const found = clientes.find((c) => c.value === clienteId);
+    return found || {};
+  };
+
+
+  const calcularValorCobranca = (clienteInfo, tempoReal) => {
+    const tde = clienteInfo?.tde?.toUpperCase?.() === "SIM";
+    const hrPermitida = parseHorasPermitidas(clienteInfo?.hr_permanencia);
+
+    const valorHora = Number(clienteInfo?.valor_permanencia || 0);
+
+    const tempoTotalHoras = tempoReal.horas + tempoReal.minutos / 60;
+
+    if (tempoReal.formatado === "Indisponível" || !clienteInfo?.hr_permanencia) {
+      return { excedente: 0, valorCobrado: 0, dentroDoPrazo: true };
+    }
+
+    const excedente = tempoTotalHoras - hrPermitida;
+    const dentroDoPrazo = excedente <= 0 || tde;
+
+    return {
+      excedente: excedente > 0 ? excedente : 0,
+      valorCobrado: excedente > 0 ? excedente * valorHora : 0,
+      dentroDoPrazo,
+    };
+  };
+
+
 
   const handleCheckboxChange = (nf) => {
     setSelectedNota(nf === selectedNota ? null : nf);
@@ -127,37 +168,52 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => 
     return { horas, minutos, formatado: `${horas}h ${minutos}min` };
   };
 
-  const handleSort = (key) => {
-    let direction = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
+ const handleSort = (key) => {
+  let direction = "asc";
+  if (sortConfig.key === key && sortConfig.direction === "asc") {
+    direction = "desc";
+  }
 
-    const sorted = [...sortedData].sort((a, b) => {
-      if (key === "tempoPermanencia") {
-        const tempoA = calcularTempoPermanencia(
-          a.horario_chegada,
-          a.horario_saida,
-          a.horario_ocorrencia
-        );
-        const tempoB = calcularTempoPermanencia(
-          b.horario_chegada,
-          b.horario_saida,
-          b.horario_ocorrencia
-        );
+  const sorted = [...sortedData].sort((a, b) => {
+    const clienteA = getClienteInfo(a.cliente_id);
+    const clienteB = getClienteInfo(b.cliente_id);
+    const permanenciaA = calcularTempoPermanencia(a.horario_chegada, a.horario_saida, a.horario_ocorrencia);
+    const permanenciaB = calcularTempoPermanencia(b.horario_chegada, b.horario_saida, b.horario_ocorrencia);
+    const cobrancaA = calcularValorCobranca(clienteA, permanenciaA);
+    const cobrancaB = calcularValorCobranca(clienteB, permanenciaB);
+
+    switch (key) {
+      case "tempoPermanencia":
         return direction === "asc"
-          ? tempoA.horas - tempoB.horas || tempoA.minutos - tempoB.minutos
-          : tempoB.horas - tempoA.horas || tempoB.minutos - tempoA.minutos;
-      }
+          ? permanenciaA.horas - permanenciaB.horas || permanenciaA.minutos - permanenciaB.minutos
+          : permanenciaB.horas - permanenciaA.horas || permanenciaB.minutos - permanenciaA.minutos;
 
-      if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
-      if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
-      return 0;
-    });
+      case "hr_permanencia":
+        const hpA = parseHorasPermitidas(clienteA?.hr_permanencia);
+        const hpB = parseHorasPermitidas(clienteB?.hr_permanencia);
+        return direction === "asc" ? hpA - hpB : hpB - hpA;
 
-    setSortedData(sorted);
-    setSortConfig({ key, direction });
-  };
+      case "excedente":
+        return direction === "asc"
+          ? cobrancaA.excedente - cobrancaB.excedente
+          : cobrancaB.excedente - cobrancaA.excedente;
+
+      case "valorCobrado":
+        return direction === "asc"
+          ? cobrancaA.valorCobrado - cobrancaB.valorCobrado
+          : cobrancaB.valorCobrado - cobrancaA.valorCobrado;
+
+      default:
+        if (a[key] < b[key]) return direction === "asc" ? -1 : 1;
+        if (a[key] > b[key]) return direction === "asc" ? 1 : -1;
+        return 0;
+    }
+  });
+
+  setSortedData(sorted);
+  setSortConfig({ key, direction });
+};
+
 
   const clientesAtrasos = [];
   data.forEach((item) => {
@@ -178,6 +234,44 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => 
     const minutos = String(data.getMinutes()).padStart(2, "0");
     return `${dia}/${mes}/${ano} ${horas}:${minutos}`;
   };
+  const filteredRows = sortedData.filter((item) => {
+    const clienteInfo = getClienteInfo(item.cliente_id);
+    const permanencia = calcularTempoPermanencia(
+      item.horario_chegada,
+      item.horario_saida,
+      item.horario_ocorrencia
+    );
+
+    const cobranca = calcularValorCobranca(clienteInfo, permanencia);
+    return (
+      permanencia.formatado === "Indisponível" &&
+      !cobranca.dentroDoPrazo &&
+      cobranca.excedente > 0
+    );
+  });
+
+  const formatarHrPerm = (valor) => {
+    if (!valor) return "N/A";
+    const [h, m] = valor.split(":");
+    return `${h}h ${m}min`;
+  };
+  const receitaTotal = sortedData.reduce((total, item) => {
+    const clienteInfo = getClienteInfo(item.cliente_id);
+    const permanencia = calcularTempoPermanencia(
+      item.horario_chegada,
+      item.horario_saida,
+      item.horario_ocorrencia
+    );
+    const cobranca = calcularValorCobranca(clienteInfo, permanencia);
+
+    if (!cobranca.dentroDoPrazo && cobranca.excedente > 0) {
+      return total + cobranca.valorCobrado;
+    }
+
+    return total;
+  }, 0);
+
+
 
   return (
     <div
@@ -213,13 +307,33 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => 
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
+            marginBottom: 10,
           }}
         >
-          <h4>Ocorrências Sem Cobrança Adicional</h4>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <h4 style={{ margin: 0 }}>Ocorrências Sem Cobrança Adicional</h4>
+            <div
+              style={{
+                backgroundColor: "rgba(0, 128, 0, 0.3)",
+                color: "green",
+                padding: "6px 12px",
+                borderRadius: 8,
+                fontWeight: "bold",
+                fontSize: "1.1rem",
+              }}
+            >
+              Receita estimada: {receitaTotal.toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              })}
+
+            </div>
+          </div>
           <Button color="success" onClick={exportarParaExcel} size="sm">
             Exportar para Excel
           </Button>
         </div>
+
         <div style={{ marginBottom: 20 }}>
           <h5>Top 10 Clientes com Mais Atrasos</h5>
           <ChartClientesAtrasos data={clientesAtrasos.slice(0, 10)} />
@@ -266,15 +380,15 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => 
               </th>
               <th
                 style={cellStyle}
-                onClick={() => handleSort("horario_chegada")}
-              >
-                Hora da Chegada
-              </th>
-              <th
-                style={cellStyle}
                 onClick={() => handleSort("horario_ocorrencia")}
               >
                 Hora da Ocorrência
+              </th>
+              <th
+                style={cellStyle}
+                onClick={() => handleSort("horario_chegada")}
+              >
+                Hora da Chegada
               </th>
               <th style={cellStyle} onClick={() => handleSort("horario_saida")}>
                 Hora de Saída
@@ -285,58 +399,100 @@ const ModalNaoCobranca = ({ data, onClose, onRefresh, onContagemVermelhas }) => 
               >
                 Permanência Após Ocorrências
               </th>
+              <th style={cellStyle}>TDE</th>
+
+              <th style={cellStyle} onClick={() => handleSort("hr_permanencia")}>
+  Tempo Acordado
+</th>
+<th style={cellStyle} onClick={() => handleSort("excedente")}>
+  Excedente
+</th>
+<th style={cellStyle} onClick={() => handleSort("valorCobrado")}>
+  Valor a Cobrar
+</th>
+
+
               <th style={cellStyle} onClick={() => handleSort("motorista")}>
                 Motorista
               </th>
             </tr>
           </thead>
           <tbody>
-            {sortedData.map((item, index) => {
-              const permanencia = calcularTempoPermanencia(
-                item.horario_chegada,
-                item.horario_saida,
-                item.horario_ocorrencia
-              );
-              const isTempoExcedido = permanencia.horas >= 1;
+            {sortedData
+              .filter((item) => {
+                const clienteInfo = getClienteInfo(item.cliente_id);
+                const permanencia = calcularTempoPermanencia(
+                  item.horario_chegada,
+                  item.horario_saida,
+                  item.horario_ocorrencia
+                );
+                const cobranca = calcularValorCobranca(clienteInfo, permanencia);
 
-              return (
-                <tr
-                  key={index}
-                  style={{
-                    background: isTempoExcedido ? "#f8d7da" : "inherit",
-                    color: isTempoExcedido ? "#721c24" : "inherit",
-                    border: isTempoExcedido
-                      ? "1px solid #721c24"
-                      : "1px solid rgb(221, 221, 221)",
-                  }}
-                >
-                  <td style={cellStyle}>
-                    {isTempoExcedido && (
+                return (
+                  (permanencia.formatado === "Indisponível") ||
+                  (!cobranca.dentroDoPrazo && cobranca.excedente > 0)
+                );
+              })
+              .map((item, index) => {
+                const permanencia = calcularTempoPermanencia(
+                  item.horario_chegada,
+                  item.horario_saida,
+                  item.horario_ocorrencia
+                );
+                const clienteInfo = getClienteInfo(item.cliente_id);
+                const cobranca = calcularValorCobranca(clienteInfo, permanencia);
+
+                const isIndisponivel = permanencia.formatado === "Indisponível";
+                const isAtrasado = !cobranca.dentroDoPrazo && cobranca.excedente > 0;
+
+                return (
+                  <tr
+                    key={index}
+                    style={
+                      isAtrasado && !isIndisponivel
+                        ? {
+                          background: "#f8d7da",
+                          color: "#721c24",
+                          border: "1px solid #721c24",
+                        }
+                        : {}
+                    }
+                  >
+                    <td style={cellStyle}>
                       <input
                         type="checkbox"
                         checked={item.nf === selectedNota}
                         onChange={() => handleCheckboxChange(item.nf)}
                       />
-                    )}
-                  </td>
+                    </td>
+                    <td style={cellStyle}>{item.nf}</td>
+                    <td style={cellStyle}>{item.cliente}</td>
+                    <td style={cellStyle}>{formatarDataHora(item.horario_ocorrencia)}</td>
+                    <td style={cellStyle}>{formatarDataHora(item.horario_chegada)}</td>
+                    <td style={cellStyle}>{formatarDataHora(item.horario_saida)}</td>
+                    <td style={cellStyle}>{permanencia.formatado}</td>
+                    <td style={cellStyle}>
+                      {clienteInfo?.tde?.toUpperCase() === "SIM" ? (
+                        <FaCheckCircle color="green" title="Aceita TDE" />
+                      ) : (
+                        <FaTimesCircle color="red" title="Não aceita TDE" />
+                      )}
+                    </td>
 
-                  <td style={cellStyle}>{item.nf}</td>
-                  <td style={cellStyle}>{item.cliente}</td>
-                  <td style={cellStyle}>
-                    {formatarDataHora(item.horario_chegada)}
-                  </td>
-                  <td style={cellStyle}>
-                    {formatarDataHora(item.horario_ocorrencia)}
-                  </td>
-                  <td style={cellStyle}>
-                    {formatarDataHora(item.horario_saida)}
-                  </td>
-                  <td style={cellStyle}>{permanencia.formatado}</td>
-                  <td style={cellStyle}>{item.motorista}</td>
-                </tr>
-              );
-            })}
+                    <td>{formatarHrPerm(clienteInfo?.hr_permanencia)}</td>
+                    <td style={cellStyle}>
+                      {isIndisponivel ? "N/A" : `${cobranca.excedente.toFixed(2)}h`}
+                    </td>
+                    <td style={cellStyle}>
+                      {isIndisponivel ? "N/A" : `R$ ${cobranca.valorCobrado.toFixed(2)}`}
+                    </td>
+                    <td style={cellStyle}>{item.motorista}</td>
+                  </tr>
+                );
+              })}
           </tbody>
+
+
         </table>
         <Button color="secondary" onClick={onClose}>
           Fechar

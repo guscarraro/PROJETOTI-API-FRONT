@@ -52,7 +52,10 @@ const ChartDestinatarios = ({ data }) => {
 
   // Filtrar e ordenar os dados
   const filteredData = data.filter((item) => item.total !== 0);
-  const sortedData = [...filteredData].sort((a, b) => b.total - a.total);
+  const sortedData = [...filteredData]
+  .sort((a, b) => b.total - a.total)
+  .slice(0, 15); // <- limita ao top 15
+
 
   // Gerar gradiente de cores do azul escuro ao azul claro
   const generateGradientColors = (length) => {

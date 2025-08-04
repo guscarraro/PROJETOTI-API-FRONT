@@ -107,9 +107,13 @@ const Dashboard = () => {
         setClientes(
           clientesResp.data.map((item) => ({
             value: item.id,
-            label: item.nome,
+            label: `${item.nome}`,
+            hr_permanencia: item.hr_perm, // <-- campo correto
+            tde: item.tde,
+            valor_permanencia: item.valor_permanencia,
           }))
         );
+
         setDestinos(
           destinosResp.data.map((item) => ({
             value: item.id,
@@ -521,21 +525,31 @@ const Dashboard = () => {
         </Col>
       </Row>
       {/* <h2>Dashboard</h2> */}
-      {showModalNaoCobranca && (
-        <ModalNaoCobranca
-          data={ocorrenciasSemCobranca.map((oc) => ({
-            nf: oc.nf,
-            cliente: clientesMap[oc.cliente_id] || "Desconhecido",
-            horario_chegada: oc.horario_chegada,
-            horario_saida: oc.horario_saida,
-            horario_ocorrencia: oc.datainclusao,
-            motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
-          }))}
-          onClose={handleCloseModalNaoCobranca}
-          onRefresh={fetchDashboardData}
-          onContagemVermelhas={setQtdOcorrenciasVermelhas}
-        />
-      )}
+    {showModalNaoCobranca && (
+  <ModalNaoCobranca
+    data={ocorrenciasSemCobranca.map((oc) => {
+      const clienteObj = clientes.find((c) => c.value === oc.cliente_id);
+
+      return {
+        nf: oc.nf,
+        cliente: clienteObj?.label || "Desconhecido",
+        cliente_id: oc.cliente_id,
+        horario_chegada: oc.horario_chegada,
+        horario_saida: oc.horario_saida,
+        horario_ocorrencia: oc.datainclusao,
+        motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+        // Informações para exibição, não mais usadas para cálculo
+        hr_permanencia: clienteObj?.hr_permanencia,
+        tde: clienteObj?.tde,
+        valor_permanencia: clienteObj?.valor_permanencia,
+      };
+    })}
+    clientes={clientes}
+    onClose={handleCloseModalNaoCobranca}
+    onRefresh={fetchDashboardData}
+  />
+)}
+
       {showModalNaoEntregue && (
         <ModalNaoEntregue
           data={todasOcorrencias
@@ -543,6 +557,7 @@ const Dashboard = () => {
             .map((oc) => ({
               nf: oc.nf,
               cliente: clientesMap[oc.cliente_id] || "Desconhecido",
+              cliente_id: oc.cliente_id,
               destinatario: motoristasMap[oc.motorista_id] || "Desconhecido",
               horario_chegada: oc.horario_chegada,
               horario_saida: oc.horario_saida,
@@ -596,7 +611,7 @@ const Dashboard = () => {
             <h3>
               <FaClock /> Total de ocorrências
             </h3>
-           <p style={{ fontSize: 32, fontWeight: 700 }}>
+            <p style={{ fontSize: 32, fontWeight: 700 }}>
               {qtdOcorrenciasSemCobranca > 0
                 ? qtdOcorrenciasSemCobranca
                 : "Sem Dados para essa informação"}
@@ -622,14 +637,14 @@ const Dashboard = () => {
             style={{ cursor: "pointer" }} // Adicionar cursor para indicar clicável
           >
             <h3>
-              <FaDollarSign /> Ocorrências mais de uma hora
-            </h3>   
+              <FaDollarSign /> Ocorrências fora do acordado
+            </h3>
             <p style={{ fontSize: 32, fontWeight: 700 }}>
               {qtdOcorrenciasVermelhas > 0
                 ? qtdOcorrenciasVermelhas
                 : "Sem Dados para essa informação"}
             </p>
-                
+
             {qtdOcorrenciasSemCobranca > 0 && (
               <p style={{ fontSize: 12, fontStyle: "italic" }}>
                 Clique para mais informações
@@ -709,7 +724,7 @@ const Dashboard = () => {
 
       <Col md={12}>
         <Box>
-          <h3>Ocorrências por Destinatário</h3>
+          <h3>Top 15 Ocorrências por Destinatário</h3>
           {destinatariosData.length > 0 ? (
             <ChartDestinatarios data={destinatariosData} />
           ) : (

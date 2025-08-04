@@ -130,17 +130,18 @@ const ChartMotoristas = ({ data }) => {
           onClick={closeModal}
         >
           <div
-            style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 10,
-              minWidth: 400,
-              maxHeight: "80vh",
-              overflowY: "auto",
-              color: "black",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+  style={{
+    background: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    minWidth: 800, // Aumenta largura
+    maxHeight: "90vh",
+    overflowY: "auto",
+    color: "black",
+  }}
+  onClick={(e) => e.stopPropagation()}
+>
+
             <h4>{modalData.nome}</h4>
             <p>Quantidade: {modalData.total}</p>
 

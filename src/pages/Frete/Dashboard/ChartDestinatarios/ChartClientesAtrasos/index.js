@@ -17,18 +17,21 @@ const ChartClientesAtrasos = ({ data }) => {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart
-        data={data}
+         data={[...data].sort((a, b) => b.quantidade - a.quantidade).slice(0, 10)}
         margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
       >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey="name"
-          type="category"
-          tickFormatter={formatName}
-          tick={{ fill: "#333" }}
-          axisLine={{ stroke: "#ccc" }}
-          tickLine={{ stroke: "#ccc" }}
-        />
+      <XAxis
+  dataKey="name"
+  type="category"
+  tickFormatter={formatName}
+  tick={{ fill: "#333", fontSize: 10 }} // 👈 tamanho reduzido aqui
+  axisLine={{ stroke: "#ccc" }}
+  tickLine={{ stroke: "#ccc" }}
+  interval={0} // 👈 força exibir todos os ticks
+/>
+
+
         <YAxis
           type="number"
           allowDecimals={false}

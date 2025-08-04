@@ -147,17 +147,20 @@ const ChartEscadaClientes = ({ data }) => {
           onClick={closeModal}
         >
           <div
-            style={{
-              background: "#fff",
-              padding: 20,
-              borderRadius: 10,
-              minWidth: 400,
-              maxHeight: "80vh",
-              overflowY: "auto",
-              color: "black",
-            }}
+          style={{
+  background: "#fff",
+  padding: 20,
+  borderRadius: 10,
+  width: "90vw", // agora ocupa 90% da tela
+  maxWidth: "1400px", // limite máximo
+  maxHeight: "90vh",
+  overflowY: "auto",
+  color: "black",
+}}
+
             onClick={(e) => e.stopPropagation()}
           >
+
             <h4>{modalData.nome}</h4>
             <p>Quantidade: {modalData.quantidade}</p>
 
