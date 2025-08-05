@@ -175,111 +175,128 @@ const LancarPaletizacao = ({ onActionComplete }) => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+  e.preventDefault();
 
-    try {
-      let clienteID, destinoID;
+  const camposObrigatorios = [
+    { nome: "cliente_id", label: "Cliente" },
+    { nome: "destino_id", label: "Destino" },
+    { nome: "nf_ref", label: "NF Referência" },
+    { nome: "dt_inicio", label: "Data de Início" },
+    { nome: "dt_final", label: "Data de Fim" },
+    { nome: "qtde_palet", label: "Quantidade de Paletes" },
+  ];
 
-      // Verifica se o cliente já existe
-      const clienteExistente = clientes.find(
-        (cliente) =>
-          cliente.nome?.trim().toLowerCase() ===
-          paletizacao.cliente_id?.trim().toLowerCase()
-      );
+  const camposVazios = camposObrigatorios.filter(({ nome }) => {
+    const valor = paletizacao[nome];
+    if (nome === "qtde_palet") return !valor || Number(valor) <= 0;
+    return !valor || valor.toString().trim() === "";
+  });
 
-      if (!clienteExistente) {
-        const novoCliente = {
-          nome: paletizacao.cliente_id,
-          hr_permanencia: paletizacao.hr_permanencia?.trim() || null,
-        };
-        const resCliente = await apiLocal.createOrUpdateCliente(novoCliente);
-        clienteID = resCliente.data?.data?.id;
+  if (camposVazios.length > 0) {
+    const listaCampos = camposVazios.map((c) => `- ${c.label}`).join("\n");
+    toast.error(`Preencha os seguintes campos obrigatórios:\n${listaCampos}`);
+    return;
+  }
 
-        if (!clienteID) throw new Error("Erro ao cadastrar cliente.");
-        toast.success("Cliente cadastrado automaticamente.");
-      } else {
-        clienteID = clienteExistente.id;
-      }
+  setIsLoading(true);
 
-      // Verifica se o destino já existe
-      const destinoExistente = destinos.find(
-        (destino) =>
-          destino.nome?.trim().toLowerCase() ===
-          paletizacao.destino_id?.trim().toLowerCase()
-      );
+  try {
+    let clienteID, destinoID;
 
-      if (!destinoExistente) {
-        const novoDestino = {
-          nome: paletizacao.destino_id,
-          endereco: null,
-          cidade: "",
-          // opcional, adicione se você tiver paletizacao.cidade
-        };
-        const resDestino = await apiLocal.createOrUpdateDestino(novoDestino);
-        destinoID = resDestino.data?.data?.id;
+    const clienteExistente = clientes.find(
+      (cliente) =>
+        cliente.nome?.trim().toLowerCase() ===
+        paletizacao.cliente_id?.trim().toLowerCase()
+    );
 
-        if (!destinoID) throw new Error("Erro ao cadastrar destino.");
-        toast.success("Destino cadastrado automaticamente.");
-      } else {
-        destinoID = destinoExistente.id;
-      }
-
-      // Monta payload com os IDs atualizados
-      const payload = {
-        ...paletizacao,
-        documento_transporte: String(paletizacao.documento_transporte || ""),
-
-        nf_ref: String(paletizacao.nf_ref), // ← esta linha é OBRIGATÓRIA
-        cliente_id: clienteID,
-        destino_id: destinoID,
-        agendamento:
-          paletizacao.agendamento === "S" || paletizacao.agendamento === true,
-        valor:
-          paletizacao.valor === "" || paletizacao.valor == null
-            ? null
-            : parseFloat(paletizacao.valor),
-        dt_inicio: convertToSaoPauloISOString(paletizacao.dt_inicio),
-        dt_final: convertToSaoPauloISOString(paletizacao.dt_final),
-        verificado: "PENDENTE",
+    if (!clienteExistente) {
+      const novoCliente = {
+        nome: paletizacao.cliente_id,
+        hr_permanencia: paletizacao.hr_permanencia?.trim() || null,
       };
+      const resCliente = await apiLocal.createOrUpdateCliente(novoCliente);
+      clienteID = resCliente.data?.data?.id;
 
-      const response = await apiLocal.createOrUpdatePaletizacao(payload);
-
-      if (response.data) {
-        toast.success("Paletização lançada com sucesso");
-
-        // Limpa o formulário
-        setPaletizacao({
-          documento_transporte: "",
-          nf_ref: "",
-          cliente_id: "",
-          destino_id: "",
-          dt_inicio: "",
-          dt_final: "",
-          qtde_palet: "",
-          agendamento: "",
-          valor: "",
-          verificado: "",
-          nr_cobranca: "",
-        });
-        setNumeroBusca("");
-        if (onActionComplete) onActionComplete();
-      }
-    } catch (error) {
-      if (
-        error.response &&
-        error.response.status === 400 &&
-        error.response.data?.detail?.includes("já cadastrado")
-      ) {
-        toast.error(error.response.data.detail);
-      } else {
-        toast.error(error.message || "Erro ao lançar paletização");
-      }
-    } finally {
-      setIsLoading(false);
+      if (!clienteID) throw new Error("Erro ao cadastrar cliente.");
+      toast.success("Cliente cadastrado automaticamente.");
+    } else {
+      clienteID = clienteExistente.id;
     }
-  };
+
+    const destinoExistente = destinos.find(
+      (destino) =>
+        destino.nome?.trim().toLowerCase() ===
+        paletizacao.destino_id?.trim().toLowerCase()
+    );
+
+    if (!destinoExistente) {
+      const novoDestino = {
+        nome: paletizacao.destino_id,
+        endereco: null,
+        cidade: "",
+      };
+      const resDestino = await apiLocal.createOrUpdateDestino(novoDestino);
+      destinoID = resDestino.data?.data?.id;
+
+      if (!destinoID) throw new Error("Erro ao cadastrar destino.");
+      toast.success("Destino cadastrado automaticamente.");
+    } else {
+      destinoID = destinoExistente.id;
+    }
+
+    const payload = {
+      ...paletizacao,
+      documento_transporte: String(paletizacao.documento_transporte || ""),
+      nf_ref: String(paletizacao.nf_ref),
+      cliente_id: clienteID,
+      destino_id: destinoID,
+      agendamento:
+        paletizacao.agendamento === "S" || paletizacao.agendamento === true,
+      valor:
+        paletizacao.valor === "" || paletizacao.valor == null
+          ? null
+          : parseFloat(paletizacao.valor),
+      dt_inicio: convertToSaoPauloISOString(paletizacao.dt_inicio),
+      dt_final: convertToSaoPauloISOString(paletizacao.dt_final),
+      verificado: "PENDENTE",
+    };
+
+    const response = await apiLocal.createOrUpdatePaletizacao(payload);
+
+    if (response.data) {
+      toast.success("Paletização lançada com sucesso");
+
+      setPaletizacao({
+        documento_transporte: "",
+        nf_ref: "",
+        cliente_id: "",
+        destino_id: "",
+        dt_inicio: "",
+        dt_final: "",
+        qtde_palet: "",
+        agendamento: "",
+        valor: "",
+        verificado: "",
+        nr_cobranca: "",
+      });
+      setNumeroBusca("");
+      if (onActionComplete) onActionComplete();
+    }
+  } catch (error) {
+    if (
+      error.response &&
+      error.response.status === 400 &&
+      error.response.data?.detail?.includes("já cadastrado")
+    ) {
+      toast.error(error.response.data.detail);
+    } else {
+      toast.error(error.message || "Erro ao lançar paletização");
+    }
+  } finally {
+    setIsLoading(false);
+  }
+};
+
   const preencherDadosNF = (data) => {
     setPaletizacao((prev) => ({
       ...prev,
