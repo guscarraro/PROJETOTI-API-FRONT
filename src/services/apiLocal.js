@@ -60,8 +60,11 @@ const apiLocal = {
   createOrUpdatePaletizacao: (data) => api.post("/paletizado/", data),
   deletePaletizacao: (id) => api.delete(`/paletizado/${id}`),
   filtrarPaletizacoes: (filters) => api.post("/paletizado/filtrar", filters),
-  atualizarNrCobranca: (id, nr_cobranca) =>
-    api.patch(`/paletizado/atualizar-cobranca/${id}`, { nr_cobranca }),
+  atualizarNrCobranca: (id, nr_cobranca, verificado) =>
+    api.patch(`/paletizado/atualizar-cobranca/${id}`, {
+      nr_cobranca,
+      verificado,
+    }),
 
   getControleEstoque: () => api.get("/estoque/"),
   createOrUpdateControleEstoque: (data) => api.post("/estoque/", data),

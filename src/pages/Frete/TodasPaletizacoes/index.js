@@ -82,42 +82,40 @@ const TodasPaletizacoes = () => {
     }
   };
 
-useEffect(() => {
-  if (!paletizacoes.length || !destinos.length || !clientes.length) return;
+  useEffect(() => {
+    if (!paletizacoes.length || !destinos.length || !clientes.length) return;
 
-  const destinosMap = {};
-  destinos.forEach((d) => {
-    destinosMap[d.id?.toString()] = { nome: d.nome, cidade: d.cidade };
-  });
+    const destinosMap = {};
+    destinos.forEach((d) => {
+      destinosMap[d.id?.toString()] = { nome: d.nome, cidade: d.cidade };
+    });
 
-  const clientesMap = {};
-  clientes.forEach((c) => {
-    clientesMap[c.id?.toString()] = c.nome;
-  });
+    const clientesMap = {};
+    clientes.forEach((c) => {
+      clientesMap[c.id?.toString()] = c.nome;
+    });
 
-  const enriched = paletizacoes.map((p) => {
-    const destinoIdStr = p.destino_id?.toString();
-    const clienteIdStr = p.cliente_id?.toString();
+    const enriched = paletizacoes.map((p) => {
+      const destinoIdStr = p.destino_id?.toString();
+      const clienteIdStr = p.cliente_id?.toString();
 
-    const destino = destinosMap[destinoIdStr];
-    const cliente = clientesMap[clienteIdStr];
+      const destino = destinosMap[destinoIdStr];
+      const cliente = clientesMap[clienteIdStr];
 
+      return {
+        ...p,
+        cliente_nome: cliente || "N/A",
+        destino_nome: destino?.nome || "N/A",
+        destino_cidade: destino?.cidade || "N/A",
+        cte_numero:
+          p.documento_transporte?.length === 44
+            ? p.documento_transporte.slice(24, 33)
+            : p.documento_transporte,
+      };
+    });
 
-
-    return {
-      ...p,
-      cliente_nome: cliente || "N/A",
-      destino_nome: destino?.nome || "N/A",
-      destino_cidade: destino?.cidade || "N/A",
-      cte_numero: p.documento_transporte?.length === 44
-  ? p.documento_transporte.slice(24, 33)
-  : p.documento_transporte,
-
-    };
-  });
-
-  setFiltered(enriched);
-}, [paletizacoes, destinos, clientes]);
+    setFiltered(enriched);
+  }, [paletizacoes, destinos, clientes]);
 
   const handleExportExcel = () => {
     if (filtered.length === 0) {
@@ -257,19 +255,46 @@ useEffect(() => {
                 <TableCell>{p.cliente_nome}</TableCell>
                 <TableCell>{p.destino_nome}</TableCell>
                 <TableCell>{p.destino_cidade}</TableCell>
-                <TableCell>{new Date(p.dt_inclusao).toLocaleString()}</TableCell>
-                <TableCell>{p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : ""}</TableCell>
-                <TableCell>{p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}</TableCell>
+                <TableCell>
+                  {new Date(p.dt_inclusao).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  {p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : ""}
+                </TableCell>
+                <TableCell>
+                  {p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}
+                </TableCell>
                 <TableCell>{p.qtde_palet}</TableCell>
                 <TableCell>{p.agendamento ? "Sim" : "Não"}</TableCell>
                 <TableCell>{parseFloat(p.valor || 0).toFixed(2)}</TableCell>
                 <TableCell>
-                  {p.nr_cobranca ? (
-                    <FaCheckCircle color="green" />
-                  ) : (
-                    <FaTimesCircle color="red" />
-                  )}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      whiteSpace: "nowrap",
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      color: "#fff",
+                      backgroundColor:
+                        p.verificado === "CONFIRMADO"
+                          ? "green"
+                          : p.verificado === "CANCELADO"
+                          ? "red"
+                          : p.verificado === "AGUARDANDO RETORNO"
+                          ? "orange"
+                          : "gray",
+                    }}
+                  >
+                    {p.verificado === "CONFIRMADO" && <FaCheckCircle />}
+                    {p.verificado === "CANCELADO" && <FaTimesCircle />}
+                    {p.verificado === "AGUARDANDO RETORNO" && <FaEdit />}
+                    {p.verificado === "PENDENTE" && <FaEdit />}
+                    <span>{p.verificado}</span>
+                  </div>
                 </TableCell>
+
                 <TableCell>{p.nr_cobranca || ""}</TableCell>
                 <TableCell>
                   <button

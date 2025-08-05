@@ -32,7 +32,6 @@ const LancarPaletizacao = ({ onActionComplete }) => {
   const [tipoBusca, setTipoBusca] = useState("CTE"); // "CTE" ou "NF"
   const [numeroBusca, setNumeroBusca] = useState("");
 
-
   const [paletizacao, setPaletizacao] = useState({
     documento_transporte: "",
     nf_ref: "",
@@ -80,9 +79,12 @@ const LancarPaletizacao = ({ onActionComplete }) => {
     try {
       const response = await fetchNotaFiscal(numeroBusca.trim());
 
-      if (!response || !Array.isArray(response)) throw new Error("Resposta inválida da API.");
+      if (!response || !Array.isArray(response))
+        throw new Error("Resposta inválida da API.");
 
-      const dados = response.filter(n => n.NF?.toString().trim() === numeroBusca.trim());
+      const dados = response.filter(
+        (n) => n.NF?.toString().trim() === numeroBusca.trim()
+      );
 
       if (dados.length > 1) {
         setOpcoesCTE(dados);
@@ -96,9 +98,9 @@ const LancarPaletizacao = ({ onActionComplete }) => {
         return;
       }
 
-      setPaletizacao(prev => ({
+      setPaletizacao((prev) => ({
         ...prev,
-        nf_ref: data.NF || "",
+        nf_ref: String(data.NF || ""),
         cliente_id: data.remetente,
         destino_id: data.destinatario,
       }));
@@ -111,10 +113,9 @@ const LancarPaletizacao = ({ onActionComplete }) => {
     }
   };
 
-
   const buscarCTE = async (cteSelecionado = null) => {
     const numero = cteSelecionado ? null : numeroBusca.trim();
-if (!numero && !cteSelecionado) return;
+    if (!numero && !cteSelecionado) return;
 
     setLoadingCTE(true);
 
@@ -122,7 +123,6 @@ if (!numero && !cteSelecionado) return;
       const response = cteSelecionado
         ? { detalhe: cteSelecionado }
         : await fetchDocumento(numero);
-
 
       if (Array.isArray(response) && response.length > 1) {
         setOpcoesCTE(response);
@@ -140,7 +140,7 @@ if (!numero && !cteSelecionado) return;
       const temServicoPaletizacao =
         detalhe?.valor_receita_sep?.servicos?.includes("paletizacao");
 
-      const verificado = temServicoPaletizacao ? "S" : "N";
+      const verificado = temServicoPaletizacao ? "PENDENTE" : "PENDENTE";
       const nrCobranca = temServicoPaletizacao ? detalhe.docTransporte : "";
       const valorPaletizacao = temServicoPaletizacao
         ? detalhe.valor_receita_sep?.valores?.paletizacao || ""
@@ -148,14 +148,17 @@ if (!numero && !cteSelecionado) return;
 
       setPaletizacao((prev) => ({
         ...prev,
-        nf_ref: nfNumeros,
+        nf_ref: String(nfNumeros),
         cliente_id: detalhe.tomador,
         destino_id: detalhe.destino,
         agendamento: detalhe.agendamento || "",
         verificado,
         nr_cobranca: nrCobranca,
         valor: valorPaletizacao,
+        documento_transporte: String(detalhe.docTransporte || prev.documento_transporte),
+
       }));
+
       toast.success("Dados carregados com sucesso.");
     } catch (err) {
       toast.error("Erro ao buscar CTE.");
@@ -225,6 +228,9 @@ if (!numero && !cteSelecionado) return;
       // Monta payload com os IDs atualizados
       const payload = {
         ...paletizacao,
+        documento_transporte: String(paletizacao.documento_transporte || ""),
+
+        nf_ref: String(paletizacao.nf_ref), // ← esta linha é OBRIGATÓRIA
         cliente_id: clienteID,
         destino_id: destinoID,
         agendamento:
@@ -235,6 +241,7 @@ if (!numero && !cteSelecionado) return;
             : parseFloat(paletizacao.valor),
         dt_inicio: convertToSaoPauloISOString(paletizacao.dt_inicio),
         dt_final: convertToSaoPauloISOString(paletizacao.dt_final),
+        verificado: "PENDENTE",
       };
 
       const response = await apiLocal.createOrUpdatePaletizacao(payload);
@@ -256,7 +263,7 @@ if (!numero && !cteSelecionado) return;
           verificado: "",
           nr_cobranca: "",
         });
-
+        setNumeroBusca("");
         if (onActionComplete) onActionComplete();
       }
     } catch (error) {
@@ -274,9 +281,9 @@ if (!numero && !cteSelecionado) return;
     }
   };
   const preencherDadosNF = (data) => {
-    setPaletizacao(prev => ({
+    setPaletizacao((prev) => ({
       ...prev,
-      nf_ref: data.NF || "",
+      nf_ref: String(data.NF || ""),
       cliente_id: data.remetente,
       destino_id: data.destinatario,
     }));
@@ -291,28 +298,36 @@ if (!numero && !cteSelecionado) return;
         opcoes={opcoesCTE}
         onSelect={(itemSelecionado) => {
           setModalVisible(false);
-          tipoBusca === "CTE" ? buscarCTE(itemSelecionado) : preencherDadosNF(itemSelecionado);
+          tipoBusca === "CTE"
+            ? buscarCTE(itemSelecionado)
+            : preencherDadosNF(itemSelecionado);
         }}
-
       />
       <StyledForm onSubmit={handleSubmit}>
         <FormGroup>
           <Label>Buscar por:</Label>
-          <Select value={tipoBusca} onChange={(e) => {
-            setTipoBusca(e.target.value);
-            setNumeroBusca("");
-          }}>
+          <Select
+            value={tipoBusca}
+            onChange={(e) => {
+              setTipoBusca(e.target.value);
+              setNumeroBusca("");
+            }}
+          >
             <option value="CTE">CTE</option>
             <option value="NF">Nota Fiscal</option>
           </Select>
         </FormGroup>
 
         <FormGroup>
-          <Label>{tipoBusca === "CTE" ? "Documento Transporte (CTE)" : "Nota Fiscal"}</Label>
+          <Label>
+            {tipoBusca === "CTE" ? "Documento Transporte (CTE)" : "Nota Fiscal"}
+          </Label>
           <div style={{ position: "relative" }}>
             <Input
               type="text"
-              name={tipoBusca === "CTE" ? "documento_transporte" : "nota_fiscal"}
+              name={
+                tipoBusca === "CTE" ? "documento_transporte" : "nota_fiscal"
+              }
               value={numeroBusca}
               onChange={(e) => setNumeroBusca(e.target.value)}
               onKeyDown={(e) =>
@@ -337,7 +352,6 @@ if (!numero && !cteSelecionado) return;
             )}
           </div>
         </FormGroup>
-
 
         <FormGroup>
           <Label>
@@ -439,7 +453,7 @@ if (!numero && !cteSelecionado) return;
           <Input
             type="text"
             name="verificado"
-            value={paletizacao.verificado}
+            value={paletizacao.verificado || "PENDENTE"}
             readOnly
             style={{ color: "#fff" }}
             disabled
