@@ -296,7 +296,7 @@ const Navbar = ({
                 Todas as Faltas
               </DropdownItem>
             )}
-            {!isOperador && (
+            
               <DropdownItem
                 onClick={() =>
                   handleSelection("relatorios", "STH", "todasOcorrenciaSTH")
@@ -304,7 +304,7 @@ const Navbar = ({
               >
                 Todos os STH
               </DropdownItem>
-            )}
+            
             {(podeLancarPaletizacao || !isOperador) && (
               <DropdownItem
                 onClick={() =>

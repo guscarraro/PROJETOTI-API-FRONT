@@ -120,6 +120,26 @@ const apiLocal = {
   getCicloPedido: () => api.get("/processamento/ciclo-pedido/"),
   getBalanceteCarraro: () => api.get("/processamento/balancete-carraro/"),
   getFechamentoOperacao: () => api.get("/processamento/fechamento-operacao"),
+
+  getRecebimentos: () => api.get("/recebimento/"),
+  getRecebimentoById: (id) => api.get(`/recebimento/${id}`),
+  createRecebimento: (data) => api.post("/recebimento", data),
+  deleteRecebimento: (id) => api.delete(`/recebimento/${id}`),
+
+  getNotasRecebidas: (recebimentoId) => api.get(`/notas/${recebimentoId}`),
+  createNotaRecebida: (data) => api.post("/notas", data),
+  deleteNotaRecebida: (id) => api.delete(`/notas/${id}`),
+
+  getEtapasRecebimento: (recebimentoId) => api.get(`/etapas/${recebimentoId}`),
+  createEtapasRecebimento: (data) => api.post("/etapas", data),
+
+  getChecklistInspecao: (etapasId) => api.get(`/checklist/${etapasId}`),
+  createChecklistInspecao: (data) => api.post("/checklist", data),
+
+  getOcorrenciasRecebimento: (notaId) => api.get(`/ocorrencia/${notaId}`),
+  createOcorrenciaRecebimento: (data) => api.post("/ocorrencia", data),
+  deleteOcorrenciaRecebimento: (id) => api.delete(`/ocorrencia/${id}`),
+
 };
 
 export default apiLocal;
