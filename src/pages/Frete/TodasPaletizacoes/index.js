@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Button, Input } from "reactstrap";
 import {
   FaFileExcel,
   FaCheckCircle,
   FaTimesCircle,
   FaEdit,
+  FaHourglassHalf,
+  FaClock,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
@@ -18,6 +20,13 @@ import {
 } from "./style";
 import LoadingDots from "../../../components/Loading";
 import ModalEdit from "./ModalEdit";
+
+const CARD_COLORS = {
+  today: "rgba(255, 215, 0, 0.35)",     // Aguardando
+  tomorrow: "rgba(0, 255, 127, 0.35)",  // Concluído
+  inTwoDays: "rgba(255, 165, 0, 0.35)", // Cancelado
+  overdue: "rgba(255, 69, 0, 0.35)",    // Pendente
+};
 
 const TodasPaletizacoes = () => {
   const [paletizacoes, setPaletizacoes] = useState([]);
@@ -73,13 +82,24 @@ const TodasPaletizacoes = () => {
 
       setClientes(clientesRes.data);
       setDestinos(destinosRes.data);
-      setPaletizacoes(data); // apenas dados crus, enriquecimento será feito no useEffect
+      setPaletizacoes(data);
     } catch (err) {
       toast.error("Erro ao carregar paletizações");
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const parseValorBR = (v) => {
+    if (v === null || v === undefined) return 0;
+    if (typeof v === "number") return v;
+    if (typeof v === "string") {
+      const cleaned = v.replace(/\./g, "").replace(",", ".");
+      const num = Number(cleaned);
+      return isNaN(num) ? 0 : num;
+    }
+    return 0;
   };
 
   useEffect(() => {
@@ -92,7 +112,10 @@ const TodasPaletizacoes = () => {
 
     const clientesMap = {};
     clientes.forEach((c) => {
-      clientesMap[c.id?.toString()] = c.nome;
+      clientesMap[c.id?.toString()] = {
+        ...c,
+        valor_pallet_num: parseValorBR(c.valor_pallet),
+      };
     });
 
     const enriched = paletizacoes.map((p) => {
@@ -102,20 +125,42 @@ const TodasPaletizacoes = () => {
       const destino = destinosMap[destinoIdStr];
       const cliente = clientesMap[clienteIdStr];
 
+      const valorUnit = cliente?.valor_pallet_num || 0;
+      const qtd = Number(p.qtde_palet) || 0;
+      const valor_total = qtd * valorUnit;
+
       return {
         ...p,
-        cliente_nome: cliente || "N/A",
+        cliente_nome: cliente?.nome || "N/A",
         destino_nome: destino?.nome || "N/A",
         destino_cidade: destino?.cidade || "N/A",
         cte_numero:
           p.documento_transporte?.length === 44
             ? p.documento_transporte.slice(24, 33)
             : p.documento_transporte,
+        valor_total,
       };
     });
 
     setFiltered(enriched);
   }, [paletizacoes, destinos, clientes]);
+
+  const totalsByStatus = useMemo(() => {
+    const base = {
+      pendente: 0,
+      concluido: 0,
+      cancelado: 0,
+      aguardando: 0,
+    };
+    for (const p of filtered) {
+      const s = String(p.verificado || "").toUpperCase().trim();
+      if (s === "PENDENTE") base.pendente += p.valor_total || 0;
+      else if (s === "CONFIRMADO") base.concluido += p.valor_total || 0;
+      else if (s === "CANCELADO") base.cancelado += p.valor_total || 0;
+      else if (s === "AGUARDANDO RETORNO") base.aguardando += p.valor_total || 0;
+    }
+    return base;
+  }, [filtered]);
 
   const handleExportExcel = () => {
     if (filtered.length === 0) {
@@ -135,7 +180,7 @@ const TodasPaletizacoes = () => {
       "Data Final": p.dt_final ? new Date(p.dt_final).toLocaleString() : "",
       "Qtd Palet": p.qtde_palet,
       Agendamento: p.agendamento ? "Sim" : "Não",
-      Valor: p.valor,
+      Valor: Number(p.valor_total || 0).toFixed(2),
       Verificado: p.verificado ? "Sim" : "Não",
       "Nº Cobrança": p.nr_cobranca,
     }));
@@ -172,6 +217,93 @@ const TodasPaletizacoes = () => {
           fetchData(dataInicio, dataFim, clienteFilter);
         }}
       />
+
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 1400,
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 12,
+          padding: "8px 12px",
+        }}
+      >
+        <div
+          style={{
+            background: CARD_COLORS.overdue,
+            borderRadius: 16,
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: 14, opacity: 0.8 }}>Pendente</span>
+            <strong style={{ fontSize: 20 }}>
+              R$ {Number(totalsByStatus.pendente || 0).toFixed(2)}
+            </strong>
+          </div>
+          <FaHourglassHalf size={26} />
+        </div>
+
+        <div
+          style={{
+            background: CARD_COLORS.tomorrow,
+            borderRadius: 16,
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: 14, opacity: 0.8 }}>Concluído</span>
+            <strong style={{ fontSize: 20 }}>
+              R$ {Number(totalsByStatus.concluido || 0).toFixed(2)}
+            </strong>
+          </div>
+          <FaCheckCircle size={26} />
+        </div>
+
+        <div
+          style={{
+            background: CARD_COLORS.inTwoDays,
+            borderRadius: 16,
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: 14, opacity: 0.8 }}>Cancelado</span>
+            <strong style={{ fontSize: 20 }}>
+              R$ {Number(totalsByStatus.cancelado || 0).toFixed(2)}
+            </strong>
+          </div>
+          <FaTimesCircle size={26} />
+        </div>
+
+        <div
+          style={{
+            background: CARD_COLORS.today,
+            borderRadius: 16,
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: 14, opacity: 0.8 }}>Aguardando</span>
+            <strong style={{ fontSize: 20 }}>
+              R$ {Number(totalsByStatus.aguardando || 0).toFixed(2)}
+            </strong>
+          </div>
+          <FaClock size={26} />
+        </div>
+      </div>
 
       <HeaderContainer>
         <Button color="success" onClick={handleExportExcel}>
@@ -266,7 +398,7 @@ const TodasPaletizacoes = () => {
                 </TableCell>
                 <TableCell>{p.qtde_palet}</TableCell>
                 <TableCell>{p.agendamento ? "Sim" : "Não"}</TableCell>
-                <TableCell>{parseFloat(p.valor || 0).toFixed(2)}</TableCell>
+                <TableCell>{Number(p.valor_total || 0).toFixed(2)}</TableCell>
                 <TableCell>
                   <div
                     style={{
