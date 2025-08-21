@@ -660,7 +660,7 @@ const Dashboard = () => {
             style={{ cursor: "pointer" }} // 🔥 Indica que é clicável
           >
             <h3>
-              <FaDollarSign /> CTEs Cobrados
+              <FaDollarSign /> CTEs Cobrados/Justificados
             </h3>
             <p style={{ fontSize: 32, fontWeight: 700 }}>
               {qtdCtesCobrados > 0 ? qtdCtesCobrados : "0"}

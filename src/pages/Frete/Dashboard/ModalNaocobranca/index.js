@@ -520,6 +520,7 @@ const ModalNaoCobranca = ({ data, clientes = [], onClose, onRefresh, onContagemV
           <datalist id="cte-options">
             <option value="ACORDO COMERCIAL VIGENTE" />
             <option value="CARGA LOTAÇÃO NO DESTINATARIO" />
+            <option value="CLIENTE NÃO AUTORIZOU PERMANÊNCIA" />
           </datalist>
 
         </ModalBody>
