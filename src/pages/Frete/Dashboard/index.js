@@ -41,6 +41,7 @@ const Dashboard = () => {
 
   const [motoristasMap, setMotoristasMap] = useState({});
   const [clientesMap, setClientesMap] = useState({});
+  const [destinatariosMap, setDestinatariosMap] = useState({});
   const [showModalNaoCobranca, setShowModalNaoCobranca] = useState(false);
   const [showModalCteCobrado, setShowModalCteCobrado] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -129,244 +130,210 @@ const Dashboard = () => {
   }, []);
 
   const fetchDashboardData = async (filters = {}) => {
-    setIsLoading(true);
-    try {
-      const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
+  setIsLoading(true);
+  try {
+    // 1) Ocorrências primeiro (com filtros)
+    const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
+    const ocorrencias = Array.isArray(respOcorrencias.data) ? respOcorrencias.data : [];
+    setTodasOcorrencias(ocorrencias);
 
-      const ocorrencias = Array.isArray(respOcorrencias.data)
-        ? respOcorrencias.data
-        : [];
-      setTodasOcorrencias(ocorrencias);
-
-      // Caso nenhuma ocorrência seja encontrada, zere os dados
-      if (ocorrencias.length === 0) {
-        setMotoristasData([]);
-        setClientesData([]);
-        setOcorrenciasTipoData([]);
-        setDestinatariosData([]);
-        setQtdOcorrenciasAbertas(0);
-        setTempoMedioEntrega(0);
-        setMediaOcorrenciasPorDia(0);
-        setQtdOcorrenciasSemCobranca(0);
-        setQtdOcorrenciasNaoEntregues(0);
-        setOcorrenciasSemCobranca([]);
-        return; // Encerra o fluxo, pois não há dados para processar
-      }
-
-      // Carrega motoristas
-      const respMotoristas = await apiLocal.getMotoristas();
-      const motoristasList = respMotoristas.data;
-
-      // Carrega clientes
-      const respClientes = await apiLocal.getClientes();
-      const clientesList = respClientes.data;
-
-      // Carrega tipos de ocorrência
-      const respTipos = await apiLocal.getNomesOcorrencias();
-      const tiposList = respTipos.data;
-
-      // Mapear motoristas e clientes
-      const tempMotoristasMap = {};
-      motoristasList.forEach((m) => (tempMotoristasMap[m.id] = m.nome));
-      setMotoristasMap(tempMotoristasMap);
-
-      const tempClientesMap = {};
-      clientesList.forEach((c) => (tempClientesMap[c.id] = c.nome));
-      setClientesMap(tempClientesMap);
-
-      const ocorrenciasSemCobrancaData = ocorrencias.filter(
-        (oc) => oc.status === "Resolvido" && oc.cobranca_adicional === "N"
-      );
-      setQtdOcorrenciasSemCobranca(ocorrenciasSemCobrancaData.length);
-      setOcorrenciasSemCobranca(ocorrenciasSemCobrancaData);
-      const vermelhas = ocorrenciasSemCobrancaData.filter((item) => {
-        const chegadaDate = new Date(item.horario_chegada);
-        const saidaDate = new Date(item.horario_saida);
-        const ocorrenDate = new Date(item.datainclusao);
-        if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate) return false;
-
-        const diffMs = saidaDate - ocorrenDate;
-        const diffMin = Math.floor(diffMs / 60000);
-        const horas = Math.floor(diffMin / 60);
-        return horas >= 1;
-      });
-      setQtdOcorrenciasVermelhas(vermelhas.length);
-
-      const ctesCobrados = ocorrencias.filter(
-        (oc) => oc.cobranca_adicional === "S" && oc.cte_gerado
-      ).length;
-      setQtdCtesCobrados(ctesCobrados);
-
-      const ocorrenciasNaoEntregues = ocorrencias.filter(
-        (oc) => oc.status === "Não entregue" // Corrige a capitalização para coincidir com os dados recebidos
-      );
-      setQtdOcorrenciasNaoEntregues(ocorrenciasNaoEntregues.length);
-
-      // Monta dados para gráfico de Motoristas
-      const motoristasCountMap = {};
-      ocorrencias.forEach((oc) => {
-        const mId = oc.motorista_id;
-        if (!motoristasCountMap[mId]) motoristasCountMap[mId] = 0;
-        motoristasCountMap[mId]++;
-      });
-
-      const motoristasDataFinal = motoristasList.map((m) => {
-        const details = ocorrencias
-          .filter((oc) => oc.motorista_id === m.id)
-          .map((oc) => ({
-            NF: oc.nf,
-            cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
-            tipo:
-              tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)
-                ?.nome || "Desconhecido",
-            data: new Date(oc.datainclusao).toLocaleDateString(),
-          }));
-
-        return {
-          id: m.id,
-          nome: m.nome,
-          total: motoristasCountMap[m.id] || 0,
-          details: details,
-        };
-      });
-
-      setMotoristasData(motoristasDataFinal);
-
-      // Carrega destinos
-      const respDestinos = await apiLocal.getDestinos();
-      const destinosList = respDestinos.data;
-
-      const destinatariosCountMap = {};
-      ocorrencias.forEach((oc) => {
-        const dId = oc.destino_id;
-        if (!destinatariosCountMap[dId]) destinatariosCountMap[dId] = 0;
-        destinatariosCountMap[dId]++;
-      });
-
-      const destinatariosDataFinal = destinosList.map((d) => {
-        const ocorrenciasDestino = ocorrencias.filter(
-          (oc) => oc.destino_id === d.id
-        );
-        const details = ocorrenciasDestino.map((oc) => ({
-          NF: oc.nf,
-          motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
-          cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
-          tipo:
-            tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome ||
-            "Desconhecido",
-          data: new Date(oc.datainclusao).toLocaleDateString(),
-        }));
-
-        return {
-          id: d.id,
-          nome: d.nome,
-          cidade: d.cidade, // Adiciona a cidade
-          total: ocorrenciasDestino.length,
-          details: details,
-        };
-      });
-
-      setDestinatariosData(destinatariosDataFinal);
-      // Monta dados para gráfico de Clientes
-      const clientesCountMap = {};
-      ocorrencias.forEach((oc) => {
-        const cId = oc.cliente_id;
-        if (!clientesCountMap[cId]) clientesCountMap[cId] = 0;
-        clientesCountMap[cId]++;
-      });
-
-      const clientesDataFinal = clientesList.map((c) => {
-        const ocorrenciasCliente = ocorrencias.filter(
-          (oc) => oc.cliente_id === c.id
-        );
-        const details = ocorrenciasCliente.map((oc) => ({
-          NF: oc.nf,
-          motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
-          tipo:
-            tiposList.find((tipo) => tipo.id === oc.tipoocorrencia_id)?.nome ||
-            "Desconhecido",
-          data: new Date(oc.datainclusao).toLocaleDateString(),
-        }));
-
-        return {
-          id: c.id,
-          nome: c.nome,
-          quantidade: ocorrenciasCliente.length, // Número total de ocorrências
-          details: details, // Detalhes das ocorrências
-        };
-      });
-
-      setClientesData(clientesDataFinal);
-
-      // Monta dados para gráfico de Ocorrências por Tipo
-      const tipoCountMap = {};
-      const tipoDetailsMap = {};
-
-      ocorrencias.forEach((oc) => {
-        const tId = oc.tipoocorrencia_id;
-        if (!tipoCountMap[tId]) {
-          tipoCountMap[tId] = 0;
-          tipoDetailsMap[tId] = [];
-        }
-        tipoCountMap[tId]++;
-
-        tipoDetailsMap[tId].push({
-          NF: oc.nf,
-          motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
-          cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
-        });
-      });
-
-      const ocorrenciasTipoFinal = tiposList
-        .map((t) => ({
-          nome: t.nome,
-          quantidade: tipoCountMap[t.id] || 0,
-          details: tipoDetailsMap[t.id] || [],
-        }))
-        .filter((item) => item.quantidade !== 0);
-
-      setOcorrenciasTipoData(ocorrenciasTipoFinal);
-
-      // Calcula métricas adicionais
-      const pendentes = ocorrencias.filter((oc) => oc.status === "Pendente");
-      setQtdOcorrenciasAbertas(pendentes.length);
-
-      const resolvidas = ocorrencias.filter((oc) => oc.status === "Resolvido");
-      if (resolvidas.length > 0) {
-        let somaTempos = 0;
-        resolvidas.forEach((oc) => {
-          const horaChegada = new Date(oc.horario_chegada);
-          const horaSaida = oc.horario_saida
-            ? new Date(oc.horario_saida)
-            : horaChegada;
-          somaTempos += horaSaida - horaChegada;
-        });
-        const mediaMs = somaTempos / resolvidas.length;
-        setTempoMedioEntrega(Math.floor(mediaMs / 60000)); // em minutos
-      } else {
-        setTempoMedioEntrega(0);
-      }
-
-      if (ocorrencias.length > 0) {
-        const distinctDays = new Set();
-        ocorrencias.forEach((oc) => {
-          const dayString = new Date(oc.datainclusao)
-            .toISOString()
-            .split("T")[0];
-          distinctDays.add(dayString);
-        });
-
-        const totalDays = distinctDays.size || 1;
-        setMediaOcorrenciasPorDia((ocorrencias.length / totalDays).toFixed(0));
-      } else {
-        setMediaOcorrenciasPorDia(0);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar dados para o dashboard", error);
-    } finally {
-      setIsLoading(false);
+    // Se não tiver dados, zera e sai
+    if (ocorrencias.length === 0) {
+      setMotoristasData([]);
+      setClientesData([]);
+      setOcorrenciasTipoData([]);
+      setDestinatariosData([]);
+      setQtdOcorrenciasAbertas(0);
+      setTempoMedioEntrega(0);
+      setMediaOcorrenciasPorDia(0);
+      setQtdOcorrenciasSemCobranca(0);
+      setQtdOcorrenciasNaoEntregues(0);
+      setOcorrenciasSemCobranca([]);
+      return;
     }
-  };
+
+    // 2) Carregar tudo que é “catálogo” ao mesmo tempo
+    const [respMotoristas, respClientes, respTipos, respDestinos] = await Promise.all([
+      apiLocal.getMotoristas(),
+      apiLocal.getClientes(),
+      apiLocal.getNomesOcorrencias(),
+      apiLocal.getDestinos(),
+    ]);
+
+    const motoristasList = respMotoristas.data || [];
+    const clientesList   = respClientes.data   || [];
+    const tiposList      = respTipos.data      || [];
+    const destinosList   = respDestinos.data   || [];
+
+    // 3) Maps (id -> nome/label)
+    const tempMotoristasMap = {};
+    motoristasList.forEach((m) => (tempMotoristasMap[m.id] = m.nome));
+    setMotoristasMap(tempMotoristasMap);
+
+    const tempClientesMap = {};
+    clientesList.forEach((c) => (tempClientesMap[c.id] = c.nome));
+    setClientesMap(tempClientesMap);
+
+    const tempDestinatariosMap = {};
+    destinosList.forEach((d) => {
+      tempDestinatariosMap[d.id] = d.cidade ? `${d.nome} - ${d.cidade}` : d.nome;
+    });
+    setDestinatariosMap(tempDestinatariosMap);
+
+    // 4) Métricas/contagens específicas
+    const ocorrenciasSemCobrancaData = ocorrencias.filter(
+      (oc) => oc.status === "Resolvido" && oc.cobranca_adicional === "N"
+    );
+    setQtdOcorrenciasSemCobranca(ocorrenciasSemCobrancaData.length);
+    setOcorrenciasSemCobranca(ocorrenciasSemCobrancaData);
+
+    const vermelhas = ocorrenciasSemCobrancaData.filter((item) => {
+      const chegadaDate = new Date(item.horario_chegada);
+      const saidaDate   = new Date(item.horario_saida);
+      const ocorrenDate = new Date(item.datainclusao);
+      if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate) return false;
+      const diffMs = saidaDate - ocorrenDate;
+      const diffMin = Math.floor(diffMs / 60000);
+      const horas = Math.floor(diffMin / 60);
+      return horas >= 1;
+    });
+    setQtdOcorrenciasVermelhas(vermelhas.length);
+
+    const ctesCobrados = ocorrencias.filter(
+      (oc) => oc.cobranca_adicional === "S" && oc.cte_gerado
+    ).length;
+    setQtdCtesCobrados(ctesCobrados);
+
+    const ocorrenciasNaoEntregues = ocorrencias.filter((oc) => oc.status === "Não entregue");
+    setQtdOcorrenciasNaoEntregues(ocorrenciasNaoEntregues.length);
+
+    // 5) Motoristas (gráfico)
+    const motoristasCountMap = {};
+    ocorrencias.forEach((oc) => {
+      const mId = oc.motorista_id;
+      if (!motoristasCountMap[mId]) motoristasCountMap[mId] = 0;
+      motoristasCountMap[mId]++;
+    });
+
+    const motoristasDataFinal = motoristasList.map((m) => {
+      const details = ocorrencias
+        .filter((oc) => oc.motorista_id === m.id)
+        .map((oc) => ({
+          NF: oc.nf,
+          cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
+          tipo: tiposList.find((t) => t.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+          data: new Date(oc.datainclusao).toLocaleDateString(),
+        }));
+
+      return {
+        id: m.id,
+        nome: m.nome,
+        total: motoristasCountMap[m.id] || 0,
+        details,
+      };
+    });
+    setMotoristasData(motoristasDataFinal);
+
+    // 6) Destinatários (gráfico)
+    const destinatariosDataFinal = destinosList.map((d) => {
+      const ocorrenciasDestino = ocorrencias.filter((oc) => oc.destino_id === d.id);
+      const details = ocorrenciasDestino.map((oc) => ({
+        NF: oc.nf,
+        motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
+        cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
+        tipo: tiposList.find((t) => t.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+        data: new Date(oc.datainclusao).toLocaleDateString(),
+      }));
+
+      return {
+        id: d.id,
+        nome: d.nome,
+        cidade: d.cidade,
+        total: ocorrenciasDestino.length,
+        details,
+      };
+    });
+    setDestinatariosData(destinatariosDataFinal);
+
+    // 7) Clientes (gráficos)
+    const clientesDataFinal = clientesList.map((c) => {
+      const ocorrenciasCliente = ocorrencias.filter((oc) => oc.cliente_id === c.id);
+      const details = ocorrenciasCliente.map((oc) => ({
+        NF: oc.nf,
+        motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
+        tipo: tiposList.find((t) => t.id === oc.tipoocorrencia_id)?.nome || "Desconhecido",
+        data: new Date(oc.datainclusao).toLocaleDateString(),
+      }));
+
+      return {
+        id: c.id,
+        nome: c.nome,
+        quantidade: ocorrenciasCliente.length,
+        details,
+      };
+    });
+    setClientesData(clientesDataFinal);
+
+    // 8) Ocorrências por tipo
+    const tipoCountMap = {};
+    const tipoDetailsMap = {};
+    ocorrencias.forEach((oc) => {
+      const tId = oc.tipoocorrencia_id;
+      if (!tipoCountMap[tId]) {
+        tipoCountMap[tId] = 0;
+        tipoDetailsMap[tId] = [];
+      }
+      tipoCountMap[tId]++;
+      tipoDetailsMap[tId].push({
+        NF: oc.nf,
+        motorista: tempMotoristasMap[oc.motorista_id] || "Desconhecido",
+        cliente: tempClientesMap[oc.cliente_id] || "Desconhecido",
+      });
+    });
+
+    const ocorrenciasTipoFinal = tiposList
+      .map((t) => ({
+        nome: t.nome,
+        quantidade: tipoCountMap[t.id] || 0,
+        details: tipoDetailsMap[t.id] || [],
+      }))
+      .filter((item) => item.quantidade !== 0);
+    setOcorrenciasTipoData(ocorrenciasTipoFinal);
+
+    // 9) Métricas finais
+    const pendentes = ocorrencias.filter((oc) => oc.status === "Pendente");
+    setQtdOcorrenciasAbertas(pendentes.length);
+
+    const resolvidas = ocorrencias.filter((oc) => oc.status === "Resolvido");
+    if (resolvidas.length > 0) {
+      let somaTempos = 0;
+      resolvidas.forEach((oc) => {
+        const horaChegada = new Date(oc.horario_chegada);
+        const horaSaida = oc.horario_saida ? new Date(oc.horario_saida) : horaChegada;
+        somaTempos += horaSaida - horaChegada;
+      });
+      const mediaMs = somaTempos / resolvidas.length;
+      setTempoMedioEntrega(Math.floor(mediaMs / 60000));
+    } else {
+      setTempoMedioEntrega(0);
+    }
+
+    if (ocorrencias.length > 0) {
+      const distinctDays = new Set(
+        ocorrencias.map((oc) => new Date(oc.datainclusao).toISOString().split("T")[0])
+      );
+      const totalDays = distinctDays.size || 1;
+      setMediaOcorrenciasPorDia((ocorrencias.length / totalDays).toFixed(0));
+    } else {
+      setMediaOcorrenciasPorDia(0);
+    }
+  } catch (error) {
+    console.error("Erro ao buscar dados para o dashboard", error);
+  } finally {
+    setIsLoading(false);
+  }
+};
+
 
   const handleApplyFilters = () => {
     const filters = {
@@ -525,30 +492,30 @@ const Dashboard = () => {
         </Col>
       </Row>
       {/* <h2>Dashboard</h2> */}
-    {showModalNaoCobranca && (
-  <ModalNaoCobranca
-    data={ocorrenciasSemCobranca.map((oc) => {
-      const clienteObj = clientes.find((c) => c.value === oc.cliente_id);
+      {showModalNaoCobranca && (
+        <ModalNaoCobranca
+          data={ocorrenciasSemCobranca.map((oc) => {
+            const clienteObj = clientes.find((c) => c.value === oc.cliente_id);
 
-      return {
-        nf: oc.nf,
-        cliente: clienteObj?.label || "Desconhecido",
-        cliente_id: oc.cliente_id,
-        horario_chegada: oc.horario_chegada,
-        horario_saida: oc.horario_saida,
-        horario_ocorrencia: oc.datainclusao,
-        motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
-        // Informações para exibição, não mais usadas para cálculo
-        hr_permanencia: clienteObj?.hr_permanencia,
-        tde: clienteObj?.tde,
-        valor_permanencia: clienteObj?.valor_permanencia,
-      };
-    })}
-    clientes={clientes}
-    onClose={handleCloseModalNaoCobranca}
-    onRefresh={fetchDashboardData}
-  />
-)}
+            return {
+              nf: oc.nf,
+              cliente: clienteObj?.label || "Desconhecido",
+              cliente_id: oc.cliente_id,
+              horario_chegada: oc.horario_chegada,
+              horario_saida: oc.horario_saida,
+              horario_ocorrencia: oc.datainclusao,
+              motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+              // Informações para exibição, não mais usadas para cálculo
+              hr_permanencia: clienteObj?.hr_permanencia,
+              tde: clienteObj?.tde,
+              valor_permanencia: clienteObj?.valor_permanencia,
+            };
+          })}
+          clientes={clientes}
+          onClose={handleCloseModalNaoCobranca}
+          onRefresh={fetchDashboardData}
+        />
+      )}
 
       {showModalNaoEntregue && (
         <ModalNaoEntregue
@@ -573,9 +540,11 @@ const Dashboard = () => {
             .filter((oc) => oc.cobranca_adicional === "S" && oc.cte_gerado)
             .map((oc) => ({
               nf: oc.nf,
+              destinatario: destinatariosMap[oc.destino_id] || "Desconhecido",
               cliente: clientesMap[oc.cliente_id] || "Desconhecido",
               cte: oc.cte_gerado,
               horario_ocorrencia: oc.datainclusao,
+              horario_saida: oc.horario_saida,
               motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
             }))}
           onClose={handleCloseModalCteCobrado}
