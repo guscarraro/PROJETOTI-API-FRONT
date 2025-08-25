@@ -156,6 +156,10 @@ function ModalAdd({ isOpen, toggle }) {
         <option value="Celular">Celular</option>
       </Input>
     </StyledFormGroup>
+     <StyledFormGroup>
+                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+                <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
+              </StyledFormGroup>
     <StyledFormGroup>
       <Label for="operadora">Operadora</Label>
       <Input

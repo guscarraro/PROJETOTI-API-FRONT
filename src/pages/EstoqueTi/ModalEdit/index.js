@@ -74,6 +74,15 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
               disabled
             />
           </FormGroup>
+           <FormGroup>
+                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+                <Input
+                  type="text"
+                  name="pessoa_responsavel"
+                  value={formData.pessoa_responsavel}
+                  onChange={handleInputChange}
+                />
+              </FormGroup>
 
           {/* Campos dinâmicos de acordo com o tipo de aparelho */}
           {(formData.tipo_aparelho === 'Notebook' || formData.tipo_aparelho === 'Desktop') && (
@@ -87,15 +96,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
                   onChange={handleInputChange}
                 />
               </FormGroup>
-              <FormGroup>
-                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
-                <Input
-                  type="text"
-                  name="pessoa_responsavel"
-                  value={formData.pessoa_responsavel}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
+             
               <FormGroup>
                 <Label for="cloud_utilizado">Cloud Utilizado</Label>
                 <Input
