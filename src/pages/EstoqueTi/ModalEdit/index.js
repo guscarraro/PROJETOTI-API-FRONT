@@ -160,7 +160,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
           </FormGroup>
 
           <FormGroup>
-            <Label for="numero_serie">Número IMEI</Label>
+            <Label for="numero_serie">Serie/IMEI</Label>
             <Input
               type="text"
               name="numero_serie"

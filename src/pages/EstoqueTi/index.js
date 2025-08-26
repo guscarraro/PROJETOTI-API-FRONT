@@ -12,6 +12,7 @@ import ModalLicenca from './ModalLicenca';
 import ModalAparelho from './ModalAparelho';
 import ModalDel from './ModalDel';
 import TabelaEquipamentos from './TabelaEquipamentos';
+import * as XLSX from 'xlsx';
 
 
 
@@ -52,6 +53,19 @@ function EstoqueTi() {
     fetchEquipamentos();
   }, []);
 
+  const formatarData = (dataStr) => {
+    if (!dataStr) return "Não informado";
+    const date = new Date(dataStr);
+    date.setHours(date.getHours() - 3);
+    const dd = String(date.getDate()).padStart(2, "0");
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const yyyy = date.getFullYear();
+    const HH = String(date.getHours()).padStart(2, "0");
+    const MM = String(date.getMinutes()).padStart(2, "0");
+    return `${dd}/${mm}/${yyyy} ${HH}:${MM}`;
+  };
+
+
   const setores = [...new Set(equipamentos.map((eq) => eq.setor))];
   const tiposAparelhos = [...new Set(equipamentos.map(eq => eq.tipo_aparelho))];
 
@@ -74,6 +88,39 @@ function EstoqueTi() {
     }
   };
 
+
+const handleExportExcel = () => {
+  // Aplica o filtro global por tipo
+  const equipamentosFiltrados = equipamentos.filter(eq =>
+    tipoSelecionado === "todos" || eq.tipo_aparelho === tipoSelecionado
+  );
+
+  if (equipamentosFiltrados.length === 0) {
+    toast.info("Não há dados para exportar com o filtro atual.");
+    return;
+  }
+
+  const wb = XLSX.utils.book_new();
+
+  // Mapeia todos os equipamentos filtrados em uma única lista
+  const linhas = equipamentosFiltrados.map(eq => ({
+    "Setor": eq.setor || "Não informado",
+    "Tipo": eq.tipo_aparelho || "Não informado",
+    "Data Alteração": formatarData(eq.data_atualizacao),
+    "Responsável": eq.pessoa_responsavel || "Não informado",
+    "Email": eq.email_utilizado || "Não informado",
+    "Cloud": eq.cloud_utilizado || "Não informado",
+    "Descrição": eq.descricao || "Não informado",
+    "Status": eq.status || "Não informado",
+    "Obs": eq.observacoes || ""
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(linhas, { skipHeader: false });
+  XLSX.utils.book_append_sheet(wb, ws, "Estoque TI");
+
+  XLSX.writeFile(wb, "estoque_filtrado.xlsx");
+  toast.success("Excel gerado com sucesso!");
+};
 
 
   const handleSaveEdit = async (updatedEquipamento) => {
@@ -112,7 +159,7 @@ function EstoqueTi() {
             </Button>
           </Col>
         </Row>
-        <Row className="mb-3">
+        <Row className="mb-3 align-items-end">
           <Col md={4}>
             <label htmlFor="filtroTipo">Filtrar por Tipo de Aparelho:</label>
             <select
@@ -129,7 +176,14 @@ function EstoqueTi() {
               ))}
             </select>
           </Col>
+
+          <Col md="auto">
+            <Button color="success" onClick={handleExportExcel}>
+              Exportar Excel
+            </Button>
+          </Col>
         </Row>
+
 
         {/* Cards Personalizados */}
         <Row>
