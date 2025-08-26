@@ -27,6 +27,8 @@ function EstoqueTi() {
   const [aparelhoModalOpen, setAparelhoModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
+  const [tipoSelecionado, setTipoSelecionado] = useState("todos");
+
 
 
   const toggleAparelhoModal = () => setAparelhoModalOpen(!aparelhoModalOpen);
@@ -51,6 +53,7 @@ function EstoqueTi() {
   }, []);
 
   const setores = [...new Set(equipamentos.map((eq) => eq.setor))];
+  const tiposAparelhos = [...new Set(equipamentos.map(eq => eq.tipo_aparelho))];
 
   const handleEditClick = (equipamento) => {
     setEquipamentoToEdit(equipamento);
@@ -107,6 +110,24 @@ function EstoqueTi() {
             <Button color="primary" onClick={toggleModal}>
               + Adicionar ao Estoque
             </Button>
+          </Col>
+        </Row>
+        <Row className="mb-3">
+          <Col md={4}>
+            <label htmlFor="filtroTipo">Filtrar por Tipo de Aparelho:</label>
+            <select
+              id="filtroTipo"
+              className="form-control"
+              value={tipoSelecionado}
+              onChange={(e) => setTipoSelecionado(e.target.value)}
+            >
+              <option value="todos">Todos</option>
+              {tiposAparelhos.map(tipo => (
+                <option key={tipo} value={tipo}>
+                  {tipo}
+                </option>
+              ))}
+            </select>
           </Col>
         </Row>
 
@@ -170,23 +191,27 @@ function EstoqueTi() {
 
         {/* Exibição por Setor */}
         {setores.map((setor) => {
-  const equipamentosDoSetor = equipamentos.filter(eq => eq.setor === setor);
-  return (
-    <SetorSection key={setor}>
-      <h3>{setor}</h3>
-      <hr />
-      <TabelaEquipamentos
-        equipamentos={equipamentosDoSetor}
-        onEdit={handleEditClick}
-        onDelete={(equipamento) => {
-          setEquipamentoToDelete(equipamento);
-          setIsDeleteModalOpen(true);
-        }}
-        onInfo={setSelectedEquipamento}
-      />
-    </SetorSection>
-  );
-})}
+          const equipamentosDoSetor = equipamentos.filter(eq => {
+            const filtroTipoOk = tipoSelecionado === "todos" || eq.tipo_aparelho === tipoSelecionado;
+            return eq.setor === setor && filtroTipoOk;
+          });
+
+          return (
+            <SetorSection key={setor}>
+              <h3>{setor}</h3>
+              <hr />
+              <TabelaEquipamentos
+                equipamentos={equipamentosDoSetor}
+                onEdit={handleEditClick}
+                onDelete={(equipamento) => {
+                  setEquipamentoToDelete(equipamento);
+                  setIsDeleteModalOpen(true);
+                }}
+                onInfo={setSelectedEquipamento}
+              />
+            </SetorSection>
+          );
+        })}
 
 
         {/* Almoxarifado (Backup) - Só aparece se showBackup for verdadeiro */}

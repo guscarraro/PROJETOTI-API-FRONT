@@ -58,7 +58,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI','Fiscal','Operacao','Compras','Qualidade','Backup'].map((setor) => (
+              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI', 'Fiscal', 'Operacao', 'Compras', 'Qualidade', 'Backup'].map((setor) => (
                 <option key={setor} value={setor}>{setor}</option>
               ))}
             </Input>
@@ -74,15 +74,15 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
               disabled
             />
           </FormGroup>
-           <FormGroup>
-                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
-                <Input
-                  type="text"
-                  name="pessoa_responsavel"
-                  value={formData.pessoa_responsavel}
-                  onChange={handleInputChange}
-                />
-              </FormGroup>
+          <FormGroup>
+            <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+            <Input
+              type="text"
+              name="pessoa_responsavel"
+              value={formData.pessoa_responsavel}
+              onChange={handleInputChange}
+            />
+          </FormGroup>
 
           {/* Campos dinâmicos de acordo com o tipo de aparelho */}
           {(formData.tipo_aparelho === 'Notebook' || formData.tipo_aparelho === 'Desktop') && (
@@ -96,7 +96,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
                   onChange={handleInputChange}
                 />
               </FormGroup>
-             
+
               <FormGroup>
                 <Label for="cloud_utilizado">Cloud Utilizado</Label>
                 <Input
@@ -132,7 +132,7 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
                 onChange={(e) => setFormData({ ...formData, descricao: `${e.target.value} portas` })}
               >
                 <option value="">Selecione</option>
-                {['4', '8','24', '16', '32','48', '64'].map((port) => (
+                {['4', '8', '24', '16', '32', '48', '64'].map((port) => (
                   <option key={port} value={port}>
                     {port} portas
                   </option>
@@ -158,15 +158,25 @@ function ModalEdit({ isOpen, toggle, equipamento, onSave }) {
               ))}
             </Input>
           </FormGroup>
+
           <FormGroup>
-  <Label for="observacoes">Hostname (Obs)</Label>
-  <Input
-    type="text"
-    name="observacoes"
-    value={formData.observacoes || ""}
-    onChange={handleInputChange}
-  />
-</FormGroup>
+            <Label for="numero_serie">Número IMEI</Label>
+            <Input
+              type="text"
+              name="numero_serie"
+              value={formData.numero_serie || ""}
+              onChange={handleInputChange}
+            />
+          </FormGroup>
+          <FormGroup>
+            <Label for="observacoes">Hostname/Modelo (Obs)</Label>
+            <Input
+              type="text"
+              name="observacoes"
+              value={formData.observacoes || ""}
+              onChange={handleInputChange}
+            />
+          </FormGroup>
         </Form>
       </ModalBody>
       <ModalFooter>

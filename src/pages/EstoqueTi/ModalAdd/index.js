@@ -56,13 +56,13 @@ function ModalAdd({ isOpen, toggle }) {
   const generateDescricao = () => {
     if (formData.tipo_aparelho === 'Switch') {
       return `${formData.portas_switch} portas`;
-    } 
+    }
     if (formData.tipo_aparelho === 'Celular') {
       return `Número: ${formData.numero_telefone}, Produto: ${formData.produto},Operadora: ${formData.operadora}`;
-    } 
+    }
     return `${formData.ram}GB RAM, ${formData.ssd}GB SSD, ${formData.processador}`;
   };
-  
+
 
   const handleSubmit = async () => {
     try {
@@ -77,7 +77,7 @@ function ModalAdd({ isOpen, toggle }) {
         descricao: generateDescricao(),
       };
 
-    
+
       await apiLocal.createOrUpdateControleEstoque(dataToSend);
 
       toast.success('Equipamento cadastrado com sucesso!');
@@ -104,7 +104,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI','Fiscal','Operacao','Compras','Qualidade','Backup'].map((setor) => (
+              {['Frota', 'Frete', 'SAC', 'Diretoria', 'Financeiro', 'RH', 'TI', 'Fiscal', 'Operacao', 'Compras', 'Qualidade', 'Backup'].map((setor) => (
                 <option key={setor} value={setor}>{setor}</option>
               ))}
             </Input>
@@ -120,7 +120,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Notebook', 'Desktop', 'Switch', 'Celular','Coletor','Roteador','Licença'].map(
+              {['Notebook', 'Desktop', 'Switch', 'Celular', 'Coletor', 'Roteador', 'Licença'].map(
                 (aparelho) => (
                   <option key={aparelho} value={aparelho}>{aparelho}</option>
                 )
@@ -130,56 +130,60 @@ function ModalAdd({ isOpen, toggle }) {
 
           {/* Campos específicos por tipo de aparelho */}
           {formData.tipo_aparelho === 'Celular' && (
-  <>
-    <StyledFormGroup>
-      <Label for="numero_telefone">Número de Telefone</Label>
-      <Input
-        type="text"
-        name="numero_telefone"
-        value={formData.numero_telefone}
-        onChange={handleInputChange}
-        placeholder="Digite o número do telefone"
-      />
-    </StyledFormGroup>
+            <>
+              <StyledFormGroup>
+                <Label for="numero_telefone">Número de Telefone</Label>
+                <Input
+                  type="text"
+                  name="numero_telefone"
+                  value={formData.numero_telefone}
+                  onChange={handleInputChange}
+                  placeholder="Digite o número do telefone"
+                />
+              </StyledFormGroup>
 
-    <StyledFormGroup>
-      <Label for="produto">Produto</Label>
-      <Input
-        type="select"
-        name="produto"
-        value={formData.produto}
-        onChange={handleInputChange}
-      >
-        <option value="">Selecione</option>
-        <option value="Celular+Chip">Celular+Chip</option>
-        <option value="Chip">Chip</option>
-        <option value="Celular">Celular</option>
-      </Input>
-    </StyledFormGroup>
-     <StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="produto">Produto</Label>
+                <Input
+                  type="select"
+                  name="produto"
+                  value={formData.produto}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Selecione</option>
+                  <option value="Celular+Chip">Celular+Chip</option>
+                  <option value="Chip">Chip</option>
+                  <option value="Celular">Celular</option>
+                </Input>
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="numero_serie">Número IMEI</Label>
+                <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
                 <Label for="pessoa_responsavel">Pessoa Responsável</Label>
                 <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
               </StyledFormGroup>
-    <StyledFormGroup>
-      <Label for="operadora">Operadora</Label>
-      <Input
-        type="select"
-        name="operadora"
-        value={formData.operadora}
-        onChange={handleInputChange}
-      >
-        <option value="">Selecione</option>
-        <option value="TIM">TIM</option>
-        <option value="VIVO">VIVO</option>
-        <option value="OI">OI</option>
-        <option value="EMBRATEL">EMBRATEL</option>
-        <option value="BALDUSSI">BALDUSSI</option>
-        <option value="Sem operadora">Sem operadora</option>
-      </Input>
-    </StyledFormGroup>
-  </>
-)}
-      
+              <StyledFormGroup>
+                <Label for="operadora">Operadora</Label>
+                <Input
+                  type="select"
+                  name="operadora"
+                  value={formData.operadora}
+                  onChange={handleInputChange}
+                >
+                  <option value="">Selecione</option>
+                  <option value="TIM">TIM</option>
+                  <option value="VIVO">VIVO</option>
+                  <option value="OI">OI</option>
+                  <option value="EMBRATEL">EMBRATEL</option>
+                  <option value="BALDUSSI">BALDUSSI</option>
+                  <option value="Sem operadora">Sem operadora</option>
+                </Input>
+              </StyledFormGroup>
+            </>
+          )}
+
           {(formData.tipo_aparelho === 'Notebook' || formData.tipo_aparelho === 'Desktop') && (
             <>
               <StyledFormGroup>
@@ -238,32 +242,32 @@ function ModalAdd({ isOpen, toggle }) {
                 <Label for="processador">Processador</Label>
                 <Input type="select" name="processador" value={formData.processador} onChange={handleInputChange}>
                   <option value="">Selecione</option>
-                  {['i3 5ª ou mais antiga Geração', 'i5 5ª ou mais antiga Geração', 'i7 5ª ou mais antiga Geração','i3 6ª Geração', 'i5 6ª Geração', 'i7 6ª Geração','i3 7ª Geração', 'i5 7ª Geração', 'i7 7ª Geração','i3 8ª Geração', 'i5 8ª Geração', 'i7 8ª Geração','i3 9ª Geração', 'i5 9ª Geração', 'i7 9ª Geração','i3 10ª ou recente Geração', 'i5 10ª ou mais recente Geração', 'i7 10ª ou mais recente Geração'].map((proc) => (
+                  {['i3 5ª ou mais antiga Geração', 'i5 5ª ou mais antiga Geração', 'i7 5ª ou mais antiga Geração', 'i3 6ª Geração', 'i5 6ª Geração', 'i7 6ª Geração', 'i3 7ª Geração', 'i5 7ª Geração', 'i7 7ª Geração', 'i3 8ª Geração', 'i5 8ª Geração', 'i7 8ª Geração', 'i3 9ª Geração', 'i5 9ª Geração', 'i7 9ª Geração', 'i3 10ª ou recente Geração', 'i5 10ª ou mais recente Geração', 'i7 10ª ou mais recente Geração'].map((proc) => (
                     <option key={proc} value={proc}>{proc}</option>
                   ))}
                 </Input>
               </StyledFormGroup>
             </>
           )}
-         {formData.tipo_aparelho === 'Coletor' && (
-  <>
-    <StyledFormGroup>
-      <Label for="pessoa_responsavel">Pessoa Responsável</Label>
-      <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
-    </StyledFormGroup>
-    <StyledFormGroup>
-      <Label for="cloud_utilizado">Cloud Utilizado</Label>
-      <Input type="email" name="cloud_utilizado" value={formData.cloud_utilizado} onChange={handleInputChange} />
-    </StyledFormGroup>
-    <StyledFormGroup>
-      <Label for="numero_serie">Número de Série</Label>
-      <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
-    </StyledFormGroup>
-  </>
-)}
-         {formData.tipo_aparelho === 'Licença' && (
-  <>
-   <StyledFormGroup>
+          {formData.tipo_aparelho === 'Coletor' && (
+            <>
+              <StyledFormGroup>
+                <Label for="pessoa_responsavel">Pessoa Responsável</Label>
+                <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="cloud_utilizado">Cloud Utilizado</Label>
+                <Input type="email" name="cloud_utilizado" value={formData.cloud_utilizado} onChange={handleInputChange} />
+              </StyledFormGroup>
+              <StyledFormGroup>
+                <Label for="numero_serie">Número de Série</Label>
+                <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
+              </StyledFormGroup>
+            </>
+          )}
+          {formData.tipo_aparelho === 'Licença' && (
+            <>
+              <StyledFormGroup>
                 <Label for="email_utilizado">Email Utilizado</Label>
                 <Input type="email" name="email_utilizado" value={formData.email_utilizado} onChange={handleInputChange} />
               </StyledFormGroup>
@@ -271,8 +275,8 @@ function ModalAdd({ isOpen, toggle }) {
                 <Label for="pessoa_responsavel">Pessoa Responsável</Label>
                 <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
               </StyledFormGroup>
-  </>
-)}
+            </>
+          )}
 
 
           {/* Campo para quantidade de portas em switch */}
@@ -286,7 +290,7 @@ function ModalAdd({ isOpen, toggle }) {
                 onChange={handleInputChange}
               >
                 <option value="">Selecione</option>
-                {['4', '8','24', '16', '32','48','52', '64'].map((port) => (
+                {['4', '8', '24', '16', '32', '48', '52', '64'].map((port) => (
                   <option key={port} value={port}>
                     {port} portas
                   </option>
@@ -305,7 +309,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['SJP','COLOMBO','PINHAIS', 'PTO', 'MGA', 'MINAS', 'GOIAS','CUIABA', 'SP','RS', 'SC','LONDRINA'].map((local) => (
+              {['SJP', 'COLOMBO', 'PINHAIS', 'PTO', 'MGA', 'MINAS', 'GOIAS', 'CUIABA', 'SP', 'RS', 'SC', 'LONDRINA'].map((local) => (
                 <option key={local} value={local}>
                   {local}
                 </option>

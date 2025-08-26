@@ -55,6 +55,24 @@ const renderIcon = (tipo, descricao = "") => {
       return <FaDesktop />;
   }
 };
+const formatarData = (dataStr) => {
+  if (!dataStr) return "Não informado";
+
+  const date = new Date(dataStr);
+
+  // subtrai 3 horas
+  date.setHours(date.getHours() - 3);
+
+  const dia = String(date.getDate()).padStart(2, "0");
+  const mes = String(date.getMonth() + 1).padStart(2, "0");
+  const ano = date.getFullYear();
+
+  const hora = String(date.getHours()).padStart(2, "0");
+  const minutos = String(date.getMinutes()).padStart(2, "0");
+
+  return `${dia}/${mes}/${ano} ${hora}:${minutos}`;
+};
+
 
 const TabelaEquipamentos = ({ equipamentos, onEdit, onDelete, onInfo }) => {
   return (
@@ -62,6 +80,7 @@ const TabelaEquipamentos = ({ equipamentos, onEdit, onDelete, onInfo }) => {
       <thead>
         <tr>
           <th>Tipo</th>
+          <th>Data Alteração</th>
           <th>Responsável</th>
           <th>Email</th>
           <th>Cloud</th>
@@ -81,6 +100,8 @@ const TabelaEquipamentos = ({ equipamentos, onEdit, onDelete, onInfo }) => {
             <IconCell>
               {renderIcon(eq.tipo_aparelho, eq.descricao)} {eq.tipo_aparelho}
             </IconCell>
+            <td>{formatarData(eq.data_atualizacao)}</td>
+
             <td>{eq.pessoa_responsavel || "Não informado"}</td>
             <td>{eq.email_utilizado || "Não informado"}</td>
             <td>{eq.cloud_utilizado || "Não informado"}</td>
