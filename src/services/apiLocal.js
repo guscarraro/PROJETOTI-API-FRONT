@@ -66,6 +66,15 @@ const apiLocal = {
       verificado,
     }),
 
+
+  // 🔧 Armazenagem
+  getArmazenagem: () => api.get("/armazenagem/"),
+  createOrUpdateArmazenagem: (data) => api.post("/armazenagem/", data),
+  deleteArmazenagem: (id) => api.delete(`/armazenagem/${id}`),
+  filtrarArmazenagem: (filters) => api.post("/armazenagem/filtrar", filters),
+  atualizarNrCobrancaArmazenagem: (id, nr_cobranca, verificado) =>
+    api.patch(`/armazenagem/atualizar-cobranca/${id}`, { nr_cobranca, verificado }),
+
   getControleEstoque: () => api.get("/estoque/"),
   createOrUpdateControleEstoque: (data) => api.post("/estoque/", data),
   deleteControleEstoque: (id) => api.delete(`/estoque/${id}`),

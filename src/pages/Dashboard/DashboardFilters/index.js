@@ -18,8 +18,10 @@ const DashboardFilters = ({
   todasEtapasUnicas,
   todasCoresStatus,
   selectedPracaDestino,
-setSelectedPracaDestino,
-  data
+  setSelectedPracaDestino,
+  data,
+  selectedTipoNota,
+  setSelectedTipoNota,
 }) => {
   const responsavelOptions = [
     { value: 'Todos', label: 'Todos' },
@@ -44,19 +46,25 @@ setSelectedPracaDestino,
     { value: 'last15Days', label: 'Últimos 15 Dias' }
   ];
   const customSelectStyles = {
-  option: (provided, state) => ({
-    ...provided,
-    color: '#000',
-  }),
-  singleValue: (provided) => ({
-    ...provided,
-    color: '#000',
-  }),
-  multiValueLabel: (provided) => ({
-    ...provided,
-    color: '#000',
-  }),
-};
+    option: (provided, state) => ({
+      ...provided,
+      color: '#000',
+    }),
+    singleValue: (provided) => ({
+      ...provided,
+      color: '#000',
+    }),
+    multiValueLabel: (provided) => ({
+      ...provided,
+      color: '#000',
+    }),
+  };
+  const tipoNotaOptions = [
+    { value: 'todas', label: 'Todas as notas' },
+    { value: 'agendadas', label: 'Agendadas' },
+    { value: 'normais', label: 'Normais' },
+  ];
+
 
 
   return (
@@ -68,6 +76,16 @@ setSelectedPracaDestino,
           options={responsavelOptions}
           value={responsavelOptions.find(o => o.value === selectedResponsavel)}
           onChange={(val) => setSelectedResponsavel(val.value)}
+        />
+      </Col>
+
+      <Col md="2">
+        <label>Tipo de nota:</label>
+        <Select
+          styles={customSelectStyles}
+          options={tipoNotaOptions}
+          value={tipoNotaOptions.find(o => o.value === selectedTipoNota)}
+          onChange={(val) => setSelectedTipoNota(val.value)}
         />
       </Col>
 
@@ -111,18 +129,18 @@ setSelectedPracaDestino,
         />
       </Col>
       <Col md="2">
-  <label>Praça Destino:</label>
-  <Select
-    isClearable
-    styles={customSelectStyles}
-    options={Array.from(new Set(data.map(item => item.praca_destino)))
-      .filter(Boolean)
-      .sort()
-      .map(praca => ({ value: praca, label: praca }))}
-    value={selectedPracaDestino ? { value: selectedPracaDestino, label: selectedPracaDestino } : null}
-    onChange={(val) => setSelectedPracaDestino(val ? val.value : null)}
-  />
-</Col>
+        <label>Praça Destino:</label>
+        <Select
+          isClearable
+          styles={customSelectStyles}
+          options={Array.from(new Set(data.map(item => item.praca_destino)))
+            .filter(Boolean)
+            .sort()
+            .map(praca => ({ value: praca, label: praca }))}
+          value={selectedPracaDestino ? { value: selectedPracaDestino, label: selectedPracaDestino } : null}
+          onChange={(val) => setSelectedPracaDestino(val ? val.value : null)}
+        />
+      </Col>
 
 
       <Col md="2">

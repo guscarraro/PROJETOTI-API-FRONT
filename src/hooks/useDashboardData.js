@@ -14,8 +14,6 @@ import apiLocal from '../services/apiLocal';
 import { formatDate } from '../helpers';
 import { TODAS_ETAPAS } from '../utils/fluxos';
 
-
-
 const useDashboardData = () => {
   const [data, setData] = useState([]);
   const [ocorrenciasPorNota, setOcorrenciasPorNota] = useState([]);
@@ -38,37 +36,43 @@ const useDashboardData = () => {
   const ref = useRef(null);
   const [responsaveis, setResponsaveis] = useState([]);
   const [selectedPracaDestino, setSelectedPracaDestino] = useState(null);
-
-
-
-
+  const [selectedTipoNota, setSelectedTipoNota] = useState('todas');
 
   const toggleDropdown = (remetente) => {
     setDropdownOpen((prev) => ({ ...prev, [remetente]: !prev[remetente] }));
   };
 
-const toggleFullScreen = () => {
-  const element = ref.current;
+  const toggleFullScreen = () => {
+    const element = ref.current;
+    if (!document.fullscreenElement && element) {
+      element.requestFullscreen();
+      setIsFullScreen(true);
+      const handleExit = () => {
+        if (!document.fullscreenElement) {
+          setIsFullScreen(false);
+          document.removeEventListener("fullscreenchange", handleExit);
+        }
+      };
+      document.addEventListener("fullscreenchange", handleExit);
+    } else {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    }
+  };
 
-  if (!document.fullscreenElement && element) {
-    element.requestFullscreen();
-    setIsFullScreen(true);
+  // -------- helpers --------
+  const isNotaAgendada = (nf) => {
+    const info = ocorrenciasPorNota.find(o =>
+      String(o.NF).split(',').map(x => x.trim()).includes(String(nf).trim())
+    );
+    if (!info) return false;
 
-    // Listener para detectar quando sair do fullscreen
-    const handleExit = () => {
-      if (!document.fullscreenElement) {
-        setIsFullScreen(false);
-        document.removeEventListener("fullscreenchange", handleExit);
-      }
-    };
+    const temEntregaAgendada =
+      Array.isArray(info?.Ocorren) &&
+      info.Ocorren.some(oc => oc.tipo === 'ENTREGA AGENDADA');
 
-    document.addEventListener("fullscreenchange", handleExit);
-  } else {
-    document.exitFullscreen();
-    setIsFullScreen(false);
-  }
-};
-
+    return !!temEntregaAgendada;
+  };
 
   const handleDateFilterChange = (filter) => {
     setSelectedDateFilter(filter);
@@ -106,6 +110,7 @@ const toggleFullScreen = () => {
   useEffect(() => {
     handleDateFilterChange(selectedDateFilter);
   }, [selectedDateFilter]);
+
   useEffect(() => {
     const fetchResponsaveis = async () => {
       try {
@@ -117,6 +122,7 @@ const toggleFullScreen = () => {
     };
     fetchResponsaveis();
   }, []);
+
   useEffect(() => {
     const fetchRemetentes = async () => {
       if (selectedResponsavel !== 'Todos') {
@@ -132,7 +138,6 @@ const toggleFullScreen = () => {
     };
     fetchRemetentes();
   }, [selectedResponsavel]);
-
 
   useEffect(() => {
     const loadData = async () => {
@@ -156,37 +161,34 @@ const toggleFullScreen = () => {
     if (data.length > 0) fetchOcorrenciasPorNota();
   }, [data]);
 
-useEffect(() => {
-  let interval;
-
-  const updateSilencioso = async () => {
-    try {
-      if (!loading && !loadingOcorrencias) {
-        const novosDados = await fetchIndiceAtendimento(dataInicial, dataFinal);
-        setData(novosDados);
-        const novasOcorrencias = await fetchOcorrencias(novosDados);
-        setOcorrenciasPorNota(novasOcorrencias);
+  useEffect(() => {
+    let interval;
+    const updateSilencioso = async () => {
+      try {
+        if (!loading && !loadingOcorrencias) {
+          const novosDados = await fetchIndiceAtendimento(dataInicial, dataFinal);
+          setData(novosDados);
+          const novasOcorrencias = await fetchOcorrencias(novosDados);
+          setOcorrenciasPorNota(novasOcorrencias);
+        }
+      } catch (err) {
+        console.error("Erro na atualização silenciosa:", err);
       }
-    } catch (err) {
-      console.error("Erro na atualização silenciosa:", err);
+    };
+    if (isFullScreen) {
+      updateSilencioso();
+      interval = setInterval(() => {
+        updateSilencioso();
+      }, 20 * 60 * 1000);
     }
-  };
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isFullScreen, dataInicial, dataFinal, loading, loadingOcorrencias]);
 
-  if (isFullScreen) {
-    updateSilencioso(); // Atualiza imediatamente ao entrar em fullscreen
-    interval = setInterval(() => {
-      updateSilencioso(); // Atualiza a cada 20 minutos
-    }, 20 * 60 * 1000);
-  }
-
-  return () => {
-    if (interval) clearInterval(interval);
-  };
-}, [isFullScreen, dataInicial, dataFinal, loading, loadingOcorrencias]);
-
-
-
-  const filteredData = applyEtapasStatusFilter(data, ocorrenciasPorNota, {
+  // -------- filtros em camadas --------
+  // 1) Filtros de etapas/responsável/remetente/praça (base)
+  const filteredDataBase = applyEtapasStatusFilter(data, ocorrenciasPorNota, {
     selectedResponsavel,
     selectedRemetente,
     etapasSelecionadas,
@@ -195,24 +197,53 @@ useEffect(() => {
     selectedPracaDestino
   });
 
+  // 2) Filtro de "Tipo de nota" (agendadas / normais / todas) aplicado sobre a base
+  const filteredData = useMemo(() => {
+    if (selectedTipoNota === 'todas') return filteredDataBase;
+
+    const querAgendadas = selectedTipoNota === 'agendadas';
+    return filteredDataBase.filter(item => {
+      const nfs = item?.notas?.length
+        ? item.notas
+        : String(item.NF || '')
+            .split(',')
+            .map(n => n.trim())
+            .filter(Boolean);
+      if (!nfs.length) return false;
+      const algumaAgendada = nfs.some(isNotaAgendada);
+      return querAgendadas ? algumaAgendada : !algumaAgendada;
+    });
+  }, [filteredDataBase, selectedTipoNota, ocorrenciasPorNota]);
+
+  // 3) Agrupamento por status baseado no filteredData final
   const groupedDataByStatus = useMemo(() => {
     return groupByStatus(filteredData, ocorrenciasPorNota);
   }, [filteredData, ocorrenciasPorNota]);
 
+  // -------- exports --------
+  const exportarParaExcel = () => {
+    exportarParaExcelPorCliente(groupedDataByStatus, filteredData, ocorrenciasPorNota);
+  };
+
+  const exportarDetalhado = () => {
+    exportarExcelDetalhadoPorStatus(groupedDataByStatus, filteredData, ocorrenciasPorNota);
+  };
+
+  const exportarTudoSemClientes = () => {
+    exportarGeral(groupedDataByStatus, filteredData, ocorrenciasPorNota);
+  };
+
+  // -------- totais --------
   const totalNotasComAguardando = useMemo(() => {
     let total = 0;
-
     for (const status in groupedDataByStatus) {
       const grupo = groupedDataByStatus[status] || [];
-
       if (status === 'aguardandoAgendamento') {
         for (const o of ocorrenciasPorNota) {
           const deveIncluir =
             o.Ocorren?.some((oc) => oc.tipo === "AGUARDANDO AGENDAMENTO DO CLIENTE") &&
             !o.Ocorren?.some((oc) => oc.tipo === "ENTREGA AGENDADA");
-
           if (!deveIncluir || !o.NF) continue;
-
           const nfs = String(o.NF).split(",").map((nf) => nf.trim());
           total += nfs.length;
         }
@@ -229,27 +260,21 @@ useEffect(() => {
             const infoNota = ocorrenciasPorNota.find((o) =>
               String(o.NF).split(",").map((x) => x.trim()).includes(nf)
             );
-
             const isAguardando =
               infoNota?.Ocorren?.some((oc) => oc.tipo === "AGUARDANDO AGENDAMENTO DO CLIENTE") &&
               !infoNota?.Ocorren?.some((oc) => oc.tipo === "ENTREGA AGENDADA");
-
             return !isAguardando;
           });
-
           total += nfsValidas.length;
         }
       }
     }
-
     return total;
   }, [groupedDataByStatus, ocorrenciasPorNota]);
 
-const todasEtapasUnicas = TODAS_ETAPAS;
-
+  // -------- utils --------
+  const todasEtapasUnicas = TODAS_ETAPAS;
   const todasCoresStatus = ["branca", "verde", "vermelha"];
-
-
 
   const calculateTotalNotesByStatus = (
     group = [],
@@ -259,19 +284,15 @@ const todasEtapasUnicas = TODAS_ETAPAS;
   ) => {
     let total = 0;
     if (!Array.isArray(group)) return 0;
-
     group.forEach((item) => {
       const notasUnicas = Array.from(new Set(item.notas || []));
       const notasValidas = notasUnicas.filter((nf) => {
         const infoNota = ocorrencias.find((o) => String(o.NF) === nf);
         if (!infoNota) return false;
-
         const temAgendamento =
           infoNota.Ocorren?.some((oc) => oc.tipo === "AGUARDANDO AGENDAMENTO DO CLIENTE") &&
           !infoNota.Ocorren?.some((oc) => oc.tipo === "ENTREGA AGENDADA");
-
         const ehViagem = infoNota?.praca_destino?.toUpperCase() !== "SJP";
-
         if (tipoPendencia === "agendamento") {
           return temAgendamento && !ehViagem;
         } else if (tipoPendencia === "viagem") {
@@ -282,35 +303,18 @@ const todasEtapasUnicas = TODAS_ETAPAS;
           return true;
         }
       });
-
       total += notasValidas.length;
     });
-
     return total;
   };
 
   const calculateOverallNotes = (group) =>
     group.reduce((acc, curr) => acc + curr.notas.length, 0);
 
-// Substitua as funções de exportação por:
-
-const exportarParaExcel = () => {
-  
-  exportarParaExcelPorCliente(groupedDataByStatus, filteredData, ocorrenciasPorNota);
-};
-
-
-const exportarDetalhado = () => {
-  exportarExcelDetalhadoPorStatus(groupedDataByStatus, filteredData, ocorrenciasPorNota);
-};
-
-const exportarTudoSemClientes = () => {
-  exportarGeral(groupedDataByStatus, filteredData, ocorrenciasPorNota);
-};
-
+  // -------- retorno --------
   return {
     data,
-    filteredData,
+    filteredData, // <- já com todos os filtros (etapas, responsavel, remetente, praça, TIPO DE NOTA)
     groupedDataByStatus,
     totalNotasDashboard: totalNotasComAguardando,
     ocorrenciasPorNota,
@@ -336,8 +340,9 @@ const exportarTudoSemClientes = () => {
       selectedRemetente,
       etapasSelecionadas,
       statusEtapasSelecionados,
-      selectedPracaDestino, 
+      selectedPracaDestino,
       selectedDateFilter,
+      selectedTipoNota,
       todasEtapasUnicas,
       todasCoresStatus,
       data
@@ -348,7 +353,8 @@ const exportarTudoSemClientes = () => {
       setEtapasSelecionadas,
       setStatusEtapasSelecionados,
       handleDateFilterChange,
-      setSelectedPracaDestino
+      setSelectedPracaDestino,
+      setSelectedTipoNota
     },
     exportarParaExcel,
     exportarTudoSemClientes,

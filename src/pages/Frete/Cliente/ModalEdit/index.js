@@ -11,7 +11,10 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
     tde: cliente.tde || "não",
     valor_permanencia: cliente.valor_permanencia || "",
     paletizado: cliente.paletizado || "não",
-    valor_pallet: cliente.valor_pallet || ""
+    valor_pallet: cliente.valor_pallet || "",
+    cobra_armazenagem: cliente.cobra_armazenagem ?? "",
+    dias_inicio_cobranca_armazenagem: cliente.dias_inicio_cobranca_armazenagem ?? "",
+    valor_pallet_dia: cliente.valor_pallet_dia ?? "",
   });
 
   useEffect(() => {
@@ -22,7 +25,10 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
       tde: cliente.tde || "não",
       valor_permanencia: cliente.valor_permanencia || "",
       paletizado: cliente.paletizado || "não",
-      valor_pallet: cliente.valor_pallet || ""
+      valor_pallet: cliente.valor_pallet || "",
+      cobra_armazenagem: cliente.cobra_armazenagem ?? "",
+      dias_inicio_cobranca_armazenagem: cliente.dias_inicio_cobranca_armazenagem ?? "",
+      valor_pallet_dia: cliente.valor_pallet_dia ?? "",
     });
   }, [cliente]);
 
@@ -37,6 +43,12 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
     return `${hh}:${mm}:00`;
   };
 
+  // 3) FUNÇÕES utilitárias (acima do handleSave, junto do formatTime)
+  const toInt = (v) => (v === "" || v == null ? null : parseInt(v, 10));
+  const toFloat = (v) =>
+    v === "" || v == null ? null : parseFloat(String(v).replace(/\./g, "").replace(",", "."));
+
+
   const handleSave = async () => {
     try {
       if (!formData.id) {
@@ -50,8 +62,21 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
         tde: formData.tde,
         valor_permanencia: formData.valor_permanencia,
         paletizado: formData.paletizado,
-        valor_pallet: formData.valor_pallet
+        valor_pallet: formData.valor_pallet,
+
+        // envia sempre; "" vira null
+        cobra_armazenagem:
+          formData.cobra_armazenagem === "" ? null : formData.cobra_armazenagem,
+        dias_inicio_cobranca_armazenagem:
+          formData.dias_inicio_cobranca_armazenagem === ""
+            ? null
+            : toInt(formData.dias_inicio_cobranca_armazenagem),
+        valor_pallet_dia:
+          formData.valor_pallet_dia === ""
+            ? null
+            : toFloat(formData.valor_pallet_dia),
       };
+
 
 
       await apiLocal.updateCamposCliente(formData.id, dataToSend);
@@ -104,6 +129,43 @@ const ModalEdit = ({ isOpen, toggle, cliente, onSaved }) => {
             onChange={(e) => handleChange("valor_permanencia", e.target.value)}
           />
         </div>
+
+        <div className="mb-3">
+          <Label>Cobra armazenagem?</Label>
+          <Input
+            type="select"
+            value={formData.cobra_armazenagem}
+            onChange={(e) => handleChange("cobra_armazenagem", e.target.value)}
+          >
+            <option value="">-- selecione --</option>
+            <option value="s">Sim</option>
+            <option value="n">Não</option>
+          </Input>
+        </div>
+
+        <div className="mb-3">
+          <Label>Após quantos dias será cobrado</Label>
+          <Input
+            type="number"
+            min="0"
+            placeholder="Ex: 5"
+            value={formData.dias_inicio_cobranca_armazenagem}
+            onChange={(e) =>
+              handleChange("dias_inicio_cobranca_armazenagem", e.target.value)
+            }
+          />
+        </div>
+
+        <div className="mb-3">
+          <Label>Valor por pallet/dia (R$)</Label>
+          <Input
+            type="text"
+            placeholder="Ex: 7,00"
+            value={formData.valor_pallet_dia}
+            onChange={(e) => handleChange("valor_pallet_dia", e.target.value)}
+          />
+        </div>
+
         <div className="mb-3">
           <Label>Paletizado</Label>
           <Input

@@ -92,7 +92,10 @@ const Cliente = () => {
               <TableHeader>Nome</TableHeader>
               <TableHeader>Hr Permanência</TableHeader>
               <TableHeader>TDE</TableHeader>
-              <TableHeader>Valor TDE</TableHeader>
+              <TableHeader>Valor hora Permanencia</TableHeader>
+              <TableHeader>Armazenagem</TableHeader>
+              <TableHeader>Dias permitidos</TableHeader>
+              <TableHeader>Valor armazenagem pallet/d</TableHeader>
               <TableHeader>Paletizado</TableHeader>
               <TableHeader>Valor Pallet</TableHeader>
               <TableHeader>Ações</TableHeader>
@@ -101,20 +104,66 @@ const Cliente = () => {
           <tbody>
             {filteredClientes.map((cliente) => (
               <TableRow key={cliente.id}>
+                {/* Nome */}
                 <TableCell>{cliente.nome}</TableCell>
-                <TableCell>{cliente.hr_perm || '-'}</TableCell>
-                <TableCell style={{ color: cliente.tde === 'sim' ? 'green' : 'red' }}>{cliente.tde === 'sim' ? 'Sim' : 'Não'}</TableCell>
-                <TableCell>{cliente.valor_permanencia ? `R$ ${cliente.valor_permanencia}` : '-'}</TableCell>
-                <TableCell style={{ color: cliente.paletizado === 'sim' ? 'green' : 'red' }}>
-                  {cliente.paletizado === 'sim' ? 'Sim' : 'Não'}
+
+                {/* Hr Permanência */}
+                <TableCell>{cliente.hr_perm || "-"}</TableCell>
+
+                {/* TDE */}
+                <TableCell style={{ color: cliente.tde === "sim" ? "green" : "red" }}>
+                  {cliente.tde === "sim" ? "Sim" : "Não"}
                 </TableCell>
-                <TableCell>{cliente.valor_pallet ? `R$ ${cliente.valor_pallet}` : '-'}</TableCell>
+
+                {/* Valor Permanência */}
+                <TableCell>
+                  {cliente.valor_permanencia ? `R$ ${cliente.valor_permanencia}` : "-"}
+                </TableCell>
+
+                {/* Armazenagem */}
+                <TableCell
+                  style={{
+                    color:
+                      cliente.cobra_armazenagem === "s"
+                        ? "green"
+                        : cliente.cobra_armazenagem === "n"
+                          ? "red"
+                          : undefined,
+                  }}
+                >
+                  {cliente.cobra_armazenagem === "s"
+                    ? "Sim"
+                    : cliente.cobra_armazenagem === "n"
+                      ? "Não"
+                      : "-"}
+                </TableCell>
+
+                {/* Dias permitidos */}
+                <TableCell>
+                  {cliente.dias_inicio_cobranca_armazenagem ?? "-"}
+                </TableCell>
+
+                {/* Valor armazenagem p/d */}
+                <TableCell>
+                  {cliente.valor_pallet_dia != null ? `R$ ${cliente.valor_pallet_dia}` : "-"}
+                </TableCell>
+
+                {/* Paletizado */}
+                <TableCell style={{ color: cliente.paletizado === "sim" ? "green" : "red" }}>
+                  {cliente.paletizado === "sim" ? "Sim" : "Não"}
+                </TableCell>
+
+                {/* Valor Pallet */}
+                <TableCell>{cliente.valor_pallet ? `R$ ${cliente.valor_pallet}` : "-"}</TableCell>
+
+                {/* Ações */}
                 <TableCell>
                   <Button color="primary" size="sm" onClick={() => handleEdit(cliente)}>
                     <FaPen />
                   </Button>
                 </TableCell>
               </TableRow>
+
             ))}
           </tbody>
         </Table>

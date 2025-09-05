@@ -39,7 +39,9 @@ import DashboardBaixas from "./DashboardBaixas";
 import GrupoEco from "./GrupoEco";
 import Responsavel from "./Responsavel";
 import LancarPaletizacao from "./LancarPaletizacao";
+import LancarArmazenagem from "./LancarArmazenagem";
 import TodasPaletizacoes from "./TodasPaletizacoes";
+import TodasArmazenagens from "./TodasArmazenagens";
 
 const Navbar = ({
   currentTab,
@@ -173,6 +175,13 @@ const Navbar = ({
                 Lançar Paletizacao
               </DropdownItem>
             )}
+             <DropdownItem
+                onClick={() =>
+                  handleSelection("novaOcorrencia", "Lançar Armazenagem", "Armazenagem")
+                }
+              >
+                Lançar Armazenagem
+              </DropdownItem>
           </Dropdown>
         )}
       </NavButton>
@@ -314,6 +323,13 @@ const Navbar = ({
                 Todas as paletizacoes
               </DropdownItem>
             )}
+            <DropdownItem
+                onClick={() =>
+                  handleSelection("relatorios", "Armazenagens", "todasArmazenagens")
+                }
+              >
+                Todas as Armazenagens
+              </DropdownItem>
           </Dropdown>
         )}
       </NavButton>
@@ -383,8 +399,10 @@ const Frete = () => {
         {currentTab === "ocorrenciaFalta" && <LancarFalta />}
         {currentTab === "ocorrenciaSTH" && <LancarSTH />}
         {currentTab === "Paletizacao" && <LancarPaletizacao />}
+        {currentTab === "Armazenagem" && <LancarArmazenagem />}
 
         {currentTab === "todasPaletizacoes" && <TodasPaletizacoes />}
+        {currentTab === "todasArmazenagens" && <TodasArmazenagens />}
         {currentTab === "rastreio" && <RastreioMotorista />}
         {currentTab === "tiposOcorrencias" && <TipoOcorren />}
         {!isOperador && currentTab === "todasOcorrencias" && (

@@ -122,6 +122,7 @@ const toggleFullScreen = () => {
               calculateTotalNotesByStatus={calculateTotalNotesByStatus}
               dataInicial={dataInicial}
               dataFinal={dataFinal}
+              selectedTipoNota={filters.selectedTipoNota}
               />
               </Col>
           )}
