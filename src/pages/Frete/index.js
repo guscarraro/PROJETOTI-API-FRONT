@@ -92,14 +92,22 @@ const Navbar = ({
             <Dropdown>
               <DropdownItem
                 onClick={() =>
-                  handleSelection("dashboard", "Dashboard Ocorrência", "dashboard")
+                  handleSelection(
+                    "dashboard",
+                    "Dashboard Ocorrência",
+                    "dashboard"
+                  )
                 }
               >
                 Dashboard Ocorrência
               </DropdownItem>
               <DropdownItem
                 onClick={() =>
-                  handleSelection("dashboard", "Dashboard Faltas", "dashboardFaltas")
+                  handleSelection(
+                    "dashboard",
+                    "Dashboard Faltas",
+                    "dashboardFaltas"
+                  )
                 }
               >
                 Dashboard Faltas
@@ -113,16 +121,27 @@ const Navbar = ({
               </DropdownItem>
               <DropdownItem
                 onClick={() =>
-                  handleSelection("dashboard", "Dashboard Baixas", "dashboardBaixas")
+                  handleSelection(
+                    "dashboard",
+                    "Dashboard Baixas",
+                    "dashboardBaixas"
+                  )
                 }
               >
                 Dashboard Baixas
+              </DropdownItem>
+              <DropdownItem
+                onClick={() => {
+                  setDropdownVisible(null);
+                  navigate("/Operacao");
+                }}
+              >
+                Dashboard Faturamento (Operação)
               </DropdownItem>
             </Dropdown>
           )}
         </NavButton>
       )}
-
       <NavButton
         onClick={() => toggleDropdown("novaOcorrencia")}
         className={
@@ -142,7 +161,11 @@ const Navbar = ({
             {!isOperador && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("novaOcorrencia", "Lançar Nova Ocorrência", "novaOcorrencia")
+                  handleSelection(
+                    "novaOcorrencia",
+                    "Lançar Nova Ocorrência",
+                    "novaOcorrencia"
+                  )
                 }
               >
                 Lançar Nova Ocorrência
@@ -151,7 +174,11 @@ const Navbar = ({
             {!isOperador && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("novaOcorrencia", "Lançar Falta", "ocorrenciaFalta")
+                  handleSelection(
+                    "novaOcorrencia",
+                    "Lançar Falta",
+                    "ocorrenciaFalta"
+                  )
                 }
               >
                 Lançar Falta
@@ -160,7 +187,11 @@ const Navbar = ({
             {!isOperador && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("novaOcorrencia", "Lançar STH", "ocorrenciaSTH")
+                  handleSelection(
+                    "novaOcorrencia",
+                    "Lançar STH",
+                    "ocorrenciaSTH"
+                  )
                 }
               >
                 Lançar STH
@@ -169,23 +200,30 @@ const Navbar = ({
             {(podeLancarPaletizacao || !isOperador) && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("novaOcorrencia", "Lançar Paletizacao", "Paletizacao")
+                  handleSelection(
+                    "novaOcorrencia",
+                    "Lançar Paletizacao",
+                    "Paletizacao"
+                  )
                 }
               >
                 Lançar Paletizacao
               </DropdownItem>
             )}
-             <DropdownItem
-                onClick={() =>
-                  handleSelection("novaOcorrencia", "Lançar Armazenagem", "Armazenagem")
-                }
-              >
-                Lançar Armazenagem
-              </DropdownItem>
+            <DropdownItem
+              onClick={() =>
+                handleSelection(
+                  "novaOcorrencia",
+                  "Lançar Armazenagem",
+                  "Armazenagem"
+                )
+              }
+            >
+              Lançar Armazenagem
+            </DropdownItem>
           </Dropdown>
         )}
       </NavButton>
-
       {!isOperador && (
         <NavButton
           onClick={() => setCurrentTab("ocorrencias")}
@@ -197,80 +235,89 @@ const Navbar = ({
           Ocorrências em Aberto
         </NavButton>
       )}
-
       {(isOperador || !isOperador) && (
-  <NavButton
-    onClick={() => toggleDropdown("cadastros")}
-    className={
-      isActive("tiposOcorrencias") ||
-      isActive("motoristas") ||
-      isActive("clientes") ||
-      isActive("destino")
-        ? "active"
-        : ""
-    }
-  >
-    <NavIcon>
-      <FaClipboardList />
-    </NavIcon>
-    {selectedOption.cadastros} <FaCaretDown />
-    {dropdownVisible === "cadastros" && (
-      <Dropdown>
-        {!isOperador && (
-          <>
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Tipo de Ocorrência", "tiposOcorrencias")
-              }
-            >
-              Tipo de Ocorrência
-            </DropdownItem>
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Motoristas", "motoristas")
-              }
-            >
-              Motoristas
-            </DropdownItem>
-           
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Grupo Econômico", "grupoEco")
-              }
-            >
-              Grupo Econômico
-            </DropdownItem>
-            <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Responsáveis", "responsavel")
-              }
-            >
-              Responsáveis
-            </DropdownItem>
-          </>
-        )}
-
-        {/* Cliente disponível para todos, inclusive operador */}
-        <DropdownItem
-          onClick={() =>
-            handleSelection("cadastros", "Clientes", "clientes")
+        <NavButton
+          onClick={() => toggleDropdown("cadastros")}
+          className={
+            isActive("tiposOcorrencias") ||
+            isActive("motoristas") ||
+            isActive("clientes") ||
+            isActive("destino")
+              ? "active"
+              : ""
           }
         >
-          Clientes
-        </DropdownItem>
-         <DropdownItem
-              onClick={() =>
-                handleSelection("cadastros", "Destinatários", "destino")
-              }
-            >
-              Destinatários
-            </DropdownItem>
-      </Dropdown>
-    )}
-  </NavButton>
-)}
+          <NavIcon>
+            <FaClipboardList />
+          </NavIcon>
+          {selectedOption.cadastros} <FaCaretDown />
+          {dropdownVisible === "cadastros" && (
+            <Dropdown>
+              {!isOperador && (
+                <>
+                  <DropdownItem
+                    onClick={() =>
+                      handleSelection(
+                        "cadastros",
+                        "Tipo de Ocorrência",
+                        "tiposOcorrencias"
+                      )
+                    }
+                  >
+                    Tipo de Ocorrência
+                  </DropdownItem>
+                  <DropdownItem
+                    onClick={() =>
+                      handleSelection("cadastros", "Motoristas", "motoristas")
+                    }
+                  >
+                    Motoristas
+                  </DropdownItem>
 
+                  <DropdownItem
+                    onClick={() =>
+                      handleSelection(
+                        "cadastros",
+                        "Grupo Econômico",
+                        "grupoEco"
+                      )
+                    }
+                  >
+                    Grupo Econômico
+                  </DropdownItem>
+                  <DropdownItem
+                    onClick={() =>
+                      handleSelection(
+                        "cadastros",
+                        "Responsáveis",
+                        "responsavel"
+                      )
+                    }
+                  >
+                    Responsáveis
+                  </DropdownItem>
+                </>
+              )}
 
+              {/* Cliente disponível para todos, inclusive operador */}
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("cadastros", "Clientes", "clientes")
+                }
+              >
+                Clientes
+              </DropdownItem>
+              <DropdownItem
+                onClick={() =>
+                  handleSelection("cadastros", "Destinatários", "destino")
+                }
+              >
+                Destinatários
+              </DropdownItem>
+            </Dropdown>
+          )}
+        </NavButton>
+      )}
       <NavButton
         onClick={() => toggleDropdown("relatorios")}
         className={
@@ -290,7 +337,11 @@ const Navbar = ({
             {!isOperador && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("relatorios", "Todas as Ocorrências", "todasOcorrencias")
+                  handleSelection(
+                    "relatorios",
+                    "Todas as Ocorrências",
+                    "todasOcorrencias"
+                  )
                 }
               >
                 Todas as Ocorrências
@@ -299,49 +350,61 @@ const Navbar = ({
             {!isOperador && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("relatorios", "Faltas", "todasOcorrenciaFalta")
+                  handleSelection(
+                    "relatorios",
+                    "Faltas",
+                    "todasOcorrenciaFalta"
+                  )
                 }
               >
                 Todas as Faltas
               </DropdownItem>
             )}
-            
-              <DropdownItem
-                onClick={() =>
-                  handleSelection("relatorios", "STH", "todasOcorrenciaSTH")
-                }
-              >
-                Todos os STH
-              </DropdownItem>
-            
+
+            <DropdownItem
+              onClick={() =>
+                handleSelection("relatorios", "STH", "todasOcorrenciaSTH")
+              }
+            >
+              Todos os STH
+            </DropdownItem>
+
             {(podeLancarPaletizacao || !isOperador) && (
               <DropdownItem
                 onClick={() =>
-                  handleSelection("relatorios", "Paletizacoes", "todasPaletizacoes")
+                  handleSelection(
+                    "relatorios",
+                    "Paletizacoes",
+                    "todasPaletizacoes"
+                  )
                 }
               >
                 Todas as paletizacoes
               </DropdownItem>
             )}
             <DropdownItem
-                onClick={() =>
-                  handleSelection("relatorios", "Armazenagens", "todasArmazenagens")
-                }
-              >
-                Todas as Armazenagens
-              </DropdownItem>
+              onClick={() =>
+                handleSelection(
+                  "relatorios",
+                  "Armazenagens",
+                  "todasArmazenagens"
+                )
+              }
+            >
+              Todas as Armazenagens
+            </DropdownItem>
           </Dropdown>
         )}
       </NavButton>
- {!isOperador && (
-      <NavButton onClick={() => navigate("/gerar-viagem")}>
-        <NavIcon>
-          <FaTruck />
-        </NavIcon>
-        Ir para Carga Lucrativa
-      </NavButton>
-)
-};
+      {!isOperador && (
+        <NavButton onClick={() => navigate("/gerar-viagem")}>
+          <NavIcon>
+            <FaTruck />
+          </NavIcon>
+          Ir para Carga Lucrativa
+        </NavButton>
+      )}
+      ;
       <NavButton onClick={() => navigate("/SAC")}>
         <NavIcon>
           <FaArrowRight />
@@ -351,7 +414,6 @@ const Navbar = ({
     </NavbarContainer>
   );
 };
-
 
 const Frete = () => {
   const [currentTab, setCurrentTab] = useState("ocorrencias");
@@ -419,6 +481,5 @@ const Frete = () => {
     </ContainerGeralFrete>
   );
 };
-
 
 export default Frete;

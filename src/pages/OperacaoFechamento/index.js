@@ -54,13 +54,17 @@ function normalizeRow(r) {
     nota_fiscal: r.nota_fiscal ?? null,
     fil_dest: r.fil_dest ?? null,
     emissao: parseEmissaoToISO(r.emissao),
-    valor_bruto: r.valor_bruto ? Number(String(r.valor_bruto).replace(",", ".")) : 0,
+    valor_bruto: r.valor_bruto
+      ? Number(String(r.valor_bruto).replace(",", "."))
+      : 0,
     destinatario: r.destinatario ?? null,
     tomador_servico: r.tomador_do_servico ?? r.tomador_servico ?? null,
     coletado_em: r.coletado_em ?? null,
     prazo_d: r.prazo_d ?? null,
     peso: r.peso ? Number(String(r.peso).replace(",", ".")) : 0,
-    quantidade_volume: r.quantidade_volume ? Number(String(r.quantidade_volume).replace(",", ".")) : 0,
+    quantidade_volume: r.quantidade_volume
+      ? Number(String(r.quantidade_volume).replace(",", "."))
+      : 0,
     valor_mercadoria: r.valor_de_mercadoria
       ? Number(String(r.valor_de_mercadoria).replace(",", "."))
       : 0,
@@ -83,11 +87,10 @@ const monthOptions = [
   { value: "2025-09", label: "Setembro 2025" },
   { value: "2025-10", label: "Outubro 2025" },
   { value: "2025-11", label: "Novembro 2025" },
-
 ];
 
 const OperacaoFechamento = () => {
-  const [data, setData] = useState([]);        // sempre normalizado
+  const [data, setData] = useState([]); // sempre normalizado
   const [loading, setLoading] = useState(true);
   const [selectedTomadores, setSelectedTomadores] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
@@ -147,8 +150,7 @@ const OperacaoFechamento = () => {
 
     return data.filter((item) => {
       const itemMonth = getMonthKey(item.emissao);
-      const isMonthSelected =
-        monthSet.size === 0 || monthSet.has(itemMonth);
+      const isMonthSelected = monthSet.size === 0 || monthSet.has(itemMonth);
       const isTomadorSelected =
         tomadorSet.size === 0 || tomadorSet.has(item.tomador_servico);
 
@@ -287,12 +289,20 @@ const OperacaoFechamento = () => {
                 >
                   Ir para SAC
                 </Button>
+
                 <Button
                   color="success"
                   onClick={() => setIsModalOpen(true)}
                   style={{ marginBottom: -15, marginLeft: 10 }}
                 >
                   Importar Excel
+                </Button>
+                <Button
+                  color="primary"
+                  onClick={() => navigate("/Frete")}
+                  style={{ marginBottom: -15, marginLeft: 10 }}
+                >
+                  Ir para Frete
                 </Button>
               </Col>
             </Row>
