@@ -9,6 +9,9 @@ const API_URL =
 const api = axios.create({
   baseURL: API_URL.replace("http://", "https://"), // 🔥 Substitui qualquer HTTP por HTTPS
   headers: { "Content-Type": "application/json" },
+  timeout: 100 * 60 * 1000, // 100 min
+maxContentLength: Infinity,
+maxBodyLength: Infinity,
   withCredentials: false,
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
@@ -95,6 +98,31 @@ const apiLocal = {
   getViagensFiltradas: (filters) => api.post("/viagens/filtrar", filters),
   getOpcoesFiltrosViagens: () => api.get("/viagens/opcoes-filtros"),
   getViagemById: (viagemId) => api.get(`/viagens/id/${viagemId}`),
+
+  getFechamento: (params) => api.get("/fechamento_op/", { params }),
+  getFechamentoPorMes: (mes) => api.get("/fechamento_op/", { params: { mes } }),
+  getFechamentoPorData: (data) => api.get("/fechamento_op/", { params: { data } }),
+uploadFechamentoExcel: (file, config = {}) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/fechamento_op/", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    ...config, // permite onUploadProgress, timeout etc.
+  });
+},
+// ↓ NOVOS endpoints de import assíncrono
+startFechamentoImport: (file, config = {}) => {
+  const form = new FormData();
+  form.append("file", file);
+  return api.post("/fechamento_op/import", form, {
+    headers: { "Content-Type": "multipart/form-data" },
+    ...config, // permite onUploadProgress e timeout custom
+  });
+},
+getFechamentoImportStatus: (jobId) =>
+  api.get(`/fechamento_op/import/${jobId}/status`),
+
+
 
   // 🔧 Responsáveis
   getResponsaveis: () => api.get("/responsaveis/"),

@@ -23,6 +23,7 @@ import FilialChart from "./FilialChart";
 import { StyledSelect } from "../../components/StyledSelect";
 import apiLocal from "../../services/apiLocal";
 import { useNavigate } from "react-router-dom";
+import ModalAdd from "./ModalAdd";
 
 
 const OperacaoFechamento = () => {
@@ -30,6 +31,8 @@ const OperacaoFechamento = () => {
   const [loading, setLoading] = useState(true);
   const [selectedTomadores, setSelectedTomadores] = useState([]); // Armazena os tomadores selecionados
   const [selectedMonths, setSelectedMonths] = useState([]); // Armazena os meses selecionados
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const navigate = useNavigate();
 
 
@@ -51,9 +54,9 @@ const OperacaoFechamento = () => {
   // Certifique-se de importar corretamente
 
   const fetchData = async () => {
-    setLoading(true);
+    setLoading(false);
     try {
-      const response = await apiLocal.getFechamentoOperacao(); // ✅ Utiliza o Axios
+      const response = await apiLocal.getFechamentoOperacao(1); // ✅ Utiliza o Axios
       setData(response.data);
     } catch (error) {
       console.error("Erro ao buscar os dados:", error);
@@ -62,7 +65,10 @@ const OperacaoFechamento = () => {
     }
   };
 
-
+const handleUploaded = async () => {
+  await fetchData();
+  setIsModalOpen(false);
+};
   useEffect(() => {
     fetchData();
   }, []);
@@ -167,6 +173,11 @@ const OperacaoFechamento = () => {
 
   return (
     <div className="boxGeneral">
+      <ModalAdd
+  isOpen={isModalOpen}
+  onClose={() => setIsModalOpen(false)}
+  onUploaded={handleUploaded}
+/>
       <Container fluid>
         {loading ? (
           <LoadingContainer>
@@ -199,7 +210,9 @@ const OperacaoFechamento = () => {
                 <Button onClick={() => navigate("/SAC")} style={{marginBottom:-15, background:'primary'}}>
                   Ir para SAC
                 </Button>
-
+  <Button color="success" onClick={() => setIsModalOpen(true)} style={{marginBottom:-15}}>
+    Importar Excel
+  </Button>
               </Col>
             </Row>
 
