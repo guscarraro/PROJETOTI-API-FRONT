@@ -16,7 +16,7 @@ import { toast } from 'react-toastify';
 
 function ModalAdd({ isOpen, toggle }) {
   const [formData, setFormData] = useState({
-    status: 'Pendente',
+    status: 'Em Uso',
     setor: '',
     tipo_aparelho: '',
     email_utilizado: '',

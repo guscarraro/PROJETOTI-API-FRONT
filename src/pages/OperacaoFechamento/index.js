@@ -13,6 +13,7 @@ import { StyledSelect } from "../../components/StyledSelect";
 import apiLocal from "../../services/apiLocal";
 import { useNavigate } from "react-router-dom";
 import ModalAdd from "./ModalAdd";
+import LineChartReceita from "./LineChartReceita";
 
 /** Normaliza 'emissao' para YYYY-MM-DD, aceitando 'DD/MM/YYYY', 'YYYY-MM-DD', 'DD/MM/YY', etc */
 function parseEmissaoToISO(emissaoRaw) {
@@ -306,7 +307,6 @@ const OperacaoFechamento = () => {
                 </Button>
               </Col>
             </Row>
-
             <Row style={{ marginTop: 40 }}>
               <Col md="4">
                 <SummaryBox
@@ -327,7 +327,6 @@ const OperacaoFechamento = () => {
                 />
               </Col>
             </Row>
-
             <Row>
               <Col md="12">
                 <Box>
@@ -340,7 +339,20 @@ const OperacaoFechamento = () => {
                 </Box>
               </Col>
             </Row>
-
+            
+            <Row>
+              <Col md="12">
+                <Box>
+                  <h5>Receita diária por mês (com meta)</h5>
+                  <LineChartReceita
+                    data={filteredData} // já vem filtrado por Encerrado  Normal
+                    selectedTomadores={selectedTomadores.map((t) => t.value)}
+                    selectedMonths={selectedMonths.map((m) => m.value)}
+                    monthlyGoal={4_000_000} // meta mensal (R$)
+                  />
+                </Box>
+              </Col>
+            </Row>
             <Row>
               <Col md="6">
                 <TopTomadores data={groupedByTomador} />
@@ -359,7 +371,6 @@ const OperacaoFechamento = () => {
                 </Box>
               </Col>
             </Row>
-
             <Row>
               <Col md="6">
                 <TopTomadoresQuantidade data={filteredData} />
