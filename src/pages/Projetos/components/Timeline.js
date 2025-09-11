@@ -33,7 +33,8 @@ import {
     Overlay,
     BaselineMark,
 } from "../style";
-import { isWeekend } from "../utils";
+import { isWeekend as isWeekendBase } from "../utils";
+import { FiFlag } from "react-icons/fi";
 
 const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 const monthBgTones = [
@@ -43,6 +44,15 @@ const monthBgTones = [
     "rgba(167,139,250,0.15)", // roxo claro
     "rgba(20,184,166,0.15)",  // teal claro
 ];
+// parse seguro: trata "YYYY-MM-DD" como data LOCAL (evita queda para o dia anterior em fusos negativos)
+const toLocalDate = (iso) => new Date(`${iso}T00:00:00`);
+
+// fim de semana em horário local
+const isWeekendLocal = (iso) => {
+    const d = toLocalDate(iso);
+    const dow = d.getDay();
+    return dow === 0 || dow === 6;
+};
 
 // Legenda de estados (cores de preenchimento)
 const LEGEND_STATUS = [
@@ -113,7 +123,7 @@ export default function Timeline({
         let currentKey = null, span = 0, label = "";
         const push = () => { if (span > 0) segs.push({ key: currentKey, span, label }); };
         for (const iso of days) {
-            const d = new Date(iso);
+            const d = toLocalDate(iso);
             const key = `${d.getFullYear()}-${d.getMonth()}`;
             if (key !== currentKey) {
                 push();
@@ -200,7 +210,7 @@ export default function Timeline({
     // { rowId, x, y }
     const openSectorMenu = (rowId, e) => {
         const rect = e.currentTarget.getBoundingClientRect();
-        setSectorMenu({ rowId, x: rect.left, y: rect.bottom + 8 });
+        setSectorMenu({ rowId, x: Math.max(8, Math.min(rect.left, window.innerWidth - 260)), y: Math.max(8, Math.min(rect.bottom + 8, window.innerHeight - 320)) });
     };
     const closeSectorMenu = () => setSectorMenu(null);
     const pickSector = (key) => {
@@ -285,8 +295,8 @@ export default function Timeline({
 
                         <DaysRow>
                             {days.map((d) => (
-                                <DayCellHeader key={d} $weekend={isWeekend(d)}>
-                                    {new Date(d).getDate()}
+                                <DayCellHeader key={d} $weekend={isWeekendLocal(d)}>
+                                    {toLocalDate(d).getDate()}
                                 </DayCellHeader>
                             ))}
                         </DaysRow>
@@ -313,16 +323,21 @@ export default function Timeline({
                                             onMouseLeave={hideTooltip}
                                         >
                                             <DayCell
-                                                $weekend={isWeekend(d)}
+                                                $weekend={isWeekendLocal(d)}
                                                 $color={color}
                                                 onClick={(e) => {
-                                                    if (isWeekend(d)) return;
+                                                    if (isWeekendLocal(d)) return;
                                                     openPalette(r.id, d, e, { comment, baseline });
                                                 }}
-                                                title={isWeekend(d) ? "Fim de semana" : "Clique para cor/comentário"}
+                                                title={isWeekendLocal(d) ? "Fim de semana" : "Clique para cor/comentário"}
                                             />
                                             {comment && <CommentBadge>OBS</CommentBadge>}
-                                            {baseline && <BaselineMark $color={baselineColor} title="Marco do plano" />}
+                                            {baseline && (
+                                                <BaselineMark $color={baselineColor} title="Marco do plano">
+                                                    <FiFlag size={14} />
+                                                </BaselineMark>
+                                            )}
+
                                         </div>
                                     );
                                 })}
@@ -354,7 +369,10 @@ export default function Timeline({
 
             {/* Paleta de cores + comentário */}
             {palette && (
-                <div style={{ position: "fixed", left: palette.x, top: palette.y }}>
+                <div
+                    style={{ position: "fixed", left: palette.x, top: palette.y, zIndex: 1001 }}
+                    onClick={(e) => e.stopPropagation()} // evita qualquer bolha indesejada
+                >
                     <Palette style={{ width: 300 }}>
                         <ColorsRow>
                             {colors.map((c) => (

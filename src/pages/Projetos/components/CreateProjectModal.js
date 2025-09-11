@@ -10,11 +10,26 @@ export default function CreateProjectModal({ isOpen, toggle, onSave }) {
     const [fim, setFim] = useState(formatDate(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30)));
     const [status, setStatus] = useState(STATUS.ANDAMENTO);
 
+    const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
+    const TI_UUID = "d2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f";
+    const FRETE_UUID = "958db54e-add5-45f6-8aef-739d6ba7cb4c";
+    const SAC_UUID = "43350e26-12f4-4094-8cfb-2a66f250838d";
+    const OPER_UUID = "442ec24d-4c7d-4b7e-b1dd-8261c9376d0f";
+    const DIRET_UUID = "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4";
+    const [setores, setSetores] = useState([]);
+    const SECTORS = [
+        { id: SAC_UUID, label: "SAC" },
+        { id: OPER_UUID, label: "Operação" },
+        { id: FRETE_UUID, label: "Frete" },
+        { id: DIRET_UUID, label: "Diretoria" },
+        { id: TI_UUID, label: "TI" },
+        { id: ADMIN_UUID, label: "Admin" },
+    ];
 
     const handleSubmit = () => {
         if (!nome) return alert("Informe o nome do projeto");
         if (new Date(fim) < new Date(inicio)) return alert("A data de término deve ser após a data de início");
-        onSave({ nome, inicio, fim, status });
+        onSave({ nome, inicio, fim, status, setores  });
     };
 
 
@@ -45,6 +60,32 @@ export default function CreateProjectModal({ isOpen, toggle, onSave }) {
                             <option>{STATUS.CANCELADO}</option>
                         </Input>
                     </FormGroup>
+                    <FormGroup>
+  <Label>Setores envolvidos</Label>
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+      gap: 8,
+    }}
+  >
+    {SECTORS.map((s) => (
+      <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={setores.includes(s.id)}
+          onChange={(e) => {
+            setSetores((prev) =>
+              e.target.checked ? [...prev, s.id] : prev.filter((x) => x !== s.id)
+            );
+          }}
+        />
+        <span>{s.label}</span>
+      </label>
+    ))}
+  </div>
+</FormGroup>
+
                 </Form>
             </ModalBody>
             <ModalFooter>

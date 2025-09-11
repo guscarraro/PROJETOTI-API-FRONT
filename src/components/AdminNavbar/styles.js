@@ -25,7 +25,7 @@ export const MenuButton = styled.button`
   cursor: pointer;
   transition: background-color 0.3s ease;
   z-index: 1000;
-
+  display:none;
   &:hover {
     background-color: rgba(0, 0, 0, 0.7);
   }

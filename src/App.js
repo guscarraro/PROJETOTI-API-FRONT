@@ -11,6 +11,7 @@ import Frete from './pages/Frete';
 import CargaLucrativa from './pages/CargaLucrativa';
 import Projetos from './pages/Projetos';
 import ProjetoDetalhe from './pages/Projetos/ProjetoDetalhe';
+import GestaoAcessos from './pages/Projetos/GestaoAcessos';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
@@ -220,6 +221,18 @@ const App = () => {
           element={
             <PrivateRoute
               element={<ProjetoDetalhe />}
+              allowedSectors={[
+                'c1b389cb-7dee-4f91-9687-b1fad9acbf4c',
+                'd2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f',
+              ]}
+            />
+          }
+        />
+        <Route
+          path="/Projetos/GestaoAcessos"
+          element={
+            <PrivateRoute
+              element={<GestaoAcessos />}
               allowedSectors={[
                 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c',
                 'd2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f',
