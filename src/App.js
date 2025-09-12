@@ -35,7 +35,7 @@ const App = () => {
               element={<Dashboard />}
               allowedSectors={[
                 '43350e26-12f4-4094-8cfb-2a66f250838d', // UUID do setor SAC
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+                'Frete',
                 '2c17e352-ffcd-4c7b-a771-1964aaee1f79',
                 '442ec24d-4c7d-4b7e-b1dd-8261c9376d0f',
                 'b1122334-56ab-78cd-90ef-123456789abc',
@@ -52,7 +52,7 @@ const App = () => {
             <PrivateRoute
               element={<Frete />}
               allowedSectors={[
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c', // UUID do setor Frete
+                'Frete', // UUID do setor Frete
                 '43350e26-12f4-4094-8cfb-2a66f250838d',
                 '2c17e352-ffcd-4c7b-a771-1964aaee1f79',
                 '123e4567-e89b-12d3-a456-426614174000'
@@ -67,7 +67,7 @@ const App = () => {
             <PrivateRoute
               element={<CargaLucrativa />}
               allowedSectors={[
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+                'Frete',
                 '43350e26-12f4-4094-8cfb-2a66f250838d',
                 '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
                 '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4',
@@ -83,7 +83,7 @@ const App = () => {
             <PrivateRoute
               element={<CargaLucrativa />}
               allowedSectors={[
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+                'Frete',
                 '43350e26-12f4-4094-8cfb-2a66f250838d',
                 '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
                 '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4',
@@ -99,7 +99,7 @@ const App = () => {
             <PrivateRoute
               element={<CargaLucrativa />}
               allowedSectors={[
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+                'Frete',
                 '43350e26-12f4-4094-8cfb-2a66f250838d',
                 '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
                 '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4',
@@ -115,7 +115,7 @@ const App = () => {
             <PrivateRoute
               element={<CargaLucrativa />}
               allowedSectors={[
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+                'Frete',
                 '43350e26-12f4-4094-8cfb-2a66f250838d',
                 '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
                 '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4',
@@ -131,7 +131,7 @@ const App = () => {
             <PrivateRoute
               element={<CargaLucrativa />}
               allowedSectors={[
-                '958db54e-add5-45f6-8aef-739d6ba7cb4c',
+                'Frete',
                 '43350e26-12f4-4094-8cfb-2a66f250838d',
                 '7a84e2cb-cb4c-4705-b676-9f0a0db5469a',
                 '9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4',

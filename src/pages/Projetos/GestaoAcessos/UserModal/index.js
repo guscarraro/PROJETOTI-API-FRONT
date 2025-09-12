@@ -1,21 +1,78 @@
 // src/pages/Projetos/GestaoAcessos/UserModal.js
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Button } from "reactstrap";
 import { ModalOverlay, ModalBox, Field, Actions, Help } from "../style";
 import { FiMail, FiKey, FiSave, FiX } from "react-icons/fi";
 
-// UUID do perfil Admin (apenas para exibir na dica abaixo)
-const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
+/**
+ * Props:
+ * - title: string ("Novo usuário" | "Editar usuário")
+ * - initialEmail?: string
+ * - setoresOptions: Array<{ id: number|string, nome: string }>
+ * - initialSetorIds?: Array<number|string>
+ * - onCancel: () => void
+ * - onSubmit: (payload) => void
+ *   payload = { email, senha?, setor_ids: number[] }
+ */
+export default function UserModal({
+  title,
+  initialEmail = "",
+  setoresOptions = [],
+  initialSetorIds = [],
+  onCancel,
+  onSubmit,
+}) {
+  const isEdit = useMemo(() => !!initialEmail, [initialEmail]);
 
-export default function UserModal({ title, initialEmail = "", onCancel, onSubmit }) {
   const [email, setEmail] = useState(initialEmail);
   const [senha, setSenha] = useState("");
+  const [confirmSenha, setConfirmSenha] = useState("");
+  const [setorIdsSel, setSetorIdsSel] = useState(
+    (initialSetorIds || []).map(String)
+  );
+  const [errors, setErrors] = useState({});
+
+  const toggleSetor = (id) => {
+    const sid = String(id);
+    setSetorIdsSel((prev) =>
+      prev.includes(sid) ? prev.filter((x) => x !== sid) : [...prev, sid]
+    );
+  };
+
+  const validate = () => {
+    const e = {};
+
+    if (!email.trim()) e.email = "E-mail é obrigatório.";
+
+    // criação: senha obrigatória; edição: opcional
+    if (!isEdit) {
+      if (!senha.trim()) e.senha = "Senha é obrigatória.";
+      if (!confirmSenha.trim()) e.confirm = "Confirme a senha.";
+    }
+    if (senha.trim() || confirmSenha.trim()) {
+      if (senha.trim().length < 6) e.senha = "Senha deve ter ao menos 6 caracteres.";
+      if (senha.trim() !== confirmSenha.trim()) e.confirm = "As senhas não conferem.";
+    }
+
+    if (!Array.isArray(setorIdsSel) || setorIdsSel.length === 0) {
+      e.setores = "Selecione ao menos um setor.";
+    }
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const handleSave = () => {
+    if (!validate()) return;
+
+    const setor_ids = setorIdsSel.map((v) =>
+      typeof v === "string" && /^\d+$/.test(v) ? parseInt(v, 10) : Number(v)
+    );
+
     onSubmit?.({
       email: email.trim(),
-      senha: senha.trim(), // no PUT, envie somente se quiser trocar a senha (backend aplica bcrypt)
-      setores: [],         // os setores são definidos/alterados na tela principal
+      ...(senha.trim() ? { senha: senha.trim() } : {}),
+      setor_ids,
     });
   };
 
@@ -29,21 +86,21 @@ export default function UserModal({ title, initialEmail = "", onCancel, onSubmit
             <FiMail style={{ marginRight: 6 }} />
             E-mail
           </label>
-          <input
+          <input autoComplete="username"
+            autoFocus
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="usuario@empresa.com"
           />
+          {errors.email && <small style={{ color: "#ef4444" }}>{errors.email}</small>}
         </Field>
 
         <Field>
           <label>
             <FiKey style={{ marginRight: 6 }} />
             Senha{" "}
-            {initialEmail && (
-              <small style={{ opacity: 0.7 }}>(deixe em branco para não alterar)</small>
-            )}
+            {isEdit && <small style={{ opacity: 0.7 }}>(deixe em branco para não alterar)</small>}
           </label>
           <input
             type="password"
@@ -51,22 +108,58 @@ export default function UserModal({ title, initialEmail = "", onCancel, onSubmit
             onChange={(e) => setSenha(e.target.value)}
             placeholder="••••••••"
           />
+          {errors.senha && <small style={{ color: "#ef4444" }}>{errors.senha}</small>}
+        </Field>
+
+        <Field>
+          <label>
+            <FiKey style={{ marginRight: 6 }} />
+            Confirmar senha
+          </label>
+          <input
+            type="password"
+            value={confirmSenha}
+            onChange={(e) => setConfirmSenha(e.target.value)}
+            placeholder="••••••••"
+          />
+          {errors.confirm && <small style={{ color: "#ef4444" }}>{errors.confirm}</small>}
+        </Field>
+
+        {/* Setores (checkboxes) */}
+        <Field>
+          <label>Setores *</label>
+          <div style={{ display: "grid", gap: 8 }}>
+            {setoresOptions.map((s) => {
+              const sid = String(s.id);
+              const checked = setorIdsSel.includes(sid);
+              return (
+                <label key={sid} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleSetor(sid)}
+                  />
+                  <span>{s.nome}</span>
+                </label>
+              );
+            })}
+          </div>
+          {errors.setores && <small style={{ color: "#ef4444" }}>{errors.setores}</small>}
         </Field>
 
         <Help>
-          Dica de API: ao salvar, envie um JSON no <b>POST/PUT</b> com
+          Envie no POST/PUT:{" "}
+          <code>{`{ email, senha?, setor_ids: [ids...] }`}</code>
           <br />
-          <code>{`{ email, senha?, setores: [uuid...], tipo: (inclua ${ADMIN_UUID} para admin) }`}</code>
-          <br />
-          O backend deve guardar a senha usando <b>bcrypt</b>.
+          (Dark mode é controlado apenas pelo botão no NavBar.)
         </Help>
 
         <Actions>
-          <Button color="secondary" onClick={onCancel}>
+          <Button color="secondary" size="sm" onClick={onCancel}>
             <FiX style={{ marginRight: 6 }} />
             Cancelar
           </Button>
-          <Button color="primary" onClick={handleSave}>
+          <Button color="primary" size="sm" onClick={handleSave}>
             <FiSave style={{ marginRight: 6 }} />
             Salvar
           </Button>

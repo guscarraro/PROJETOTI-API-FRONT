@@ -10,8 +10,8 @@ const api = axios.create({
   baseURL: API_URL.replace("http://", "https://"), // 🔥 Substitui qualquer HTTP por HTTPS
   headers: { "Content-Type": "application/json" },
   timeout: 100 * 60 * 1000, // 100 min
-maxContentLength: Infinity,
-maxBodyLength: Infinity,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
   withCredentials: false,
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
@@ -69,14 +69,16 @@ const apiLocal = {
       verificado,
     }),
 
-
   // 🔧 Armazenagem
   getArmazenagem: () => api.get("/armazenagem/"),
   createOrUpdateArmazenagem: (data) => api.post("/armazenagem/", data),
   deleteArmazenagem: (id) => api.delete(`/armazenagem/${id}`),
   filtrarArmazenagem: (filters) => api.post("/armazenagem/filtrar", filters),
   atualizarNrCobrancaArmazenagem: (id, nr_cobranca, verificado) =>
-    api.patch(`/armazenagem/atualizar-cobranca/${id}`, { nr_cobranca, verificado }),
+    api.patch(`/armazenagem/atualizar-cobranca/${id}`, {
+      nr_cobranca,
+      verificado,
+    }),
 
   getControleEstoque: () => api.get("/estoque/"),
   createOrUpdateControleEstoque: (data) => api.post("/estoque/", data),
@@ -101,28 +103,27 @@ const apiLocal = {
 
   getFechamento: (params) => api.get("/fechamento_op/", { params }),
   getFechamentoPorMes: (mes) => api.get("/fechamento_op/", { params: { mes } }),
-  getFechamentoPorData: (data) => api.get("/fechamento_op/", { params: { data } }),
-uploadFechamentoExcel: (file, config = {}) => {
-  const form = new FormData();
-  form.append("file", file);
-  return api.post("/fechamento_op/", form, {
-    headers: { "Content-Type": "multipart/form-data" },
-    ...config, // permite onUploadProgress, timeout etc.
-  });
-},
-// ↓ NOVOS endpoints de import assíncrono
-startFechamentoImport: (file, config = {}) => {
-  const form = new FormData();
-  form.append("file", file);
-  return api.post("/fechamento_op/import", form, {
-    headers: { "Content-Type": "multipart/form-data" },
-    ...config, // permite onUploadProgress e timeout custom
-  });
-},
-getFechamentoImportStatus: (jobId) =>
-  api.get(`/fechamento_op/import/${jobId}/status`),
-
-
+  getFechamentoPorData: (data) =>
+    api.get("/fechamento_op/", { params: { data } }),
+  uploadFechamentoExcel: (file, config = {}) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api.post("/fechamento_op/", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      ...config, // permite onUploadProgress, timeout etc.
+    });
+  },
+  // ↓ NOVOS endpoints de import assíncrono
+  startFechamentoImport: (file, config = {}) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api.post("/fechamento_op/import", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+      ...config, // permite onUploadProgress e timeout custom
+    });
+  },
+  getFechamentoImportStatus: (jobId) =>
+    api.get(`/fechamento_op/import/${jobId}/status`),
 
   // 🔧 Responsáveis
   getResponsaveis: () => api.get("/responsaveis/"),
@@ -177,6 +178,17 @@ getFechamentoImportStatus: (jobId) =>
   createOcorrenciaRecebimento: (data) => api.post("/ocorrencia", data),
   deleteOcorrenciaRecebimento: (id) => api.delete(`/ocorrencia/${id}`),
 
+  getUsuarios: () => api.get("/user/usuarios/"),
+  createUsuario: (data) => api.post("/user/usuarios/", data),
+  updateUsuario: (id, data) => api.put(`/user/usuarios/${id}`, data),
+  deleteUsuario: (id) => api.delete(`/user/usuarios/${id}`),
+  setUsuarioDarkmode: (id, enabled) =>
+    api.put(`/user/usuarios/${id}`, { darkmode: enabled ? "S" : "N" }),
+
+  getSetores: () => api.get("/setor/setores/"),
+  createSetor: (data) => api.post("/setor/setores/", data),
+  updateSetor: (id, data) => api.put(`/setor/setores/${id}`, data),
+  deleteSetor: (id) => api.delete(`/setor/setores/${id}`),
 };
 
 export default apiLocal;
