@@ -1,5 +1,4 @@
-// src/pages/Projetos/ProjetoDetalhe.js
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "reactstrap";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -13,88 +12,242 @@ import CostsPopover from "./components/CostsPopover";
 import { StatusCard, DateCard, DaysCard, CostsCard } from "./components/InfoCards";
 import NavBar from "./components/NavBar";
 import { FiLock, FiUnlock } from "react-icons/fi";
+import apiLocal from "../../services/apiLocal";
+import useLoading from "../../hooks/useLoading";
+import { toast } from "react-toastify";
+
+const STATUS_COLORS = {
+  ANDAMENTO: "#10b981",
+  STANDBY: "#f59e0b",
+  CANCELADO: "#ef4444",
+  CONCLUIDO: "#34d399",
+};
 
 export default function ProjetoDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
-
-  // TODO: substitua por regra real de permissão
-  const isAdmin = true;
-
-  const STATUS_COLORS = {
-    [STATUS.ANDAMENTO]: "#10b981",
-    [STATUS.STANDBY]: "#f59e0b",
-    [STATUS.CANCELADO]: "#ef4444",
-    [STATUS.CONCLUIDO]: "#34d399",
-  };
-
-  const [locked, setLocked] = useState(false);
-
-  const [projeto, setProjeto] = useState({
-    id,
-    nome: "Implantação ERP",
-    inicio: "2025-09-01",
-    fim: "2025-11-30",
-    status: STATUS.ANDAMENTO,
-    custos: [],
-  });
-
-  const [paidSet, setPaidSet] = useState(() => new Set());
-  const togglePaid = (key) => {
-    setPaidSet((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const toggleBaseline = (rowId, dayISO, enabled) => {
-    setRows(prev => prev.map(r => {
-      if (r.id !== rowId) return r;
-      const prevCell = r.cells?.[dayISO];
-      const nextCell = { ...(typeof prevCell === "object" ? prevCell : {}), baseline: enabled };
-      return { ...r, cells: { ...r.cells, [dayISO]: nextCell } };
-    }));
-  };
-
-  const [rows, setRows] = useState([
-    { id: 1, titulo: "Preparação inicial", sectors: [], cells: {} },
-    { id: 2, titulo: "Levantamento e Documentação", sectors: [], cells: {} },
-    { id: 3, titulo: "Estruturação do Projeto", sectors: [], cells: {} },
-    { id: 4, titulo: "Desenvolvimento e Integrações", sectors: [], cells: {} },
-    { id: 5, titulo: "Validações Operacionais", sectors: [], cells: {} },
-    { id: 6, titulo: "Testes Funcionais", sectors: [], cells: {} },
-    { id: 7, titulo: "Indicadores e Performance", sectors: [], cells: {} },
-    { id: 8, titulo: "Conclusão e Go-Live", sectors: [], cells: {} },
-  ]);
-
-  const days = useMemo(() => rangeDays(projeto.inicio, projeto.fim), [projeto.inicio, projeto.fim]);
+  const loading = useLoading();
 
   const [openCost, setOpenCost] = useState(false);
   const [showCosts, setShowCosts] = useState(false);
+  const [projeto, setProjeto] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [locked, setLocked] = useState(false);
+  const [paidSet, setPaidSet] = useState(() => new Set());
+  const [timelineEnabled, setTimelineEnabled] = useState(true);
 
-  const handleSave = () => {
-    console.log("Salvar projeto:", { projeto, rows, pagos: Array.from(paidSet), locked });
-    navigate("/Projetos");
+  const user = useMemo(() => {
+    try { return JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; }
+  }, []);
+  const actorSectorId = useMemo(() => {
+    const first = Array.isArray(user?.setor_ids) && user.setor_ids.length ? user.setor_ids[0] : null;
+    return first ? Number(first) : null;
+  }, [user]);
+
+  const [sectors, setSectors] = useState([]);
+  const mySectorNames = useMemo(() => {
+    if (!Array.isArray(user?.setor_ids) || !sectors.length) return [];
+    const names = user.setor_ids
+      .map((sid) => sectors.find((s) => Number(s.id) === Number(sid))?.nome)
+      .filter(Boolean)
+      .map((s) => (s || "").trim().toLowerCase());
+    return Array.from(new Set(names));
+  }, [user, sectors]);
+
+  const isAdmin = useCallback(() => mySectorNames.some(n => n === "adm" || n === "admin"), [mySectorNames]);
+  const isDiretoria = useCallback(() => mySectorNames.some(n => n === "diretoria"), [mySectorNames]);
+
+  const norm = (s = "") =>
+    s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, "_");
+  const keyFromId = (id) => {
+    const s = sectors.find((x) => Number(x.id) === Number(id));
+    return s ? norm(s.nome) : null;
+  };
+  const idsToKeys = (arr) =>
+    Array.isArray(arr) ? arr.map((id) => keyFromId(id)).filter(Boolean) : [];
+  const keyToId = (key) => {
+    const s = sectors.find((x) => norm(x.nome) === norm(key));
+    return s ? Number(s.id) : null;
+  };
+  const keysToIds = (arr) =>
+    Array.isArray(arr) ? arr.map((k) => keyToId(k)).filter((v) => v != null) : [];
+
+  const fetchSectors = useCallback(async () => {
+    try { const r = await apiLocal.getSetores(); setSectors(r.data || []); }
+    catch { setSectors([]); }
+  }, []);
+
+  const fetchingRef = useRef(false);
+  const fetchProjeto = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    try {
+      const r = await apiLocal.getProjetoById(id);
+      const data = r.data?.data || r.data;
+      setProjeto(data);
+      const rawRows = Array.isArray(data?.rows) ? data.rows : [];
+      const fixed = rawRows.map((row) => {
+        const arr = Array.isArray(row?.sectors) ? row.sectors : [];
+        const isNumeric = arr.some((v) => typeof v === "number");
+        return isNumeric ? { ...row, sectors: idsToKeys(arr) } : row;
+      });
+      setRows(fixed);
+      setLocked(Boolean(data?.locked));
+    } finally {
+      fetchingRef.current = false;
+    }
+  }, [id, sectors]);
+
+  useEffect(() => { fetchSectors(); }, []);
+  useEffect(() => { fetchProjeto(); }, [id, sectors]);
+
+  const accent = useMemo(() => STATUS_COLORS[projeto?.status] || "#111827", [projeto]);
+
+  const canUnlockByRole = useMemo(() => {
+    if (!projeto) return false;
+    if (!projeto.locked) return true;
+    if (projeto.lock_by === "adm") return isAdmin();
+    if (projeto.lock_by === "diretoria") return isAdmin() || isDiretoria();
+    const isCreator = Number(actorSectorId) === Number(projeto.created_by_sector_id);
+    return isAdmin() || isDiretoria() || isCreator;
+  }, [projeto, actorSectorId, isAdmin, isDiretoria]);
+
+  const readOnly = locked && !canUnlockByRole;
+
+  const days = useMemo(() => {
+    if (!projeto?.inicio || !projeto?.fim) return [];
+    return rangeDays(projeto.inicio, projeto.fim);
+  }, [projeto?.inicio, projeto?.fim]);
+
+  const totalCustos = useMemo(() => {
+    const custos = Array.isArray(projeto?.custos) ? projeto.custos : [];
+    return custos.reduce((acc, c) => acc + Number(c.valorTotal ?? c.total_value ?? 0), 0);
+  }, [projeto?.custos]);
+
+  const handleTimelineError = (err) => {
+    const status = err?.response?.status;
+    if (status === 501) {
+      setTimelineEnabled(false);
+      toast.error("Timeline não habilitada no banco (tabelas ausentes). Contate o admin.");
+      return true;
+    }
+    if (status === 423) {
+      toast.warning("Projeto bloqueado: não é possível criar/editar tarefas.");
+      return true;
+    }
+    if (status === 404) {
+      toast.error("Atividade/célula não encontrada.");
+      return true;
+    }
+    if (status >= 500) {
+      toast.error(err?.response?.data?.detail || "Erro no servidor ao atualizar a timeline.");
+      return true;
+    }
+    return false;
   };
 
-  const addRow = () => {
+  const toggleProjectLock = async () => {
+    if (!projeto || !actorSectorId) return;
+    await loading.wrap("lock", async () => {
+      const action = locked ? "unlock" : "lock";
+      const res = await apiLocal.lockProjeto(projeto.id, action, Number(actorSectorId));
+      const updated = res.data?.data || res.data;
+      setProjeto(updated);
+      setRows(updated?.rows || []);
+      setLocked(Boolean(updated?.locked));
+    });
+  };
+
+  const changeStatus = async (status) => {
+    if (!projeto || !actorSectorId) return;
+    await loading.wrap("status", async () => {
+      const res = await apiLocal.changeProjetoStatus(projeto.id, status, Number(actorSectorId));
+      const updated = res.data?.data || res.data;
+      setProjeto(updated);
+      setRows(updated?.rows || []);
+    });
+    closeStatusMenu();
+  };
+
+  const handleSave = async () => {
+    if (!projeto || !actorSectorId) return;
+    await loading.wrap("saveProjeto", async () => {
+      await apiLocal.updateProjeto(projeto.id, {
+        nome: projeto.nome,
+        inicio: projeto.inicio,
+        fim: projeto.fim,
+        descricao: projeto.descricao || null,
+        actor_sector_id: Number(actorSectorId),
+      });
+      await fetchProjeto();
+    });
+  };
+
+  const addRow = async () => {
+    if (readOnly) return;
     const titulo = prompt("Descritivo da etapa/demanda:");
     if (!titulo) return;
-    setRows(prev => [...prev, { id: Date.now(), titulo, sector: null, cells: {} }]);
+    await loading.wrap("addRow", async () => {
+      try {
+        await apiLocal.addProjetoRow(
+          projeto.id,
+          { title: titulo, row_sectors: [] },
+          Number(actorSectorId)
+        );
+        await fetchProjeto();
+      } catch (e) {
+        if (!handleTimelineError(e)) throw e;
+      }
+    });
   };
 
-  const setCellColor = (rowId, dayISO, color) => {
+  const setRowSector = async (rowId, sectorKey) => {
+    if (readOnly) return;
+    const row = rows.find(r => r.id === rowId);
+    const current = Array.isArray(row?.sectors) ? row.sectors : [];
+    const next = current.includes(sectorKey) ? current.filter(k => k !== sectorKey) : [...current, sectorKey];
+    setRows(prev => prev.map(r => r.id === rowId ? { ...r, sectors: next } : r));
+    try {
+      const nextIds = keysToIds(next);
+      await apiLocal.updateProjetoRow(
+        projeto.id,
+        rowId,
+        { row_sectors: nextIds },
+        Number(actorSectorId)
+      );
+    } catch (e) {
+      if (!handleTimelineError(e)) fetchProjeto();
+    }
+  };
+
+  const sectorInitial = useMemo(() => {
+    const nome = sectors.find(s => Number(s.id) === Number(actorSectorId))?.nome;
+    return nome?.trim()?.[0]?.toUpperCase() || "U";
+  }, [actorSectorId, sectors]);
+
+  const setCellColor = async (rowId, dayISO, color) => {
+    if (readOnly || !timelineEnabled) return;
     setRows(prev => prev.map(r => {
       if (r.id !== rowId) return r;
       const prevCell = r.cells?.[dayISO];
       const nextCell = typeof prevCell === "object" ? { ...prevCell, color } : { color };
       return { ...r, cells: { ...r.cells, [dayISO]: nextCell } };
     }));
+    try {
+      await apiLocal.upsertProjetoCell(
+        projeto.id,
+        rowId,
+        dayISO,
+        { color: color ?? "", actor_sector_id: Number(actorSectorId) }
+      );
+    } catch (e) {
+      if (!handleTimelineError(e)) fetchProjeto();
+    }
   };
 
-  const setCellComment = (rowId, dayISO, comment, authorInitial = "U") => {
+  const setCellComment = async (rowId, dayISO, comment, authorInitialArg) => {
+    if (readOnly || !timelineEnabled) return;
+    const authorInitial = (authorInitialArg || sectorInitial || "U").toUpperCase();
     setRows(prev => prev.map(r => {
       if (r.id !== rowId) return r;
       const prevCell = r.cells?.[dayISO];
@@ -103,30 +256,69 @@ export default function ProjetoDetalhe() {
         : { color: undefined, comment, authorInitial };
       return { ...r, cells: { ...r.cells, [dayISO]: nextCell } };
     }));
+    try {
+      await apiLocal.upsertProjetoCell(
+        projeto.id,
+        rowId,
+        dayISO,
+        { comment, author_initial: authorInitial, actor_sector_id: Number(actorSectorId) }
+      );
+    } catch (e) {
+      if (!handleTimelineError(e)) fetchProjeto();
+    }
   };
 
-  const setRowSector = (rowId, sectorKey) => {
+  const toggleBaseline = async (rowId, dayISO, enabled) => {
+    if (readOnly || !timelineEnabled) return;
     setRows(prev => prev.map(r => {
       if (r.id !== rowId) return r;
-      const list = Array.isArray(r.sectors) ? r.sectors : (r.sector ? [r.sector] : []);
-      return list.includes(sectorKey)
-        ? { ...r, sectors: list.filter(k => k !== sectorKey) }
-        : { ...r, sectors: [...list, sectorKey] };
+      const prevCell = r.cells?.[dayISO];
+      const nextCell = { ...(typeof prevCell === "object" ? prevCell : {}), baseline: enabled };
+      return { ...r, cells: { ...r.cells, [dayISO]: nextCell } };
     }));
+    try {
+      await apiLocal.upsertProjetoCell(
+        projeto.id,
+        rowId,
+        dayISO,
+        { baseline: enabled, actor_sector_id: Number(actorSectorId) }
+      );
+    } catch (e) {
+      if (!handleTimelineError(e)) fetchProjeto();
+    }
   };
 
-  const totalCustos = useMemo(
-    () => projeto.custos.reduce((acc, c) => acc + Number(c.valorTotal || 0), 0),
-    [projeto.custos]
-  );
+  const addCosts = async (costPayloadList) => {
+    if (readOnly || !Array.isArray(costPayloadList) || !costPayloadList.length) return;
+    await loading.wrap("addCosts", async () => {
+      for (const c of costPayloadList) {
+        const body = {
+          description: c.descricao,
+          total_value: Number(c.valorTotal),
+          parcels: Number(c.parcelas || 1),
+          first_due: c.firstDue,
+          interval_days: Number(c.intervalDays || 30),
+        };
+        await apiLocal.addProjetoCustos(projeto.id, body);
+      }
+      await fetchProjeto();
+    });
+  };
 
-  const accent = STATUS_COLORS[projeto.status] || "#111827";
-  const readOnly = locked && !isAdmin;
+  const togglePaid = async (key) => {
+    const [costId, idxStr] = String(key).split(":");
+    const parcelIndex = Number(idxStr);
+    if (!projeto || !actorSectorId || !costId || (!Number.isInteger(parcelIndex) && parcelIndex !== 0)) return;
+    await loading.wrap(`pay-${key}`, async () => {
+      await apiLocal.payParcela(projeto.id, costId, parcelIndex, Number(actorSectorId));
+      await fetchProjeto();
+    });
+    setPaidSet(prev => new Set(prev).add(key));
+  };
 
-  // menu de status (abre ao clicar no Status, só admin)
   const [statusMenu, setStatusMenu] = useState(null);
   const openStatusMenu = (e) => {
-    if (!isAdmin) return;
+    if (!canUnlockByRole) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const W = 220, H = 180, M = 8;
     const left = Math.max(M, Math.min(rect.left, window.innerWidth - W - M));
@@ -134,10 +326,14 @@ export default function ProjetoDetalhe() {
     setStatusMenu({ x: left, y: top });
   };
   const closeStatusMenu = () => setStatusMenu(null);
-  const changeStatus = (s) => {
-    setProjeto(p => ({ ...p, status: s }));
-    closeStatusMenu();
-  };
+
+  if (!projeto) {
+    return (
+      <Page>
+        <NavBar />
+      </Page>
+    );
+  }
 
   return (
     <Page>
@@ -151,17 +347,17 @@ export default function ProjetoDetalhe() {
         <Actions>
           <Button
             color={locked ? "secondary" : "dark"}
-            onClick={() => isAdmin && setLocked(v => !v)}
-            title={locked ? "Destrancar (admin)" : "Trancar (admin)"}
-            disabled={!isAdmin}
+            onClick={toggleProjectLock}
+            title={locked ? "Destrancar" : "Trancar"}
+            disabled={!canUnlockByRole || loading.any()}
           >
             {locked ? <FiLock size={16} /> : <FiUnlock size={16} />}
           </Button>
 
-          <Button color="warning" onClick={() => setOpenCost(true)} disabled={readOnly}>
+          <Button color="warning" onClick={() => setOpenCost(true)} disabled={readOnly || loading.any()}>
             Adicionar custo
           </Button>
-          <Button color="success" onClick={handleSave} disabled={readOnly}>
+          <Button color="success" onClick={handleSave} disabled={readOnly || loading.any()}>
             Salvar alterações
           </Button>
         </Actions>
@@ -169,8 +365,8 @@ export default function ProjetoDetalhe() {
 
       <Section>
         <InfoGrid>
-          <div onClick={openStatusMenu} style={{ cursor: isAdmin ? "pointer" : "default" }} title={isAdmin ? "Alterar status" : undefined}>
-            <StatusCard status={projeto.status} accent={accent} />
+          <div onClick={openStatusMenu} style={{ cursor: canUnlockByRole ? "pointer" : "default" }}>
+            <StatusCard status={STATUS[projeto.status] || projeto.status} accent={accent} />
           </div>
           <DateCard label="Início" dateISO={projeto.inicio} />
           <DateCard label="Previsão de término" dateISO={projeto.fim} />
@@ -181,8 +377,14 @@ export default function ProjetoDetalhe() {
           />
         </InfoGrid>
 
+        {!timelineEnabled && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+            Timeline indisponível (tabelas não encontradas).
+          </div>
+        )}
+
         <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
-          <Button color="secondary" outline onClick={addRow} disabled={readOnly}>
+          <Button color="secondary" outline onClick={addRow} disabled={readOnly || loading.any() || !timelineEnabled}>
             + Nova linha (demanda)
           </Button>
         </div>
@@ -190,32 +392,32 @@ export default function ProjetoDetalhe() {
         <Timeline
           days={days}
           rows={rows}
-          custos={projeto.custos}
-          currentUserInitial="A"
-          onPickColor={readOnly ? undefined : setCellColor}
-          onSetCellComment={readOnly ? undefined : setCellComment}
-          onSetRowSector={readOnly ? undefined : setRowSector}
-          canMarkBaseline={!readOnly}
+          custos={projeto.custos || []}
+          currentUserInitial={sectorInitial}
+          onPickColor={readOnly || !timelineEnabled ? undefined : setCellColor}
+          onSetCellComment={readOnly || !timelineEnabled ? undefined : setCellComment}
+          onSetRowSector={readOnly || !timelineEnabled ? undefined : setRowSector}
+          canMarkBaseline={!readOnly && timelineEnabled}
           baselineColor="#0ea5e9"
-          onToggleBaseline={readOnly ? undefined : toggleBaseline}
+          onToggleBaseline={readOnly || !timelineEnabled ? undefined : toggleBaseline}
         />
       </Section>
 
-      {statusMenu && isAdmin && (
+      {statusMenu && canUnlockByRole && (
         <>
           <Overlay onClick={closeStatusMenu} />
           <MenuBox style={{ position: "fixed", left: statusMenu.x, top: statusMenu.y, zIndex: 1100, width: 220 }}>
-            <MenuItem onClick={() => changeStatus(STATUS.ANDAMENTO)}>Em andamento</MenuItem>
-            <MenuItem onClick={() => changeStatus(STATUS.STANDBY)}>Stand by</MenuItem>
-            <MenuItem onClick={() => changeStatus(STATUS.CONCLUIDO)}>Concluído</MenuItem>
-            <MenuItem onClick={() => changeStatus(STATUS.CANCELADO)}>Cancelado</MenuItem>
+            <MenuItem onClick={() => changeStatus("ANDAMENTO")}>Em andamento</MenuItem>
+            <MenuItem onClick={() => changeStatus("STANDBY")}>Stand by</MenuItem>
+            <MenuItem onClick={() => changeStatus("CONCLUIDO")}>Concluído</MenuItem>
+            <MenuItem onClick={() => changeStatus("CANCELADO")}>Cancelado</MenuItem>
           </MenuBox>
         </>
       )}
 
       {showCosts && (
         <CostsPopover
-          custos={projeto.custos}
+          custos={projeto.custos || []}
           paidSet={paidSet}
           onTogglePaid={readOnly ? undefined : togglePaid}
           onClose={() => setShowCosts(false)}
@@ -225,10 +427,7 @@ export default function ProjetoDetalhe() {
       <AddCostModal
         isOpen={openCost}
         toggle={() => setOpenCost(v => !v)}
-        onSave={(c) => {
-          if (readOnly) return;
-          setProjeto(p => ({ ...p, custos: [...p.custos, ...c] }));
-        }}
+        onSave={addCosts}
       />
     </Page>
   );

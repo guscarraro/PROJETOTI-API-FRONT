@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   NavWrap,
@@ -7,19 +7,17 @@ import {
   NavIcon,
   NavLabel,
   NavSpacer,
-  ToggleRow,
 } from "./style";
 import {
   FiHome,
   FiFolder,
-  FiUsers,
   FiTruck,
   FiMoon,
   FiSun,
   FiShield,
-  FiHeadphones, // ícone de SAC (suporte)
-  FiUser, // ícone para usuário
+  FiHeadphones,
 } from "react-icons/fi";
+import apiLocal from "../../../../services/apiLocal";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -43,35 +41,90 @@ export default function NavBar() {
     }
   }, [dark]);
 
-  const user = useMemo(() => {
+  const [allSectors, setAllSectors] = useState([]);
+  const [user, setUser] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem("user") || "null");
     } catch {
       return null;
     }
+  });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiLocal.getSetores(); // GET /setor/
+        setAllSectors(res.data || []);
+      } catch {
+        setAllSectors([]);
+      }
+    })();
   }, []);
 
-  const isAdmin = !!(
-    user?.tipo === ADMIN_UUID ||
-    (Array.isArray(user?.setores) && user.setores.includes(ADMIN_UUID))
+  // Sincroniza darkmode no backend quando mudar localmente
+  useEffect(() => {
+    (async () => {
+      try {
+        if (user?.id) {
+          await apiLocal.setUsuarioDarkmode(user.id, dark);
+          const refreshed = await apiLocal.getUsuarios();
+          const me = (refreshed.data || []).find((u) => u.id === user.id);
+          if (me) {
+            localStorage.setItem("user", JSON.stringify(me));
+            setUser(me);
+          }
+        }
+      } catch {
+        /* silencioso */
+      }
+    })();
+  }, [dark, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const userSectorNames = useMemo(() => {
+    const ids =
+      (Array.isArray(user?.setor_ids) && user.setor_ids) ||
+      (Array.isArray(user?.setores) && user.setores) ||
+      [];
+    return ids
+      .map((sid) =>
+        allSectors.find(
+          (s) => String(s.id) === String(sid) || Number(s.id) === Number(sid)
+        )?.nome
+      )
+      .filter(Boolean);
+  }, [user, allSectors]);
+
+  const isAdmin = useMemo(() => {
+    return (
+      user?.tipo === ADMIN_UUID ||
+      userSectorNames.some((n) => n?.toLowerCase() === "admin")
+    );
+  }, [user?.tipo, userSectorNames]);
+
+  const items = useMemo(
+    () => [
+      { key: "geral", label: "Geral", icon: <FiHome />, to: "/" },
+      { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
+      { key: "frete", label: "Ir para o Frete", icon: <FiTruck />, to: "/frete" },
+      { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" },
+      ...(isAdmin
+        ? [
+            {
+              key: "acessos",
+              label: "Gestão de Acessos",
+              icon: <FiShield />,
+              to: "/projetos/gestaoacessos",
+            },
+          ]
+        : []),
+    ],
+    [isAdmin]
   );
 
-  const items = [
-    { key: "geral", label: "Geral", icon: <FiHome />, to: "/" },
-    { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
-    { key: "frete", label: "Ir para o Frete", icon: <FiTruck />, to: "/frete" },
-    { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" }, // novo item
-    ...(isAdmin
-      ? [
-          {
-            key: "acessos",
-            label: "Gestão de Acessos",
-            icon: <FiShield />,
-            to: "/projetos/gestaoacessos",
-          },
-        ]
-      : []),
-  ];
+  const avatarInitial =
+    (userSectorNames[0]?.[0]?.toUpperCase() ||
+      user?.email?.[0]?.toUpperCase() ||
+      "U");
 
   return (
     <NavWrap>
@@ -90,52 +143,41 @@ export default function NavBar() {
 
         <NavSpacer />
 
-        {/* Botão com nome do usuário */}
-        {/* Avatar dinâmico com inicial de tarefa_projeto */}
         {user && (
           <NavItem
             title={
-              Array.isArray(user?.tarefa_projeto) && user.tarefa_projeto[0]
-                ? user.tarefa_projeto[0]
+              userSectorNames.length
+                ? userSectorNames.join(", ")
                 : "Usuário"
             }
           >
             <NavIcon>
-              {(() => {
-                const arr = Array.isArray(user?.tarefa_projeto)
-                  ? user.tarefa_projeto
-                  : [];
-                const label = (arr[0] || "").trim();
-                const initial =
-                  label[0]?.toUpperCase() ||
-                  (isAdmin ? "A" : user?.nome?.[0]?.toUpperCase() || "?");
-                return (
-                  <span
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      backgroundColor: "transparent",
-                      border: "1px solid #fff", // cor fixa (azul)
-                      color: "#fff",
-                      userSelect: "none",
-                    }}
-                  >
-                    {initial}
-                  </span>
-                );
-              })()}
+              <span
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: "50%",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: 13,
+                  border: "1px solid #fff",
+                  color: "#fff",
+                  userSelect: "none",
+                }}
+              >
+                {avatarInitial}
+              </span>
             </NavIcon>
-            <NavLabel>{user?.tarefa_projeto || "Usuário"}</NavLabel>
+            <NavLabel>
+              {userSectorNames.length
+                ? userSectorNames[0]
+                : user?.email || "Usuário"}
+            </NavLabel>
           </NavItem>
         )}
 
-        {/* Toggle Dark Mode */}
         <NavItem
           role="button"
           onClick={() => setDark((v) => !v)}

@@ -1,4 +1,31 @@
-import styled, { css } from "styled-components";
+import styled, { css, createGlobalStyle } from "styled-components";
+
+export const MODAL_CLASS = "project-modal";
+
+export const GlobalModalStyles = createGlobalStyle`
+  /* O Reactstrap aplica a classe em .modal-content */
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} {
+    background: #0f172a;
+    color: #e5e7eb;
+    border: 1px solid rgba(255,255,255,.08);
+  }
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} .modal-header,
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} .modal-footer {
+    background: transparent;
+    border-color: rgba(255,255,255,.08);
+    color: #e5e7eb;
+  }
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} label {
+    color: #cbd5e1;
+  }
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} input,
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} select,
+  [data-theme="dark"] .modal-content.${MODAL_CLASS} .form-control {
+    background: #0b1220;
+    color: #e5e7eb;
+    border-color: rgba(255,255,255,.12);
+  }
+`;
 
 export const Page = styled.div`
   /* Paleta base (customizável) */

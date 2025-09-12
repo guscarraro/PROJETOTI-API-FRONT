@@ -1,3 +1,4 @@
+// services/apiLocal.js
 import axios from "axios";
 import qs from "qs";
 
@@ -7,9 +8,9 @@ const API_URL =
   "https://projetoti-api-production.up.railway.app";
 
 const api = axios.create({
-  baseURL: API_URL.replace("http://", "https://"), // 🔥 Substitui qualquer HTTP por HTTPS
+  baseURL: API_URL.replace("http://", "https://"),
   headers: { "Content-Type": "application/json" },
-  timeout: 100 * 60 * 1000, // 100 min
+  timeout: 100 * 60 * 1000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
   withCredentials: false,
@@ -17,6 +18,9 @@ const api = axios.create({
 });
 
 const apiLocal = {
+  // ========================
+  // Motoristas / Clientes / ...
+  // ========================
   getMotoristas: () => api.get("/motoristas/"),
   createOrUpdateMotorista: (data) => api.post("/motoristas/", data),
   deleteMotorista: (id) => api.delete(`/motoristas/${id}`),
@@ -58,7 +62,8 @@ const apiLocal = {
   deleteDestino: (id) => api.delete(`/destinos/${id}`),
   updateCamposPaletizacaoDestino: (destinoId, data) =>
     api.patch(`/destinos/paletizacao/${destinoId}`, data),
-  // 🔧 Paletizado
+
+  // Paletizado
   getPaletizacoes: () => api.get("/paletizado/"),
   createOrUpdatePaletizacao: (data) => api.post("/paletizado/", data),
   deletePaletizacao: (id) => api.delete(`/paletizado/${id}`),
@@ -69,7 +74,7 @@ const apiLocal = {
       verificado,
     }),
 
-  // 🔧 Armazenagem
+  // Armazenagem
   getArmazenagem: () => api.get("/armazenagem/"),
   createOrUpdateArmazenagem: (data) => api.post("/armazenagem/", data),
   deleteArmazenagem: (id) => api.delete(`/armazenagem/${id}`),
@@ -88,19 +93,20 @@ const apiLocal = {
   updateSetorControleEstoque: (data) =>
     api.put("/controle-estoque/setor", data),
 
+  // Viagens (⚠️ removi duplicação de updateViagem)
   getViagens: () => api.get("/viagens/"),
   getProximoNumeroViagem: () => api.get("/viagens/proximo_numero_viagem"),
   getViagemByNumero: (numero_viagem) => api.get(`/viagens/${numero_viagem}`),
   createOrUpdateViagem: (data) => api.post("/viagens/", data),
-  updateViagem: (data) => api.put("/viagens/update", data),
-  deleteViagem: (viagemId) => api.delete(`/viagens/delete/${viagemId}`),
   updateViagem: (viagemId, data) =>
     api.put(`/viagens/atualizar_viagem/${viagemId}`, data),
+  deleteViagem: (viagemId) => api.delete(`/viagens/delete/${viagemId}`),
   getDocumentosTransporte: () => api.get("/documentos-transporte/"),
   getViagensFiltradas: (filters) => api.post("/viagens/filtrar", filters),
   getOpcoesFiltrosViagens: () => api.get("/viagens/opcoes-filtros"),
   getViagemById: (viagemId) => api.get(`/viagens/id/${viagemId}`),
 
+  // Fechamento
   getFechamento: (params) => api.get("/fechamento_op/", { params }),
   getFechamentoPorMes: (mes) => api.get("/fechamento_op/", { params: { mes } }),
   getFechamentoPorData: (data) =>
@@ -110,22 +116,21 @@ const apiLocal = {
     form.append("file", file);
     return api.post("/fechamento_op/", form, {
       headers: { "Content-Type": "multipart/form-data" },
-      ...config, // permite onUploadProgress, timeout etc.
+      ...config,
     });
   },
-  // ↓ NOVOS endpoints de import assíncrono
   startFechamentoImport: (file, config = {}) => {
     const form = new FormData();
     form.append("file", file);
     return api.post("/fechamento_op/import", form, {
       headers: { "Content-Type": "multipart/form-data" },
-      ...config, // permite onUploadProgress e timeout custom
+      ...config,
     });
   },
   getFechamentoImportStatus: (jobId) =>
     api.get(`/fechamento_op/import/${jobId}/status`),
 
-  // 🔧 Responsáveis
+  // Responsáveis / Grupo Eco / Coletas ...
   getResponsaveis: () => api.get("/responsaveis/"),
   createResponsavel: (data) => api.post("/responsaveis/", data),
   updateResponsavel: (id, data) => api.put(`/responsaveis/${id}`, data),
@@ -133,12 +138,10 @@ const apiLocal = {
   getResponsavelById: (id) => api.get(`/responsaveis/${id}`),
   getRemetentesDoResponsavel: (responsavelId) =>
     api.get(`/responsaveis/${responsavelId}/remetentes`),
-  // 🔧 Atualizar grupo econômico de um cliente
 
   getGrupoEco: () => api.get("/grupo-eco/"),
   createOrUpdateGrupoEco: (data) => api.post("/grupo-eco/", data),
   updateGrupoEco: (id, data) => api.put(`/grupo-eco/${id}`, data),
-
   deleteGrupoEco: (id) => api.delete(`/grupo-eco/${id}`),
 
   getColetas: () => api.get("/coletas/"),
@@ -159,6 +162,7 @@ const apiLocal = {
   getBalanceteCarraro: () => api.get("/processamento/balancete-carraro/"),
   getFechamentoOperacao: () => api.get("/processamento/fechamento-operacao"),
 
+  // Recebimento + Notas + Etapas + Checklist + Ocorrências (receb)
   getRecebimentos: () => api.get("/recebimento/"),
   getRecebimentoById: (id) => api.get(`/recebimento/${id}`),
   createRecebimento: (data) => api.post("/recebimento", data),
@@ -178,6 +182,7 @@ const apiLocal = {
   createOcorrenciaRecebimento: (data) => api.post("/ocorrencia", data),
   deleteOcorrenciaRecebimento: (id) => api.delete(`/ocorrencia/${id}`),
 
+  // Usuários / Setores
   getUsuarios: () => api.get("/user/usuarios/"),
   createUsuario: (data) => api.post("/user/usuarios/", data),
   updateUsuario: (id, data) => api.put(`/user/usuarios/${id}`, data),
@@ -189,6 +194,91 @@ const apiLocal = {
   createSetor: (data) => api.post("/setor/setores/", data),
   updateSetor: (id, data) => api.put(`/setor/setores/${id}`, data),
   deleteSetor: (id) => api.delete(`/setor/setores/${id}`),
+
+  // ========================
+// PROJETOS
+// ========================
+// Lista com filtro de visibilidade: ?visible_for=6&visible_for=2
+getProjetos: (visibleFor) =>
+  api.get("/projetos/", {
+    params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
+  }),
+
+getProjetoById: (id) => api.get(`/projetos/${id}`),
+
+createProjeto: (data) => api.post("/projetos/", data),
+
+// ⚠️ exige actor_sector_id no body
+updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
+
+updateProjetoSetores: (id, setores, actor_sector_id) =>
+  api.put(`/projetos/${id}/setores`, { setores, actor_sector_id }),
+
+// action: "lock" | "unlock"
+lockProjeto: (id, action, actor_sector_id) =>
+  api.post(`/projetos/${id}/lock`, { action, actor_sector_id }),
+
+changeProjetoStatus: (id, status, actor_sector_id) =>
+  api.post(`/projetos/${id}/status`, { status, actor_sector_id }),
+
+getProjetoLogs: (id) => api.get(`/projetos/${id}/logs`),
+
+deleteProjeto: (id, actor_sector_id) =>
+  api.delete(`/projetos/${id}`, { data: { actor_sector_id } }),
+
+// ----- Custos do projeto
+listProjetoCustos: (projectId) => api.get(`/projetos/${projectId}/custos`),
+addProjetoCustos: (projectId, body) =>
+  api.post(`/projetos/${projectId}/custos`, body),
+updateProjetoCusto: (projectId, costId, body) =>
+  api.put(`/projetos/${projectId}/custos/${costId}`, body),
+deleteProjetoCusto: (projectId, costId) =>
+  api.delete(`/projetos/${projectId}/custos/${costId}`),
+payParcela: (projectId, costId, parcelIndex, actor_sector_id) =>
+  api.post(
+    `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/pagar`,
+    { actor_sector_id }
+  ),
+
+// ----- Timeline (linhas e células)
+listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
+
+// ⚠️ exige actor_sector_id no body
+addProjetoRow: (projectId, body, actor_sector_id) =>
+  api.post(`/projetos/${projectId}/rows`, {
+    ...body, // { title, row_sectors?: string[] }
+    actor_sector_id,
+  }),
+
+// ⚠️ exige actor_sector_id no body
+updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
+  api.put(`/projetos/${projectId}/rows/${rowId}`, {
+    ...body, // { title?, row_sectors?: string[] }
+    actor_sector_id,
+  }),
+
+// (actor_sector_id como query é opcional para o back atual)
+deleteProjetoRow: (projectId, rowId, actor_sector_id) =>
+  api.delete(`/projetos/${projectId}/rows/${rowId}`, {
+    params: { actor_sector_id },
+  }),
+
+upsertProjetoCell: (projectId, rowId, dayISO, body) =>
+  api.patch(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, body),
+
+// Limpar célula (query actor_sector_id opcional)
+clearProjetoCell: (projectId, rowId, dayISO, actor_sector_id) =>
+  api.delete(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, {
+    params: { actor_sector_id },
+  }),
+
+// Reordenar linhas
+reorderProjetoRows: (projectId, orders, actor_sector_id) =>
+  api.post(`/projetos/${projectId}/rows/reorder`, {
+    orders, // [{ row_id, order_index }]
+    actor_sector_id,
+  }),
+
 };
 
 export default apiLocal;

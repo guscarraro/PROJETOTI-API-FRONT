@@ -23,7 +23,9 @@ export const currencyBRL = (v) =>
 
 
 export const STATUS = {
-ANDAMENTO: "Em Andamento",
-STANDBY: "Stand by",
-CANCELADO: "Cancelado",
+  ANDAMENTO: "Em Andamento",
+  STANDBY: "Stand by",
+  CANCELADO: "Cancelado",
+  CONCLUIDO: "Concluído",
 };
+export const statusLabel = (k) => STATUS[k] || k;
