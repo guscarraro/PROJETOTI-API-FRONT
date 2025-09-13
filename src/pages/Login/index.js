@@ -1,139 +1,143 @@
-// src/pages/Login.js
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
-import { Button, Form, Container, Row, Col } from "reactstrap";
-import { FaEnvelope, FaLock } from "react-icons/fa";
+import { FaEnvelope, FaLock, FaArrowRight } from "react-icons/fa";
+import {
+  LoginWrap,
+  GridFx,
+  Particles,
+  Bubble,
+  GlassCard,
+  AccentBar,
+  BrandRow,
+  BrandLogo,
+  Heading,
+  Sub,
+  StyledForm,
+  Field,
+  IconBox,
+  TextInput,
+  Submit,
+  HintRow,
+} from "./style";
 import LogoCarraro from "../../images/logologin.png";
-import "react-toastify/dist/ReactToastify.css";
-import "./style.css";
-import IconInput from "../../components/IconInput";
 
-function Login() {
+export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+
+  // respeita tema salvo
+  useEffect(() => {
+    const theme = localStorage.getItem("theme");
+    const root = document.documentElement;
+    if (theme === "dark") root.setAttribute("data-theme", "dark");
+    else root.removeAttribute("data-theme");
+  }, []);
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (!email || !password) {
+      toast.warning("Informe e-mail e senha.");
+      return;
+    }
 
+    setBusy(true);
     try {
-      // Consulta o banco de dados Supabase para buscar o usuário pelo email
       const { data: user, error } = await supabase
-        .from("usuarios") // Nome da tabela
+        .from("usuarios")
         .select("*")
         .eq("email", email)
         .single();
 
-      if (error || !user) {
-        throw new Error("Usuário ou senha inválidos!");
-      }
+      if (error || !user) throw new Error("Usuário ou senha inválidos!");
 
-      // Verificar se a senha informada corresponde ao hash armazenado
-      const bcrypt = await import("bcryptjs"); // Biblioteca para verificar hash
-      const isPasswordValid = await bcrypt.compare(password, user.senha);
+      const bcrypt = await import("bcryptjs");
+      const ok = await bcrypt.compare(password, user.senha);
+      if (!ok) throw new Error("Usuário ou senha inválidos!");
 
-      if (!isPasswordValid) {
-        throw new Error("Usuário ou senha inválidos!");
-      }
-
-      // Armazena os dados do usuário no localStorage
       localStorage.setItem(
         "user",
         JSON.stringify({
           id: user.id,
           email: user.email,
-          nome: user.nome ?? user.email, // usado no NavBar
-          setor: user.setor,
-          tipo: user.tipo,
-          setores: user.setores ?? [], // se você tiver esse campo
-          tarefa_projeto: user.tarefa_projeto ?? [], // <- AQUI entra o array do banco
+          nome: user.nome ?? user.email,
+          setor: user.setor ?? null,
+          setor_ids: user.setor_ids ?? [],
+          setores: user.setores ?? [],
+          tipo: user.tipo ?? null,
+          tarefa_projeto: user.tarefa_projeto ?? [],
         })
       );
 
-      // Define o redirecionamento com base no setor ou tipo do usuário
-      const redirectPath = (() => {
-        if (user.setor === "43350e26-12f4-4094-8cfb-2a66f250838d") {
-          return "/SAC"; // SAC
-        }
-        if (user.setor === "b1122334-56ab-78cd-90ef-123456789abc") {
-          return "/SAC"; // SAC
-        }
-        if (user.setor === "442ec24d-4c7d-4b7e-b1dd-8261c9376d0f") {
-          return "/Operacao"; // Operação
-        }
-        if (user.setor === "37edd156-ba95-4864-8247-642ff20d8587") {
-          return "/Financeiro"; // Financeiro
-        }
-        if (user.setor === "123e4567-e89b-12d3-a456-426614174000") {
-          return "/Frete"; // Frete
-        }
-        if (user.setor === "Frete") {
-          return "/Frete"; // Frete
-        }
-        if (user.setor === "2c17e352-ffcd-4c7b-a771-1964aaee1f79") {
-          return "/Frete"; // Frete
-        }
-        if (user.setor === "d2c5a1b8-4f23-4f93-b1e5-3d9f9b8a9a3f") {
-          return "/ti"; // Frete
-        }
-        if (user.setor === "7a84e2cb-cb4c-4705-b676-9f0a0db5469a") {
-          return "/Frete/CargaLucrativa"; // Frete
-        }
-        if (user.setor === "9f5c3e17-8e15-4a11-a89f-df77f3a8f0f4") {
-          return "/Frete/CargaLucrativa"; // Frete
-        }
-        // Para outros setores ou Admin (tipo de usuário)
-        if (user.tipo === "c1b389cb-7dee-4f91-9687-b1fad9acbf4c") {
-          return "/SAC"; // Admin ou dashboard padrão
-        }
-        return "/"; // Redireciona para login se nenhum setor/tipo for identificado
-      })();
-
       toast.success("Login realizado com sucesso!");
-      navigate(redirectPath); // Redireciona dinamicamente
-    } catch (error) {
-      toast.error(error.message || "Erro ao fazer login");
+      navigate("/Projetos"); // ✅ todo mundo cai em Projetos
+    } catch (err) {
+      toast.error(err.message || "Erro ao fazer login");
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
-    <Container
-      fluid
-      className="ContainerPagina d-flex align-items-center justify-content-center"
-    >
-      <Row className="w-100">
-        <Col md={{ size: 4, offset: 4 }} className="text-center">
-          <Form onSubmit={handleLogin} className="form-container p-4 rounded">
-            <img src={LogoCarraro} style={{ width: 100 }} alt="Logo Carraro" />
-            <h4>Login Dashboard</h4>
-            <IconInput
-              icon={FaEnvelope}
+    <LoginWrap>
+      <GridFx />
+
+      {/* Mais bolhas quadradas com tamanhos/posições aleatórias */}
+      <Particles>
+        <Bubble style={{ width: 120, height: 120, left: "8%", top: "12%", "--dur":"9s" }} />
+        <Bubble style={{ width: 90,  height: 90,  left: "18%", bottom: "10%", "--dur":"11s" }} blur />
+        <Bubble style={{ width: 140, height: 140, right: "14%", top: "16%", "--dur":"10s" }} />
+        <Bubble style={{ width: 110, height: 110, right: "10%", bottom: "14%", "--dur":"12s" }} blur />
+        <Bubble style={{ width: 70,  height: 70,  left: "45%", top: "8%", "--dur":"8.5s" }} />
+      </Particles>
+
+      <GlassCard>
+        <AccentBar />
+
+        <BrandRow>
+          <BrandLogo src={LogoCarraro} alt="Carraro" />
+          <Heading>Bem-vindo</Heading>
+        </BrandRow>
+        <Sub>Acesse sua área de gestão e organização.</Sub>
+
+        <StyledForm onSubmit={handleLogin}>
+          <Field>
+            <IconBox><FaEnvelope /></IconBox>
+            <TextInput
               type="email"
-              placeholder="Email"
+              placeholder="Seu e-mail"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              autoFocus
+              autoComplete="email"
             />
-            <IconInput
-              icon={FaLock}
+          </Field>
+
+          <Field>
+            <IconBox><FaLock /></IconBox>
+            <TextInput
               type="password"
-              placeholder="Senha"
+              placeholder="Sua senha"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
             />
-            <Button
-              color="success"
-              type="submit"
-              className="w-50 mt-3 login-btn"
-            >
-              Entrar
-            </Button>
-          </Form>
-        </Col>
-      </Row>
-    </Container>
+          </Field>
+
+          <Submit type="submit" disabled={busy}>
+            {busy ? "Entrando..." : "Entrar"}
+            <FaArrowRight />
+          </Submit>
+
+          <HintRow>
+            <span style={{ opacity: .8 }}>Problemas para entrar?</span>
+            <span style={{ opacity: .6 }}>Fale com o administrador</span>
+          </HintRow>
+        </StyledForm>
+      </GlassCard>
+    </LoginWrap>
   );
 }
-
-export default Login;

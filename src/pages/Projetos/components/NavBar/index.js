@@ -16,6 +16,7 @@ import {
   FiSun,
   FiShield,
   FiHeadphones,
+  FiLogOut,
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 
@@ -66,13 +67,15 @@ export default function NavBar() {
     (async () => {
       try {
         if (user?.id) {
-          await apiLocal.setUsuarioDarkmode(user.id, dark);
-          const refreshed = await apiLocal.getUsuarios();
-          const me = (refreshed.data || []).find((u) => u.id === user.id);
-          if (me) {
-            localStorage.setItem("user", JSON.stringify(me));
-            setUser(me);
-          }
+          const res = await apiLocal.setUsuarioDarkmode(user.id, dark);
+          const updated = res?.data?.data || res?.data;
+
+          // Se o back devolver o usuário atualizado, use-o.
+          // Caso não devolva, apenas atualize o cache local sem novo GET.
+          const nextUser = updated?.id ? updated : { ...user, darkmode: dark };
+
+          localStorage.setItem("user", JSON.stringify(nextUser));
+          setUser(nextUser);
         }
       } catch {
         /* silencioso */
@@ -86,10 +89,11 @@ export default function NavBar() {
       (Array.isArray(user?.setores) && user.setores) ||
       [];
     return ids
-      .map((sid) =>
-        allSectors.find(
-          (s) => String(s.id) === String(sid) || Number(s.id) === Number(sid)
-        )?.nome
+      .map(
+        (sid) =>
+          allSectors.find(
+            (s) => String(s.id) === String(sid) || Number(s.id) === Number(sid)
+          )?.nome
       )
       .filter(Boolean);
   }, [user, allSectors]);
@@ -101,30 +105,53 @@ export default function NavBar() {
     );
   }, [user?.tipo, userSectorNames]);
 
-  const items = useMemo(
-    () => [
-      { key: "geral", label: "Geral", icon: <FiHome />, to: "/" },
-      { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
-      { key: "frete", label: "Ir para o Frete", icon: <FiTruck />, to: "/frete" },
-      { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" },
-      ...(isAdmin
-        ? [
-            {
-              key: "acessos",
-              label: "Gestão de Acessos",
-              icon: <FiShield />,
-              to: "/projetos/gestaoacessos",
-            },
-          ]
-        : []),
-    ],
-    [isAdmin]
-  );
+  const items = useMemo(() => {
+    const base = [
+      {
+        key: "projetos",
+        label: "Projetos",
+        icon: <FiFolder />,
+        to: "/projetos",
+      },
+      {
+        key: "frete",
+        label: "Ir para o Frete",
+        icon: <FiTruck />,
+        to: "/frete",
+      },
+      {
+        key: "sac",
+        label: "Ir para o SAC",
+        icon: <FiHeadphones />,
+        to: "/sac",
+      },
+    ];
+    if (isAdmin) {
+      base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
+      base.push({
+        key: "acessos",
+        label: "Gestão de Acessos",
+        icon: <FiShield />,
+        to: "/projetos/gestaoacessos",
+      });
+    }
+    return base;
+  }, [isAdmin]);
 
   const avatarInitial =
-    (userSectorNames[0]?.[0]?.toUpperCase() ||
-      user?.email?.[0]?.toUpperCase() ||
-      "U");
+    userSectorNames[0]?.[0]?.toUpperCase() ||
+    user?.email?.[0]?.toUpperCase() ||
+    "U";
+
+  const handleLogout = async () => {
+    try {
+      await apiLocal.logout?.();
+    } catch {}
+    const theme = localStorage.getItem("theme"); // preserva o tema
+    localStorage.clear();
+    if (theme) localStorage.setItem("theme", theme);
+    navigate("/");
+  };
 
   return (
     <NavWrap>
@@ -146,9 +173,7 @@ export default function NavBar() {
         {user && (
           <NavItem
             title={
-              userSectorNames.length
-                ? userSectorNames.join(", ")
-                : "Usuário"
+              userSectorNames.length ? userSectorNames.join(", ") : "Usuário"
             }
           >
             <NavIcon>
@@ -177,6 +202,12 @@ export default function NavBar() {
             </NavLabel>
           </NavItem>
         )}
+        <NavItem role="button" onClick={handleLogout} title="Sair">
+          <NavIcon>
+            <FiLogOut />
+          </NavIcon>
+          <NavLabel>Sair</NavLabel>
+        </NavItem>
 
         <NavItem
           role="button"

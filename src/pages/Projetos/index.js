@@ -11,6 +11,7 @@ import { STATUS } from "./utils";
 import useLoading from "../../hooks/useLoading";
 import { PageLoader } from "./components/Loader";
 import ProjectCard from "./ProjectCard";
+import { toast } from "react-toastify";
 
 const RightActions = styled.div`
   display: flex;
@@ -108,18 +109,29 @@ export default function ProjetosListPage() {
     return isAdmin(mySectorNames) || isDiretoria(mySectorNames) || creator;
   };
 
-  const toggleProjectLock = async (p) => {
-    try {
-      const action = p.locked ? "unlock" : "lock";
-      const res = await loading.wrap(`lock-${p.id}`, async () =>
-        apiLocal.lockProjeto(p.id, action, Number(actorSectorId))
-      );
-      const updated = res.data?.data || res.data;
-      setProjects((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
-    } catch {
-      /* silencioso */
-    }
-  };
+ const toggleProjectLock = async (p) => {
+  const action = p.locked ? "unlock" : "lock";
+
+  // 🔒 Apenas ADM pode destrancar itens bloqueados por ADM/Diretoria
+  if (
+    action === "unlock" &&
+    (p.lock_by === "adm" || p.lock_by === "diretoria") &&
+    !isAdmin(mySectorNames)
+  ) {
+    toast.error("Você não tem acesso para destrancar este projeto. Apenas o Admin pode destrancar.");
+    return;
+  }
+
+  try {
+    const res = await loading.wrap(`lock-${p.id}`, async () =>
+      apiLocal.lockProjeto(p.id, action, Number(actorSectorId))
+    );
+    const updated = res.data?.data || res.data;
+    setProjects((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
+  } catch {
+    /* silencioso */
+  }
+};
 
   const changeStatus = async (p, nextStatus) => {
     try {

@@ -196,89 +196,95 @@ const apiLocal = {
   deleteSetor: (id) => api.delete(`/setor/setores/${id}`),
 
   // ========================
-// PROJETOS
-// ========================
-// Lista com filtro de visibilidade: ?visible_for=6&visible_for=2
-getProjetos: (visibleFor) =>
-  api.get("/projetos/", {
-    params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
-  }),
+  // PROJETOS
+  // ========================
+  // Lista com filtro de visibilidade: ?visible_for=6&visible_for=2
+  getProjetos: (visibleFor) =>
+    api.get("/projetos/", {
+      params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
+    }),
 
-getProjetoById: (id) => api.get(`/projetos/${id}`),
+  getProjetoById: (id) => api.get(`/projetos/${id}`),
 
-createProjeto: (data) => api.post("/projetos/", data),
+  createProjeto: (data) => api.post("/projetos/", data),
 
-// ⚠️ exige actor_sector_id no body
-updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
+  // ⚠️ exige actor_sector_id no body
+  updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
 
-updateProjetoSetores: (id, setores, actor_sector_id) =>
-  api.put(`/projetos/${id}/setores`, { setores, actor_sector_id }),
+  updateProjetoSetores: (id, setores, actor_sector_id) =>
+    api.put(`/projetos/${id}/setores`, { setores, actor_sector_id }),
 
-// action: "lock" | "unlock"
-lockProjeto: (id, action, actor_sector_id) =>
-  api.post(`/projetos/${id}/lock`, { action, actor_sector_id }),
+  // action: "lock" | "unlock"
+  lockProjeto: (id, action, actor_sector_id) =>
+    api.post(`/projetos/${id}/lock`, { action, actor_sector_id }),
 
-changeProjetoStatus: (id, status, actor_sector_id) =>
-  api.post(`/projetos/${id}/status`, { status, actor_sector_id }),
+  changeProjetoStatus: (id, status, actor_sector_id) =>
+    api.post(`/projetos/${id}/status`, { status, actor_sector_id }),
 
-getProjetoLogs: (id) => api.get(`/projetos/${id}/logs`),
+  getProjetoLogs: (id) => api.get(`/projetos/${id}/logs`),
 
-deleteProjeto: (id, actor_sector_id) =>
-  api.delete(`/projetos/${id}`, { data: { actor_sector_id } }),
+  deleteProjeto: (id, actor_sector_id) =>
+    api.delete(`/projetos/${id}`, { data: { actor_sector_id } }),
 
-// ----- Custos do projeto
-listProjetoCustos: (projectId) => api.get(`/projetos/${projectId}/custos`),
-addProjetoCustos: (projectId, body) =>
-  api.post(`/projetos/${projectId}/custos`, body),
-updateProjetoCusto: (projectId, costId, body) =>
-  api.put(`/projetos/${projectId}/custos/${costId}`, body),
-deleteProjetoCusto: (projectId, costId) =>
-  api.delete(`/projetos/${projectId}/custos/${costId}`),
-payParcela: (projectId, costId, parcelIndex, actor_sector_id) =>
+  // ----- Custos do projeto
+  listProjetoCustos: (projectId) => api.get(`/projetos/${projectId}/custos`),
+  addProjetoCustos: (projectId, body) =>
+    api.post(`/projetos/${projectId}/custos`, body),
+  updateProjetoCusto: (projectId, costId, body) =>
+    api.put(`/projetos/${projectId}/custos/${costId}`, body),
+  deleteProjetoCusto: (projectId, costId) =>
+    api.delete(`/projetos/${projectId}/custos/${costId}`),
+  payParcela: (projectId, costId, parcelIndex, actorSectorId) =>
+    api.post(
+      `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/pagar`,
+      { actor_sector_id: Number(actorSectorId) }
+    ),
+  getProjetoParcels: (projectId, costId) =>
+    api.get(`/projetos/${projectId}/custos/${costId}/parcelas`),
+  // ----- Timeline (linhas e células)
+  unpayParcela: (projectId, costId, parcelIndex, actorSectorId) =>
   api.post(
-    `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/pagar`,
-    { actor_sector_id }
+    `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
+    { actor_sector_id: Number(actorSectorId) }
   ),
 
-// ----- Timeline (linhas e células)
-listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
+  listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
 
-// ⚠️ exige actor_sector_id no body
-addProjetoRow: (projectId, body, actor_sector_id) =>
-  api.post(`/projetos/${projectId}/rows`, {
-    ...body, // { title, row_sectors?: string[] }
-    actor_sector_id,
-  }),
+  // ⚠️ exige actor_sector_id no body
+  addProjetoRow: (projectId, body, actor_sector_id) =>
+    api.post(`/projetos/${projectId}/rows`, {
+      ...body, // { title, row_sectors?: string[] }
+      actor_sector_id,
+    }),
 
-// ⚠️ exige actor_sector_id no body
-updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
-  api.put(`/projetos/${projectId}/rows/${rowId}`, {
-    ...body, // { title?, row_sectors?: string[] }
-    actor_sector_id,
-  }),
+  // ⚠️ exige actor_sector_id no body
+  updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
+    api.put(`/projetos/${projectId}/rows/${rowId}`, {
+      ...body, // { title?, row_sectors?: string[] }
+      actor_sector_id,
+    }),
 
-// (actor_sector_id como query é opcional para o back atual)
-deleteProjetoRow: (projectId, rowId, actor_sector_id) =>
-  api.delete(`/projetos/${projectId}/rows/${rowId}`, {
-    params: { actor_sector_id },
-  }),
+  // (actor_sector_id como query é opcional para o back atual)
+  deleteProjetoRow: (projectId, rowId, actor_sector_id) =>
+    api.delete(`/projetos/${projectId}/rows/${rowId}`, {
+      params: { actor_sector_id },
+    }),
 
-upsertProjetoCell: (projectId, rowId, dayISO, body) =>
-  api.patch(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, body),
+  upsertProjetoCell: (projectId, rowId, dayISO, body) =>
+    api.patch(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, body),
 
-// Limpar célula (query actor_sector_id opcional)
-clearProjetoCell: (projectId, rowId, dayISO, actor_sector_id) =>
-  api.delete(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, {
-    params: { actor_sector_id },
-  }),
+  // Limpar célula (query actor_sector_id opcional)
+  clearProjetoCell: (projectId, rowId, dayISO, actor_sector_id) =>
+    api.delete(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, {
+      params: { actor_sector_id },
+    }),
 
-// Reordenar linhas
-reorderProjetoRows: (projectId, orders, actor_sector_id) =>
-  api.post(`/projetos/${projectId}/rows/reorder`, {
-    orders, // [{ row_id, order_index }]
-    actor_sector_id,
-  }),
-
+  // Reordenar linhas
+  reorderProjetoRows: (projectId, orders, actor_sector_id) =>
+    api.post(`/projetos/${projectId}/rows/reorder`, {
+      orders, // [{ row_id, order_index }]
+      actor_sector_id,
+    }),
 };
 
 export default apiLocal;
