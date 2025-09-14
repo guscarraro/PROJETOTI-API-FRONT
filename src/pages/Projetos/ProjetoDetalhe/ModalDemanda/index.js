@@ -8,22 +8,33 @@ import { MODAL_CLASS } from "../../style";
 export default function ModalDemanda({
   isOpen,
   toggle,
-  onConfirm,                 // ({ titulo, sectorKeys }) => void
-  sectorOptions = [],        // [{key, label}]
+  onConfirm,
+  sectorOptions = [],
 }) {
   const [titulo, setTitulo] = useState("");
   const [selected, setSelected] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (isOpen) { setTitulo(""); setSelected([]); }
+    if (isOpen) {
+      setTitulo("");
+      setSelected([]);
+      setSubmitting(false);
+    }
   }, [isOpen]);
 
   const toggleKey = (k) =>
     setSelected((prev) => prev.includes(k) ? prev.filter(x => x !== k) : [...prev, k]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!titulo.trim()) return alert("Informe o descritivo da demanda.");
-    onConfirm?.({ titulo: titulo.trim(), sectorKeys: selected });
+    try {
+      setSubmitting(true);
+      await onConfirm?.({ titulo: titulo.trim(), sectorKeys: selected });
+      toggle();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -31,7 +42,7 @@ export default function ModalDemanda({
       isOpen={isOpen}
       toggle={toggle}
       size="md"
-      contentClassName={MODAL_CLASS}   // <- dark mode
+      contentClassName={MODAL_CLASS}
     >
       <ModalHeader toggle={toggle}>Nova demanda</ModalHeader>
       <ModalBody>
@@ -67,8 +78,12 @@ export default function ModalDemanda({
         </FormGroup>
       </ModalBody>
       <ModalFooter>
-        <Button color="secondary" onClick={toggle}>Cancelar</Button>
-        <Button color="primary" onClick={handleSave}>Criar demanda</Button>
+        <Button color="secondary" onClick={toggle} disabled={submitting}>
+          Cancelar
+        </Button>
+        <Button color="primary" onClick={handleSave} disabled={submitting}>
+          {submitting ? "Criando..." : "Criar demanda"}
+        </Button>
       </ModalFooter>
     </Modal>
   );

@@ -34,7 +34,6 @@ import apiLocal from "../../../services/apiLocal";
 import useLoading from "../../../hooks/useLoading";
 import { toast } from "react-toastify";
 import { PageLoader } from "../components/Loader";
-import { FaArrowAltCircleLeft, FaArrowLeft } from "react-icons/fa";
 import { LuArrowBigLeft } from "react-icons/lu";
 import ModalDemanda from "./ModalDemanda";
 
@@ -60,48 +59,6 @@ export default function ProjetoDetalhe() {
   const showLoader = !projeto || loading.any();
 
   const [statusMenu, setStatusMenu] = useState(null);
-
-  const handleReorderRows = async (newOrder) => {
-    // aplica imediatamente na UI
-    setRows(newOrder);
-
-    // monta payload [{ row_id, order_index }]
-    // OBS: se o back esperar 1-based, troque idx+1
-    const orders = newOrder.map((r, idx) => ({
-      row_id: r.id,
-      order_index: idx,
-    }));
-
-    try {
-      await loading.wrap("reorderRows", async () =>
-        apiLocal.reorderProjetoRows(projeto.id, orders, Number(actorSectorId))
-      );
-    } catch (e) {
-      // se falhar, refetch para voltar à ordem do servidor
-      await fetchProjeto();
-    }
-  };
-
-  const createDemanda = async ({ titulo, sectorKeys }) => {
-    if (locked)
-      return toast.warning(
-        "Projeto bloqueado: não é possível criar/editar tarefas."
-      );
-    await loading.wrap("addRow", async () => {
-      try {
-        await apiLocal.addProjetoRow(
-          projeto.id,
-          { title: titulo, row_sectors: sectorKeys || [] },
-          Number(actorSectorId)
-        );
-        await fetchProjeto();
-        setOpenDemanda(false);
-      } catch (e) {
-        if (!handleTimelineError(e)) throw e;
-      }
-    });
-  };
-
 
   const user = useMemo(() => {
     try {
@@ -144,8 +101,8 @@ export default function ProjetoDetalhe() {
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase()
       .replace(/\s+/g, "_");
-  const keyFromId = (id) => {
-    const s = sectors.find((x) => Number(x.id) === Number(id));
+  const keyFromId = (sid) => {
+    const s = sectors.find((x) => Number(x.id) === Number(sid));
     return s ? norm(s.nome) : null;
   };
   const idsToKeys = (arr) =>
@@ -154,10 +111,6 @@ export default function ProjetoDetalhe() {
     const s = sectors.find((x) => norm(x.nome) === norm(key));
     return s ? Number(s.id) : null;
   };
-  const keysToIds = (arr) =>
-    Array.isArray(arr)
-      ? arr.map((k) => keyToId(k)).filter((v) => v != null)
-      : [];
 
   const fetchSectors = useCallback(async () => {
     try {
@@ -196,14 +149,6 @@ export default function ProjetoDetalhe() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
-  useEffect(() => {
-    if (!projeto) return;
-    // garante 1 frame de pintura antes de “apagar” o loader do bootstrap
-    requestAnimationFrame(() => {
-      // se você usa chaves nomeadas no hook, pare a específica
-      // loading.stop("bootstrap");
-    });
-  }, [projeto]);
 
   const accent = useMemo(
     () => STATUS_COLORS[projeto?.status] || "#111827",
@@ -220,11 +165,8 @@ export default function ProjetoDetalhe() {
     return isAdmin() || isDiretoria() || isCreator;
   }, [projeto, actorSectorId, isAdmin, isDiretoria]);
 
-  // Quais setores participam do projeto (por chave normalizada, ex.: "TI", "SAC")
   const projectSectorKeys = useMemo(() => {
-    // se seu back guarda em `projeto.setores` como IDs numéricos:
     return idsToKeys(projeto?.setores || []);
-    // se usar outro campo (ex.: visible_for), troque para `projeto?.visible_for`
   }, [projeto?.setores, sectors]);
 
   const readOnly = locked;
@@ -300,22 +242,97 @@ export default function ProjetoDetalhe() {
     closeStatusMenu();
   };
 
-  const handleSave = async () => {
-    if (!projeto || !actorSectorId) return;
-    await loading.wrap("saveProjeto", async () => {
-      await apiLocal.updateProjeto(projeto.id, {
-        nome: projeto.nome,
-        inicio: projeto.inicio,
-        fim: projeto.fim,
-        descricao: projeto.descricao || null,
-        actor_sector_id: Number(actorSectorId),
-      });
-      await fetchProjeto();
+  const openStatusMenu = (e) => {
+    if (!canUnlockByRole) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const W = 220,
+      H = 180,
+      M = 8;
+    const left = Math.max(M, Math.min(rect.left, window.innerWidth - W - M));
+    const top = Math.max(
+      M,
+      Math.min(rect.bottom + 8, window.innerHeight - H - M)
+    );
+    setStatusMenu({ x: left, y: top });
+  };
+  const closeStatusMenu = () => setStatusMenu(null);
+
+  const fetchProjetoIfNeeded = async () => {
+    await fetchProjeto();
+  };
+
+  // ---------- NOVOS HANDLERS (UI otimista) ----------
+  const renameRow = async (rowId, newTitle) => {
+    if (!newTitle || !rowId) return;
+    const snapshot = rows;
+    setRows((prev) =>
+      prev.map((r) => (r.id === rowId ? { ...r, titulo: newTitle } : r))
+    );
+    try {
+      await apiLocal.updateProjetoRow(
+        projeto.id,
+        rowId,
+        { title: newTitle, actor_sector_id: Number(actorSectorId) },
+        Number(actorSectorId)
+      );
+    } catch (e) {
+      setRows(snapshot);
+      if (!handleTimelineError(e)) throw e;
+    }
+  };
+
+  const deleteRow = async (rowId) => {
+    const snapshot = rows;
+    setRows((prev) => prev.filter((r) => r.id !== rowId));
+    try {
+      await apiLocal.deleteProjetoRow(projeto.id, rowId, Number(actorSectorId));
+    } catch (e) {
+      setRows(snapshot);
+      if (!handleTimelineError(e)) throw e;
+    }
+  };
+
+// remove 1 comentário da célula enviando o array completo (sem o item)
+const deleteComment = async (rowId, dayISO, commentId) => {
+  const nextRows = rows.map((r) => {
+    if (r.id !== rowId) return r;
+    const prevCell = r.cells?.[dayISO] || {};
+    const prevComments = Array.isArray(prevCell.comments) ? prevCell.comments : [];
+    const nextComments = prevComments.filter((c) => String(c.id) !== String(commentId));
+    const nextCell = { ...prevCell, comments: nextComments };
+    return { ...r, cells: { ...r.cells, [dayISO]: nextCell } };
+  });
+  setRows(nextRows);
+
+  try {
+    await apiLocal.upsertProjetoCell(projeto.id, rowId, dayISO, {
+      comments: nextRows.find(r => r.id === rowId)?.cells?.[dayISO]?.comments || [],
+      actor_sector_id: Number(actorSectorId),
     });
+  } catch (e) {
+    // volta estado se falhar
+    await fetchProjeto();
+  }
+};
+
+
+  const handleReorderRows = async (newOrder) => {
+    setRows(newOrder);
+    const orders = newOrder.map((r, idx) => ({
+      row_id: r.id,
+      order_index: idx,
+    }));
+    try {
+      await loading.wrap("reorderRows", async () =>
+        apiLocal.reorderProjetoRows(projeto.id, orders, Number(actorSectorId))
+      );
+    } catch {
+      await fetchProjetoIfNeeded();
+    }
   };
 
   const addRow = async () => {
-    if (readOnly) return;
+    if (locked) return;
     const titulo = prompt("Descritivo da etapa/demanda:");
     if (!titulo) return;
     await loading.wrap("addRow", async () => {
@@ -325,7 +342,7 @@ export default function ProjetoDetalhe() {
           { title: titulo, row_sectors: [] },
           Number(actorSectorId)
         );
-        await fetchProjeto();
+        await fetchProjetoIfNeeded();
       } catch (e) {
         if (!handleTimelineError(e)) throw e;
       }
@@ -333,7 +350,7 @@ export default function ProjetoDetalhe() {
   };
 
   const setRowSector = async (rowId, sectorKey) => {
-    if (readOnly) return;
+    if (locked) return;
     const row = rows.find((r) => r.id === rowId);
     const current = Array.isArray(row?.sectors) ? row.sectors : [];
     const next = current.includes(sectorKey)
@@ -343,10 +360,7 @@ export default function ProjetoDetalhe() {
       prev.map((r) => (r.id === rowId ? { ...r, sectors: next } : r))
     );
     try {
-      const body = {
-        row_sectors: next,
-        actor_sector_id: Number(actorSectorId),
-      };
+      const body = { row_sectors: next, actor_sector_id: Number(actorSectorId) };
       await apiLocal.updateProjetoRow(
         projeto.id,
         rowId,
@@ -354,7 +368,7 @@ export default function ProjetoDetalhe() {
         Number(actorSectorId)
       );
     } catch (e) {
-      if (!handleTimelineError(e)) fetchProjeto();
+      if (!handleTimelineError(e)) fetchProjetoIfNeeded();
     }
   };
 
@@ -366,7 +380,7 @@ export default function ProjetoDetalhe() {
   }, [actorSectorId, sectors]);
 
   const setCellColor = async (rowId, dayISO, color) => {
-    if (readOnly || !timelineEnabled) return;
+    if (locked || !timelineEnabled) return;
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
@@ -382,28 +396,42 @@ export default function ProjetoDetalhe() {
         actor_sector_id: Number(actorSectorId),
       });
     } catch (e) {
-      if (!handleTimelineError(e)) fetchProjeto();
+      if (!handleTimelineError(e)) fetchProjetoIfNeeded();
     }
   };
 
   const setCellComment = async (rowId, dayISO, comment, authorInitialArg) => {
-    if (readOnly || !timelineEnabled) return;
-    const authorInitial = (
-      authorInitialArg ||
-      sectorInitial ||
-      "U"
-    ).toUpperCase();
+    if (locked || !timelineEnabled) return;
+    const authorInitial = (authorInitialArg || sectorInitial || "U").toUpperCase();
+
+    // UI otimista: adiciona comentário ao array da célula
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
-        const prevCell = r.cells?.[dayISO];
-        const nextCell =
-          typeof prevCell === "object"
-            ? { ...prevCell, comment, authorInitial }
-            : { color: undefined, comment, authorInitial };
-        return { ...r, cells: { ...r.cells, [dayISO]: nextCell } };
+        const prevCell = r.cells?.[dayISO] || {};
+        const prevComments = Array.isArray(prevCell.comments)
+          ? prevCell.comments
+          : [];
+        const nextComments = [
+          ...prevComments,
+          {
+            id: `tmp-${Date.now()}`,
+            authorInitial,
+            message: comment,
+            created_at: new Date().toISOString(),
+            deleted: false,
+          },
+        ];
+        return {
+          ...r,
+          cells: {
+            ...r.cells,
+            [dayISO]: { ...prevCell, comments: nextComments },
+          },
+        };
       })
     );
+
     try {
       await apiLocal.upsertProjetoCell(projeto.id, rowId, dayISO, {
         comment,
@@ -411,12 +439,12 @@ export default function ProjetoDetalhe() {
         actor_sector_id: Number(actorSectorId),
       });
     } catch (e) {
-      if (!handleTimelineError(e)) fetchProjeto();
+      if (!handleTimelineError(e)) fetchProjetoIfNeeded();
     }
   };
 
   const toggleBaseline = async (rowId, dayISO, enabled) => {
-    if (readOnly || !timelineEnabled) return;
+    if (locked || !timelineEnabled) return;
     setRows((prev) =>
       prev.map((r) => {
         if (r.id !== rowId) return r;
@@ -434,12 +462,12 @@ export default function ProjetoDetalhe() {
         actor_sector_id: Number(actorSectorId),
       });
     } catch (e) {
-      if (!handleTimelineError(e)) fetchProjeto();
+      if (!handleTimelineError(e)) fetchProjetoIfNeeded();
     }
   };
 
   const addCosts = async (costPayloadList) => {
-    if (readOnly || !Array.isArray(costPayloadList) || !costPayloadList.length)
+    if (locked || !Array.isArray(costPayloadList) || !costPayloadList.length)
       return;
     await loading.wrap("addCosts", async () => {
       for (const c of costPayloadList) {
@@ -452,25 +480,11 @@ export default function ProjetoDetalhe() {
         };
         await apiLocal.addProjetoCustos(projeto.id, body);
       }
-      await fetchProjeto();
+      await fetchProjetoIfNeeded();
     });
   };
 
-  const openStatusMenu = (e) => {
-    if (!canUnlockByRole) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const W = 220,
-      H = 180,
-      M = 8;
-    const left = Math.max(M, Math.min(rect.left, window.innerWidth - W - M));
-    const top = Math.max(
-      M,
-      Math.min(rect.bottom + 8, window.innerHeight - H - M)
-    );
-    setStatusMenu({ x: left, y: top });
-  };
-  const closeStatusMenu = () => setStatusMenu(null);
-    const sectorOptions = useMemo(() => {
+  const sectorOptions = useMemo(() => {
     const norm = (s = "") =>
       s
         .normalize("NFD")
@@ -499,7 +513,7 @@ export default function ProjetoDetalhe() {
       <TitleBar>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Button color="secondary" onClick={() => navigate("/Projetos")}>
-            <LuArrowBigLeft></LuArrowBigLeft> Voltar
+            <LuArrowBigLeft /> Voltar
           </Button>
           <H1 $accent={accent}>{projeto.nome}</H1>
         </div>
@@ -520,13 +534,6 @@ export default function ProjetoDetalhe() {
           >
             Adicionar custo
           </Button>
-          {/* <Button
-            color="success"
-            onClick={handleSave}
-            disabled={readOnly || loading.any()}
-          >
-            Salvar alterações
-          </Button> */}
         </Actions>
       </TitleBar>
 
@@ -586,11 +593,14 @@ export default function ProjetoDetalhe() {
           onToggleBaseline={
             readOnly || !timelineEnabled ? undefined : toggleBaseline
           }
-          // ⭐️ NOVO:
           canReorderRows={!readOnly && timelineEnabled}
           onReorderRows={handleReorderRows}
-          isBusy={loading.any()} // desabilita DnD durante requests
+          isBusy={loading.any()}
           availableSectorKeys={projectSectorKeys}
+          // novos:
+          onRenameRow={renameRow}
+          onDeleteRow={deleteRow}
+          onDeleteComment={deleteComment}
         />
       </Section>
 
@@ -633,7 +643,22 @@ export default function ProjetoDetalhe() {
       <ModalDemanda
         isOpen={openDemanda}
         toggle={() => setOpenDemanda(false)}
-        onConfirm={createDemanda}
+        onConfirm={async ({ titulo, sectorKeys }) => {
+          if (locked) return toast.warning("Projeto bloqueado.");
+          await loading.wrap("addRow", async () => {
+            try {
+              await apiLocal.addProjetoRow(
+                projeto.id,
+                { title: titulo, row_sectors: sectorKeys || [] },
+                Number(actorSectorId)
+              );
+              await fetchProjetoIfNeeded();
+              setOpenDemanda(false);
+            } catch (e) {
+              if (!handleTimelineError(e)) throw e;
+            }
+          });
+        }}
         sectorOptions={sectorOptions}
       />
       <AddCostModal
@@ -641,7 +666,7 @@ export default function ProjetoDetalhe() {
         toggle={() => setOpenCost((v) => !v)}
         projectId={projeto?.id}
         actorSectorId={actorSectorId}
-        onAdded={() => fetchProjeto()}
+        onAdded={() => fetchProjetoIfNeeded()}
       />
     </Page>
   );

@@ -27,6 +27,27 @@ export const GlobalModalStyles = createGlobalStyle`
   }
 `;
 
+export const DeleteCommentBtn = styled.button`
+  background: transparent;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 0;
+  margin-left: auto;
+
+  &:hover {
+    color: #dc2626;
+  }
+
+  svg {
+    width: 14px;
+    height: 14px;
+  }
+`;
 export const Page = styled.div`
   /* Paleta base (customizável) */
   --page-bg-start: #f8fafc;
@@ -632,6 +653,18 @@ export const TooltipBox = styled.div`
   z-index: 80;
 `;
 
+export const CommentBubble = styled.div`
+  border-radius: 8px;
+  padding: 6px 8px;
+  flex: 1;
+  color: inherit;
+  background: #f3f4f6;
+
+  [data-theme="dark"] & {
+    background: #0b1220;
+    color: #e5e7eb;
+  }
+`;
 export const MenuBox = styled.div`
   background: #fff;
   border: 1px solid #e5e7eb;

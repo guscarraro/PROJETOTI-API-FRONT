@@ -269,6 +269,10 @@ const apiLocal = {
     api.delete(`/projetos/${projectId}/rows/${rowId}`, {
       params: { actor_sector_id },
     }),
+    deleteProjetoCellComment: (projectId, rowId, dayISO, commentId, actorSectorId) =>
+  api.delete(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}/comments/${commentId}`, {
+    params: { actor_sector_id: Number(actorSectorId) },
+  }),
 
   upsertProjetoCell: (projectId, rowId, dayISO, body) =>
     api.patch(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, body),
