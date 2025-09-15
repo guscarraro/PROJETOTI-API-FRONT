@@ -712,6 +712,7 @@ onDrop={async (e) => {
                         onClick={async () => {
                           try {
                             await onDeleteComment?.(palette.rowId, palette.dayISO, c.id);
+
                             setPalette((prev) => {
                               if (!prev) return prev;
                               const filtered = (prev.comments || []).filter((x) => String(x.id) !== String(c.id));

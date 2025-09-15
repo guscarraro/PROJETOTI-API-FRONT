@@ -184,36 +184,42 @@ export default function ProjetoDetalhe() {
     );
   }, [projeto?.custos]);
 
-  const handleTimelineError = (err) => {
-    const status = err?.response?.status;
-    if (status === 501) {
-      setTimelineEnabled(false);
-      toast.error(
-        "Timeline não habilitada no banco (tabelas ausentes). Contate o admin."
-      );
-      return true;
-    }
-    if (status === 423) {
-      toast.warning("Projeto bloqueado: não é possível criar/editar tarefas.");
-      return true;
-    }
-    if (status === 404) {
-      toast.error("Atividade/célula não encontrada.");
-      return true;
-    }
-    if (status >= 500) {
-      toast.error(
-        err?.response?.data?.detail ||
-          "Erro no servidor ao atualizar a timeline."
-      );
-      return true;
-    }
-    return false;
-  };
+const handleTimelineError = (err) => {
+  const status = err?.response?.status;
+  if (status === 501) {
+    setTimelineEnabled(false);
+    toast.error(
+      "Timeline não habilitada no banco (tabelas ausentes). Contate o admin."
+    );
+    return true;
+  }
+  if (status === 423) {
+    toast.warning("Projeto bloqueado: não é possível criar/editar tarefas.");
+    return true;
+  }
+  if (status === 404) {
+    toast.error("Atividade/célula não encontrada.");
+    return true;
+  }
+  if (status === 403) {
+    toast.error("Sem permissão para executar esta ação.");
+    return true;
+  }
+  if (status >= 500) {
+    toast.error(
+      err?.response?.data?.detail ||
+        "Erro no servidor ao atualizar a timeline."
+    );
+    return true;
+  }
+  return false;
+};
 
-  const toggleProjectLock = async () => {
-    if (!projeto || !actorSectorId) return;
-    await loading.wrap("lock", async () => {
+
+const toggleProjectLock = async () => {
+  if (!projeto || !actorSectorId) return;
+  await loading.wrap("lock", async () => {
+    try {
       const action = locked ? "unlock" : "lock";
       const res = await apiLocal.lockProjeto(
         projeto.id,
@@ -224,8 +230,16 @@ export default function ProjetoDetalhe() {
       setProjeto(updated);
       setRows(updated?.rows || []);
       setLocked(Boolean(updated?.locked));
-    });
-  };
+    } catch (e) {
+      if (e?.response?.status === 403) {
+        toast.error("Sem permissão para alterar o lock deste projeto.");
+        return;
+      }
+      throw e;
+    }
+  });
+};
+
 
   const changeStatus = async (status) => {
     if (!projeto || !actorSectorId) return;
@@ -305,15 +319,24 @@ const deleteComment = async (rowId, dayISO, commentId) => {
   setRows(nextRows);
 
   try {
-    await apiLocal.upsertProjetoCell(projeto.id, rowId, dayISO, {
-      comments: nextRows.find(r => r.id === rowId)?.cells?.[dayISO]?.comments || [],
-      actor_sector_id: Number(actorSectorId),
-    });
+    await apiLocal.deleteProjetoCellComment(
+      projeto.id,
+      rowId,
+      dayISO,
+      commentId,
+      Number(actorSectorId)
+    );
   } catch (e) {
-    // volta estado se falhar
+    const status = e?.response?.status;
+    if (status === 403) {
+      toast.error("Sem permissão para apagar este comentário.");
+    } else {
+      toast.error(e?.response?.data?.detail || "Falha ao apagar comentário.");
+    }
     await fetchProjeto();
   }
 };
+
 
 
   const handleReorderRows = async (newOrder) => {
@@ -600,7 +623,10 @@ const deleteComment = async (rowId, dayISO, commentId) => {
           // novos:
           onRenameRow={renameRow}
           onDeleteRow={deleteRow}
-          onDeleteComment={deleteComment}
+           
+          onDeleteComment={(rowId, dayISO, commentId) =>
+    deleteComment(rowId, dayISO, commentId, actorSectorId)
+  }
         />
       </Section>
 
