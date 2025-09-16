@@ -24,6 +24,7 @@ const SECTORS = {
   FRETE: 4,
   OPERACAO: 5,
   TI: 2,
+  GERENTE_OPERACAO: 16,
 };
 
 const App = () => {
@@ -44,7 +45,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<Dashboard />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.SAC,SECTORS.OPERACAO , SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.SAC,SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO , SECTORS.ADMIN]}
             />
           }
         />
@@ -55,7 +56,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<Frete />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.SAC,SECTORS.OPERACAO  ,SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.SAC,SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO  ,SECTORS.ADMIN]}
             />
           }
         />
@@ -66,7 +67,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
             />
           }
         />
@@ -75,7 +76,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
             />
           }
         />
@@ -84,7 +85,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
             />
           }
         />
@@ -93,7 +94,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
             />
           }
         />
@@ -102,7 +103,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
             />
           }
         />
@@ -113,7 +114,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<OperacaoFechamento />}
-              allowedSectors={[SECTORS.OPERACAO, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.OPERACAO, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
             />
           }
         />

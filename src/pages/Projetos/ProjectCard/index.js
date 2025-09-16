@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import styled from "styled-components";
 import { Card, Badge, Muted, FlexRow, SectorDot } from "../style";
 import { FaCalendarAlt } from "react-icons/fa";
-import { FiLock, FiTrash2, FiUnlock } from "react-icons/fi";
+import { FiLock, FiTrash2, FiUnlock, FiClock } from "react-icons/fi";
 import { STATUS } from "../utils";
 import apiLocal from "../../../services/apiLocal";
 import { toast } from "react-toastify";
@@ -119,6 +119,49 @@ export default function ProjectCard({
   const [busy, setBusy] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
+  // ===== contador de dias restantes até a previsão =====
+  const daysLeft = useMemo(() => {
+    if (!project?.fim) return null;
+    const end = new Date(project.fim);
+    if (isNaN(end)) return null;
+    const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+    const now = new Date();
+    const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const diff = Math.ceil((endUTC - nowUTC) / 86400000);
+    return diff <= 0 ? 0 : diff;
+  }, [project?.fim]);
+
+  const timePill = useMemo(() => {
+    if (daysLeft == null) return null;
+    if (daysLeft === 0)
+      return {
+        fg: "#374151",
+        bg: "rgba(107,114,128,.15)",
+        border: "rgba(107,114,128,.35)",
+        title: "Encerrado",
+      };
+    if (daysLeft <= 3)
+      return {
+        fg: "#991b1b",
+        bg: "rgba(239,68,68,.10)",
+        border: "rgba(239,68,68,.45)",
+        title: "Prazo crítico",
+      };
+    if (daysLeft <= 10)
+      return {
+        fg: "#92400e",
+        bg: "rgba(245,158,11,.12)",
+        border: "rgba(245,158,11,.45)",
+        title: "Prazo próximo",
+      };
+    return {
+      fg: "#065f46",
+      bg: "rgba(16,185,129,.12)",
+      border: "rgba(16,185,129,.45)",
+      title: "Dentro do prazo",
+    };
+  }, [daysLeft]);
+
   const runDelete = async () => {
     if (!isAdmin) return;
     if (!actorSectorId) {
@@ -156,7 +199,7 @@ export default function ProjectCard({
         <h3
           style={{
             margin: 0,
-            marginBottom:10,
+            marginBottom: 10,
             flex: 1,
             minWidth: 0, // <- permite o ellipsis funcionar em flex
             whiteSpace: "nowrap",
@@ -224,7 +267,7 @@ export default function ProjectCard({
                     timeZone: "UTC",
                   })}
             </Muted>{" "}
-            <br></br>
+            <br />
             <Muted>
               <FaCalendarAlt style={{ marginRight: 6 }} />
               Previsão:{" "}
@@ -233,6 +276,27 @@ export default function ProjectCard({
                 : new Date(project.fim).toLocaleDateString("pt-BR", {
                     timeZone: "UTC",
                   })}
+              {timePill && (
+                <span
+                  title={`${timePill.title} — ${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"}`}
+                  style={{
+                    marginLeft: 8,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "2px 8px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: timePill.fg,
+                    background: timePill.bg,
+                    border: `1px solid ${timePill.border}`,
+                  }}
+                >
+                  <FiClock size={12} />
+                  {daysLeft}d
+                </span>
+              )}
             </Muted>
           </div>
 

@@ -7,7 +7,7 @@ import { backdropStyle, modalStyle, headerStyle, gridStyle } from "./styles";
 import { formatarDataHora, ehNumeroCobranca } from "./utils";
 
 const ModalCteCobrado = ({ data, onClose }) => {
-  console.log(data);
+  
   
   const {
     acordoComercial,

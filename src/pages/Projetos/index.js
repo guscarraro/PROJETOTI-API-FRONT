@@ -13,10 +13,63 @@ import { PageLoader } from "./components/Loader";
 import ProjectCard from "./ProjectCard";
 import { toast } from "react-toastify";
 
+/* ---------- estilos auxiliares para grupos ---------- */
 const RightActions = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+`;
+
+const GroupBlock = styled.section`
+  margin-top: 24px;
+`;
+
+const GroupHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0 12px;
+`;
+
+const AccentDot = styled.span`
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: ${(p) => p.$color || "#6366f1"};
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.08);
+  flex-shrink: 0;
+
+  [data-theme="dark"] & {
+    box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.06);
+  }
+`;
+
+const GroupTitle = styled.h3`
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  color: #111827;
+
+  [data-theme="dark"] & {
+    color: #e5e7eb;
+  }
+`;
+
+const CountPill = styled.span`
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
+  background: rgba(31, 41, 55, 0.08);
+  border: 1px solid rgba(31, 41, 55, 0.16);
+
+  [data-theme="dark"] & {
+    color: #e5e7eb;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+  }
 `;
 
 export default function ProjetosListPage() {
@@ -63,37 +116,34 @@ export default function ProjetosListPage() {
     return Array.from(new Set(names.map((s) => (s || "").trim())));
   }, [user, sectors]);
 
-  const fetchSectors = useCallback(async () => {
-    try {
-      const r = await apiLocal.getSetores();
-      setSectors(r.data || []);
-    } catch {
-      setSectors([]);
-    }
-  }, []);
-
-  const fetchProjects = useCallback(async () => {
-    await loading.wrap("fetchProjects", async () => {
-      try {
-        const visibleFor = Array.isArray(user?.setor_ids)
-          ? user.setor_ids.map(Number)
-          : [];
-        const r = await apiLocal.getProjetos(visibleFor);
-        setProjects(r.data || []);
-      } catch (e) {
-        setProjects([]);
-      }
-    });
+  /* ====== LOAD INICIAL ÚNICO: setores + projetos ====== */
+  useEffect(() => {
+    (async () => {
+      const visibleFor = Array.isArray(user?.setor_ids)
+        ? user.setor_ids.map(Number)
+        : [];
+      await loading.wrap("init", async () => {
+        const [sRes, pRes] = await Promise.all([
+          apiLocal.getSetores(),
+          apiLocal.getProjetos(visibleFor),
+        ]);
+        setSectors(sRes.data || []);
+        setProjects(pRes.data || []);
+      });
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // ❗ não inclua `loading` para evitar loop
+  }, [user]); // não incluir `loading` para evitar loop
 
-  useEffect(() => {
-    fetchSectors();
-  }, [fetchSectors]);
-
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+  /* Recarrega só projetos quando necessário (ex.: após criar) */
+  const reloadProjects = useCallback(async () => {
+    const visibleFor = Array.isArray(user?.setor_ids)
+      ? user.setor_ids.map(Number)
+      : [];
+    await loading.wrap("reload-projects", async () => {
+      const r = await apiLocal.getProjetos(visibleFor);
+      setProjects(r.data || []);
+    });
+  }, [user, loading]);
 
   const role = useMemo(() => {
     if (isAdmin(mySectorNames)) return "adm";
@@ -109,29 +159,30 @@ export default function ProjetosListPage() {
     return isAdmin(mySectorNames) || isDiretoria(mySectorNames) || creator;
   };
 
- const toggleProjectLock = async (p) => {
-  const action = p.locked ? "unlock" : "lock";
+  const toggleProjectLock = async (p) => {
+    const action = p.locked ? "unlock" : "lock";
 
-  // 🔒 Apenas ADM pode destrancar itens bloqueados por ADM/Diretoria
-  if (
-    action === "unlock" &&
-    (p.lock_by === "adm" || p.lock_by === "diretoria") &&
-    !isAdmin(mySectorNames)
-  ) {
-    toast.error("Você não tem acesso para destrancar este projeto. Apenas o Admin pode destrancar.");
-    return;
-  }
+    if (
+      action === "unlock" &&
+      (p.lock_by === "adm" || p.lock_by === "diretoria") &&
+      !isAdmin(mySectorNames)
+    ) {
+      toast.error(
+        "Você não tem acesso para destrancar este projeto. Apenas o Admin pode destrancar."
+      );
+      return;
+    }
 
-  try {
-    const res = await loading.wrap(`lock-${p.id}`, async () =>
-      apiLocal.lockProjeto(p.id, action, Number(actorSectorId))
-    );
-    const updated = res.data?.data || res.data;
-    setProjects((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
-  } catch {
-    /* silencioso */
-  }
-};
+    try {
+      const res = await loading.wrap(`lock-${p.id}`, async () =>
+        apiLocal.lockProjeto(p.id, action, Number(actorSectorId))
+      );
+      const updated = res.data?.data || res.data;
+      setProjects((prev) => prev.map((x) => (x.id === p.id ? updated : x)));
+    } catch {
+      /* silencioso */
+    }
+  };
 
   const changeStatus = async (p, nextStatus) => {
     try {
@@ -146,38 +197,110 @@ export default function ProjetosListPage() {
     }
   };
 
+  /* --------- agrupamento por setor do criador --------- */
+  const groups = useMemo(() => {
+    const map = new Map();
+
+    const getSectorNameById = (id) => {
+      const s = sectors.find((x) => Number(x.id) === Number(id));
+      return s?.nome || null;
+    };
+
+    for (let i = 0; i < projects.length; i++) {
+      const p = projects[i];
+
+      const sid =
+        p?.created_by_sector_id ??
+        p?.criado_por_setor_id ??
+        p?.sector_creator_id ??
+        null;
+
+      let sname =
+        getSectorNameById(sid) ||
+        p?.created_by_sector_name ||
+        p?.criado_por_setor_nome ||
+        "Sem setor";
+
+      sname = String(sname || "Sem setor").trim();
+
+      if (!map.has(sname)) map.set(sname, []);
+      map.get(sname).push(p);
+    }
+
+    const arr = Array.from(map.entries());
+    arr.sort(([a], [b]) => {
+      if (a === "Sem setor") return 1;
+      if (b === "Sem setor") return -1;
+      return a.localeCompare(b, "pt-BR");
+    });
+
+    return arr;
+  }, [projects, sectors]);
+
+  /* cor consistente por grupo (hash simples) */
+  const groupColor = useCallback((name) => {
+    const palette = [
+      "#2563eb", // indigo/blue
+      "#059669", // emerald
+      "#f59e0b", // amber
+      "#ef4444", // red
+      "#0ea5e9", // sky
+      "#8b5cf6", // violet
+      "#14b8a6", // teal
+      "#f97316", // orange
+    ];
+    const s = String(name || "");
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return palette[h % palette.length];
+  }, []);
+
   return (
     <>
-    <Page>
-      <PageLoader active={loading.any()} text="Processando..." />
-      <NavBar />
+      <Page>
+        {/* Loader só some depois do init/load ou reload-projects */}
+        <PageLoader active={loading.any()} text="Processando..." />
+        <NavBar />
 
-
-      <TitleBar>
-        <H1>Projetos</H1>
-        <RightActions>
-          <Button
-            color="primary"
-            onClick={() => setOpenCreate(true)}
-            disabled={loading.any() || !actorSectorId}
+        <TitleBar>
+          <H1>Projetos</H1>
+          <RightActions>
+            <Button
+              color="primary"
+              onClick={() => setOpenCreate(true)}
+              disabled={loading.any() || !actorSectorId}
             >
-            + Criar novo projeto
-          </Button>
-        </RightActions>
-      </TitleBar>
+              + Criar novo projeto
+            </Button>
+          </RightActions>
+        </TitleBar>
 
-      <CardGrid>
-        {projects.map((p) => (
-          <ProjectCard
-          key={p.id}
-          project={p}
-          sectorList={sectors}
-          onOpen={() => navigate(`/projetos/${p.id}`)}
-          onToggleLock={() => toggleProjectLock(p)}
-          canEditStatus={() => canEditStatus(p)}
-          onChangeStatus={(next) => changeStatus(p, next)}
-          onDeleted={(id) => setProjects(prev => prev.filter(x => x.id !== id))} 
-          />
+        {/* Lista agrupada por setor do criador */}
+        {groups.map(([groupName, list]) => (
+          <GroupBlock key={groupName}>
+            <GroupHeader>
+              <AccentDot $color={groupColor(groupName)} />
+              <GroupTitle>{groupName}</GroupTitle>
+              <CountPill>{list.length}</CountPill>
+            </GroupHeader>
+
+            <CardGrid>
+              {list.map((p) => (
+                <ProjectCard
+                  key={p.id}
+                  project={p}
+                  sectorList={sectors}
+                  onOpen={() => navigate(`/projetos/${p.id}`)}
+                  onToggleLock={() => toggleProjectLock(p)}
+                  canEditStatus={() => canEditStatus(p)}
+                  onChangeStatus={(next) => changeStatus(p, next)}
+                  onDeleted={(id) =>
+                    setProjects((prev) => prev.filter((x) => x.id !== id))
+                  }
+                />
+              ))}
+            </CardGrid>
+          </GroupBlock>
         ))}
 
         {!loading.any() && projects.length === 0 && (
@@ -185,15 +308,14 @@ export default function ProjetosListPage() {
             Nenhum projeto visível para seus setores.
           </div>
         )}
-      </CardGrid>
 
-      <CreateProjectModal
-        isOpen={openCreate}
-        toggle={() => setOpenCreate((v) => !v)}
-        actorSectorId={actorSectorId}
-        onCreated={() => fetchProjects()}
+        <CreateProjectModal
+          isOpen={openCreate}
+          toggle={() => setOpenCreate((v) => !v)}
+          actorSectorId={actorSectorId}
+          onCreated={reloadProjects}
         />
-    </Page>
-        </>
+      </Page>
+    </>
   );
 }

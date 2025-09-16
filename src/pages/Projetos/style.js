@@ -643,15 +643,19 @@ export const CommentBadge = styled.span`
   opacity: .9;
 `;
 
+// no seu style
 export const TooltipBox = styled.div`
-  background: #111827; color: #fff;
+  background: #111827;
+  color: #fff;
   padding: 10px 12px;
   border-radius: 10px;
   box-shadow: 0 10px 24px rgba(0,0,0,.25);
-  max-width: 260px;
+  max-width: 320px;         /* um pouco maior ajuda em textos longos */
   font-size: 12px;
-  z-index: 80;
+  z-index: 1002;            /* acima de overlays comuns */
+  word-break: break-word;    /* quebra palavras muito grandes */
 `;
+
 
 export const CommentBubble = styled.div`
   border-radius: 8px;
