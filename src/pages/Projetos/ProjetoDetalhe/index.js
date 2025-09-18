@@ -11,7 +11,7 @@ import HeaderBar from "./HeaderBar";
 import InfoSummary from "./InfoSummary";
 import StatusMenu from "./StatusMenu";
 import Timeline from "./Timeline";
-
+import ModalEdit from "./ModalEdit";
 import useLoading from "../../../hooks/useLoading";
 import useProjetoData from "./hooks/useProjetoData";
 import useTimelinePerms from "./hooks/useTimelinePerms";
@@ -28,21 +28,32 @@ export default function ProjetoDetalhePage() {
   const [showCosts, setShowCosts] = useState(false);
   const [openDemanda, setOpenDemanda] = useState(false);
   const [statusMenu, setStatusMenu] = useState(null);
+  const [openEdit, setOpenEdit] = useState(false);
 
   // dados & derivados
   const {
-    user, actorSectorId,
-    projeto, setProjeto,
-    rows, setRows,
-    sectors, projectSectorKeys,
-    locked, setLocked,
-    days, totalCustos, accent,
+    user,
+    actorSectorId,
+    projeto,
+    setProjeto,
+    rows,
+    setRows,
+    sectors,
+    projectSectorKeys,
+    locked,
+    setLocked,
+    days,
+    totalCustos,
+    accent,
     sectorInitial,
     canUnlockByRole,
-    timelineEnabled, setTimelineEnabled,
-    fetchProjeto, fetchProjetoIfNeeded,
-    changeStatus, toggleProjectLock,
-    handleTimelineError
+    timelineEnabled,
+    setTimelineEnabled,
+    fetchProjeto,
+    fetchProjetoIfNeeded,
+    changeStatus,
+    toggleProjectLock,
+    handleTimelineError,
   } = useProjetoData({ projectId: id, loading });
 
   const readOnly = locked;
@@ -50,15 +61,21 @@ export default function ProjetoDetalhePage() {
 
   // permissões (gates)
   const {
-    isAdminRole, isDiretoriaRole,
+    isAdminRole,
+    isDiretoriaRole,
     canEditColorCell,
     canCreateCommentCell,
     canDeleteCommentCell,
     canDeleteRowItem,
     canToggleBaselineCell,
   } = useTimelinePerms({
-    user, rows, sectorInitial,
-    locked: readOnly, timelineEnabled,sectors,
+    user,
+    rows,
+    sectorInitial,
+    locked: readOnly,
+    timelineEnabled,
+    sectors,
+    project: projeto,
   });
 
   // ações da timeline (server-first)
@@ -72,34 +89,48 @@ export default function ProjetoDetalhePage() {
     setRowSector,
     handleReorderRows,
     addRow,
-    addCosts
+    addCosts,
   } = useTimelineActions({
     apiLocal, // se preferir, importe no topo
     projectId: projeto?.id,
-    rows, setRows,
+    rows,
+    setRows,
     actorSectorId,
-    readOnly, timelineEnabled,
-    fetchProjeto, fetchProjetoIfNeeded,
-    handleTimelineError
+    readOnly,
+    timelineEnabled,
+    fetchProjeto,
+    fetchProjetoIfNeeded,
+    handleTimelineError,
   });
 
   const openStatusMenu = (e) => {
     if (!canUnlockByRole) return;
     const rect = e.currentTarget.getBoundingClientRect();
-    const W = 220, H = 180, M = 8;
+    const W = 220,
+      H = 180,
+      M = 8;
     const left = Math.max(M, Math.min(rect.left, window.innerWidth - W - M));
-    const top  = Math.max(M, Math.min(rect.bottom + 8, window.innerHeight - H - M));
+    const top = Math.max(
+      M,
+      Math.min(rect.bottom + 8, window.innerHeight - H - M)
+    );
     setStatusMenu({ x: left, y: top });
   };
   const closeStatusMenu = () => setStatusMenu(null);
 
   // options do modal de nova linha
   const sectorOptions = useMemo(() => {
-    const norm = (s = "") => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, "_");
+    const norm = (s = "") =>
+      s
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase()
+        .replace(/\s+/g, "_");
     const out = [];
     for (let i = 0; i < sectors.length; i++) {
       const s = sectors[i];
-      if (projectSectorKeys.includes(norm(s.nome))) out.push({ key: norm(s.nome), label: s.nome });
+      if (projectSectorKeys.includes(norm(s.nome)))
+        out.push({ key: norm(s.nome), label: s.nome });
     }
     return out;
   }, [sectors, projectSectorKeys]);
@@ -121,18 +152,17 @@ export default function ProjetoDetalhePage() {
       />
 
       <Section>
-{projeto && (
-  <InfoSummary
-    projeto={projeto}
-    accent={accent}
-    daysCount={days.length}
-    totalCustos={totalCustos}
-    onOpenCosts={() => setShowCosts(true)}
-    onOpenStatusMenu={openStatusMenu}
-    canChangeStatus={canUnlockByRole}
-  />
-)}
-
+        {projeto && (
+          <InfoSummary
+            projeto={projeto}
+            accent={accent}
+            daysCount={days.length}
+            totalCustos={totalCustos}
+            onOpenCosts={() => setShowCosts(true)}
+            onOpenStatusMenu={openStatusMenu}
+            canChangeStatus={canUnlockByRole}
+          />
+        )}
 
         {!timelineEnabled && (
           <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
@@ -149,6 +179,16 @@ export default function ProjetoDetalhePage() {
           >
             + Nova linha (demanda)
           </Button>
+          {(isAdminRole || isDiretoriaRole) && (
+            <Button
+              color="secondary"
+              outline
+              onClick={() => setOpenEdit(true)}
+              disabled={loading.any()}
+            >
+              Editar nome/participantes
+            </Button>
+          )}
         </div>
 
         {/* ====== Timeline (filho) ====== */}
@@ -158,14 +198,18 @@ export default function ProjetoDetalhePage() {
           currentUserInitial={sectorInitial}
           currentUserId={user?.id}
           isAdmin={isAdminRole}
-
           onPickColor={readOnly || !timelineEnabled ? undefined : setCellColor}
-          onSetCellComment={readOnly || !timelineEnabled ? undefined : setCellComment}
-          onSetRowSector={readOnly || !timelineEnabled ? undefined : setRowSector}
+          onSetCellComment={
+            readOnly || !timelineEnabled ? undefined : setCellComment
+          }
+          onSetRowSector={
+            readOnly || !timelineEnabled ? undefined : setRowSector
+          }
           canMarkBaseline={!readOnly && timelineEnabled}
           baselineColor="#0ea5e9"
-          onToggleBaseline={readOnly || !timelineEnabled ? undefined : toggleBaseline}
-
+          onToggleBaseline={
+            readOnly || !timelineEnabled ? undefined : toggleBaseline
+          }
           canReorderRows={!readOnly && timelineEnabled}
           onReorderRows={handleReorderRows}
           isBusy={loading.any()}
@@ -173,7 +217,6 @@ export default function ProjetoDetalhePage() {
           onRenameRow={renameRow}
           onDeleteRow={deleteRow}
           onDeleteComment={deleteComment}
-
           // gates de permissão
           canEditColorCell={canEditColorCell}
           canCreateCommentCell={canCreateCommentCell}
@@ -189,7 +232,10 @@ export default function ProjetoDetalhePage() {
           <StatusMenu
             x={statusMenu.x}
             y={statusMenu.y}
-            onChangeStatus={async (st) => { await changeStatus(st); closeStatusMenu(); }}
+            onChangeStatus={async (st) => {
+              await changeStatus(st);
+              closeStatusMenu();
+            }}
           />
         </>
       )}
@@ -211,6 +257,30 @@ export default function ProjetoDetalhePage() {
           setOpenDemanda(false);
         }}
         sectorOptions={sectorOptions}
+      />
+      <ModalEdit
+        isOpen={openEdit}
+        toggle={() => setOpenEdit(false)}
+        project={projeto}
+        sectors={sectors}
+        actorSectorId={actorSectorId}
+        canSave={isAdminRole} // só Admin salva; Diretoria pode visualizar
+        onSaved={(pLean) => {
+          // mescla campos lean no projeto atual sem perder custos/rows carregados
+          setProjeto((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  ...pLean,
+                  setores: Array.isArray(pLean?.setores)
+                    ? pLean.setores
+                    : prev.setores || [],
+                }
+              : pLean
+          );
+          // opcional: garantir que cache/derivados atualizem
+          fetchProjetoIfNeeded();
+        }}
       />
 
       <AddCostModal

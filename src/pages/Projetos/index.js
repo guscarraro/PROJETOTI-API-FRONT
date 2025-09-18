@@ -125,7 +125,7 @@ export default function ProjetosListPage() {
       await loading.wrap("init", async () => {
         const [sRes, pRes] = await Promise.all([
           apiLocal.getSetores(),
-          apiLocal.getProjetos(visibleFor),
+          apiLocal.getProjetosLean(visibleFor),
         ]);
         setSectors(sRes.data || []);
         setProjects(pRes.data || []);
@@ -135,12 +135,14 @@ export default function ProjetosListPage() {
   }, [user]); // não incluir `loading` para evitar loop
 
   /* Recarrega só projetos quando necessário (ex.: após criar) */
+  console.log(user);
   const reloadProjects = useCallback(async () => {
+    
     const visibleFor = Array.isArray(user?.setor_ids)
       ? user.setor_ids.map(Number)
       : [];
     await loading.wrap("reload-projects", async () => {
-      const r = await apiLocal.getProjetos(visibleFor);
+      const r = await apiLocal.getProjetosLean(visibleFor);
       setProjects(r.data || []);
     });
   }, [user, loading]);

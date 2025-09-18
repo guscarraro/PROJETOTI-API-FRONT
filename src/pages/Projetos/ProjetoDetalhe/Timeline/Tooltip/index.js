@@ -1,34 +1,13 @@
 // src/pages/Projetos/ProjetoDetalhe/Timeline/Tooltip.jsx
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { TooltipBox, SectorDot } from "../../../style";
-
-/* helper: separa texto e imagens (base64) */
-function parseMessageParts(message) {
-  const out = { text: "", images: [] };
-  if (!message || typeof message !== "string") return out;
-
-  // separa apenas nos pontos onde começam data URLs de imagem
-  const parts = message.split(/,\s*(?=data:image\/[a-zA-Z0-9.+-]+;base64,)/);
-
-  const textParts = [];
-  for (let i = 0; i < parts.length; i++) {
-    const raw = parts[i];
-    const p = raw.trim();
-    if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(p)) {
-      out.images.push(p);
-    } else {
-      textParts.push(raw); // preserva vírgulas normais
-    }
-  }
-  out.text = textParts.join(",");
-  return out;
-}
+import { parseMessageParts } from "../PaletteMenu/utils";
 
 export default function Tooltip({ tooltip }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
 
-  // 🔽 parse do conteúdo para remover base64 do texto e contar imagens
+  // usa o parser unificado (texto + imagens + pdfs + sheets)
   const parts = useMemo(
     () => parseMessageParts(String(tooltip?.text || "")),
     [tooltip?.text]
@@ -36,8 +15,8 @@ export default function Tooltip({ tooltip }) {
 
   useLayoutEffect(() => {
     if (!tooltip) return;
-    const GAP = 12;      // distância do cursor
-    const MARGIN = 8;    // margem da viewport
+    const GAP = 12; // distância do cursor
+    const MARGIN = 8; // margem da viewport
 
     let left = tooltip.x + GAP;
     let top = tooltip.y + GAP;
@@ -45,6 +24,7 @@ export default function Tooltip({ tooltip }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
+    // mede fora da tela para evitar flicker
     setPos({ left: -9999, top: -9999, ready: false });
 
     requestAnimationFrame(() => {
@@ -52,8 +32,10 @@ export default function Tooltip({ tooltip }) {
       const w = el ? el.offsetWidth : 260;
       const h = el ? el.offsetHeight : 120;
 
+      // clamp horizontal
       if (left + w > vw - MARGIN) left = Math.max(MARGIN, vw - w - MARGIN);
 
+      // flip/clamp vertical
       if (top + h > vh - MARGIN) {
         top = tooltip.y - h - GAP; // sobe
         if (top < MARGIN) top = Math.max(MARGIN, vh - h - MARGIN);
@@ -64,6 +46,10 @@ export default function Tooltip({ tooltip }) {
   }, [tooltip]);
 
   if (!tooltip) return null;
+
+  const imgCount = parts.images?.length || 0;
+  const pdfCount = parts.pdfs?.length || 0;
+  const xlsCount = parts.sheets?.length || 0;
 
   return (
     <TooltipBox
@@ -79,22 +65,40 @@ export default function Tooltip({ tooltip }) {
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <SectorDot $color="#111827">{(tooltip.authorInitial || "U").toUpperCase()}</SectorDot>
+        <SectorDot $color="#111827">
+          {(tooltip.authorInitial || "U").toUpperCase()}
+        </SectorDot>
         <strong>Comentário</strong>
       </div>
 
-      {/* texto sem base64 */}
+      {/* texto limpo (sem data URLs) */}
       {parts.text && (
         <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
           {parts.text}
         </div>
       )}
 
-      {/* indicador de imagens anexadas */}
-      {parts.images.length > 0 && (
-        <div style={{ marginTop: 6, fontSize: 12, opacity: 0.8 }}>
-          + {parts.images.length} {parts.images.length > 1 ? "imagens" : "imagem"} anexada
-          {parts.images.length > 1 ? "s" : ""}
+      {/* avisos de anexos (sem base64 no corpo) */}
+      {(imgCount > 0 || pdfCount > 0 || xlsCount > 0) && (
+        <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85, display: "grid", gap: 2 }}>
+          {imgCount > 0 && (
+            <div>
+              + {imgCount} {imgCount > 1 ? "imagens" : "imagem"} anexada
+              {imgCount > 1 ? "s" : ""}
+            </div>
+          )}
+          {pdfCount > 0 && (
+            <div>
+              + {pdfCount} {pdfCount > 1 ? "PDFs" : "PDF"} anexado
+              {pdfCount > 1 ? "s" : ""}
+            </div>
+          )}
+          {xlsCount > 0 && (
+            <div>
+              + {xlsCount} {xlsCount > 1 ? "planilhas" : "planilha"} anexada
+              {xlsCount > 1 ? "s" : ""}
+            </div>
+          )}
         </div>
       )}
     </TooltipBox>

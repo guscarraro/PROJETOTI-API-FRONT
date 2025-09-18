@@ -1,71 +1,45 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  Palette,
-  ColorsRow,
-  ColorDot,
-  ClearBtn,
-  ActionsRow,
-  CommentBubble,
-  DeleteCommentBtn,
-  SectorDot,
-  BaselineMark,
-} from "../../../style";
+// src/pages/Projetos/ProjetoDetalhe/Timeline/PaletteMenu/index.js
+import React, { useEffect, useMemo, useRef, useState, useLayoutEffect, useCallback } from "react";
+import { Palette, ActionsRow } from "../../../style";
 import { Button } from "reactstrap";
-import { FiTrash2, FiFlag, FiPaperclip, FiX } from "react-icons/fi";
 import { toast } from "react-toastify";
+
+import PaletteHeader from "./PaletteHeader";
+import CommentList from "./CommentList";
+import AttachmentComposer from "./AttachmentComposer";
+import LoaderOverlay from "./LoaderOverlay";
 import ModalImage from "./ModalImage";
-
-/* ===== helpers para (de)compor message com base64 ===== */
-function parseMessageParts(message) {
-  const out = { text: "", images: [] };
-  if (!message || typeof message !== "string") return out;
-
-  const parts = message.split(/,\s*(?=data:image\/[a-zA-Z0-9.+-]+;base64,)/);
-
-  const textParts = [];
-  for (let i = 0; i < parts.length; i++) {
-    const raw = parts[i];
-    const p = raw.trim();
-    if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(p)) {
-      out.images.push(p);
-    } else {
-      textParts.push(raw); // preserva vírgulas “não-imagem”
-    }
-  }
-  out.text = textParts.join(",");
-  return out;
-}
 
 export default function PaletteMenu({
   palette,
   setPalette,
   colors,
 
-  // handlers (TODOS retornam Promise)
-  onPickColor, // (color)  -> Promise
-  onSetCellComment, // (rowId, dayISO, message, initial) -> Promise<createdComment?>
-  onToggleBaseline, // (rowId, dayISO, enabled)          -> Promise
-  onDeleteComment, // (rowId, dayISO, commentId)        -> Promise
+  // handlers
+  onPickColor,
+  onSetCellComment,
+  onToggleBaseline,
+  onDeleteComment,
 
   // contexto
   currentUserInitial,
   canMarkBaseline,
   baselineColor,
   close,
-  submitting,
 
   // permissões
   isAdmin = false,
   currentUserId,
-  canEditColorCell = () => true, // (rowId, dayISO) => bool
-  canToggleBaselineCell = () => true, // (rowId, dayISO) => bool
-  canCreateCommentCell = () => true, // (rowId, dayISO) => bool
-  canDeleteCommentCell = () => true, // (rowId, dayISO, comment) => bool
+  canEditColorCell = () => true,
+  canToggleBaselineCell = () => true,
+  canCreateCommentCell = () => true,
+  canDeleteCommentCell = () => true,
 }) {
-  // ===== Hooks SEMPRE no topo =====
-  const fileInputRef = useRef(null);
   const commentsRef = useRef(null);
-  const [imgPreview, setImgPreview] = useState(null);
+  const containerRef = useRef(null);
+
+  // posição ajustada para caber na viewport
+  const [pos, setPos] = useState({ left: -9999, top: -9999, ready: false });
 
   const baselineDirty = useMemo(() => {
     if (!palette) return false;
@@ -80,7 +54,6 @@ export default function PaletteMenu({
         commentsRef.current.scrollTop = commentsRef.current.scrollHeight;
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [palette?.rowId, palette?.dayISO]);
 
   useEffect(() => {
@@ -92,82 +65,113 @@ export default function PaletteMenu({
     });
   }, [palette?.comments?.length]);
 
-  const canEditColorHere = palette
-    ? !!canEditColorCell(palette.rowId, palette.dayISO)
-    : false;
+  const canEditColorHere =
+    palette ? !!canEditColorCell(palette.rowId, palette.dayISO) : false;
   const canToggleBaseHere = palette
-    ? !!canMarkBaseline &&
-      !!canToggleBaselineCell(palette.rowId, palette.dayISO)
+    ? !!canMarkBaseline && !!canToggleBaselineCell(palette.rowId, palette.dayISO)
     : false;
   const canCreateComment = palette
     ? !!canCreateCommentCell(palette.rowId, palette.dayISO)
     : false;
+
   const draftText = palette?.commentDraft || "";
-  const draftImages = Array.isArray(palette?.attachments)
-    ? palette.attachments
-    : [];
+  const draftFiles = Array.isArray(palette?.attachments) ? palette.attachments : [];
+
+  const [imgPreview, setImgPreview] = useState(null);
+  const [sending, setSending] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   const saveDisabled =
-    submitting ||
-    (!baselineDirty &&
-      !(draftText || "").trim().length &&
-      draftImages.length === 0);
+    sending ||
+    (!baselineDirty && !(draftText || "").trim().length && draftFiles.length === 0);
+
+  // ======= Posicionamento automático (clamp/flip) sem "piscar" =======
+  const recomputePosition = useCallback((initial = false) => {
+    if (!palette) return;
+
+    const GAP = 12;   // distância do ponto de clique
+    const MARGIN = 8; // margem interna da viewport
+
+    const el = containerRef.current;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // usa o tamanho real se já renderizado, senão chuta tamanhos padrão
+    const w = el?.offsetWidth || 360;
+    const h = el?.offsetHeight || 320;
+
+    let left = (palette.x || 0) + GAP;
+    let top = (palette.y || 0) + GAP;
+
+    // clamp horizontal
+    if (left + w > vw - MARGIN) {
+      left = Math.max(MARGIN, vw - w - MARGIN);
+    }
+    // flip/clamp vertical
+    if (top + h > vh - MARGIN) {
+      // tenta abrir para cima
+      top = (palette.y || 0) - h - GAP;
+      if (top < MARGIN) {
+        // se ainda estoura, encosta no topo ou no máximo possível
+        top = Math.max(MARGIN, vh - h - MARGIN);
+      }
+    }
+
+    setPos(prev => {
+      const next = { left, top, ready: true };
+      // evita re-render desnecessário (e flicker) se posição não mudou
+      if (!prev.ready || initial || prev.left !== left || prev.top !== top) return next;
+      return prev;
+    });
+  }, [palette?.x, palette?.y, palette]);
+
+  // 1) posiciona quando abre/muda âncora
+  useLayoutEffect(() => {
+    if (!palette) return;
+    // primeira vez: deixa invisível até posicionar
+    if (!pos.ready) {
+      requestAnimationFrame(() => recomputePosition(true));
+    } else {
+      recomputePosition(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palette?.x, palette?.y]);
+
+  // 2) reposiciona quando o conteúdo muda significativamente
+  useLayoutEffect(() => {
+    if (!palette) return;
+    // NÃO dependemos de draftText pra evitar recomputar a cada tecla
+    recomputePosition(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [palette?.comments?.length, draftFiles.length]);
+
+  // 3) window resize
+  useEffect(() => {
+    const onResize = () => recomputePosition(false);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [recomputePosition]);
+
+  // 4) observa mudanças de tamanho do próprio card (ex.: usuário redimensiona textarea)
+  useEffect(() => {
+    if (!containerRef.current || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => recomputePosition(false));
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
+  }, [recomputePosition]);
 
   if (!palette) return null;
 
-  // upload -> converte pra base64 e guarda em palette.attachments (não suja o textarea)
-  const onPickFile = async (ev) => {
-    const f = ev.target.files && ev.target.files[0];
-    if (!f) return;
-
-    if (!/^image\//i.test(f.type)) {
-      toast.error("Apenas imagens são permitidas.");
-      ev.target.value = "";
-      return;
-    }
-    const MAX = 3 * 1024 * 1024; // 3MB
-    if (f.size > MAX) {
-      toast.error("Imagem muito grande (máx 3MB).");
-      ev.target.value = "";
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || "");
-      if (!/^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(dataUrl)) {
-        toast.error("Falha ao carregar a imagem.");
-        return;
-      }
-      setPalette((prev) => {
-        if (!prev) return prev;
-        const cur = Array.isArray(prev.attachments) ? prev.attachments : [];
-        return { ...prev, attachments: cur.concat([dataUrl]) };
-      });
-    };
-    reader.onerror = () => toast.error("Erro ao ler a imagem.");
-    reader.readAsDataURL(f);
-    ev.target.value = "";
-  };
-
-  const removeDraftImage = (idx) => {
-    setPalette((prev) => {
-      if (!prev) return prev;
-      const cur = Array.isArray(prev.attachments)
-        ? prev.attachments.slice()
-        : [];
-      cur.splice(idx, 1);
-      return { ...prev, attachments: cur };
-    });
-  };
-
   return (
     <div
+      ref={containerRef}
       style={{
         position: "fixed",
-        left: palette.x,
-        top: palette.y,
+        left: pos.left,
+        top: pos.top,
         zIndex: 1001,
+        visibility: pos.ready ? "visible" : "hidden",
+        willChange: "left, top", // pequena dica ao navegador
       }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -178,111 +182,21 @@ export default function PaletteMenu({
           maxHeight: "min(80vh, 560px)",
           display: "flex",
           flexDirection: "column",
+          position: "relative",
         }}
       >
-        {/* Paleta de cores + baseline */}
-        <div style={{ paddingBottom: 6 }}>
-          <ColorsRow>
-            {colors.map((c) => (
-              <ColorDot
-                key={c}
-                $color={c}
-                style={{
-                  opacity: canEditColorHere ? 1 : 0.4,
-                  cursor: canEditColorHere ? "pointer" : "not-allowed",
-                }}
-                onClick={async () => {
-                  if (!canEditColorHere) {
-                    toast.error("Sem permissão para alterar a cor.");
-                    return;
-                  }
-                  try {
-                    const r = onPickColor?.(c);
-                    if (r && typeof r.then === "function") await r;
-                  } catch (err) {
-                    const s = err?.response?.status;
-                    const d = err?.response?.data?.detail;
-                    if (s === 403)
-                      toast.error("Sem permissão para alterar a cor.");
-                    else if (s === 423)
-                      toast.error("Projeto bloqueado. Ação não permitida.");
-                    else toast.error(d || "Falha ao alterar a cor.");
-                  }
-                }}
-              />
-            ))}
-            <ClearBtn
-              type="button"
-              style={{
-                opacity: canEditColorHere ? 1 : 0.4,
-                cursor: canEditColorHere ? "pointer" : "not-allowed",
-              }}
-              onClick={async () => {
-                if (!canEditColorHere) {
-                  toast.error("Sem permissão para limpar a cor.");
-                  return;
-                }
-                try {
-                  const r = onPickColor?.(undefined);
-                  if (r && typeof r.then === "function") await r;
-                } catch (err) {
-                  const s = err?.response?.status;
-                  const d = err?.response?.data?.detail;
-                  if (s === 403)
-                    toast.error("Sem permissão para limpar a cor.");
-                  else if (s === 423)
-                    toast.error("Projeto bloqueado. Ação não permitida.");
-                  else toast.error(d || "Falha ao limpar a cor.");
-                }
-              }}
-            >
-              Limpar
-            </ClearBtn>
-          </ColorsRow>
+        <LoaderOverlay visible={sending} text="Enviando comentário..." />
 
-          {canToggleBaseHere && (
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                fontSize: 12,
-                margin: "6px 0 4px",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={!!palette.baseline}
-                onChange={(e) =>
-                  setPalette((prev) => ({
-                    ...prev,
-                    baseline: e.target.checked,
-                  }))
-                }
-              />
-              <span
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                <span>Marco do plano</span>
-                <span style={{ position: "relative", width: 18, height: 18 }}>
-                  <span
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "inline-block",
-                    }}
-                  >
-                    <BaselineMark $color={baselineColor}>
-                      <FiFlag size={12} />
-                    </BaselineMark>
-                  </span>
-                </span>
-              </span>
-            </label>
-          )}
-        </div>
+        <PaletteHeader
+          colors={colors}
+          canEditColorHere={canEditColorHere}
+          onPickColor={onPickColor}
+          canToggleBaseHere={canToggleBaseHere}
+          baselineColor={baselineColor}
+          palette={palette}
+          setPalette={setPalette}
+        />
 
-        {/* Histórico de comentários (scroll) */}
         <div
           ref={commentsRef}
           style={{
@@ -292,245 +206,41 @@ export default function PaletteMenu({
             paddingRight: 4,
           }}
         >
-          {Array.isArray(palette.comments) &&
-            palette.comments
-              .filter((c) => !c?.deleted)
-              .sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
-              .map((c) => {
-                const canDeleteThis = !!canDeleteCommentCell(
-                  palette.rowId,
-                  palette.dayISO,
-                  c
-                );
-                const parts = parseMessageParts(String(c.message || ""));
-
-                return (
-                  <div
-                    key={c.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: 8,
-                      margin: "6px 0",
-                    }}
-                  >
-                    <SectorDot $color="#111827">
-                      {(c.authorInitial || "U").toUpperCase()}
-                    </SectorDot>
-
-                    <CommentBubble>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          opacity: 0.7,
-                          marginBottom: 2,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 8,
-                        }}
-                      >
-                        {new Date(c.created_at).toLocaleString()}
-                        {canDeleteThis && (
-                          <DeleteCommentBtn
-                            onClick={async () => {
-                              try {
-                                await onDeleteComment?.(
-                                  palette.rowId,
-                                  palette.dayISO,
-                                  c.id
-                                );
-                                setPalette((prev) => {
-                                  if (!prev) return prev;
-                                  const filtered = (prev.comments || []).filter(
-                                    (x) => String(x.id) !== String(c.id)
-                                  );
-                                  return { ...prev, comments: filtered };
-                                });
-                              } catch (err) {
-                                const s = err?.response?.status;
-                                const d = err?.response?.data?.detail;
-                                if (s === 403)
-                                  toast.error(
-                                    "Sem permissão para excluir este comentário."
-                                  );
-                                else if (s === 423)
-                                  toast.error(
-                                    "Projeto bloqueado. Ação não permitida."
-                                  );
-                                else
-                                  toast.error(
-                                    d || "Falha ao excluir comentário."
-                                  );
-                              }
-                            }}
-                            title="Apagar comentário"
-                          >
-                            <FiTrash2 />
-                          </DeleteCommentBtn>
-                        )}
-                      </div>
-
-                      {/* texto (se houver) */}
-                      {parts.text && (
-                        <div
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {parts.text}
-                        </div>
-                      )}
-
-                      {/* imagens */}
-                      {parts.images.length > 0 && (
-                        <div
-                          style={{
-                            display: "flex",
-                            flexWrap: "wrap",
-                            gap: 8,
-                            marginTop: 6,
-                          }}
-                        >
-                          {parts.images.map((src, idx) => (
-                            <img
-                              key={`${c.id}-img-${idx}`}
-                              src={src}
-                              alt="anexo"
-                              style={{
-                                width: 96,
-                                height: 72,
-                                objectFit: "cover",
-                                borderRadius: 8,
-                                cursor: "pointer",
-                                border: "1px solid rgba(0,0,0,.08)",
-                              }}
-                              onClick={() => setImgPreview(src)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </CommentBubble>
-                  </div>
-                );
-              })}
+          <CommentList
+            comments={palette.comments}
+            palette={palette}
+            setPalette={setPalette}
+            canDeleteCommentCell={canDeleteCommentCell}
+            onDeleteComment={onDeleteComment}
+            setImgPreview={setImgPreview}
+            deletingId={deletingId}
+            setDeletingId={setDeletingId}
+          />
         </div>
 
-        {/* Novo comentário + clipe + previews */}
-        <div style={{ marginTop: 8, position: "relative" }}>
-          <textarea
-            rows={3}
-            placeholder={
-              canCreateComment
-                ? "Adicionar novo comentário... (use o clipe para anexar imagens)"
-                : "Você não pode comentar aqui"
-            }
-            className="palette-textarea"
-            value={draftText}
-            onChange={(e) =>
-              setPalette((prev) => ({ ...prev, commentDraft: e.target.value }))
-            }
-            disabled={!canCreateComment}
-            style={{
-              opacity: canCreateComment ? 1 : 0.5,
-              width: "100%",
-              resize: "vertical",
-              paddingRight: 36, // espaço pro botão do clipe
-            }}
-          />
+        <AttachmentComposer
+          draftText={draftText}
+          setDraftText={(v) =>
+            setPalette((prev) => ({ ...prev, commentDraft: v }))
+          }
+          draftFiles={draftFiles}
+          // aceita function-updater OU array
+          setDraftFiles={(updaterOrArray) =>
+            setPalette((prev) => {
+              const cur = Array.isArray(prev?.attachments) ? prev.attachments : [];
+              const next =
+                typeof updaterOrArray === "function"
+                  ? updaterOrArray(cur)
+                  : updaterOrArray;
+              return { ...prev, attachments: next };
+            })
+          }
+          canCreateComment={canCreateComment}
+          setImgPreview={setImgPreview}
+        />
 
-          {/* botão clipe */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            title="Anexar imagem"
-            style={{
-              position: "absolute",
-              right: 6,
-              bottom: 6,
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              display: "grid",
-              placeItems: "center",
-              border: "1px solid rgba(0,0,0,.08)",
-              background: "transparent",
-              color: "grey",
-              cursor: "pointer",
-            }}
-            disabled={!canCreateComment}
-          >
-            <FiPaperclip size={16} />
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={onPickFile}
-            style={{ display: "none" }}
-          />
-
-          {/* previews dos anexos do draft */}
-          {draftImages.length > 0 && (
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 8,
-                marginTop: 8,
-              }}
-            >
-              {draftImages.map((src, i) => (
-                <div
-                  key={`draft-img-${i}`}
-                  style={{
-                    position: "relative",
-                    width: 96,
-                    height: 72,
-                    borderRadius: 8,
-                    overflow: "hidden",
-                    border: "1px solid rgba(0,0,0,.08)",
-                  }}
-                >
-                  <img
-                    src={src}
-                    alt="anexo"
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeDraftImage(i)}
-                    title="Remover"
-                    style={{
-                      position: "absolute",
-                      top: 4,
-                      right: 4,
-                      width: 20,
-                      height: 20,
-                      borderRadius: 6,
-                      display: "grid",
-                      placeItems: "center",
-                      border: "none",
-                      background: "rgba(17,24,39,.8)",
-                      color: "#fff",
-                      cursor: "pointer",
-                    }}
-                  >
-                    <FiX size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Ações */}
         <ActionsRow>
-          <Button size="sm" color="secondary" onClick={close}>
+          <Button size="sm" color="secondary" onClick={close} disabled={sending}>
             Cancelar
           </Button>
           <Button
@@ -539,20 +249,15 @@ export default function PaletteMenu({
             disabled={saveDisabled}
             onClick={async () => {
               try {
-                // monta a message final: [texto?, ...imagens]
+                setSending(true);
+
                 const text = String(draftText || "").trim();
                 const pieces = [];
                 if (text) pieces.push(text);
-                for (let i = 0; i < draftImages.length; i++)
-                  pieces.push(draftImages[i]);
+                for (let i = 0; i < draftFiles.length; i++) pieces.push(draftFiles[i]);
                 const message = pieces.join(",");
 
-                // comenta (se houver algo)
-                if (
-                  message &&
-                  canCreateComment &&
-                  typeof onSetCellComment === "function"
-                ) {
+                if (message && canCreateComment && typeof onSetCellComment === "function") {
                   const created = await onSetCellComment(
                     palette.rowId,
                     palette.dayISO,
@@ -567,9 +272,7 @@ export default function PaletteMenu({
                           commentDraft: "",
                           attachments: [],
                           comments: [
-                            ...(Array.isArray(prev.comments)
-                              ? prev.comments
-                              : []),
+                            ...(Array.isArray(prev.comments) ? prev.comments : []),
                             created || {
                               id: `tmp-${Date.now()}`,
                               authorInitial: currentUserInitial,
@@ -583,7 +286,6 @@ export default function PaletteMenu({
                   );
                 }
 
-                // baseline (se mudou)
                 if (
                   baselineDirty &&
                   canToggleBaseHere &&
@@ -600,18 +302,19 @@ export default function PaletteMenu({
               } catch (err) {
                 const s = err?.response?.status;
                 const d = err?.response?.data?.detail;
-                if (s === 403)
-                  toast.error("Sem permissão para executar esta ação.");
-                else if (s === 423)
-                  toast.error("Projeto bloqueado. Ação não permitida.");
+                if (s === 403) toast.error("Sem permissão para executar esta ação.");
+                else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
                 else toast.error(d || "Falha ao salvar alterações.");
+              } finally {
+                setSending(false);
               }
             }}
           >
-            {submitting ? "Salvando..." : "Salvar"}
+            {sending ? "Enviando..." : "Salvar"}
           </Button>
         </ActionsRow>
       </Palette>
+
       <ModalImage
         isOpen={!!imgPreview}
         src={imgPreview}

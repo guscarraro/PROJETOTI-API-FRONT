@@ -95,7 +95,7 @@ export default function RightGrid({
                   {visibleCount > 0 && <CommentBadge>{visibleCount}</CommentBadge>}
                   {baseline && (
                     <BaselineMark $color={baselineColor} title="Marco do plano">
-                      <FiFlag size={14} />
+                      <FiFlag size={14} style={{color:"grey"}}/>
                     </BaselineMark>
                   )}
                 </div>

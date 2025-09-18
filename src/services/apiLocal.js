@@ -243,10 +243,10 @@ const apiLocal = {
     api.get(`/projetos/${projectId}/custos/${costId}/parcelas`),
   // ----- Timeline (linhas e células)
   unpayParcela: (projectId, costId, parcelIndex, actorSectorId) =>
-  api.post(
-    `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
-    { actor_sector_id: Number(actorSectorId) }
-  ),
+    api.post(
+      `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
+      { actor_sector_id: Number(actorSectorId) }
+    ),
 
   listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
 
@@ -269,10 +269,19 @@ const apiLocal = {
     api.delete(`/projetos/${projectId}/rows/${rowId}`, {
       params: { actor_sector_id },
     }),
-    deleteProjetoCellComment: (projectId, rowId, dayISO, commentId, actorSectorId) =>
-  api.delete(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}/comments/${commentId}`, {
-    params: { actor_sector_id: Number(actorSectorId) },
-  }),
+  deleteProjetoCellComment: (
+    projectId,
+    rowId,
+    dayISO,
+    commentId,
+    actorSectorId
+  ) =>
+    api.delete(
+      `/projetos/${projectId}/rows/${rowId}/cells/${dayISO}/comments/${commentId}`,
+      {
+        params: { actor_sector_id: Number(actorSectorId) },
+      }
+    ),
 
   upsertProjetoCell: (projectId, rowId, dayISO, body) =>
     api.patch(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, body),
@@ -288,6 +297,27 @@ const apiLocal = {
     api.post(`/projetos/${projectId}/rows/reorder`, {
       orders, // [{ row_id, order_index }]
       actor_sector_id,
+    }),
+
+  getProjetosLean: (visibleFor, status) =>
+    api.get("/projetos/lean", {
+      params: {
+        ...(status ? { status } : {}),
+        ...(visibleFor?.length ? { visible_for: visibleFor } : {}),
+      },
+    }),
+  patchProjetoMeta: (
+    id,
+    { nome, setores, add_setores } = {},
+    actor_sector_id
+  ) =>
+    api.patch(`/projetos/${id}/meta`, {
+      actor_sector_id: Number(actor_sector_id),
+      ...(nome != null ? { nome } : {}),
+      ...(Array.isArray(setores) ? { setores: setores.map(Number) } : {}),
+      ...(Array.isArray(add_setores)
+        ? { add_setores: add_setores.map(Number) }
+        : {}),
     }),
 };
 
