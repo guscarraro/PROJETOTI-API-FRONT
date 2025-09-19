@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import PrivateRoute from './components/PrivateRoute';
 import AdminNavbar from './components/AdminNavbar';
@@ -15,9 +15,11 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
 import EstoqueTi from './pages/EstoqueTi';
 
+import apiLocal from './services/apiLocal';
+import { useInactivityLogout } from './hooks/useInactivityLogout';
+
 const ADMIN_UUID = 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c';
 
-// Nomes de setores “humanos” para usar na autorização
 const SECTORS = {
   ADMIN: 6,
   SAC: 3,
@@ -28,24 +30,63 @@ const SECTORS = {
 };
 
 const App = () => {
-  const user = JSON.parse(localStorage.getItem('user'));
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('user') || 'null'); }
+    catch { return null; }
+  });
+
+  // 🔐 Autologout por inatividade (front < back)
+  useInactivityLogout({
+    timeoutMs: 25 * 60 * 1000,
+    onTimeout: async () => {
+      try { await apiLocal.authLogout(); } catch {}
+      localStorage.removeItem('user');
+      window.location.href = '/'; // tua rota de login é "/"
+    },
+  });
+
+  // ♻️ Bootstrap do usuário a partir do cookie (tenta só UMA vez)
+  const bootTriedRef = useRef(false);
+  useEffect(() => {
+    if (user || bootTriedRef.current) return;
+    bootTriedRef.current = true;
+
+    apiLocal.authMe()
+      .then(({ data }) => {
+        localStorage.setItem('user', JSON.stringify(data));
+        setUser(data);
+      })
+      .catch(() => {
+        // 401 sem cookie? beleza, fica na tela de login sem redirecionar
+      });
+  }, [user]);
+
+  // Sync entre abas
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'user') {
+        try { setUser(JSON.parse(e.newValue)); } catch { setUser(null); }
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   return (
     <>
-      {/* Navbar somente para Admin (mantido como estava) */}
       {user?.tipo === ADMIN_UUID && <AdminNavbar />}
 
       <Routes>
         {/* Login */}
         <Route path="/" element={<Login />} />
 
-        {/* SAC (somente setor SAC (ou admin, se seu PrivateRoute tratar “Admin”/privilegiado) */}
+        {/* SAC */}
         <Route
           path="/SAC"
           element={
             <PrivateRoute
               element={<Dashboard />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.SAC,SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO , SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.SAC, SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
             />
           }
         />
@@ -56,12 +97,12 @@ const App = () => {
           element={
             <PrivateRoute
               element={<Frete />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.SAC,SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO  ,SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.SAC, SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
             />
           }
         />
 
-        {/* Carga Lucrativa (subpáginas do Frete) */}
+        {/* Carga Lucrativa */}
         <Route
           path="/gerar-viagem"
           element={
@@ -119,56 +160,30 @@ const App = () => {
           }
         />
 
-        {/* Projeto Frota / Cotação – restritos (ex.: admin) */}
+        {/* Projeto Frota / Cotação */}
         <Route
           path="/ProjetoFrota"
-          element={
-            <PrivateRoute
-              element={<ProjetoFrota />}
-              allowedSectors={[SECTORS.ADMIN]}
-            />
-          }
+          element={<PrivateRoute element={<ProjetoFrota />} allowedSectors={[SECTORS.ADMIN]} />}
         />
         <Route
           path="/Cotacao"
-          element={
-            <PrivateRoute
-              element={<Cotacao />}
-              allowedSectors={[SECTORS.ADMIN]}
-            />
-          }
+          element={<PrivateRoute element={<Cotacao />} allowedSectors={[SECTORS.ADMIN]} />}
         />
 
         {/* TI */}
         <Route
           path="/ti"
-          element={
-            <PrivateRoute
-              element={<EstoqueTi />}
-              allowedSectors={[SECTORS.TI, SECTORS.ADMIN]}
-            />
-          }
+          element={<PrivateRoute element={<EstoqueTi />} allowedSectors={[SECTORS.TI, SECTORS.ADMIN]} />}
         />
 
-        {/* Projetos: landing e detalhe — qualquer usuário autenticado */}
-        <Route
-          path="/Projetos"
-          element={<PrivateRoute element={<Projetos />} />}
-        />
-        <Route
-          path="/Projetos/:id"
-          element={<PrivateRoute element={<ProjetoDetalhe />} />}
-        />
+        {/* Projetos */}
+        <Route path="/Projetos" element={<PrivateRoute element={<Projetos />} />} />
+        <Route path="/Projetos/:id" element={<PrivateRoute element={<ProjetoDetalhe />} />} />
 
-        {/* Gestão de Acessos — restrito (ex.: admin) */}
+        {/* Gestão de Acessos */}
         <Route
           path="/Projetos/GestaoAcessos"
-          element={
-            <PrivateRoute
-              element={<GestaoAcessos />}
-              allowedSectors={[SECTORS.ADMIN]}
-            />
-          }
+          element={<PrivateRoute element={<GestaoAcessos />} allowedSectors={[SECTORS.ADMIN]} />}
         />
       </Routes>
     </>

@@ -1,27 +1,15 @@
+// src/pages/Login/index.jsx
 import React, { useEffect, useState } from "react";
-import { supabase } from "../../supabaseClient";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaEnvelope, FaLock, FaArrowRight } from "react-icons/fa";
 import {
-  LoginWrap,
-  GridFx,
-  Particles,
-  Bubble,
-  GlassCard,
-  AccentBar,
-  BrandRow,
-  BrandLogo,
-  Heading,
-  Sub,
-  StyledForm,
-  Field,
-  IconBox,
-  TextInput,
-  Submit,
-  HintRow,
+  LoginWrap, GridFx, Particles, Bubble, GlassCard, AccentBar,
+  BrandRow, BrandLogo, Heading, Sub, StyledForm, Field, IconBox,
+  TextInput, Submit, HintRow,
 } from "./style";
 import LogoCarraro from "../../images/logologin.png";
+import apiLocal from "../../services/apiLocal";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -43,39 +31,28 @@ export default function Login() {
       toast.warning("Informe e-mail e senha.");
       return;
     }
-
     setBusy(true);
     try {
-      const { data: user, error } = await supabase
-        .from("usuarios")
-        .select("*")
-        .eq("email", email)
-        .single();
-
-      if (error || !user) throw new Error("Usuário ou senha inválidos!");
-
-      const bcrypt = await import("bcryptjs");
-      const ok = await bcrypt.compare(password, user.senha);
-      if (!ok) throw new Error("Usuário ou senha inválidos!");
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          id: user.id,
-          email: user.email,
-          nome: user.nome ?? user.email,
-          setor: user.setor ?? null,
-          setor_ids: user.setor_ids ?? [],
-          setores: user.setores ?? [],
-          tipo: user.tipo ?? null,
-          tarefa_projeto: user.tarefa_projeto ?? [],
-        })
-      );
-
+      // 1) cria sessão + cookie HttpOnly
+      const { data } = await apiLocal.authLogin(email, password);
+      // 2) opcional: confirma estado “oficial” via /auth/me (garante cookie aplicado)
+      try {
+        const me = await apiLocal.authMe();
+        if (me?.data) {
+          localStorage.setItem("user", JSON.stringify(me.data));
+        } else if (data?.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+      } catch {
+        if (data?.user) {
+          localStorage.setItem("user", JSON.stringify(data.user));
+        }
+      }
       toast.success("Login realizado com sucesso!");
-      navigate("/Projetos"); // ✅ todo mundo cai em Projetos
+      navigate("/Projetos");
     } catch (err) {
-      toast.error(err.message || "Erro ao fazer login");
+      const msg = err?.response?.data?.detail || err?.message || "Erro ao fazer login";
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -84,8 +61,6 @@ export default function Login() {
   return (
     <LoginWrap>
       <GridFx />
-
-      {/* Mais bolhas quadradas com tamanhos/posições aleatórias */}
       <Particles>
         <Bubble style={{ width: 120, height: 120, left: "8%", top: "12%", "--dur":"9s" }} />
         <Bubble style={{ width: 90,  height: 90,  left: "18%", bottom: "10%", "--dur":"11s" }} blur />
@@ -96,7 +71,6 @@ export default function Login() {
 
       <GlassCard>
         <AccentBar />
-
         <BrandRow>
           <BrandLogo src={LogoCarraro} alt="Carraro" />
           <Heading>Bem-vindo</Heading>

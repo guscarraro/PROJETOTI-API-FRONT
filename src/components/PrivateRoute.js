@@ -1,15 +1,39 @@
-// src/components/PrivateRoute.js
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
+import apiLocal from "../services/apiLocal";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 const norm = (v) => String(v ?? "").trim().toLowerCase();
 
 export default function PrivateRoute({ element, allowedSectors }) {
-  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const [checking, setChecking] = useState(false);
+  const [user, setUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user") || "null"); }
+    catch { return null; }
+  });
 
-  // Não logado → login
-  if (!user) return <Navigate to="/" replace />;
+  // Se não tem user no LS, tenta restaurar a partir do cookie de sessão
+  useEffect(() => {
+    let alive = true;
+    if (!user) {
+      setChecking(true);
+      apiLocal.authMe()
+        .then(({ data }) => {
+          if (!alive) return;
+          localStorage.setItem("user", JSON.stringify(data));
+          setUser(data);
+        })
+        .catch(() => {})
+        .finally(() => { if (alive) setChecking(false); });
+    }
+    return () => { alive = false; };
+  }, []); // uma vez
+
+  if (!user) {
+    // enquanto verifica, não navega
+    if (checking) return null;
+    return <Navigate to="/" replace />;
+  }
 
   // Admin sempre pode
   const isAdmin =
@@ -30,12 +54,8 @@ export default function PrivateRoute({ element, allowedSectors }) {
   );
 
   // Lista permitida (separar nomes de ids)
-  const allowNames = allowedSectors
-    .filter((s) => isNaN(Number(s)))
-    .map(norm);
-  const allowIds = allowedSectors
-    .filter((s) => !isNaN(Number(s)))
-    .map((s) => String(s));
+  const allowNames = allowedSectors.filter((s) => isNaN(Number(s))).map(norm);
+  const allowIds = allowedSectors.filter((s) => !isNaN(Number(s))).map((s) => String(s));
 
   const allowed =
     userSectorNames.some((n) => allowNames.includes(n)) ||

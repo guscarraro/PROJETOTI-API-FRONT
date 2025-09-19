@@ -1,8 +1,6 @@
-// services/apiLocal.js
 import axios from "axios";
 import qs from "qs";
 
-// ✅ Agora pegamos do `.env`
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://projetoti-api-production.up.railway.app";
@@ -13,11 +11,42 @@ const api = axios.create({
   timeout: 100 * 60 * 1000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
-  withCredentials: false,
+  withCredentials: true, // essencial p/ cookie HttpOnly
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
+// 🔐 401 handler sem causar loop (ignora /auth/login e /auth/me)
+let isRedirecting401 = false;
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    const status = err?.response?.status;
+    const url = (err?.config?.url || "").toLowerCase();
+
+    if (status === 401) {
+      if (url.includes("/auth/login") || url.includes("/auth/me")) {
+        return Promise.reject(err);
+      }
+      if (!isRedirecting401 && typeof window !== "undefined") {
+        isRedirecting401 = true;
+        localStorage.removeItem("user");
+        if (window.location.pathname !== "/") {
+          window.location.replace("/");
+        }
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+
 const apiLocal = {
+  // ========================
+  // AUTENTICAÇÃO
+  // ========================
+  authLogin: (email, senha) => api.post("/auth/login", { email, senha }),
+  authLogout: () => api.post("/auth/logout"),
+  authMe: () => api.get("/auth/me"),
+
   // ========================
   // Motoristas / Clientes / ...
   // ========================
@@ -93,7 +122,7 @@ const apiLocal = {
   updateSetorControleEstoque: (data) =>
     api.put("/controle-estoque/setor", data),
 
-  // Viagens (⚠️ removi duplicação de updateViagem)
+  // Viagens
   getViagens: () => api.get("/viagens/"),
   getProximoNumeroViagem: () => api.get("/viagens/proximo_numero_viagem"),
   getViagemByNumero: (numero_viagem) => api.get(`/viagens/${numero_viagem}`),
@@ -198,7 +227,6 @@ const apiLocal = {
   // ========================
   // PROJETOS
   // ========================
-  // Lista com filtro de visibilidade: ?visible_for=6&visible_for=2
   getProjetos: (visibleFor) =>
     api.get("/projetos/", {
       params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
@@ -208,13 +236,11 @@ const apiLocal = {
 
   createProjeto: (data) => api.post("/projetos/", data),
 
-  // ⚠️ exige actor_sector_id no body
   updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
 
   updateProjetoSetores: (id, setores, actor_sector_id) =>
     api.put(`/projetos/${id}/setores`, { setores, actor_sector_id }),
 
-  // action: "lock" | "unlock"
   lockProjeto: (id, action, actor_sector_id) =>
     api.post(`/projetos/${id}/lock`, { action, actor_sector_id }),
 
@@ -226,7 +252,7 @@ const apiLocal = {
   deleteProjeto: (id, actor_sector_id) =>
     api.delete(`/projetos/${id}`, { data: { actor_sector_id } }),
 
-  // ----- Custos do projeto
+  // Custos do projeto
   listProjetoCustos: (projectId) => api.get(`/projetos/${projectId}/custos`),
   addProjetoCustos: (projectId, body) =>
     api.post(`/projetos/${projectId}/custos`, body),
@@ -241,7 +267,8 @@ const apiLocal = {
     ),
   getProjetoParcels: (projectId, costId) =>
     api.get(`/projetos/${projectId}/custos/${costId}/parcelas`),
-  // ----- Timeline (linhas e células)
+
+  // Timeline (linhas e células)
   unpayParcela: (projectId, costId, parcelIndex, actorSectorId) =>
     api.post(
       `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
@@ -250,25 +277,23 @@ const apiLocal = {
 
   listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
 
-  // ⚠️ exige actor_sector_id no body
   addProjetoRow: (projectId, body, actor_sector_id) =>
     api.post(`/projetos/${projectId}/rows`, {
       ...body, // { title, row_sectors?: string[] }
       actor_sector_id,
     }),
 
-  // ⚠️ exige actor_sector_id no body
   updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
     api.put(`/projetos/${projectId}/rows/${rowId}`, {
       ...body, // { title?, row_sectors?: string[] }
       actor_sector_id,
     }),
 
-  // (actor_sector_id como query é opcional para o back atual)
   deleteProjetoRow: (projectId, rowId, actor_sector_id) =>
     api.delete(`/projetos/${projectId}/rows/${rowId}`, {
       params: { actor_sector_id },
     }),
+
   deleteProjetoCellComment: (
     projectId,
     rowId,
@@ -286,13 +311,11 @@ const apiLocal = {
   upsertProjetoCell: (projectId, rowId, dayISO, body) =>
     api.patch(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, body),
 
-  // Limpar célula (query actor_sector_id opcional)
   clearProjetoCell: (projectId, rowId, dayISO, actor_sector_id) =>
     api.delete(`/projetos/${projectId}/rows/${rowId}/cells/${dayISO}`, {
       params: { actor_sector_id },
     }),
 
-  // Reordenar linhas
   reorderProjetoRows: (projectId, orders, actor_sector_id) =>
     api.post(`/projetos/${projectId}/rows/reorder`, {
       orders, // [{ row_id, order_index }]
@@ -306,6 +329,7 @@ const apiLocal = {
         ...(visibleFor?.length ? { visible_for: visibleFor } : {}),
       },
     }),
+
   patchProjetoMeta: (
     id,
     { nome, setores, add_setores } = {},
