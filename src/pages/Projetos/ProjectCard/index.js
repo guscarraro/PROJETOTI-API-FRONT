@@ -124,9 +124,17 @@ export default function ProjectCard({
     if (!project?.fim) return null;
     const end = new Date(project.fim);
     if (isNaN(end)) return null;
-    const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+    const endUTC = Date.UTC(
+      end.getUTCFullYear(),
+      end.getUTCMonth(),
+      end.getUTCDate()
+    );
     const now = new Date();
-    const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const nowUTC = Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate()
+    );
     const diff = Math.ceil((endUTC - nowUTC) / 86400000);
     return diff <= 0 ? 0 : diff;
   }, [project?.fim]);
@@ -186,15 +194,36 @@ export default function ProjectCard({
     }
   };
 
+  // navegação do card (sem <a>)
+  const projectUrl = `/projetos/${project.id}`;
+  const openInNewTab = (e) => {
+    e?.preventDefault?.();
+    window.open(projectUrl, "_blank", "noopener,noreferrer");
+  };
+  const handleCardClick = (e) => {
+    if (e.ctrlKey || e.metaKey) return openInNewTab(e); // Ctrl/⌘
+    onOpen?.(); // click normal
+  };
+  const handleMouseDown = (e) => {
+    if (e.button === 1) openInNewTab(e); // botão do meio
+  };
+
   return (
     <>
       <Card
-        onClick={onOpen}
+        onClick={handleCardClick}
+        onMouseDown={handleMouseDown}
+        role="button"
+        tabIndex={0}
         title={
           project.locked
             ? "Projeto trancado (leitura)"
             : "Projeto destrancado (edição liberada)"
         }
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onOpen?.();
+          if (e.key === " " && (e.ctrlKey || e.metaKey)) openInNewTab(e); // opcional
+        }}
       >
         <h3
           style={{
@@ -278,7 +307,9 @@ export default function ProjectCard({
                   })}
               {timePill && (
                 <span
-                  title={`${timePill.title} — ${daysLeft} dia${daysLeft === 1 ? "" : "s"} restante${daysLeft === 1 ? "" : "s"}`}
+                  title={`${timePill.title} — ${daysLeft} dia${
+                    daysLeft === 1 ? "" : "s"
+                  } restante${daysLeft === 1 ? "" : "s"}`}
                   style={{
                     marginLeft: 8,
                     display: "inline-flex",
@@ -304,6 +335,7 @@ export default function ProjectCard({
             <LockBtn
               type="button"
               onClick={(e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 if (!busy) onToggleLock?.();
               }}
@@ -319,6 +351,7 @@ export default function ProjectCard({
               <DeleteBtn
                 type="button"
                 onClick={(e) => {
+                  e.preventDefault();
                   e.stopPropagation();
                   setShowDelete(true);
                 }}

@@ -34,13 +34,15 @@ export default function InfoSummary({
       <DateCard label="Início" dateISO={inicio} />
       <DateCard label="Previsão de término" dateISO={fim} />
       <DaysCard total={daysCount} />
-      <CostsCard
-        totalBRL={Number(totalCustos).toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        })}
-        onClick={onOpenCosts}
-      />
+      {onOpenCosts && (
+        <CostsCard
+          totalBRL={Number(totalCustos).toLocaleString("pt-BR", {
+            style: "currency",
+            currency: "BRL",
+          })}
+          onClick={onOpenCosts}
+        />
+      )}
     </InfoGrid>
   );
 }

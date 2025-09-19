@@ -68,6 +68,7 @@ export default function ProjetoDetalhePage() {
     canDeleteCommentCell,
     canDeleteRowItem,
     canToggleBaselineCell,
+    sameSectorAsProjectCreator, 
   } = useTimelinePerms({
     user,
     rows,
@@ -81,6 +82,7 @@ export default function ProjetoDetalhePage() {
   // ações da timeline (server-first)
   const {
     setCellColor,
+    pickColorOptimistic,
     setCellComment,
     toggleBaseline,
     deleteComment,
@@ -117,6 +119,9 @@ export default function ProjetoDetalhePage() {
     setStatusMenu({ x: left, y: top });
   };
   const closeStatusMenu = () => setStatusMenu(null);
+  // depois da destruturação acima:
+  const canSeeCosts =
+    isAdminRole || isDiretoriaRole || sameSectorAsProjectCreator;
 
   // options do modal de nova linha
   const sectorOptions = useMemo(() => {
@@ -134,6 +139,8 @@ export default function ProjetoDetalhePage() {
     }
     return out;
   }, [sectors, projectSectorKeys]);
+// ADICIONE
+const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
 
   return (
     <Page>
@@ -146,7 +153,7 @@ export default function ProjetoDetalhePage() {
         canUnlockByRole={canUnlockByRole}
         onToggleLock={toggleProjectLock}
         onBack={() => navigate("/Projetos")}
-        onOpenCosts={() => setOpenCost(true)}
+        onOpenCosts={canSeeCosts ? () => setOpenCost(true) : undefined}
         readOnly={readOnly || loading.any()}
         title={projeto?.nome}
       />
@@ -157,8 +164,9 @@ export default function ProjetoDetalhePage() {
             projeto={projeto}
             accent={accent}
             daysCount={days.length}
-            totalCustos={totalCustos}
-            onOpenCosts={() => setShowCosts(true)}
+            totalCustos={safeTotalCustos}
+            // em InfoSummary:
+            onOpenCosts={canSeeCosts ? () => setShowCosts(true) : undefined}
             onOpenStatusMenu={openStatusMenu}
             canChangeStatus={canUnlockByRole}
           />
@@ -198,7 +206,7 @@ export default function ProjetoDetalhePage() {
           currentUserInitial={sectorInitial}
           currentUserId={user?.id}
           isAdmin={isAdminRole}
-          onPickColor={readOnly || !timelineEnabled ? undefined : setCellColor}
+          onPickColor={readOnly || !timelineEnabled ? undefined : pickColorOptimistic}
           onSetCellComment={
             readOnly || !timelineEnabled ? undefined : setCellComment
           }
@@ -240,7 +248,7 @@ export default function ProjetoDetalhePage() {
         </>
       )}
 
-      {showCosts && (
+      {canSeeCosts && showCosts && (
         <CostsPopover
           projectId={projeto?.id}
           actorSectorId={actorSectorId}
@@ -283,13 +291,15 @@ export default function ProjetoDetalhePage() {
         }}
       />
 
-      <AddCostModal
-        isOpen={openCost}
-        toggle={() => setOpenCost((v) => !v)}
-        projectId={projeto?.id}
-        actorSectorId={actorSectorId}
-        onAdded={() => fetchProjetoIfNeeded()}
-      />
+      {canSeeCosts && (
+        <AddCostModal
+          isOpen={openCost}
+          toggle={() => setOpenCost((v) => !v)}
+          projectId={projeto?.id}
+          actorSectorId={actorSectorId}
+          onAdded={() => fetchProjetoIfNeeded()}
+        />
+      )}
     </Page>
   );
 }

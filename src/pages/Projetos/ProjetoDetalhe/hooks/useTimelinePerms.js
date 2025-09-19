@@ -125,5 +125,6 @@ export default function useTimelinePerms({
     canDeleteCommentCell,
     canDeleteRowItem,
     canToggleBaselineCell,
+    sameSectorAsProjectCreator,
   };
 }

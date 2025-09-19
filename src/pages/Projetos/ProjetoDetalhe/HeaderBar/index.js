@@ -5,7 +5,14 @@ import { LuArrowBigLeft } from "react-icons/lu";
 import { FiLock, FiUnlock } from "react-icons/fi";
 
 export default function HeaderBar({
-  accent, locked, canUnlockByRole, onToggleLock, onBack, onOpenCosts, readOnly, title
+  accent,
+  locked,
+  canUnlockByRole,
+  onToggleLock,
+  onBack,
+  onOpenCosts,
+  readOnly,
+  title,
 }) {
   return (
     <TitleBar>
@@ -24,9 +31,11 @@ export default function HeaderBar({
         >
           {locked ? <FiLock size={16} /> : <FiUnlock size={16} />}
         </Button>
-        <Button color="warning" onClick={onOpenCosts} disabled={readOnly}>
-          Adicionar custo
-        </Button>
+        {onOpenCosts && (
+          <Button color="warning" onClick={onOpenCosts} disabled={readOnly}>
+            Adicionar custo
+          </Button>
+        )}
       </Actions>
     </TitleBar>
   );
