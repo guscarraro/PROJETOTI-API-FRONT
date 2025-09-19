@@ -1,3 +1,4 @@
+// src/App.jsx
 import React, { useEffect, useRef, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import PrivateRoute from './components/PrivateRoute';
@@ -35,31 +36,42 @@ const App = () => {
     catch { return null; }
   });
 
+  // Bloqueia a UI até validar a sessão com o back
+  const [authChecked, setAuthChecked] = useState(false);
+
   // 🔐 Autologout por inatividade (front < back)
   useInactivityLogout({
     timeoutMs: 25 * 60 * 1000,
     onTimeout: async () => {
       try { await apiLocal.authLogout(); } catch {}
       localStorage.removeItem('user');
-      window.location.href = '/'; // tua rota de login é "/"
+      window.location.href = '/'; // rota de login
     },
   });
 
-  // ♻️ Bootstrap do usuário a partir do cookie (tenta só UMA vez)
-  const bootTriedRef = useRef(false);
+  // ✅ SEMPRE valida a sessão no servidor ao montar (independente do localStorage)
+  const bootOnceRef = useRef(false);
   useEffect(() => {
-    if (user || bootTriedRef.current) return;
-    bootTriedRef.current = true;
+    if (bootOnceRef.current) return;
+    bootOnceRef.current = true;
 
-    apiLocal.authMe()
-      .then(({ data }) => {
+    (async () => {
+      try {
+        const { data } = await apiLocal.authMe(); // 200 se a sessão (cookie) existir
         localStorage.setItem('user', JSON.stringify(data));
         setUser(data);
-      })
-      .catch(() => {
-        // 401 sem cookie? beleza, fica na tela de login sem redirecionar
-      });
-  }, [user]);
+      } catch {
+        // 401: sessão inválida/expirada — limpa e manda pro login se não estiver nele
+        localStorage.removeItem('user');
+        setUser(null);
+        if (window.location.pathname !== '/') {
+          window.location.replace('/');
+        }
+      } finally {
+        setAuthChecked(true);
+      }
+    })();
+  }, []);
 
   // Sync entre abas
   useEffect(() => {
@@ -71,6 +83,11 @@ const App = () => {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, []);
+
+  // Enquanto não checar a sessão, não renderiza rotas (evita flash e estados estranhos)
+  if (!authChecked) {
+    return null; // ou um spinner/barrinha de progresso
+  }
 
   return (
     <>
