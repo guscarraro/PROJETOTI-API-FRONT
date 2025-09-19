@@ -27,6 +27,7 @@ export const ALL_SECTORS = [
   { key: "DIRETORIA",    label: "Diretoria",    initial: "D", color: "#ef4444" },
   { key: "QUALIDADE",    label: "Qualidade",    initial: "Q", color: "#44ef4dff" },
   { key: "TI",           label: "TI",           initial: "T", color: "#0ea5e9" },
+  { key: "AQIIA",           label: "AIQIA",           initial: "A", color: "#0ea5e9" },
   { key: "CLIENTES",     label: "Clientes",     initial: "C", color: "#10b981" },
   { key: "FINANCEIRO",     label: "Financeiro",     initial: "F", color: "#10b940ff" },
   { key: "COMPRAS",     label: "Compras",     initial: "C", color: "#10b940ff" },
