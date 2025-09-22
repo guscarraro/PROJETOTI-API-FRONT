@@ -152,7 +152,7 @@ const LineChartReceita = ({
   data,
   selectedTomadores = [],
   selectedMonths = [],
-  monthlyGoal = 4_000_000, // meta mensal por mês
+  monthlyGoal = 3_500_000, // meta mensal por mês
 }) => {
   const { finalData, metaKeys, valueKeys } = useChartData(
     data,

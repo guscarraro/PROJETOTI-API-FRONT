@@ -1,6 +1,13 @@
 import React, { useRef, useState, useMemo } from "react";
 import { toast } from "react-toastify";
-import { TimelineWrap, ContentGrid, Overlay } from "../../style";
+import {
+  TimelineWrap,
+  ContentGrid,
+  Overlay,
+  SectorFilterBar,
+  FilterLabel,
+  SectorSelect,
+} from "../../style";
 import { ALL_SECTORS, COLOR_PALETTE, monthBgTones } from "./constants";
 import useMonthsSegments from "./hooks/useMonthsSegments";
 import useEscapeClose from "./hooks/useEscapeClose";
@@ -13,6 +20,7 @@ import SectorMenu from "./SectorMenu";
 import PaletteMenu from "./PaletteMenu";
 import Tooltip from "./Tooltip";
 import TrashZone from "./TrashZone";
+import { SectorDropdown } from "./SectorDropdown";
 
 export default function Timeline({
   days = [],
@@ -58,16 +66,53 @@ export default function Timeline({
       firstColRef.current.scrollTop = e.currentTarget.scrollTop;
   };
 
-  // setores
-  const SECTORS = useMemo(() => {
-    if (!availableSectorKeys?.length) return ALL_SECTORS;
+  // ---- helper para ler setores de uma linha (array ou único)
+  const getRowSectorKeys = (r) => {
     const acc = [];
-    for (let i = 0; i < ALL_SECTORS.length; i++) {
-      const s = ALL_SECTORS[i];
-      if (availableSectorKeys.includes(s.key)) acc.push(s);
+    if (!r) return acc;
+    if (Array.isArray(r.sectors)) {
+      for (let i = 0; i < r.sectors.length; i++) {
+        const k = r.sectors[i];
+        if (typeof k === "string" && k) acc.push(k);
+        else if (k && typeof k === "object" && typeof k.key === "string")
+          acc.push(k.key);
+      }
+    } else if (typeof r.sector === "string" && r.sector) {
+      acc.push(r.sector);
+    } else if (
+      r.sector &&
+      typeof r.sector === "object" &&
+      typeof r.sector.key === "string"
+    ) {
+      acc.push(r.sector.key);
     }
     return acc;
-  }, [availableSectorKeys]);
+  };
+
+  // SECTORS do projeto: usa availableSectorKeys se vier, senão deriva dos rows
+  const SECTORS = useMemo(() => {
+    // 1) whitelist do pai
+    if (Array.isArray(availableSectorKeys) && availableSectorKeys.length > 0) {
+      const acc = [];
+      for (let i = 0; i < ALL_SECTORS.length; i++) {
+        const s = ALL_SECTORS[i];
+        if (availableSectorKeys.includes(s.key)) acc.push(s);
+      }
+      return acc;
+    }
+    // 2) derivar dos rows
+    const present = {};
+    for (let i = 0; i < rows.length; i++) {
+      const keys = getRowSectorKeys(rows[i]);
+      for (let j = 0; j < keys.length; j++) present[keys[j]] = true;
+    }
+    const derived = [];
+    for (let i = 0; i < ALL_SECTORS.length; i++) {
+      const s = ALL_SECTORS[i];
+      if (present[s.key]) derived.push(s);
+    }
+    return derived.length > 0 ? derived : ALL_SECTORS;
+  }, [availableSectorKeys, rows]);
 
   const sectorMap = useMemo(() => {
     const map = {};
@@ -123,8 +168,6 @@ export default function Timeline({
   const [paletteSubmitting, setPaletteSubmitting] = useState(false);
 
   const guardOpenPalette = (rowId, dayISO) => {
-    // Se o caller passar um canOpenPaletteCell específico, usa. Senão,
-    // abre se pelo menos uma ação é permitida na célula (cor, marco ou comentário).
     if (typeof canOpenPaletteCell === "function") {
       return !!canOpenPaletteCell(rowId, dayISO);
     }
@@ -179,7 +222,28 @@ export default function Timeline({
     return onPickColor(palette.rowId, palette.dayISO, c);
   };
 
-  // DnD
+  // ---- filtro por setor (UI acima das legendas)
+  const [selectedSectorKey, setSelectedSectorKey] = useState("ALL");
+
+  const filteredRows = useMemo(() => {
+    if (selectedSectorKey === "ALL") return rows;
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      const keys = getRowSectorKeys(rows[i]);
+      // manter sem reduce: loop simples procurando match
+      let has = false;
+      for (let j = 0; j < keys.length; j++) {
+        if (keys[j] === selectedSectorKey) {
+          has = true;
+          break;
+        }
+      }
+      if (has) out.push(rows[i]);
+    }
+    return out;
+  }, [rows, selectedSectorKey]);
+
+  // DnD usa as linhas visíveis (filtradas)
   const {
     draggingId,
     overInfo,
@@ -189,7 +253,7 @@ export default function Timeline({
     onDragEnd,
     dropIndicatorStyle,
     setDraggingId,
-  } = useDnDRows(rows, canReorderRows, isBusy, onReorderRows);
+  } = useDnDRows(filteredRows, canReorderRows, isBusy, onReorderRows);
 
   // deletar arrastando à lixeira
   const [deletingRowId, setDeletingRowId] = useState(null);
@@ -215,11 +279,31 @@ export default function Timeline({
 
   return (
     <TimelineWrap>
+      {/* Filtro por setor - acima das legendas */}
+      <SectorFilterBar>
+        <FilterLabel htmlFor="sector-filter">Filtrar por setor</FilterLabel>
+
+        <SectorDropdown
+          id="sector-filter"
+          value={selectedSectorKey}
+          onChange={(k) => setSelectedSectorKey(k)}
+          options={[
+            {
+              key: "ALL",
+              label: "Todos os setores",
+              color: "#9ca3af",
+              initial: "*",
+            },
+            ...SECTORS, // [{key,label,color,initial}]
+          ]}
+        />
+      </SectorFilterBar>
+
       <LegendBar sectors={SECTORS} />
 
       <ContentGrid>
         <LeftColumn
-          rows={rows}
+          rows={filteredRows}
           sectorMap={sectorMap}
           canReorderRows={canReorderRows}
           isBusy={isBusy}
@@ -242,7 +326,7 @@ export default function Timeline({
           days={days}
           monthSegments={monthSegments}
           monthBgTones={monthBgTones}
-          rows={rows}
+          rows={filteredRows}
           openPalette={openPalette}
           baselineColor={baselineColor}
           syncLeftScroll={syncLeftScroll}
@@ -278,7 +362,7 @@ export default function Timeline({
 
       <SectorMenu
         sectors={SECTORS}
-        rows={rows}
+        rows={rows} // mantém dados completos para edição
         sectorMenu={sectorMenu}
         pickSector={pickSector}
         close={() => setSectorMenu(null)}

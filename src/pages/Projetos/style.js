@@ -1,5 +1,133 @@
 import styled, { css, createGlobalStyle } from "styled-components";
 
+
+export const SectorFilterBar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px;
+  flex-wrap: wrap;
+  user-select: none;
+`;
+
+export const FilterLabel = styled.label`
+  font-size: 12px;
+  line-height: 1;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.04),
+    rgba(0, 0, 0, 0.02)
+  );
+  color: #374151;            /* slate-700 */
+  border: 1px solid #e5e7eb; /* gray-200 */
+  letter-spacing: 0.2px;
+
+  /* Dark mode: automático e via classe/atributo */
+  @media (prefers-color-scheme: dark) {
+    color: #e5e7eb;            /* gray-200 */
+    border-color: #334155;     /* slate-700 */
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.02)
+    );
+  }
+  .dark &,
+  [data-theme="dark"] & {
+    color: #e5e7eb;
+    border-color: #334155;
+    background: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.04),
+      rgba(255, 255, 255, 0.02)
+    );
+  }
+`;
+
+/* Arrow SVG embutida (mantém nativo + estilizado) */
+export const arrowSvg = encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>`
+);
+
+export const SectorSelect = styled.select`
+  height: 34px;
+  padding: 0 36px 0 12px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;        /* gray-200 */
+  background:
+    /* arrow */ url("data:image/svg+xml,${arrowSvg}") no-repeat right 10px center,
+    /* surface */ linear-gradient(180deg, #ffffff, #fafafa);
+  color: #111827;                    /* gray-900 */
+  font-size: 14px;
+  outline: none;
+  appearance: none;                  /* remove seta nativa */
+  transition: box-shadow 120ms ease, border-color 120ms ease, background 120ms ease;
+
+  &:hover {
+    border-color: #d1d5db;           /* gray-300 */
+    background:
+      url("data:image/svg+xml,${arrowSvg}") no-repeat right 10px center,
+      linear-gradient(180deg, #ffffff, #f5f5f5);
+  }
+
+  &:focus {
+    border-color: #60a5fa;           /* blue-400 */
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  option {
+    color: inherit;                   /* herda cor (light/dark) */
+    background: inherit;              /* mantém coerência ao abrir */
+  }
+
+  /* Dark mode automático */
+  @media (prefers-color-scheme: dark) {
+    border-color: #334155;            /* slate-700 */
+    color: #e5e7eb;                   /* gray-200 */
+    background:
+      url("data:image/svg+xml,${arrowSvg}") no-repeat right 10px center,
+      linear-gradient(180deg, #0b1220, #0f172a); /* base mais suave */
+
+    &:hover {
+      border-color: #475569;          /* slate-600 */
+      background:
+        url("data:image/svg+xml,${arrowSvg}") no-repeat right 10px center,
+        linear-gradient(180deg, #0b1220, #131c2e);
+    }
+    &:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+    }
+  }
+
+  /* Dark mode via classe/atributo */
+  .dark &,
+  [data-theme="dark"] & {
+    border-color: #334155;
+    color: #e5e7eb;
+    background:
+      url("data:image/svg+xml,${arrowSvg}") no-repeat right 10px center,
+      linear-gradient(180deg, #0b1220, #0f172a);
+    &:hover {
+      border-color: #475569;
+      background:
+        url("data:image/svg+xml,${arrowSvg}") no-repeat right 10px center,
+        linear-gradient(180deg, #0b1220, #131c2e);
+    }
+    &:focus {
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+    }
+  }
+`;
+
 export const MODAL_CLASS = "project-modal";
 
 export const GlobalModalStyles = createGlobalStyle`
