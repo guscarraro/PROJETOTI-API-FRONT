@@ -164,6 +164,23 @@ const OperacaoFechamento = () => {
     });
   }, [data, selectedMonths, selectedTomadores]);
 
+
+  const filteredDataReceita = useMemo(() => {
+    const monthSet = new Set(selectedMonths.map((m) => m.value));
+    const tomadorSet = new Set(selectedTomadores.map((t) => t.value));
+    const out = [];
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      const itemMonth = getMonthKey(item.emissao);
+      const isMonthSelected = monthSet.size === 0 || monthSet.has(itemMonth);
+      const isTomadorSelected =
+        tomadorSet.size === 0 || tomadorSet.has(item.tomador_servico);
+      if (item.status === "Encerrado" && isMonthSelected && isTomadorSelected) {
+        out.push(item);
+      }
+    }
+    return out;
+  }, [data, selectedMonths, selectedTomadores]);
   // opções de tomador baseadas nos dados carregados
   const tomadorOptions = useMemo(() => {
     const set = new Set(data.map((i) => i.tomador_servico).filter(Boolean));
@@ -339,16 +356,17 @@ const OperacaoFechamento = () => {
                 </Box>
               </Col>
             </Row>
-            
+
             <Row>
               <Col md="12">
                 <Box>
                   <h5>Receita diária por mês (com meta)</h5>
                   <LineChartReceita
-                    data={filteredData} // já vem filtrado por Encerrado  Normal
+                     // já vem filtrado por Encerrado  Normal
+                    data={filteredDataReceita}
                     selectedTomadores={selectedTomadores.map((t) => t.value)}
                     selectedMonths={selectedMonths.map((m) => m.value)}
-                    monthlyGoal={4_000_000} // meta mensal (R$)
+                    monthlyGoal={3_500_000} // meta mensal (R$)
                   />
                 </Box>
               </Col>

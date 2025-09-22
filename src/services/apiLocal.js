@@ -218,6 +218,7 @@ const apiLocal = {
   deleteUsuario: (id) => api.delete(`/user/usuarios/${id}`),
   setUsuarioDarkmode: (id, enabled) =>
     api.put(`/user/usuarios/${id}`, { darkmode: enabled ? "S" : "N" }),
+  adminRevokeUserSessions: (userId) => api.post(`/auth/sessions/revoke/${userId}`),
 
   getSetores: () => api.get("/setor/setores/"),
   createSetor: (data) => api.post("/setor/setores/", data),
