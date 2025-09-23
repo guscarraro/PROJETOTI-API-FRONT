@@ -1,22 +1,52 @@
 // src/pages/Projetos/ProjetoDetalhe/Timeline/Tooltip.jsx
 import React, { useLayoutEffect, useMemo, useRef, useState } from "react";
+import styled from "styled-components";
 import { TooltipBox, SectorDot } from "../../../style";
 import { parseMessageParts } from "../PaletteMenu/utils";
+
+const RichHtml = styled.div`
+  font-size: 13px;
+  color: inherit;
+  white-space: pre-wrap; /* <<< preserva quebras (\n) */
+  ul, ol { padding-left: 20px; margin: 6px 0; }
+  li { margin: 2px 0; }
+  p, div { margin: 4px 0; }
+  .sector-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 2px 8px; border-radius: 999px;
+    border: 1px solid rgba(0,0,0,.08);
+    background: #f3f4f6; color: grey;
+    font-size: 12px; line-height: 18px; margin-right: 4px; white-space: nowrap;
+  }
+  .sector-pill .dot {
+    width: 8px; height: 8px; border-radius: 999px;
+    background: var(--pill-color, #9ca3af);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) { .sector-pill { background: #111a2d; border-color: #334155; } }
+  .dark & .sector-pill, [data-theme="dark"] & .sector-pill { background: #111a2d; border-color: #334155; }
+`;
+
+// mesmo extrator simples (pega HTML antes do primeiro ",data:")
+function extractHtmlFromMessage(msg) {
+  const s = String(msg || "");
+  const i = s.indexOf(",data:");
+  return (i >= 0 ? s.slice(0, i) : s).trim();
+}
 
 export default function Tooltip({ tooltip }) {
   const ref = useRef(null);
   const [pos, setPos] = useState({ left: 0, top: 0, ready: false });
 
-  // usa o parser unificado (texto + imagens + pdfs + sheets)
-  const parts = useMemo(
-    () => parseMessageParts(String(tooltip?.text || "")),
-    [tooltip?.text]
-  );
+  const raw = String(tooltip?.text || "");
+  const parts = useMemo(() => parseMessageParts(raw), [raw]);
+  const html = useMemo(() => extractHtmlFromMessage(raw), [raw]);
+  const htmlWithBR = useMemo(() => html.replace(/(\r\n|\n|\r)/g, "<br/>"), [html]); // <<< garante \n como <br/>
 
   useLayoutEffect(() => {
     if (!tooltip) return;
-    const GAP = 12; // distância do cursor
-    const MARGIN = 8; // margem da viewport
+    const GAP = 12;
+    const MARGIN = 8;
 
     let left = tooltip.x + GAP;
     let top = tooltip.y + GAP;
@@ -24,7 +54,6 @@ export default function Tooltip({ tooltip }) {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
-    // mede fora da tela para evitar flicker
     setPos({ left: -9999, top: -9999, ready: false });
 
     requestAnimationFrame(() => {
@@ -32,12 +61,9 @@ export default function Tooltip({ tooltip }) {
       const w = el ? el.offsetWidth : 260;
       const h = el ? el.offsetHeight : 120;
 
-      // clamp horizontal
       if (left + w > vw - MARGIN) left = Math.max(MARGIN, vw - w - MARGIN);
-
-      // flip/clamp vertical
       if (top + h > vh - MARGIN) {
-        top = tooltip.y - h - GAP; // sobe
+        top = tooltip.y - h - GAP;
         if (top < MARGIN) top = Math.max(MARGIN, vh - h - MARGIN);
       }
 
@@ -71,32 +97,23 @@ export default function Tooltip({ tooltip }) {
         <strong>Comentário</strong>
       </div>
 
-      {/* texto limpo (sem data URLs) */}
-      {parts.text && (
-        <div style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-          {parts.text}
-        </div>
-      )}
+      {html && <RichHtml dangerouslySetInnerHTML={{ __html: htmlWithBR }} />}
 
-      {/* avisos de anexos (sem base64 no corpo) */}
       {(imgCount > 0 || pdfCount > 0 || xlsCount > 0) && (
         <div style={{ marginTop: 6, fontSize: 12, opacity: 0.85, display: "grid", gap: 2 }}>
           {imgCount > 0 && (
             <div>
-              + {imgCount} {imgCount > 1 ? "imagens" : "imagem"} anexada
-              {imgCount > 1 ? "s" : ""}
+              + {imgCount} {imgCount > 1 ? "imagens" : "imagem"} anexada{imgCount > 1 ? "s" : ""}
             </div>
           )}
           {pdfCount > 0 && (
             <div>
-              + {pdfCount} {pdfCount > 1 ? "PDFs" : "PDF"} anexado
-              {pdfCount > 1 ? "s" : ""}
+              + {pdfCount} {pdfCount > 1 ? "PDFs" : "PDF"} anexado{pdfCount > 1 ? "s" : ""}
             </div>
           )}
           {xlsCount > 0 && (
             <div>
-              + {xlsCount} {xlsCount > 1 ? "planilhas" : "planilha"} anexada
-              {xlsCount > 1 ? "s" : ""}
+              + {xlsCount} {xlsCount > 1 ? "planilhas" : "planilha"} anexada{xlsCount > 1 ? "s" : ""}
             </div>
           )}
         </div>

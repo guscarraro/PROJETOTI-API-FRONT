@@ -397,6 +397,7 @@ export default function Timeline({
         }
         isAdmin={isAdmin}
         currentUserId={currentUserId}
+        sectorsDoProjeto={SECTORS}
       />
 
       <Tooltip tooltip={tooltip} />

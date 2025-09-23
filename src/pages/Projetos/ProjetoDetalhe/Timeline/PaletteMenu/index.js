@@ -26,7 +26,7 @@ export default function PaletteMenu({
   canMarkBaseline,
   baselineColor,
   close,
-
+sectorsDoProjeto = [],
   // permissões
   isAdmin = false,
   currentUserId,
@@ -237,6 +237,7 @@ export default function PaletteMenu({
           }
           canCreateComment={canCreateComment}
           setImgPreview={setImgPreview}
+          sectors={sectorsDoProjeto}
         />
 
         <ActionsRow>
