@@ -12,7 +12,7 @@ import InlineSpinner from "../InlineSpinner";
 const RichHtml = styled.div`
   font-size: 14px;
   color: inherit;
-  white-space: pre-wrap; /* <<< preserva quebras (\n) */
+  white-space: pre-wrap;
   ul, ol { padding-left: 20px; margin: 6px 0; }
   li { margin: 2px 0; }
   p, div { margin: 4px 0; }
@@ -32,11 +32,14 @@ const RichHtml = styled.div`
   .dark & .sector-pill, [data-theme="dark"] & .sector-pill { background: #111a2d; border-color: #334155; }
 `;
 
-// pega só o HTML antes do primeiro ",data:" (anexos vêm depois)
+// remove qualquer trecho de dataURL do texto exibido (deixa só o HTML/rich text)
 function extractHtmlFromMessage(msg) {
   const s = String(msg || "");
-  const i = s.indexOf(",data:");
-  return (i >= 0 ? s.slice(0, i) : s).trim();
+  // pega o início do primeiro dataURL (imagem/pdf/xlsx), com ou sem vírgula/espaço antes
+  const m = /(?:^|[, \n\r])data:(?:image|application)\//.exec(s);
+  if (!m) return s.trim();
+  const dataStart = m.index + m[0].indexOf("data:");
+  return s.slice(0, dataStart).trim();
 }
 
 export default function CommentList({
@@ -60,7 +63,7 @@ export default function CommentList({
             const raw = String(c.message || "");
             const parts = parseMessageParts(raw);
             const html = extractHtmlFromMessage(raw);
-            const htmlWithBR = html.replace(/(\r\n|\n|\r)/g, "<br/>"); // <<< garante \n como <br/>
+            const htmlWithBR = html.replace(/(\r\n|\n|\r)/g, "<br/>");
 
             return (
               <div
