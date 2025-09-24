@@ -928,3 +928,35 @@ export const MyCommentsBtn = styled.button`
     color: #e5e7eb;
   }
 `;
+export const SearchWrap = styled.label`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,.14);
+  background: #fff;
+  color: #111827;
+  min-width: 260px;
+
+  svg { width: 16px; height: 16px; opacity: .7; flex-shrink: 0; }
+
+  [data-theme="dark"] & {
+    background: #0f172a;
+    color: #e5e7eb;
+    border-color: #334155;
+  }
+`;
+
+export const SearchInput = styled.input`
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  outline: none;
+
+  &::placeholder { color: rgba(17,24,39,.55); }
+  [data-theme="dark"] &::placeholder { color: rgba(229,231,235,.55); }
+`;

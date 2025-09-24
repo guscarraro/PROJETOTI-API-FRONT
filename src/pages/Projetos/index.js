@@ -3,7 +3,14 @@ import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { Button } from "reactstrap";
 import { useNavigate } from "react-router-dom";
 import styled from "styled-components";
-import { Page, TitleBar, H1, CardGrid } from "./style";
+import {
+  Page,
+  TitleBar,
+  H1,
+  CardGrid,
+  SearchWrap,     // <<< novo
+  SearchInput,    // <<< novo
+} from "./style";
 import CreateProjectModal from "./components/CreateProjectModal";
 import NavBar from "./components/NavBar";
 import apiLocal from "../../services/apiLocal";
@@ -12,6 +19,7 @@ import useLoading from "../../hooks/useLoading";
 import { PageLoader } from "./components/Loader";
 import ProjectCard from "./ProjectCard";
 import { toast } from "react-toastify";
+import StatusFilterDropdown from "./StatusFilterDropdown";
 
 /* ---------- estilos auxiliares para grupos ---------- */
 const RightActions = styled.div`
@@ -96,6 +104,20 @@ export default function ProjetosListPage() {
   const [projects, setProjects] = useState([]);
   const [openCreate, setOpenCreate] = useState(false);
 
+  // busca livre
+  const [query, setQuery] = useState("");
+
+  // filtro de status (default: ANDAMENTO)
+  const [statusFilter, setStatusFilter] = useState("ANDAMENTO");
+
+  const normalize = useCallback((s) => {
+    return String(s || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }, []);
+
   const isAdmin = useCallback(
     (names) =>
       names.some(
@@ -125,7 +147,8 @@ export default function ProjetosListPage() {
       await loading.wrap("init", async () => {
         const [sRes, pRes] = await Promise.all([
           apiLocal.getSetores(),
-          apiLocal.getProjetosLean(visibleFor),
+          // status default = ANDAMENTO
+          apiLocal.getProjetosLean(visibleFor, "ANDAMENTO"),
         ]);
         setSectors(sRes.data || []);
         setProjects(pRes.data || []);
@@ -135,17 +158,42 @@ export default function ProjetosListPage() {
   }, [user]); // não incluir `loading` para evitar loop
 
   /* Recarrega só projetos quando necessário (ex.: após criar) */
-  console.log(user);
-  const reloadProjects = useCallback(async () => {
-    
-    const visibleFor = Array.isArray(user?.setor_ids)
-      ? user.setor_ids.map(Number)
-      : [];
-    await loading.wrap("reload-projects", async () => {
-      const r = await apiLocal.getProjetosLean(visibleFor);
-      setProjects(r.data || []);
+  const reloadProjects = useCallback(
+    async (nextStatus) => {
+      const visibleFor = Array.isArray(user?.setor_ids)
+        ? user.setor_ids.map(Number)
+        : [];
+      await loading.wrap("reload-projects", async () => {
+        const status = nextStatus ?? statusFilter;
+        const r = await apiLocal.getProjetosLean(
+          visibleFor,
+          status === "TODOS" ? undefined : status
+        );
+        setProjects(r.data || []);
+      });
+    },
+    [user, loading, statusFilter]
+  );
+
+  // aplica busca livre
+  const projectsFiltered = useMemo(() => {
+    if (!query.trim()) return projects;
+
+    const q = normalize(query);
+    return projects.filter((p) => {
+      const name = normalize(p.nome || p.name || p.titulo || "");
+      const status = normalize(p.status || "");
+
+      const sectorName =
+        normalize(
+          sectors.find((s) => Number(s.id) === Number(p?.created_by_sector_id))?.nome ||
+          p?.created_by_sector_name ||
+          ""
+        );
+
+      return name.includes(q) || status.includes(q) || sectorName.includes(q);
     });
-  }, [user, loading]);
+  }, [projects, sectors, query, normalize]);
 
   const role = useMemo(() => {
     if (isAdmin(mySectorNames)) return "adm";
@@ -199,7 +247,7 @@ export default function ProjetosListPage() {
     }
   };
 
-  /* --------- agrupamento por setor do criador --------- */
+  /* --------- agrupamento por setor do criador (usa filtrados) --------- */
   const groups = useMemo(() => {
     const map = new Map();
 
@@ -208,8 +256,8 @@ export default function ProjetosListPage() {
       return s?.nome || null;
     };
 
-    for (let i = 0; i < projects.length; i++) {
-      const p = projects[i];
+    for (let i = 0; i < projectsFiltered.length; i++) {
+      const p = projectsFiltered[i];
 
       const sid =
         p?.created_by_sector_id ??
@@ -237,7 +285,7 @@ export default function ProjetosListPage() {
     });
 
     return arr;
-  }, [projects, sectors]);
+  }, [projectsFiltered, sectors]);
 
   /* cor consistente por grupo (hash simples) */
   const groupColor = useCallback((name) => {
@@ -264,9 +312,30 @@ export default function ProjetosListPage() {
         <PageLoader active={loading.any()} text="Processando..." />
         <NavBar />
 
-        <TitleBar>
+        <TitleBar style={{ zIndex: 1100 }}>
           <H1>Projetos</H1>
           <RightActions>
+            {/* Busca geral */}
+            <SearchWrap title="Buscar por projeto, setor ou status">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M13.477 12.307a6 6 0 11-1.172 1.172l3.327 3.327a.83.83 0 001.172-1.172l-3.327-3.327zM8.5 13a4.5 4.5 0 100-9 4.5 4.5 0 000 9z" />
+              </svg>
+              <SearchInput
+                placeholder="Buscar por projeto, setor ou status..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchWrap>
+
+            {/* Filtro de status */}
+            <StatusFilterDropdown
+              value={statusFilter}
+              onChange={(val) => {
+                setStatusFilter(val);
+                reloadProjects(val);
+              }}
+            />
+
             <Button
               color="primary"
               onClick={() => setOpenCreate(true)}
@@ -305,9 +374,9 @@ export default function ProjetosListPage() {
           </GroupBlock>
         ))}
 
-        {!loading.any() && projects.length === 0 && (
+        {!loading.any() && projectsFiltered.length === 0 && (
           <div style={{ opacity: 0.7 }}>
-            Nenhum projeto visível para seus setores.
+            Nenhum projeto encontrado para esse filtro.
           </div>
         )}
 
@@ -315,7 +384,7 @@ export default function ProjetosListPage() {
           isOpen={openCreate}
           toggle={() => setOpenCreate((v) => !v)}
           actorSectorId={actorSectorId}
-          onCreated={reloadProjects}
+          onCreated={() => reloadProjects()} // respeita statusFilter atual
         />
       </Page>
     </>
