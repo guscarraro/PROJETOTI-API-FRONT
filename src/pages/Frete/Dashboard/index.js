@@ -46,6 +46,8 @@ const Dashboard = () => {
   const [showModalCteCobrado, setShowModalCteCobrado] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [qtdCtesCobrados, setQtdCtesCobrados] = useState(0);
+// no topo do Dashboard
+const [ocorrenciasForaAcordo, setOcorrenciasForaAcordo] = useState([]);
 
   // Filtros
   const [motoristas, setMotoristas] = useState([]);
@@ -129,10 +131,10 @@ const Dashboard = () => {
     fetchFilters();
   }, []);
 
-  const fetchDashboardData = async (filters = {}) => {
+ const fetchDashboardData = async (filters = {}) => {
   setIsLoading(true);
   try {
-    // 1) Ocorrências primeiro (com filtros)
+    // 1) Ocorrências (com filtros)
     const respOcorrencias = await apiLocal.getOcorrenciasFiltradas(filters);
     const ocorrencias = Array.isArray(respOcorrencias.data) ? respOcorrencias.data : [];
     setTodasOcorrencias(ocorrencias);
@@ -149,10 +151,13 @@ const Dashboard = () => {
       setQtdOcorrenciasSemCobranca(0);
       setQtdOcorrenciasNaoEntregues(0);
       setOcorrenciasSemCobranca([]);
+      setQtdOcorrenciasVermelhas(0);
+      setQtdCtesCobrados(0);
+      setOcorrenciasForaAcordo([]);
       return;
     }
 
-    // 2) Carregar tudo que é “catálogo” ao mesmo tempo
+    // 2) Carregar catálogos em paralelo
     const [respMotoristas, respClientes, respTipos, respDestinos] = await Promise.all([
       apiLocal.getMotoristas(),
       apiLocal.getClientes(),
@@ -180,24 +185,82 @@ const Dashboard = () => {
     });
     setDestinatariosMap(tempDestinatariosMap);
 
-    // 4) Métricas/contagens específicas
+    // === Helpers (iguais aos usados no modal) ===
+    const parseHorasPermitidas = (str) => {
+      if (!str) return 0;
+      const [h, m] = String(str).split(":").map(Number);
+      return (h || 0) + (m || 0) / 60;
+    };
+
+    const calcularTempoPermanencia = (chegada, saida, ocorren) => {
+      const chegadaDate = new Date(chegada);
+      const saidaDate   = new Date(saida);
+      const ocorrenDate = new Date(ocorren);
+      if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate)
+        return { horas: 0, minutos: 0, formatado: "Indisponível" };
+
+      const diffMs  = saidaDate - ocorrenDate;
+      const diffMin = Math.floor(diffMs / 60000);
+      const horas   = Math.floor(diffMin / 60);
+      const minutos = diffMin % 60;
+      return { horas, minutos, formatado: `${horas}h ${minutos}min` };
+    };
+
+    const calcularValorCobranca = (clienteInfo, tempoReal) => {
+      const tde = (clienteInfo?.tde || "").toString().toUpperCase() === "SIM";
+      // aceita hr_perm (backend) ou hr_permanencia (alguns lugares do front)
+      const hrPermitida = parseHorasPermitidas(
+        clienteInfo?.hr_perm ?? clienteInfo?.hr_permanencia
+      );
+      const valorHora = Number(clienteInfo?.valor_permanencia || 0);
+      const tempoTotalHoras = tempoReal.horas + tempoReal.minutos / 60;
+
+      if (tempoReal.formatado === "Indisponível" || !hrPermitida) {
+        return { excedente: 0, valorCobrado: 0, dentroDoPrazo: true };
+      }
+
+      const excedente = tempoTotalHoras - hrPermitida;
+      const dentroDoPrazo = excedente <= 0 || tde;
+
+      return {
+        excedente: excedente > 0 ? excedente : 0,
+        valorCobrado: excedente > 0 ? excedente * valorHora : 0,
+        dentroDoPrazo,
+      };
+    };
+
+    // Config do cliente por ID para cálculo
+    const clienteCfgById = {};
+    (clientesList || []).forEach((c) => {
+      clienteCfgById[c.id] = {
+        nome: c.nome,
+        hr_perm: c.hr_perm ?? c.hr_permanencia,
+        tde: c.tde,
+        valor_permanencia: c.valor_permanencia,
+      };
+    });
+
+    // 4) Métricas específicas
+    // Base: resolvido + sem cobrança adicional
     const ocorrenciasSemCobrancaData = ocorrencias.filter(
       (oc) => oc.status === "Resolvido" && oc.cobranca_adicional === "N"
     );
     setQtdOcorrenciasSemCobranca(ocorrenciasSemCobrancaData.length);
     setOcorrenciasSemCobranca(ocorrenciasSemCobrancaData);
 
-    const vermelhas = ocorrenciasSemCobrancaData.filter((item) => {
-      const chegadaDate = new Date(item.horario_chegada);
-      const saidaDate   = new Date(item.horario_saida);
-      const ocorrenDate = new Date(item.datainclusao);
-      if (!ocorrenDate || !saidaDate || ocorrenDate > saidaDate) return false;
-      const diffMs = saidaDate - ocorrenDate;
-      const diffMin = Math.floor(diffMs / 60000);
-      const horas = Math.floor(diffMin / 60);
-      return horas >= 1;
+    // Fora do acordado (mesma regra do modal)
+    const foraAcordo = ocorrenciasSemCobrancaData.filter((item) => {
+      const cfg = clienteCfgById[item.cliente_id] || {};
+      const permanencia = calcularTempoPermanencia(
+        item.horario_chegada,
+        item.horario_saida,
+        item.datainclusao
+      );
+      const cobranca = calcularValorCobranca(cfg, permanencia);
+      return !cobranca.dentroDoPrazo && cobranca.excedente > 0;
     });
-    setQtdOcorrenciasVermelhas(vermelhas.length);
+    setOcorrenciasForaAcordo(foraAcordo);
+    setQtdOcorrenciasVermelhas(foraAcordo.length); // << agora o card bate com o modal
 
     const ctesCobrados = ocorrencias.filter(
       (oc) => oc.cobranca_adicional === "S" && oc.cte_gerado
@@ -291,7 +354,7 @@ const Dashboard = () => {
       });
     });
 
-    const ocorrenciasTipoFinal = tiposList
+    const ocorrenciasTipoFinal = (tiposList || [])
       .map((t) => ({
         nome: t.nome,
         quantidade: tipoCountMap[t.id] || 0,
@@ -310,7 +373,7 @@ const Dashboard = () => {
       resolvidas.forEach((oc) => {
         const horaChegada = new Date(oc.horario_chegada);
         const horaSaida = oc.horario_saida ? new Date(oc.horario_saida) : horaChegada;
-        somaTempos += horaSaida - horaChegada;
+        somaTempos += (horaSaida - horaChegada);
       });
       const mediaMs = somaTempos / resolvidas.length;
       setTempoMedioEntrega(Math.floor(mediaMs / 60000));
@@ -492,30 +555,29 @@ const Dashboard = () => {
         </Col>
       </Row>
       {/* <h2>Dashboard</h2> */}
-      {showModalNaoCobranca && (
-        <ModalNaoCobranca
-          data={ocorrenciasSemCobranca.map((oc) => {
-            const clienteObj = clientes.find((c) => c.value === oc.cliente_id);
+    {showModalNaoCobranca && (
+  <ModalNaoCobranca
+    data={ocorrenciasForaAcordo.map((oc) => {
+      const clienteObj = clientes.find((c) => c.value === oc.cliente_id);
+      return {
+        nf: oc.nf,
+        cliente: clienteObj?.label || "Desconhecido",
+        cliente_id: oc.cliente_id,
+        horario_chegada: oc.horario_chegada,
+        horario_saida: oc.horario_saida,
+        horario_ocorrencia: oc.datainclusao,
+        motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
+        hr_permanencia: clienteObj?.hr_permanencia,
+        tde: clienteObj?.tde,
+        valor_permanencia: clienteObj?.valor_permanencia,
+      };
+    })}
+    clientes={clientes}
+    onClose={handleCloseModalNaoCobranca}
+    onRefresh={fetchDashboardData}
+  />
+)}
 
-            return {
-              nf: oc.nf,
-              cliente: clienteObj?.label || "Desconhecido",
-              cliente_id: oc.cliente_id,
-              horario_chegada: oc.horario_chegada,
-              horario_saida: oc.horario_saida,
-              horario_ocorrencia: oc.datainclusao,
-              motorista: motoristasMap[oc.motorista_id] || "Desconhecido",
-              // Informações para exibição, não mais usadas para cálculo
-              hr_permanencia: clienteObj?.hr_permanencia,
-              tde: clienteObj?.tde,
-              valor_permanencia: clienteObj?.valor_permanencia,
-            };
-          })}
-          clientes={clientes}
-          onClose={handleCloseModalNaoCobranca}
-          onRefresh={fetchDashboardData}
-        />
-      )}
 
       {showModalNaoEntregue && (
         <ModalNaoEntregue

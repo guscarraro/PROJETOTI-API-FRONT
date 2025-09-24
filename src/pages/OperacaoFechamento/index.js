@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useMemo } from "react";
+// src/pages/OperacaoFechamento/index.js
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+} from "react";
 import { Container, Row, Col, Button } from "reactstrap";
 import { MdDoneOutline } from "react-icons/md";
 import { Box, LoadingContainer, Loader, LoadingText } from "./styles";
@@ -19,21 +26,15 @@ import LineChartReceita from "./LineChartReceita";
 function parseEmissaoToISO(emissaoRaw) {
   if (!emissaoRaw) return null;
   const s = String(emissaoRaw).trim();
-
-  // Já está ISO?
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
-
-  // Formato brasileiro?
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (m) {
-    let [_, d, mth, y] = m;
-    if (y.length === 2) y = (Number(y) > 70 ? "19" : "20") + y; // heurística
+    let [, d, mth, y] = m;
+    if (y.length === 2) y = (Number(y) > 70 ? "19" : "20") + y;
     const dd = String(d).padStart(2, "0");
     const mm = String(mth).padStart(2, "0");
     return `${y}-${mm}-${dd}`;
   }
-
-  // fallback: retorna o que der (mantendo 10 chars)
   return s.slice(0, 10);
 }
 
@@ -43,34 +44,24 @@ function getMonthKey(emissaoRaw) {
   return iso ? iso.slice(0, 7) : "";
 }
 
-/** Converte um registro vindo do back (nomes snake_case) para os nomes usados no front */
+function toNum(v) {
+  if (v === null || v === undefined || v === "") return 0;
+  return parseFloat(String(v).replace(",", ".")) || 0;
+}
+
+/** Converte/normaliza mantendo TODOS os campos vindos do backend */
 function normalizeRow(r) {
-  return {
-    // campos já usados no front:
-    status: r.status ?? null,
-    numero: r.numero ?? null,
-    tipo: r.tipo ?? null,
-    remessa: r.remessa ?? null,
-    tipo_servico: r.tipo_de_servico ?? r.tipo_servico ?? null,
-    nota_fiscal: r.nota_fiscal ?? null,
-    fil_dest: r.fil_dest ?? null,
-    emissao: parseEmissaoToISO(r.emissao),
-    valor_bruto: r.valor_bruto
-      ? Number(String(r.valor_bruto).replace(",", "."))
-      : 0,
-    destinatario: r.destinatario ?? null,
-    tomador_servico: r.tomador_do_servico ?? r.tomador_servico ?? null,
-    coletado_em: r.coletado_em ?? null,
-    prazo_d: r.prazo_d ?? null,
-    peso: r.peso ? Number(String(r.peso).replace(",", ".")) : 0,
-    quantidade_volume: r.quantidade_volume
-      ? Number(String(r.quantidade_volume).replace(",", "."))
-      : 0,
-    valor_mercadoria: r.valor_de_mercadoria
-      ? Number(String(r.valor_de_mercadoria).replace(",", "."))
-      : 0,
-    qtd: r.qtd ? Number(String(r.qtd).replace(",", ".")) : 0,
-  };
+  const out = { ...r };
+  out.id = r.id ?? out.id ?? null;
+  out.emissao = parseEmissaoToISO(r.emissao);
+  out.tipo_servico = r.tipo_de_servico ?? r.tipo_servico ?? null;
+  out.tomador_servico = r.tomador_do_servico ?? r.tomador_servico ?? null;
+  out.valor_bruto = toNum(r.valor_bruto);
+  out.peso = toNum(r.peso);
+  out.quantidade_volume = toNum(r.quantidade_volume);
+  out.valor_mercadoria = toNum(r.valor_de_mercadoria ?? r.valor_mercadoria);
+  out.qtd = toNum(r.qtd);
+  return out;
 }
 
 const monthOptions = [
@@ -96,14 +87,21 @@ const OperacaoFechamento = () => {
   const [selectedTomadores, setSelectedTomadores] = useState([]);
   const [selectedMonths, setSelectedMonths] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
+
+  // guard para aplicar somente o último fetch finalizado
+  const lastReqId = useRef(0);
 
   /** Busca do banco:
    * - Se não houver meses selecionados → GET /fechamento_op/ (tudo)
-   * - Se houver meses → faz GET /fechamento_op/?mes=YYYY-MM para cada mês e concatena
+   * - Se houver meses → GET /fechamento_op/?mes=YYYY-MM para cada mês (Promise.all)
+   * Bloqueia render até finalizar (loading=true).
    */
-  const fetchData = async (months = []) => {
+  const fetchData = useCallback(async (months = []) => {
+    const reqId = ++lastReqId.current;
     setLoading(true);
+    setError(null);
     try {
       let rows = [];
       if (!months || months.length === 0) {
@@ -114,32 +112,27 @@ const OperacaoFechamento = () => {
         const responses = await Promise.all(calls);
         rows = responses.flatMap((r) => (Array.isArray(r.data) ? r.data : []));
       }
-
-      // normaliza todos os itens para o shape esperado no front
       const normalized = rows.map(normalizeRow);
-      setData(normalized);
+      if (lastReqId.current === reqId) {
+        setData(normalized);
+      }
     } catch (err) {
       console.error("Erro ao buscar dados:", err);
-      setData([]);
+      if (lastReqId.current === reqId) {
+        setData([]);
+        setError("Falha ao carregar os dados. Tente novamente.");
+      }
     } finally {
-      setLoading(false);
+      if (lastReqId.current === reqId) setLoading(false);
     }
-  };
-
-  // primeira carga (sem filtro de mês → pega geral)
-  useEffect(() => {
-    fetchData([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // quando o usuário alterar meses, busca de novo
+  // único efeito: roda no mount e sempre que os meses mudarem
   useEffect(() => {
     fetchData(selectedMonths);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonths]);
+  }, [fetchData, selectedMonths]);
 
   const handleUploaded = async () => {
-    // ao terminar import, refaz a busca respeitando meses selecionados
     await fetchData(selectedMonths);
     setIsModalOpen(false);
   };
@@ -148,6 +141,7 @@ const OperacaoFechamento = () => {
   const filteredData = useMemo(() => {
     const monthSet = new Set(selectedMonths.map((m) => m.value));
     const tomadorSet = new Set(selectedTomadores.map((t) => t.value));
+    const allowedStatuses = new Set(["Encerrado", "Ativo"]);
 
     return data.filter((item) => {
       const itemMonth = getMonthKey(item.emissao);
@@ -156,7 +150,7 @@ const OperacaoFechamento = () => {
         tomadorSet.size === 0 || tomadorSet.has(item.tomador_servico);
 
       return (
-        item.status === "Encerrado" &&
+        allowedStatuses.has(item.status) &&
         item.tipo_servico === "Normal" &&
         isMonthSelected &&
         isTomadorSelected
@@ -164,10 +158,10 @@ const OperacaoFechamento = () => {
     });
   }, [data, selectedMonths, selectedTomadores]);
 
-
   const filteredDataReceita = useMemo(() => {
     const monthSet = new Set(selectedMonths.map((m) => m.value));
     const tomadorSet = new Set(selectedTomadores.map((t) => t.value));
+    const allowedStatuses = new Set(["Encerrado", "Ativo"]);
     const out = [];
     for (let i = 0; i < data.length; i++) {
       const item = data[i];
@@ -175,12 +169,17 @@ const OperacaoFechamento = () => {
       const isMonthSelected = monthSet.size === 0 || monthSet.has(itemMonth);
       const isTomadorSelected =
         tomadorSet.size === 0 || tomadorSet.has(item.tomador_servico);
-      if (item.status === "Encerrado" && isMonthSelected && isTomadorSelected) {
+      if (
+        allowedStatuses.has(item.status) &&
+        isMonthSelected &&
+        isTomadorSelected
+      ) {
         out.push(item);
       }
     }
     return out;
   }, [data, selectedMonths, selectedTomadores]);
+
   // opções de tomador baseadas nos dados carregados
   const tomadorOptions = useMemo(() => {
     const set = new Set(data.map((i) => i.tomador_servico).filter(Boolean));
@@ -265,6 +264,39 @@ const OperacaoFechamento = () => {
 
   const totalsEncerrado = totalsByStatus("Encerrado");
 
+  // ========= RENDER: bloqueia tudo até loading=false =========
+  if (loading) {
+    return (
+      <div className="boxGeneral">
+        <Container fluid>
+          <LoadingContainer>
+            <LoadingText>Carregando dados...</LoadingText>
+            <Loader />
+          </LoadingContainer>
+        </Container>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="boxGeneral">
+        <Container fluid>
+          <LoadingContainer>
+            <LoadingText>{error}</LoadingText>
+            <Button
+              color="primary"
+              onClick={() => fetchData(selectedMonths)}
+              style={{ marginTop: 12 }}
+            >
+              Tentar novamente
+            </Button>
+          </LoadingContainer>
+        </Container>
+      </div>
+    );
+  }
+
   return (
     <div className="boxGeneral">
       <ModalAdd
@@ -273,129 +305,123 @@ const OperacaoFechamento = () => {
         onUploaded={handleUploaded}
       />
       <Container fluid>
-        {loading ? (
-          <LoadingContainer>
-            <LoadingText>Carregando dados...</LoadingText>
-            <Loader />
-          </LoadingContainer>
-        ) : (
-          <>
-            <Row>
-              <Col md="4">
-                <StyledSelect
-                  isMulti
-                  options={tomadorOptions}
-                  placeholder="Selecione os tomadores..."
-                  onChange={setSelectedTomadores}
-                  value={selectedTomadores}
-                  style={{ padding: 0 }}
-                />
-              </Col>
-              <Col md="4">
-                <StyledSelect
-                  isMulti
-                  options={monthOptions}
-                  placeholder="Selecione os meses..."
-                  onChange={setSelectedMonths}
-                  value={selectedMonths}
-                />
-              </Col>
-              <Col md="4" style={{ display: "flex", alignItems: "center" }}>
-                <Button
-                  onClick={() => navigate("/SAC")}
-                  style={{ marginBottom: -15, background: "primary" }}
-                >
-                  Ir para SAC
-                </Button>
+        <Row>
+          <Col md="4">
+            <StyledSelect
+              isMulti
+              options={tomadorOptions}
+              placeholder="Selecione os tomadores..."
+              onChange={setSelectedTomadores}
+              value={selectedTomadores}
+              style={{ padding: 0 }}
+            />
+          </Col>
+          <Col md="4">
+            <StyledSelect
+              isMulti
+              options={monthOptions}
+              placeholder="Selecione os meses..."
+              onChange={setSelectedMonths}
+              value={selectedMonths}
+            />
+          </Col>
+          <Col md="4" style={{ display: "flex", alignItems: "center" }}>
+            <Button
+              onClick={() => navigate("/SAC")}
+              style={{ marginBottom: -15, background: "primary" }}
+            >
+              Ir para SAC
+            </Button>
 
-                <Button
-                  color="success"
-                  onClick={() => setIsModalOpen(true)}
-                  style={{ marginBottom: -15, marginLeft: 10 }}
-                >
-                  Importar Excel
-                </Button>
-                <Button
-                  color="primary"
-                  onClick={() => navigate("/Frete")}
-                  style={{ marginBottom: -15, marginLeft: 10 }}
-                >
-                  Ir para Frete
-                </Button>
-              </Col>
-            </Row>
-            <Row style={{ marginTop: 40 }}>
-              <Col md="4">
-                <SummaryBox
-                  title="Concluídos"
-                  icon={MdDoneOutline}
-                  bgColor="rgba(0, 255, 127, 0.35)"
-                  data={{
-                    valorBruto: totalsEncerrado.valorBruto,
-                    valorMercadoria: totalsEncerrado.valorMercadoria,
-                  }}
-                  documentData={filteredData}
-                />
-              </Col>
-              <Col md="8">
-                <FilialChart
-                  barData={totalsEncerrado.barData}
-                  percentages={totalsEncerrado.percentages}
-                />
-              </Col>
-            </Row>
-            <Row>
-              <Col md="12">
-                <Box>
-                  <h5>Toneladas Carregadas por Dia</h5>
-                  <LineChartToneladas
-                    data={filteredData}
-                    selectedTomadores={selectedTomadores.map((t) => t.value)}
-                    selectedMonths={selectedMonths.map((m) => m.value)}
-                  />
-                </Box>
-              </Col>
-            </Row>
+            <Button
+              color="success"
+              onClick={() => setIsModalOpen(true)}
+              style={{ marginBottom: -15, marginLeft: 10 }}
+            >
+              Importar Excel
+            </Button>
+            <Button
+              color="primary"
+              onClick={() => navigate("/Frete")}
+              style={{ marginBottom: -15, marginLeft: 10 }}
+            >
+              Ir para Frete
+            </Button>
+          </Col>
+        </Row>
 
-            <Row>
-              <Col md="12">
-                <Box>
-                  <h5>Receita diária por mês (com meta)</h5>
-                  <LineChartReceita
-                     // já vem filtrado por Encerrado  Normal
-                    data={filteredDataReceita}
-                    selectedTomadores={selectedTomadores.map((t) => t.value)}
-                    selectedMonths={selectedMonths.map((m) => m.value)}
-                    monthlyGoal={3_500_000} // meta mensal (R$)
-                  />
-                </Box>
-              </Col>
-            </Row>
-            <Row>
-              <Col md="6">
-                <TopTomadores data={groupedByTomador} />
-              </Col>
+        <Row style={{ marginTop: 40 }}>
+          <Col md="4">
+            <SummaryBox
+              title="Concluídos"
+              icon={MdDoneOutline}
+              bgColor="rgba(0, 255, 127, 0.35)"
+              data={{
+                valorBruto: totalsEncerrado.valorBruto,
+                valorMercadoria: totalsEncerrado.valorMercadoria,
+              }}
+              documentData={filteredData}
+            />
+          </Col>
+          <Col md="8">
+            <FilialChart
+              barData={totalsEncerrado.barData}
+              percentages={totalsEncerrado.percentages}
+            />
+          </Col>
+        </Row>
 
-              <Col md="6">
-                <Box style={{ paddingBottom: 10 }}>
-                  {groupedByTomador.length > 0 ? (
-                    <>
-                      <h5>Distribuição Top 10 Tomadores</h5>
-                      <PizzaTopDezDistrib data={groupedByTomador} />
-                    </>
-                  ) : (
-                    <p>Sem dados disponíveis para o gráfico.</p>
-                  )}
-                </Box>
-              </Col>
-            </Row>
-            <Row>
-              <Col md="6">
-                <TopTomadoresQuantidade data={filteredData} />
-              </Col>
-            </Row>
-          </>
-        )}
+        <Row>
+          <Col md="12">
+            <Box>
+              <h5>Toneladas Carregadas por Dia</h5>
+              <LineChartToneladas
+                data={filteredData}
+                selectedTomadores={selectedTomadores.map((t) => t.value)}
+                selectedMonths={selectedMonths.map((m) => m.value)}
+              />
+            </Box>
+          </Col>
+        </Row>
+
+        <Row>
+          <Col md="12">
+            <Box>
+              <h5>Receita diária por mês (com meta)</h5>
+              <LineChartReceita
+                data={filteredDataReceita}
+                selectedTomadores={selectedTomadores.map((t) => t.value)}
+                selectedMonths={selectedMonths.map((m) => m.value)}
+                monthlyGoal={3_500_000}
+              />
+            </Box>
+          </Col>
+        </Row>
+
+       
+
+        <Row>
+          <Col md="12">
+            <Box style={{ paddingBottom: 10 }}>
+              {groupedByTomador.length > 0 ? (
+                <>
+                  <h5>Receita Top 10 Tomadores</h5>
+                  <PizzaTopDezDistrib items={filteredDataReceita} topN={10} />
+                </>
+              ) : (
+                <p>Sem dados disponíveis para o gráfico.</p>
+              )}
+            </Box>
+          </Col>
+        </Row>
+         <Row>
+          <Col md="6">
+            <TopTomadores data={groupedByTomador} />
+          </Col>
+          <Col md="6">
+            <TopTomadoresQuantidade data={filteredData} />
+          </Col>
+        </Row>
       </Container>
     </div>
   );

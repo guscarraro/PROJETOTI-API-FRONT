@@ -419,20 +419,17 @@ const ModalNaoCobranca = ({ data, clientes = [], onClose, onRefresh, onContagemV
           </thead>
           <tbody>
             {sortedData
-              .filter((item) => {
-                const clienteInfo = getClienteInfo(item.cliente_id);
-                const permanencia = calcularTempoPermanencia(
-                  item.horario_chegada,
-                  item.horario_saida,
-                  item.horario_ocorrencia
-                );
-                const cobranca = calcularValorCobranca(clienteInfo, permanencia);
+.filter((item) => {
+  const clienteInfo = getClienteInfo(item.cliente_id);
+  const permanencia = calcularTempoPermanencia(
+    item.horario_chegada,
+    item.horario_saida,
+    item.horario_ocorrencia
+  );
+  const cobranca = calcularValorCobranca(clienteInfo, permanencia);
+  return !cobranca.dentroDoPrazo && cobranca.excedente > 0;
+})
 
-                return (
-                  (permanencia.formatado === "Indisponível") ||
-                  (!cobranca.dentroDoPrazo && cobranca.excedente > 0)
-                );
-              })
               .map((item, index) => {
                 const permanencia = calcularTempoPermanencia(
                   item.horario_chegada,
