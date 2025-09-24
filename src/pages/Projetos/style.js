@@ -891,3 +891,40 @@ export const BaselineMark = styled.span`
   color: ${(p) => p.$color || '#111827'};
   pointer-events: none;
 `;
+export const MyCommentsBtn = styled.button`
+  margin-left: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+
+  background: #dbeafe;     /* light */
+  color: #1e40af;
+  border: 1px solid #93c5fd;
+  transition: background-color .2s ease, border-color .2s ease, color .2s ease,
+              filter .15s ease, transform .05s ease;
+
+  &:hover { filter: brightness(0.98); }
+  &:active { transform: translateY(1px); }
+  &:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+  /* dark mode (sistema) */
+  @media (prefers-color-scheme: dark) {
+    background: #0b2a5b;
+    border-color: #1d4ed8;
+    color: #e5e7eb;
+  }
+
+  /* dark mode (classe global) */
+  .dark &,
+  [data-theme="dark"] & {
+    background: #0b2a5b;
+    border-color: #1d4ed8;
+    color: #e5e7eb;
+  }
+`;

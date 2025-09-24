@@ -231,6 +231,7 @@ const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
           canDeleteCommentCell={canDeleteCommentCell}
           canDeleteRowItem={canDeleteRowItem}
           canToggleBaselineCell={canToggleBaselineCell}
+          currentUserSectorId={actorSectorId} 
         />
       </Section>
 

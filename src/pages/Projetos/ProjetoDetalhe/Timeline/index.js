@@ -1,3 +1,4 @@
+// src/pages/Projetos/ProjetoDetalhe/Timeline/index.jsx
 import React, { useRef, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
@@ -6,7 +7,7 @@ import {
   Overlay,
   SectorFilterBar,
   FilterLabel,
-  SectorSelect,
+  MyCommentsBtn,
 } from "../../style";
 import { ALL_SECTORS, COLOR_PALETTE, monthBgTones } from "./constants";
 import useMonthsSegments from "./hooks/useMonthsSegments";
@@ -21,6 +22,7 @@ import PaletteMenu from "./PaletteMenu";
 import Tooltip from "./Tooltip";
 import TrashZone from "./TrashZone";
 import { SectorDropdown } from "./SectorDropdown";
+import ModalDetalheComment from "./ModalDetalheComment";
 
 export default function Timeline({
   days = [],
@@ -28,17 +30,18 @@ export default function Timeline({
   // usuário
   currentUserId,
   currentUserInitial = "U",
+  currentUserSectorId, // setor logado
   isAdmin = false,
 
   // handlers (devem ser NÃO-OTIMISTAS)
-  onPickColor, // (rowId, dayISO, color) => Promise
-  onSetCellComment, // (rowId, dayISO, comment, authorInitial) => Promise
-  onSetRowSector, // (rowId, sectorKey) => Promise
-  onToggleBaseline, // (rowId, dayISO, enabled) => Promise
-  onReorderRows, // (nextRows) => void
-  onRenameRow, // (rowId, newTitle)
-  onDeleteRow, // (rowId) => Promise
-  onDeleteComment, // (rowId, dayISO, commentId) => Promise
+  onPickColor,
+  onSetCellComment,
+  onSetRowSector,
+  onToggleBaseline,
+  onReorderRows,
+  onRenameRow,
+  onDeleteRow,
+  onDeleteComment,
 
   // recursos
   canMarkBaseline = false,
@@ -48,12 +51,12 @@ export default function Timeline({
   availableSectorKeys = [],
 
   // permissões (defaults liberados)
-  canEditColorCell = () => true, // (rowId, dayISO) => bool
-  canToggleBaselineCell = () => true, // (rowId, dayISO) => bool
-  canCreateCommentCell = () => true, // (rowId, dayISO) => bool
-  canDeleteCommentCell, // (rowId, dayISO, comment) => bool
-  canDeleteRowItem = () => true, // (rowId) => bool
-  canOpenPaletteCell, // (rowId, dayISO) => bool
+  canEditColorCell = () => true,
+  canToggleBaselineCell = () => true,
+  canCreateCommentCell = () => true,
+  canDeleteCommentCell,
+  canDeleteRowItem = () => true,
+  canOpenPaletteCell,
 }) {
   const scrollerRef = useRef(null);
   const firstColRef = useRef(null);
@@ -66,7 +69,6 @@ export default function Timeline({
       firstColRef.current.scrollTop = e.currentTarget.scrollTop;
   };
 
-  // ---- helper para ler setores de uma linha (array ou único)
   const getRowSectorKeys = (r) => {
     const acc = [];
     if (!r) return acc;
@@ -89,9 +91,8 @@ export default function Timeline({
     return acc;
   };
 
-  // SECTORS do projeto: usa availableSectorKeys se vier, senão deriva dos rows
+  // SECTORS
   const SECTORS = useMemo(() => {
-    // 1) whitelist do pai
     if (Array.isArray(availableSectorKeys) && availableSectorKeys.length > 0) {
       const acc = [];
       for (let i = 0; i < ALL_SECTORS.length; i++) {
@@ -100,7 +101,6 @@ export default function Timeline({
       }
       return acc;
     }
-    // 2) derivar dos rows
     const present = {};
     for (let i = 0; i < rows.length; i++) {
       const keys = getRowSectorKeys(rows[i]);
@@ -123,14 +123,11 @@ export default function Timeline({
     return map;
   }, []);
 
-  // meses (header)
   const monthSegments = useMonthsSegments(days);
 
-  // rename inline
   const [editingRowId, setEditingRowId] = useState(null);
   const [editDraft, setEditDraft] = useState("");
 
-  // tooltip
   const [tooltip, setTooltip] = useState(null);
   const showTooltip = (e, text, authorInitial) => {
     const { clientX: x, clientY: y } = e;
@@ -138,7 +135,6 @@ export default function Timeline({
   };
   const hideTooltip = () => setTooltip(null);
 
-  // menu de setor
   const [sectorMenu, setSectorMenu] = useState(null);
   const openSectorMenu = (rowId, e) => {
     const rect = e.currentTarget.getBoundingClientRect();
@@ -148,22 +144,6 @@ export default function Timeline({
   };
   const closeSectorMenu = () => setSectorMenu(null);
 
-  // pickSector com tratamento de permissão (aguarda servidor)
-  const pickSector = async (key) => {
-    if (!sectorMenu || !onSetRowSector) return;
-    try {
-      await onSetRowSector(sectorMenu.rowId, key);
-      closeSectorMenu();
-    } catch (err) {
-      const s = err?.response?.status;
-      const d = err?.response?.data?.detail;
-      if (s === 403) toast.error("Sem permissão para alterar o setor.");
-      else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
-      else toast.error(d || "Falha ao alterar o setor.");
-    }
-  };
-
-  // paleta
   const [palette, setPalette] = useState(null);
   const [paletteSubmitting, setPaletteSubmitting] = useState(false);
 
@@ -178,24 +158,34 @@ export default function Timeline({
     );
   };
 
+  // aceita abrir sem evento (ex.: pulo a partir da modal)
   const openPalette = (rowId, dayISO, e, existing = {}) => {
     if (!guardOpenPalette(rowId, dayISO)) {
       toast.error("Você não tem permissão para editar esta célula.");
       return;
     }
 
-    const rect = e.currentTarget.getBoundingClientRect();
     const W = 340,
       H = 320,
       M = 8;
-    let left = rect.left;
-    if (left + W > window.innerWidth - M) left = window.innerWidth - W - M;
-    if (left < M) left = M;
-    let top = rect.bottom + M;
-    if (top + H > window.innerHeight - M) {
-      top = rect.top - H - M;
-      if (top < M) top = M;
+    let left, top;
+
+    if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      left = rect.left;
+      if (left + W > window.innerWidth - M) left = window.innerWidth - W - M;
+      if (left < M) left = M;
+      top = rect.bottom + M;
+      if (top + H > window.innerHeight - M) {
+        top = rect.top - H - M;
+        if (top < M) top = M;
+      }
+    } else {
+      // abertura programática (centralizado)
+      left = Math.max(M, (window.innerWidth - W) / 2);
+      top = Math.max(M, (window.innerHeight - H) / 2);
     }
+
     const comments = Array.isArray(existing?.comments)
       ? existing.comments.slice()
       : [];
@@ -210,9 +200,9 @@ export default function Timeline({
       comments,
     });
   };
+
   const closePalette = () => setPalette(null);
 
-  // importante: retornar Promise para a paleta poder aguardar
   const handlePickColor = (c) => {
     if (!palette || !onPickColor) return;
     if (!canEditColorCell(palette.rowId, palette.dayISO)) {
@@ -222,7 +212,6 @@ export default function Timeline({
     return onPickColor(palette.rowId, palette.dayISO, c);
   };
 
-  // ---- filtro por setor (UI acima das legendas)
   const [selectedSectorKey, setSelectedSectorKey] = useState("ALL");
 
   const filteredRows = useMemo(() => {
@@ -230,7 +219,6 @@ export default function Timeline({
     const out = [];
     for (let i = 0; i < rows.length; i++) {
       const keys = getRowSectorKeys(rows[i]);
-      // manter sem reduce: loop simples procurando match
       let has = false;
       for (let j = 0; j < keys.length; j++) {
         if (keys[j] === selectedSectorKey) {
@@ -243,10 +231,8 @@ export default function Timeline({
     return out;
   }, [rows, selectedSectorKey]);
 
-  // DnD usa as linhas visíveis (filtradas)
   const {
     draggingId,
-    overInfo,
     onDragStart,
     onDragOverRow,
     onDropRow,
@@ -255,10 +241,8 @@ export default function Timeline({
     setDraggingId,
   } = useDnDRows(filteredRows, canReorderRows, isBusy, onReorderRows);
 
-  // deletar arrastando à lixeira
   const [deletingRowId, setDeletingRowId] = useState(null);
 
-  // ESC fecha menus
   useEscapeClose(() => {
     setPalette(null);
     setSectorMenu(null);
@@ -266,7 +250,6 @@ export default function Timeline({
     setEditDraft("");
   });
 
-  // fallback de permissão de comentário (ADM ou autor)
   const defaultCanDeleteCommentCell = (rowId, dayISO, c) => {
     if (isAdmin) return true;
     const isAuthor =
@@ -277,26 +260,87 @@ export default function Timeline({
     return !!isAuthor;
   };
 
+  // ===== contador de "meus comentários" (mesma regra do bubble) =====
+  const myCommentsCount = useMemo(() => {
+    if (!currentUserSectorId) return 0;
+    let n = 0;
+    for (const r of rows) {
+      const cells = r?.cells || {};
+      for (const day in cells) {
+        const list = (cells[day]?.comments || []).filter(
+          (c) =>
+            !c?.deleted &&
+            String(c?.sector_id) === String(currentUserSectorId)
+        );
+        n += list.length;
+      }
+    }
+    return n;
+  }, [rows, currentUserSectorId]);
+
+  // ===== lista detalhada para a modal =====
+  const myCommentsItems = useMemo(() => {
+    if (!currentUserSectorId) return [];
+    const acc = [];
+    for (const r of rows) {
+      const rowTitle = r?.titulo || r?.title || r?.name || "";
+      const cells = r?.cells || {};
+      for (const dayISO in cells) {
+        const cell = cells[dayISO] || {};
+        const list = (cell.comments || []).filter(
+          (c) => !c?.deleted && String(c?.sector_id) === String(currentUserSectorId)
+        );
+        for (const c of list) {
+          acc.push({
+            id: c.id,
+            rowId: r.id,
+            rowTitle,
+            dayISO,
+            created_at: c.created_at,
+            message: c.message,
+            authorInitial: c.authorInitial || "U",
+            sector_id: c.sector_id,
+          });
+        }
+      }
+    }
+    acc.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    return acc;
+  }, [rows, currentUserSectorId]);
+
+  const [showMyCommentsModal, setShowMyCommentsModal] = useState(false);
+
+  const jumpToCellFromModal = (rowId, dayISO) => {
+    const row = rows.find((r) => String(r.id) === String(rowId));
+    const existing = row?.cells?.[dayISO] || {};
+    openPalette(rowId, dayISO, null, existing);
+    setShowMyCommentsModal(false);
+  };
+
   return (
     <TimelineWrap>
-      {/* Filtro por setor - acima das legendas */}
+      {/* Filtro por setor + chip de “meus comentários” (agora clicável) */}
       <SectorFilterBar>
         <FilterLabel htmlFor="sector-filter">Filtrar por setor</FilterLabel>
-
         <SectorDropdown
           id="sector-filter"
           value={selectedSectorKey}
           onChange={(k) => setSelectedSectorKey(k)}
           options={[
-            {
-              key: "ALL",
-              label: "Todos os setores",
-              color: "#9ca3af",
-              initial: "*",
-            },
-            ...SECTORS, // [{key,label,color,initial}]
+            { key: "ALL", label: "Todos os setores", color: "#9ca3af", initial: "*" },
+            ...SECTORS,
           ]}
         />
+
+        {currentUserSectorId != null && (
+  <MyCommentsBtn
+    type="button"
+    onClick={() => setShowMyCommentsModal(true)}
+    title="Ver comentários do meu setor neste projeto"
+  >
+    Meus comentários: {myCommentsCount}
+  </MyCommentsBtn>
+)}
       </SectorFilterBar>
 
       <LegendBar sectors={SECTORS} />
@@ -362,9 +406,20 @@ export default function Timeline({
 
       <SectorMenu
         sectors={SECTORS}
-        rows={rows} // mantém dados completos para edição
+        rows={rows}
         sectorMenu={sectorMenu}
-        pickSector={pickSector}
+        pickSector={async (key) => {
+          try {
+            await onSetRowSector?.(sectorMenu.rowId, key);
+            setSectorMenu(null);
+          } catch (err) {
+            const s = err?.response?.status;
+            const d = err?.response?.data?.detail;
+            if (s === 403) toast.error("Sem permissão para alterar o setor.");
+            else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
+            else toast.error(d || "Falha ao alterar o setor.");
+          }
+        }}
         close={() => setSectorMenu(null)}
       />
 
@@ -382,22 +437,28 @@ export default function Timeline({
           }
         }}
         currentUserInitial={currentUserInitial}
+        currentUserSectorId={currentUserSectorId} // destaca no CommentList
         canMarkBaseline={canMarkBaseline}
         baselineColor={baselineColor}
-        onToggleBaseline={onToggleBaseline} // Promise
-        onDeleteComment={onDeleteComment} // Promise
+        onToggleBaseline={onToggleBaseline}
+        onDeleteComment={onDeleteComment}
         close={closePalette}
         submitting={paletteSubmitting}
-        // permissões
         canEditColorCell={canEditColorCell}
         canToggleBaselineCell={canToggleBaselineCell}
         canCreateCommentCell={canCreateCommentCell}
-        canDeleteCommentCell={
-          canDeleteCommentCell || defaultCanDeleteCommentCell
-        }
+        canDeleteCommentCell={canDeleteCommentCell || defaultCanDeleteCommentCell}
         isAdmin={isAdmin}
         currentUserId={currentUserId}
         sectorsDoProjeto={SECTORS}
+      />
+
+      {/* Modal de “Meus comentários” */}
+      <ModalDetalheComment
+        isOpen={showMyCommentsModal}
+        onClose={() => setShowMyCommentsModal(false)}
+        items={myCommentsItems}
+        onJumpToCell={jumpToCellFromModal}
       />
 
       <Tooltip tooltip={tooltip} />

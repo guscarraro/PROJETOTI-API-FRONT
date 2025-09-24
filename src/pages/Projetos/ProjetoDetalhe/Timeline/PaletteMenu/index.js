@@ -34,6 +34,7 @@ sectorsDoProjeto = [],
   canToggleBaselineCell = () => true,
   canCreateCommentCell = () => true,
   canDeleteCommentCell = () => true,
+  currentUserSectorId,
 }) {
   const commentsRef = useRef(null);
   const containerRef = useRef(null);
@@ -215,6 +216,8 @@ sectorsDoProjeto = [],
             setImgPreview={setImgPreview}
             deletingId={deletingId}
             setDeletingId={setDeletingId}
+            userSectorId={currentUserSectorId}
+
           />
         </div>
 

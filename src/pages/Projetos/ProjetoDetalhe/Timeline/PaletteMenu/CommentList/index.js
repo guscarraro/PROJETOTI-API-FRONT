@@ -1,4 +1,3 @@
-// src/pages/Projetos/ProjetoDetalhe/Timeline/PaletteMenu/CommentList/index.js
 import React from "react";
 import styled from "styled-components";
 import { CommentBubble, DeleteCommentBtn, SectorDot } from "../../../../style";
@@ -32,15 +31,22 @@ const RichHtml = styled.div`
   .dark & .sector-pill, [data-theme="dark"] & .sector-pill { background: #111a2d; border-color: #334155; }
 `;
 
-// remove qualquer trecho de dataURL do texto exibido (deixa só o HTML/rich text)
+// pega só o HTML antes do primeiro ",data:" (anexos vêm depois)
 function extractHtmlFromMessage(msg) {
   const s = String(msg || "");
-  // pega o início do primeiro dataURL (imagem/pdf/xlsx), com ou sem vírgula/espaço antes
-  const m = /(?:^|[, \n\r])data:(?:image|application)\//.exec(s);
-  if (!m) return s.trim();
-  const dataStart = m.index + m[0].indexOf("data:");
-  return s.slice(0, dataStart).trim();
+  const i = s.indexOf(",data:");
+  return (i >= 0 ? s.slice(0, i) : s).trim();
 }
+
+const myTagStyle = {
+  fontSize: 10,
+  fontWeight: 800,
+  letterSpacing: 0.3,
+  color: "#1e40af",
+  background: "#dbeafe",
+  padding: "2px 6px",
+  borderRadius: 999,
+};
 
 export default function CommentList({
   comments = [],
@@ -51,6 +57,7 @@ export default function CommentList({
   setImgPreview,
   deletingId,
   setDeletingId,
+  userSectorId,                 // <<< NOVO: setor logado para destacar
 }) {
   return (
     <>
@@ -65,23 +72,44 @@ export default function CommentList({
             const html = extractHtmlFromMessage(raw);
             const htmlWithBR = html.replace(/(\r\n|\n|\r)/g, "<br/>");
 
+            const isMine =
+              userSectorId != null &&
+              String(c?.sector_id) === String(userSectorId);
+
             return (
               <div
                 key={c.id}
-                style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "6px 0" }}
+                style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "6px 0", flexDirection: isMine ? "row-reverse" : "row" }}
+
               >
-                <SectorDot $color="#111827">
+                <SectorDot $color={isMine ? "#1e40af" : "#111827"}>
                   {(c.authorInitial || "U").toUpperCase()}
                 </SectorDot>
 
-                <CommentBubble>
+                <CommentBubble
+                  style={
+                    isMine
+                      ? {
+                          border: "1px solid #2563eb",
+                          background: "rgba(37,99,235,0.06)",
+                        }
+                      : undefined
+                  }
+                >
                   <div
                     style={{
-                      fontSize: 11, opacity: 0.7, marginBottom: 2,
-                      display: "flex", alignItems: "center", gap: 8,
+                      fontSize: 11,
+                      opacity: 0.8,
+                      marginBottom: 2,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      flexWrap: "wrap",
                     }}
                   >
                     {new Date(c.created_at).toLocaleString()}
+                    {isMine && <span style={myTagStyle}>MEU SETOR</span>}
+
                     {canDeleteThis && (
                       <DeleteCommentBtn
                         onClick={async () => {
