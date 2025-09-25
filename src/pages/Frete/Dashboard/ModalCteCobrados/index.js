@@ -7,31 +7,28 @@ import { backdropStyle, modalStyle, headerStyle, gridStyle } from "./styles";
 import { formatarDataHora, ehNumeroCobranca } from "./utils";
 
 const ModalCteCobrado = ({ data, onClose }) => {
-  
-  
-  const {
-    acordoComercial,
-    cargaLotacao,
-    clienteNaoAutorizou,
-    numeroCobranca,
-  } = useMemo(() => {
-    const buckets = {
-      acordoComercial: [],
-      cargaLotacao: [],
-      clienteNaoAutorizou: [],
-      numeroCobranca: [],
-    };
+  const { acordoComercial, cargaLotacao, clienteNaoAutorizou, numeroCobranca } =
+    useMemo(() => {
+      const buckets = {
+        acordoComercial: [],
+        cargaLotacao: [],
+        clienteNaoAutorizou: [],
+        numeroCobranca: [],
+      };
 
-    (data ?? []).forEach((item) => {
-      const v = (item?.cte ?? "").toString().trim();
-      if (v === "ACORDO COMERCIAL VIGENTE") buckets.acordoComercial.push(item);
-      else if (v === "CARGA LOTAÇÃO NO DESTINATARIO") buckets.cargaLotacao.push(item);
-      else if (v === "CLIENTE NÃO AUTORIZOU PERMANÊNCIA") buckets.clienteNaoAutorizou.push(item);
-      else if (ehNumeroCobranca(v)) buckets.numeroCobranca.push(item);
-    });
+      (data ?? []).forEach((item) => {
+        const v = (item?.cte ?? "").toString().trim();
+        if (v === "ACORDO COMERCIAL VIGENTE")
+          buckets.acordoComercial.push(item);
+        else if (v === "CARGA LOTAÇÃO NO DESTINATARIO")
+          buckets.cargaLotacao.push(item);
+        else if (v === "CLIENTE NÃO AUTORIZOU PERMANÊNCIA")
+          buckets.clienteNaoAutorizou.push(item);
+        else if (ehNumeroCobranca(v)) buckets.numeroCobranca.push(item);
+      });
 
-    return buckets;
-  }, [data]);
+      return buckets;
+    }, [data]);
 
   // 🔹 Série por cliente (usada no gráfico de cada bloco)
   const seriePorCliente = (arr) => {
@@ -44,12 +41,18 @@ const ModalCteCobrado = ({ data, onClose }) => {
   };
 
   // 🔹 Dados do gráfico de pizza geral (4 fatias)
-  const pizzaResumo = useMemo(() => ([
-    { name: "ACORDO COMERCIAL VIGENTE", value: acordoComercial.length },
-    { name: "CARGA LOTAÇÃO NO DESTINATARIO", value: cargaLotacao.length },
-    { name: "CLIENTE NÃO AUTORIZOU PERMANÊNCIA", value: clienteNaoAutorizou.length },
-    { name: "NÚMERO DA COBRANÇA", value: numeroCobranca.length },
-  ]), [acordoComercial, cargaLotacao, clienteNaoAutorizou, numeroCobranca]);
+  const pizzaResumo = useMemo(
+    () => [
+      { name: "ACORDO COMERCIAL VIGENTE", value: acordoComercial.length },
+      { name: "CARGA LOTAÇÃO NO DESTINATARIO", value: cargaLotacao.length },
+      {
+        name: "CLIENTE NÃO AUTORIZOU PERMANÊNCIA",
+        value: clienteNaoAutorizou.length,
+      },
+      { name: "NÚMERO DA COBRANÇA", value: numeroCobranca.length },
+    ],
+    [acordoComercial, cargaLotacao, clienteNaoAutorizou, numeroCobranca]
+  );
 
   // 🧾 Exportação em 1 única aba com coluna "Status CTE"
   const exportarParaExcel = () => {
@@ -63,6 +66,8 @@ const ModalCteCobrado = ({ data, onClose }) => {
         Destinatário: item.destinatario ?? item.destino ?? "",
         "CTE / Justificativa / Nº Cobrança": item.cte,
         "Hora da Ocorrência": formatarDataHora(item.horario_ocorrencia),
+        "Hora de Encerramento": formatarDataHora(item.horario_encerramento),
+        "Hora de Permanência": formatarDataHora(item.horario_permanencia),
         Motorista: item.motorista,
       }));
 
