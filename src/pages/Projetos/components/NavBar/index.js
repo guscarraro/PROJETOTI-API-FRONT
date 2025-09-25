@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   NavWrap,
@@ -19,6 +19,7 @@ import {
   FiLogOut,
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
+import Notifications from "./Notifications";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -54,7 +55,7 @@ export default function NavBar() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiLocal.getSetores(); // GET /setor/
+        const res = await apiLocal.getSetores();
         setAllSectors(res.data || []);
       } catch {
         setAllSectors([]);
@@ -62,26 +63,20 @@ export default function NavBar() {
     })();
   }, []);
 
-  // Sincroniza darkmode no backend quando mudar localmente
   useEffect(() => {
     (async () => {
       try {
         if (user?.id) {
           const res = await apiLocal.setUsuarioDarkmode(user.id, dark);
           const updated = res?.data?.data || res?.data;
-
-          // Se o back devolver o usuário atualizado, use-o.
-          // Caso não devolva, apenas atualize o cache local sem novo GET.
           const nextUser = updated?.id ? updated : { ...user, darkmode: dark };
-
           localStorage.setItem("user", JSON.stringify(nextUser));
           setUser(nextUser);
         }
-      } catch {
-        /* silencioso */
-      }
+      } catch {}
     })();
-  }, [dark, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dark, user?.id]);
 
   const userSectorNames = useMemo(() => {
     const ids =
@@ -107,24 +102,9 @@ export default function NavBar() {
 
   const items = useMemo(() => {
     const base = [
-      {
-        key: "projetos",
-        label: "Projetos",
-        icon: <FiFolder />,
-        to: "/projetos",
-      },
-      {
-        key: "frete",
-        label: "Ir para o Frete",
-        icon: <FiTruck />,
-        to: "/frete",
-      },
-      {
-        key: "sac",
-        label: "Ir para o SAC",
-        icon: <FiHeadphones />,
-        to: "/sac",
-      },
+      { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
+      { key: "frete", label: "Ir para o Frete", icon: <FiTruck />, to: "/frete" },
+      { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" },
     ];
     if (isAdmin) {
       base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
@@ -147,14 +127,31 @@ export default function NavBar() {
     try {
       await apiLocal.logout?.();
     } catch {}
-    const theme = localStorage.getItem("theme"); // preserva o tema
+    const theme = localStorage.getItem("theme");
     localStorage.clear();
     if (theme) localStorage.setItem("theme", theme);
     navigate("/");
   };
 
+  // Medir largura atual da navbar e repassar para <Notifications />
+  const navWrapRef = useRef(null);
+  const [navWidth, setNavWidth] = useState(0);
+  useEffect(() => {
+    const el = navWrapRef.current;
+    if (!el) return;
+    const update = () => setNavWidth(el.getBoundingClientRect().width);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+
   return (
-    <NavWrap>
+    <NavWrap ref={navWrapRef}>
       <NavInner>
         {items.map((it) => (
           <NavItem
@@ -172,9 +169,29 @@ export default function NavBar() {
 
         {user && (
           <NavItem
-            title={
-              userSectorNames.length ? userSectorNames.join(", ") : "Usuário"
-            }
+            role="button"
+            title="Notificações"
+            $active={false}
+            onClick={(e) => {
+              e.stopPropagation();
+              // o próprio componente controla abrir/fechar
+              // (clicar fora fecha)
+            }}
+          >
+            <NavIcon style={{ position: "relative" }}>
+              <Notifications
+                user={user}
+                navWidth={navWidth}              // <<<<<< repassa a largura
+                onOpenProject={(pid) => navigate(`/projetos/${pid}`)}
+              />
+            </NavIcon>
+            <NavLabel>Notificações</NavLabel>
+          </NavItem>
+        )}
+
+        {user && (
+          <NavItem
+            title={userSectorNames.length ? userSectorNames.join(", ") : "Usuário"}
           >
             <NavIcon>
               <span
@@ -196,12 +213,11 @@ export default function NavBar() {
               </span>
             </NavIcon>
             <NavLabel>
-              {userSectorNames.length
-                ? userSectorNames[0]
-                : user?.email || "Usuário"}
+              {userSectorNames.length ? userSectorNames[0] : user?.email || "Usuário"}
             </NavLabel>
           </NavItem>
         )}
+
         <NavItem role="button" onClick={handleLogout} title="Sair">
           <NavIcon>
             <FiLogOut />

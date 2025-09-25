@@ -218,7 +218,8 @@ const apiLocal = {
   deleteUsuario: (id) => api.delete(`/user/usuarios/${id}`),
   setUsuarioDarkmode: (id, enabled) =>
     api.put(`/user/usuarios/${id}`, { darkmode: enabled ? "S" : "N" }),
-  adminRevokeUserSessions: (userId) => api.post(`/auth/sessions/revoke/${userId}`),
+  adminRevokeUserSessions: (userId) =>
+    api.post(`/auth/sessions/revoke/${userId}`),
 
   getSetores: () => api.get("/setor/setores/"),
   createSetor: (data) => api.post("/setor/setores/", data),
@@ -252,6 +253,40 @@ const apiLocal = {
 
   deleteProjeto: (id, actor_sector_id) =>
     api.delete(`/projetos/${id}`, { data: { actor_sector_id } }),
+
+  // ========================
+  // NOTIFICAÇÕES DE PROJETOS
+  // ========================
+  getNotifCounters: (userId) =>
+    api.get("/projects/notifications/counters", {
+      params: { user_id: String(userId) },
+    }),
+
+  getNotifFeed: (
+    userId,
+    { projectId, unseenOnly = false, limit = 50, before } = {}
+  ) =>
+    api.get("/projects/notifications/feed", {
+      params: {
+        user_id: String(userId),
+        ...(projectId ? { project_id: String(projectId) } : {}),
+        ...(unseenOnly ? { unseen_only: true } : {}),
+        ...(before ? { before } : {}),
+        limit,
+      },
+    }),
+
+  markNotifsSeen: (userId, notificationIds) =>
+    api.put("/projects/notifications/mark-seen", {
+      user_id: String(userId),
+      notification_ids: notificationIds.map(String),
+    }),
+
+  markProjectSeen: (userId, projectId) =>
+    api.put("/projects/notifications/mark-project-seen", {
+      user_id: String(userId),
+      project_id: String(projectId),
+    }),
 
   // Custos do projeto
   listProjetoCustos: (projectId) => api.get(`/projetos/${projectId}/custos`),
