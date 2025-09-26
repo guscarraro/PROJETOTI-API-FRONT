@@ -53,8 +53,9 @@ const ModalCteCobrado = ({ data, onClose }) => {
     ],
     [acordoComercial, cargaLotacao, clienteNaoAutorizou, numeroCobranca]
   );
-
+  
   // 🧾 Exportação em 1 única aba com coluna "Status CTE"
+ 
   const exportarParaExcel = () => {
     const wb = XLSX.utils.book_new();
 
@@ -66,8 +67,9 @@ const ModalCteCobrado = ({ data, onClose }) => {
         Destinatário: item.destinatario ?? item.destino ?? "",
         "CTE / Justificativa / Nº Cobrança": item.cte,
         "Hora da Ocorrência": formatarDataHora(item.horario_ocorrencia),
-        "Hora de Encerramento": formatarDataHora(item.horario_encerramento),
-        "Hora de Permanência": formatarDataHora(item.horario_permanencia),
+        "Hora de Encerramento": formatarDataHora(item.horario_saida),
+        "Hora de Permanência": (() => { const o = new Date(item.horario_ocorrencia), s = new Date(item.horario_saida); const d = s - o; if (isNaN(d) || d < 0) return "Indisponível"; const h = Math.floor(d / 3600000), m = Math.floor((d % 3600000) / 60000); return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`; })(),
+
         Motorista: item.motorista,
       }));
 

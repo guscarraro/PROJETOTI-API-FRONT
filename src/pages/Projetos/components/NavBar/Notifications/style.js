@@ -127,15 +127,18 @@ export const Panel = styled.div`
 
 /* Cabeçalho fixo */
 export const Header = styled.div`
-  position: sticky;
+ 
   top: 0;
   z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
   padding: 10px 12px;
-  background: var(--panel-bg);
+    background: ${({ $active }) =>
+    $active
+      ? "linear-gradient(to bottom, var(--tab-active-top), var(--tab-active-bot))"
+      : "transparent"};
   border-bottom: 1px solid var(--soft-outline);
 
   strong {
@@ -156,7 +159,7 @@ export const TinyButton = styled.button`
   color: var(--panel-fg);
   border: 1px solid var(--button-border);
   border-radius: 8px;
-  padding: 4px 8px;
+  padding: 8px 8px;
   cursor: pointer;
   transition: all 0.15s ease;
 
@@ -170,6 +173,9 @@ export const TinyButton = styled.button`
   &:disabled {
     opacity: 0.6;
     cursor: default;
+  }
+  svg{
+    font-size: large;
   }
 `;
 
@@ -319,5 +325,60 @@ export const RichHtml = styled.div`
   }
   [data-theme="dark"] & a {
     color: #93c5fd;
+  }
+`;
+export const TabsBar = styled.div`
+  display: flex;
+`;
+
+// Aba/ botão com estado ativo
+export const TabButton = styled.button`
+  /* tokens base */
+  --tab-radius: 10px;
+  --tab-border: var(--button-border);
+  --tab-border-bottom: none;
+  --tab-border-hover: var(--button-border-hover);
+
+  /* gradiente do ativo (topo mais claro) */
+  --tab-active-top: rgba(59, 130, 246, 0.18);   /* azul clarinho */
+  --tab-active-bot: var(--panel-bg);
+
+  [data-theme="dark"] & {
+    --tab-active-top: rgba(59, 130, 246, 0.22);
+    --tab-active-bot: rgba(255, 255, 255, 0.03);
+  }
+
+  flex: 1 1 0;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  border-radius: var(--tab-radius) var(--tab-radius) 0 0;
+  border: 1px solid var(--tab-border);
+  border-bottom: ${({ $active }) => ($active ? "none" : "1px solid var(--tab-border)")};
+  background: ${({ $active }) =>
+    $active
+      ? "linear-gradient(to bottom, var(--tab-active-top), var(--tab-active-bot))"
+      : "transparent"};
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.06s ease;
+
+  /* “encaixa” visualmente na área abaixo quando ativo */
+  margin-bottom: -1px; 
+  position: relative;
+  z-index: ${({ $active }) => ($active ? 2 : 1)};
+
+  &:hover {
+    border-color: var(--tab-border-hover);
+    background: ${({ $active }) =>
+      $active
+        ? "linear-gradient(to bottom, var(--tab-active-top), var(--tab-active-bot))"
+        : "var(--button-bg-hover)"};
+  }
+
+  &:active {
+    transform: translateY(1px);
+    border-bottom: none;
   }
 `;

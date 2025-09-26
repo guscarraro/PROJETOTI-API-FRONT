@@ -7,7 +7,7 @@ import React, {
   useImperativeHandle,
 } from "react";
 import { createPortal } from "react-dom";
-import { FiBell, FiCheck, FiExternalLink } from "react-icons/fi";
+import { FiBell, FiCheck, FiExternalLink, FiRefreshCw } from "react-icons/fi";
 import apiLocal from "../../../../../services/apiLocal";
 import {
   PANEL_WIDTH,
@@ -30,6 +30,8 @@ import {
   ActionsCol,
   IconButton,
   RichHtml,
+  TabsBar,
+  TabButton,
 } from "./style";
 import { Spinner } from "../../Loader";
 
@@ -44,7 +46,20 @@ function stripDataUrls(html) {
     .trim();
 }
 function sanitizeBasicHtml(dirty) {
-  const allowed = new Set(["B", "I", "U", "EM", "STRONG", "BR", "P", "DIV", "UL", "OL", "LI", "A"]);
+  const allowed = new Set([
+    "B",
+    "I",
+    "U",
+    "EM",
+    "STRONG",
+    "BR",
+    "P",
+    "DIV",
+    "UL",
+    "OL",
+    "LI",
+    "A",
+  ]);
   const doc = new DOMParser().parseFromString(dirty, "text/html");
   const walk = (node) => {
     [...node.childNodes].forEach((child) => {
@@ -108,7 +123,9 @@ function getSectorName(it) {
   );
 }
 function getCreatorSector(it) {
-  return it?.project_sector_name || it?.origin_sector_name || getSectorName(it) || "";
+  return (
+    it?.project_sector_name || it?.origin_sector_name || getSectorName(it) || ""
+  );
 }
 
 const Notifications = forwardRef(function Notifications(
@@ -118,10 +135,20 @@ const Notifications = forwardRef(function Notifications(
   const userId = user?.id;
 
   const [open, setOpen] = useState(false);
+
+  // abas
+  const [activeTab, setActiveTab] = useState("unread"); // 'unread' | 'read'
+
+  // contadores / estados
   const [totalUnseen, setTotalUnseen] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [loadingRead, setLoadingRead] = useState(false); // loading da aba Lidas (lazy)
   const [working, setWorking] = useState(false);
-  const [feed, setFeed] = useState([]);
+
+  // dados separados por aba
+  const [unread, setUnread] = useState([]);
+  const [read, setRead] = useState([]);
+  const [readLoadedOnce, setReadLoadedOnce] = useState(false);
 
   const triggerRef = useRef(null); // ancora visual (sino) usada para calcular top
   const panelRef = useRef(null);
@@ -230,37 +257,59 @@ const Notifications = forwardRef(function Notifications(
     return () => clearInterval(t);
   }, [userId]);
 
-  const loadFeed = async () => {
+  const fetchPaginated = async (params) => {
+    let before = new Date().toISOString();
+    const all = [];
+    do {
+      const r = await apiLocal.getNotifFeed(userId, {
+        limit: 200,
+        ...(before ? { before } : {}),
+        ...params,
+      });
+      const items = r?.data?.items || [];
+      const cursor = r?.data?.next_before || null;
+      all.push(...items);
+      before = cursor || undefined;
+    } while (before);
+    return all;
+  };
+
+  const loadUnread = async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      let before = undefined;
-      const all = [];
-      do {
-        const r = await apiLocal.getNotifFeed(userId, {
-          unseenOnly: true,
-          limit: 200,
-          ...(before ? { before } : {}),
-        });
-        const items = r?.data?.items || [];
-        const cursor = r?.data?.next_before || null;
-        all.push(...items);
-        before = cursor || undefined;
-      } while (before);
-      setFeed(all);
+      const all = await fetchPaginated({ unseenOnly: true });
+      setUnread(all);
     } catch {
-      setFeed([]);
+      setUnread([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // carrega Lidas sob demanda ao trocar de aba (primeira vez)
+const loadRead = async (force = false) => {
+   if (!userId || (readLoadedOnce && !force)) return;
+  setLoadingRead(true);
+  try {
+    const all = await fetchPaginated({ unseenOnly: false }); // << AQUI
+    setRead(all.filter(it => !!it.seen_at));                 // << E AQUI
+    setReadLoadedOnce(true);
+  } catch {
+    setRead([]);
+    setReadLoadedOnce(true);
+  } finally {
+    setLoadingRead(false);
+  }
+};
+
 
   /* =================== AÇÕES =================== */
   const openPanel = async () => {
     if (open) return;
     setOpen(true);
     placePanelInitial();
-    await loadFeed();
+    await loadUnread();
   };
   const closePanel = () => setOpen(false);
   const togglePanel = async () => {
@@ -279,14 +328,34 @@ const Notifications = forwardRef(function Notifications(
     await togglePanel();
   };
 
+  const moveToRead = (itToMove) => {
+    setUnread((prev) =>
+      prev.filter(
+        (i) => String(i.notification_id) !== String(itToMove.notification_id)
+      )
+    );
+    setRead((prev) => [itToMove, ...prev]);
+  };
+
   const markOneSeen = async (notificationId) => {
     if (!userId || !notificationId) return;
     setWorking(true);
     try {
       await apiLocal.markNotifsSeen(userId, [notificationId]);
-      setFeed((prev) =>
-        prev.filter((i) => String(i.notification_id) !== String(notificationId))
-      );
+
+      // pega o item que estava em "Não lidas" e move para "Lidas"
+      let moved = null;
+      setUnread((prev) => {
+        const idx = prev.findIndex(
+          (i) => String(i.notification_id) === String(notificationId)
+        );
+        if (idx >= 0) moved = prev[idx];
+        return prev.filter(
+          (i) => String(i.notification_id) !== String(notificationId)
+        );
+      });
+      if (moved) setRead((prev) => [moved, ...prev]);
+
       setTotalUnseen((n) => Math.max(0, n - 1));
     } catch {
       /* silencioso */
@@ -296,12 +365,14 @@ const Notifications = forwardRef(function Notifications(
   };
 
   const markAllSeen = async () => {
-    if (!userId || feed.length === 0) return;
+    if (!userId || unread.length === 0) return;
     setWorking(true);
     try {
-      const ids = feed.map((i) => String(i.notification_id));
+      const ids = unread.map((i) => String(i.notification_id));
       await apiLocal.markNotifsSeen(userId, ids);
-      setFeed([]);
+      // move todos para "Lidas"
+      setRead((prev) => [...unread, ...prev]);
+      setUnread([]);
       setTotalUnseen(0);
     } catch {
       /* silencioso */
@@ -348,6 +419,8 @@ const Notifications = forwardRef(function Notifications(
   };
 
   /* ====== Agrupamento por tipo ====== */
+  const currentList = activeTab === "unread" ? unread : read;
+
   const groups = {
     MENTION: [],
     PROJECT_CREATED: [],
@@ -355,7 +428,7 @@ const Notifications = forwardRef(function Notifications(
     ROW_COMMENT: [],
     OTHER: [],
   };
-  for (const it of feed) {
+  for (const it of currentList) {
     const a = String(it.action || "").toUpperCase();
     if (a === "MENTION") groups.MENTION.push(it);
     else if (a === "PROJECT_CREATED") groups.PROJECT_CREATED.push(it);
@@ -387,14 +460,21 @@ const Notifications = forwardRef(function Notifications(
     const sector = getSectorName(it);
     const creatorSector = getCreatorSector(it);
 
-    // frase por tipo (quando disponível)
     if (a === "MENTION") {
-      // quem mencionou e de qual setor
       if (author || sector) {
         return (
           <ItemMeta>
-            {author ? <>Autor: <strong>{author}</strong></> : null}
-            {sector ? <> • Setor: <strong>{sector}</strong></> : null}
+            {author ? (
+              <>
+                Autor: <strong>{author}</strong>
+              </>
+            ) : null}
+            {sector ? (
+              <>
+                {" "}
+                • Setor: <strong>{sector}</strong>
+              </>
+            ) : null}
           </ItemMeta>
         );
       }
@@ -402,18 +482,35 @@ const Notifications = forwardRef(function Notifications(
       if (creatorSector || author) {
         return (
           <ItemMeta>
-            {creatorSector ? <>Setor criador: <strong>{creatorSector}</strong></> : null}
-            {author ? <> • Autor: <strong>{author}</strong></> : null}
+            {creatorSector ? (
+              <>
+                Setor criador: <strong>{creatorSector}</strong>
+              </>
+            ) : null}
+            {author ? (
+              <>
+                {" "}
+                • Autor: <strong>{author}</strong>
+              </>
+            ) : null}
           </ItemMeta>
         );
       }
     } else {
-      // comentários/atribuições/outros
       if (author || sector) {
         return (
           <ItemMeta>
-            {author ? <>Autor: <strong>{author}</strong></> : null}
-            {sector ? <> • Setor: <strong>{sector}</strong></> : null}
+            {author ? (
+              <>
+                Autor: <strong>{author}</strong>
+              </>
+            ) : null}
+            {sector ? (
+              <>
+                {" "}
+                • Setor: <strong>{sector}</strong>
+              </>
+            ) : null}
           </ItemMeta>
         );
       }
@@ -469,92 +566,159 @@ const Notifications = forwardRef(function Notifications(
             <FiExternalLink />
           </IconButton>
 
-          <IconButton
-            title="Marcar como lida"
-            aria-label="Marcar como lida"
-            onClick={() => markOneSeen(it.notification_id)}
-            style={{
-              "--button-bg-hover": "rgba(34,197,94,.15)",
-              "--button-border-hover": "rgba(34,197,94,.45)",
-            }}
-          >
-            <FiCheck />
-          </IconButton>
+          {activeTab === "unread" && (
+            <IconButton
+              title="Marcar como lida"
+              aria-label="Marcar como lida"
+              onClick={() => markOneSeen(it.notification_id)}
+              style={{
+                "--button-bg-hover": "rgba(34,197,94,.15)",
+                "--button-border-hover": "rgba(34,197,94,.45)",
+              }}
+            >
+              <FiCheck />
+            </IconButton>
+          )}
         </ActionsCol>
       </SubCard>
     );
   };
 
+  /* =================== TABS (Navbar de botões) =================== */
+
+  {
+    /* Navbar de botões das abas */
+  }
+
   /* =================== RENDER =================== */
+  const renderGroups = () => {
+    const empty = currentList.length === 0;
+    const isLoading = activeTab === "unread" ? loading : loadingRead;
+
+    if (isLoading && empty) {
+      return (
+        <div style={{ padding: 16, fontSize: 13, opacity: 0.85 }}>
+          <Spinner size={16} />{" "}
+          <span style={{ marginLeft: 8 }}>Carregando…</span>
+        </div>
+      );
+    }
+    if (empty) {
+      return (
+        <div style={{ padding: 16, fontSize: 13, opacity: 0.85 }}>
+          {activeTab === "unread"
+            ? "Sem novas notificações."
+            : "Sem notificações lidas."}
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {groups.MENTION.length > 0 && (
+          <>
+            <SectionTitle>Menções</SectionTitle>
+            <List>{groups.MENTION.map(renderItem)}</List>
+          </>
+        )}
+        {groups.PROJECT_CREATED.length > 0 && (
+          <>
+            <SectionTitle>Novos projetos</SectionTitle>
+            <List>{groups.PROJECT_CREATED.map(renderItem)}</List>
+          </>
+        )}
+        {groups.ROW_ASSIGNED.length > 0 && (
+          <>
+            <SectionTitle>Atribuições</SectionTitle>
+            <List>{groups.ROW_ASSIGNED.map(renderItem)}</List>
+          </>
+        )}
+        {groups.ROW_COMMENT.length > 0 && (
+          <>
+            <SectionTitle>Comentários</SectionTitle>
+            <List>{groups.ROW_COMMENT.map(renderItem)}</List>
+          </>
+        )}
+        {groups.OTHER.length > 0 && (
+          <>
+            <SectionTitle>Outros</SectionTitle>
+            <List>{groups.OTHER.map(renderItem)}</List>
+          </>
+        )}
+      </>
+    );
+  };
+
   const panel = !open
     ? null
     : createPortal(
         <Panel ref={panelRef} style={{ top: coords.top, left: coords.left }}>
+          <TabsBar>
+            <TabButton
+              type="button"
+              $active={activeTab === "unread"}
+              onClick={async () => setActiveTab("unread")}
+            >
+              Não lidas {totalUnseen > 0 ? `(${totalUnseen})` : ""}
+            </TabButton>
+
+            <TabButton
+              type="button"
+              $active={activeTab === "read"}
+              onClick={async () => {
+                setActiveTab("read");
+                if (!readLoadedOnce) await loadRead();
+              }}
+            >
+              Lidas {read.length > 0 ? `(${read.length})` : ""}
+            </TabButton>
+          </TabsBar>
           <Header>
-            <strong>Notificações</strong>
             <HeaderActions>
-              <TinyButton onClick={loadFeed} disabled={loading}>
-                {loading ? <Spinner size={14} /> : "Atualizar"}
-              </TinyButton>
-              {feed.length > 0 && (
+                 {activeTab === "unread" && unread.length > 0 && (
                 <TinyButton onClick={markAllSeen} disabled={working || loading}>
                   {working ? <Spinner size={14} /> : "Marcar todos como lidos"}
                 </TinyButton>
               )}
+              <TinyButton
+                onClick={async () => {
+                  if (activeTab === "unread") {
+                    await loadUnread();
+                  } else {
+                    await loadRead(true);
+                  }
+                }}
+                disabled={activeTab === "unread" ? loading : loadingRead}
+              >
+                {(activeTab === "unread" ? loading : loadingRead) ? (
+                  <Spinner size={14} />
+                ) : (
+                  <FiRefreshCw aria-label="Atualizar" />
+                )}
+              </TinyButton>
+
+             
             </HeaderActions>
           </Header>
 
-          {loading && feed.length === 0 ? (
-            <div style={{ padding: 16, fontSize: 13, opacity: 0.85 }}>
-              <Spinner size={16} /> <span style={{ marginLeft: 8 }}>Carregando…</span>
-            </div>
-          ) : feed.length === 0 ? (
-            <div style={{ padding: 16, fontSize: 13, opacity: 0.85 }}>
-              Sem novas notificações.
-            </div>
-          ) : (
-            <>
-              {groups.MENTION.length > 0 && (
-                <>
-                  <SectionTitle>Menções</SectionTitle>
-                  <List>{groups.MENTION.map(renderItem)}</List>
-                </>
-              )}
-              {groups.PROJECT_CREATED.length > 0 && (
-                <>
-                  <SectionTitle>Novos projetos</SectionTitle>
-                  <List>{groups.PROJECT_CREATED.map(renderItem)}</List>
-                </>
-              )}
-              {groups.ROW_ASSIGNED.length > 0 && (
-                <>
-                  <SectionTitle>Atribuições</SectionTitle>
-                  <List>{groups.ROW_ASSIGNED.map(renderItem)}</List>
-                </>
-              )}
-              {groups.ROW_COMMENT.length > 0 && (
-                <>
-                  <SectionTitle>Comentários</SectionTitle>
-                  <List>{groups.ROW_COMMENT.map(renderItem)}</List>
-                </>
-              )}
-              {groups.OTHER.length > 0 && (
-                <>
-                  <SectionTitle>Outros</SectionTitle>
-                  <List>{groups.OTHER.map(renderItem)}</List>
-                </>
-              )}
-            </>
-          )}
+          {/* Navbar de botões das abas */}
+
+          {renderGroups()}
         </Panel>,
         document.body
       );
 
   return (
     <Container ref={triggerRef} onClick={(e) => e.stopPropagation()}>
-      <BellButton onClick={onBellClick} title="Notificações" aria-label="Notificações">
+      <BellButton
+        onClick={onBellClick}
+        title="Notificações"
+        aria-label="Notificações"
+      >
         <FiBell />
-        {totalUnseen > 0 && <Badge>{totalUnseen > 99 ? "99+" : totalUnseen}</Badge>}
+        {totalUnseen > 0 && (
+          <Badge>{totalUnseen > 99 ? "99+" : totalUnseen}</Badge>
+        )}
       </BellButton>
       {panel}
     </Container>
