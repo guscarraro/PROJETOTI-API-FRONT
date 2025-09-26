@@ -97,7 +97,7 @@ function buildSafeHtmlFromMessage(raw) {
   return sanitizeBasicHtml(br);
 }
 
-/* ====== Utils para autor/setor (tentam vários campos possíveis) ====== */
+/* Utils autor/setor */
 function getAuthorName(it) {
   return (
     it?.author_name ||
@@ -123,13 +123,11 @@ function getSectorName(it) {
   );
 }
 function getCreatorSector(it) {
-  return (
-    it?.project_sector_name || it?.origin_sector_name || getSectorName(it) || ""
-  );
+  return it?.project_sector_name || it?.origin_sector_name || getSectorName(it) || "";
 }
 
 const Notifications = forwardRef(function Notifications(
-  { user, onOpenProject, navWidth = 0 }, // navWidth vem da NavBar
+  { user, onOpenProject, navWidth = 0 },
   ref
 ) {
   const userId = user?.id;
@@ -145,47 +143,38 @@ const Notifications = forwardRef(function Notifications(
   const [loadingRead, setLoadingRead] = useState(false); // loading da aba Lidas (lazy)
   const [working, setWorking] = useState(false);
 
-  // dados separados por aba
+  // dados por aba
   const [unread, setUnread] = useState([]);
   const [read, setRead] = useState([]);
   const [readLoadedOnce, setReadLoadedOnce] = useState(false);
 
-  const triggerRef = useRef(null); // ancora visual (sino) usada para calcular top
+  const triggerRef = useRef(null);
   const panelRef = useRef(null);
 
   /* =================== POSICIONAMENTO =================== */
   const [coords, setCoords] = useState({ top: 0, left: 0 });
 
-  // calcula top/left (usado ao abrir e quando a navbar muda de largura)
   const placePanelInitial = () => {
     const el = triggerRef.current;
-    const GAP = 8,
-      MARGIN = 8;
-    const vw = window.innerWidth,
-      vh = window.innerHeight;
+    const GAP = 8, MARGIN = 8;
+    const vw = window.innerWidth, vh = window.innerHeight;
 
-    // top segue o sino
     let top = 56;
     if (el) {
       const r = el.getBoundingClientRect();
       top = r.bottom + GAP;
     }
-
-    // left travado pela largura atual da navbar
     let left = Math.max(MARGIN, navWidth + GAP);
 
-    // limites viewport
     top = Math.max(MARGIN, Math.min(top, vh - PANEL_HEIGHT - MARGIN));
     left = Math.max(MARGIN, Math.min(left, vw - PANEL_WIDTH - MARGIN));
 
     setCoords({ top, left });
   };
 
-  // atualiza somente o TOP (para não "saltar" lateralmente no scroll)
   const placePanelTopOnly = () => {
     const el = triggerRef.current;
-    const GAP = 8,
-      MARGIN = 8;
+    const GAP = 8, MARGIN = 8;
     const vh = window.innerHeight;
 
     let top = 56;
@@ -194,23 +183,16 @@ const Notifications = forwardRef(function Notifications(
       top = r.bottom + GAP;
     }
     top = Math.max(MARGIN, Math.min(top, vh - PANEL_HEIGHT - MARGIN));
-
     setCoords((prev) => ({ ...prev, top }));
   };
 
-  /* =================== LISTENERS =================== */
-  // reposiciona ao abrir
   useEffect(() => {
     if (!open) return;
-
-    // ao abrir: fixa left e top
     placePanelInitial();
 
-    // scroll: mexe só no top
     const onScroll = () => placePanelTopOnly();
     window.addEventListener("scroll", onScroll, true);
 
-    // resize: recalcula ambos (layout pode mudar)
     const onResize = () => placePanelInitial();
     window.addEventListener("resize", onResize);
 
@@ -220,13 +202,12 @@ const Notifications = forwardRef(function Notifications(
     };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // se a largura da navbar mudar, re-fixa left/top
   useEffect(() => {
     if (open) placePanelInitial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navWidth, open]);
 
-  // clique fora para fechar
+  // clique fora
   useEffect(() => {
     if (!open) return;
     const onDocDown = (e) => {
@@ -253,33 +234,25 @@ const Notifications = forwardRef(function Notifications(
   };
   useEffect(() => {
     loadCounters();
-    const t = setInterval(loadCounters, 30000);
+    // >>> polling a cada 20s (antes estava 30s / parecia 2s pelo loop de paginação)
+    const t = setInterval(loadCounters, 20000);
     return () => clearInterval(t);
   }, [userId]);
 
-  const fetchPaginated = async (params) => {
-    let before = new Date().toISOString();
-    const all = [];
-    do {
-      const r = await apiLocal.getNotifFeed(userId, {
-        limit: 200,
-        ...(before ? { before } : {}),
-        ...params,
-      });
-      const items = r?.data?.items || [];
-      const cursor = r?.data?.next_before || null;
-      all.push(...items);
-      before = cursor || undefined;
-    } while (before);
-    return all;
+  // === BUSCA UMA PÁGINA (sem loop de paginação agressivo) ===
+  const fetchPage = async (params) => {
+    const r = await apiLocal.getNotifFeed(userId, { limit: 200, ...params });
+    const items = r?.data?.items || [];
+    const next_before = r?.data?.next_before || null;
+    return { items, next_before };
   };
 
   const loadUnread = async () => {
     if (!userId) return;
     setLoading(true);
     try {
-      const all = await fetchPaginated({ unseenOnly: true });
-      setUnread(all);
+      const { items } = await fetchPage({ unseenOnly: true });
+      setUnread(items);
     } catch {
       setUnread([]);
     } finally {
@@ -287,29 +260,30 @@ const Notifications = forwardRef(function Notifications(
     }
   };
 
-  // carrega Lidas sob demanda ao trocar de aba (primeira vez)
-const loadRead = async (force = false) => {
-   if (!userId || (readLoadedOnce && !force)) return;
-  setLoadingRead(true);
-  try {
-    const all = await fetchPaginated({ unseenOnly: false }); // << AQUI
-    setRead(all.filter(it => !!it.seen_at));                 // << E AQUI
-    setReadLoadedOnce(true);
-  } catch {
-    setRead([]);
-    setReadLoadedOnce(true);
-  } finally {
-    setLoadingRead(false);
-  }
-};
-
+  // carrega Lidas sob demanda (ou forçado)
+  const loadRead = async (force = false) => {
+    if (!userId || (readLoadedOnce && !force)) return;
+    setLoadingRead(true);
+    try {
+      // traz uma página geral e filtra por lidas (seen_at)
+      const { items } = await fetchPage({ unseenOnly: false });
+      setRead(items.filter((it) => !!it.seen_at));
+      setReadLoadedOnce(true);
+    } catch {
+      setRead([]);
+      setReadLoadedOnce(true);
+    } finally {
+      setLoadingRead(false);
+    }
+  };
 
   /* =================== AÇÕES =================== */
   const openPanel = async () => {
     if (open) return;
     setOpen(true);
     placePanelInitial();
-    await loadUnread();
+    // carregar as duas abas para exibir ambos contadores/quantidades
+    await Promise.all([loadUnread(), loadRead(true)]);
   };
   const closePanel = () => setOpen(false);
   const togglePanel = async () => {
@@ -328,22 +302,13 @@ const loadRead = async (force = false) => {
     await togglePanel();
   };
 
-  const moveToRead = (itToMove) => {
-    setUnread((prev) =>
-      prev.filter(
-        (i) => String(i.notification_id) !== String(itToMove.notification_id)
-      )
-    );
-    setRead((prev) => [itToMove, ...prev]);
-  };
-
   const markOneSeen = async (notificationId) => {
     if (!userId || !notificationId) return;
     setWorking(true);
     try {
       await apiLocal.markNotifsSeen(userId, [notificationId]);
 
-      // pega o item que estava em "Não lidas" e move para "Lidas"
+      // move do "Não lidas" -> "Lidas"
       let moved = null;
       setUnread((prev) => {
         const idx = prev.findIndex(
@@ -370,7 +335,6 @@ const loadRead = async (force = false) => {
     try {
       const ids = unread.map((i) => String(i.notification_id));
       await apiLocal.markNotifsSeen(userId, ids);
-      // move todos para "Lidas"
       setRead((prev) => [...unread, ...prev]);
       setUnread([]);
       setTotalUnseen(0);
@@ -464,17 +428,8 @@ const loadRead = async (force = false) => {
       if (author || sector) {
         return (
           <ItemMeta>
-            {author ? (
-              <>
-                Autor: <strong>{author}</strong>
-              </>
-            ) : null}
-            {sector ? (
-              <>
-                {" "}
-                • Setor: <strong>{sector}</strong>
-              </>
-            ) : null}
+            {author ? <>Autor: <strong>{author}</strong></> : null}
+            {sector ? <> {" "}• Setor: <strong>{sector}</strong></> : null}
           </ItemMeta>
         );
       }
@@ -482,17 +437,8 @@ const loadRead = async (force = false) => {
       if (creatorSector || author) {
         return (
           <ItemMeta>
-            {creatorSector ? (
-              <>
-                Setor criador: <strong>{creatorSector}</strong>
-              </>
-            ) : null}
-            {author ? (
-              <>
-                {" "}
-                • Autor: <strong>{author}</strong>
-              </>
-            ) : null}
+            {creatorSector ? <>Setor criador: <strong>{creatorSector}</strong></> : null}
+            {author ? <> {" "}• Autor: <strong>{author}</strong></> : null}
           </ItemMeta>
         );
       }
@@ -500,17 +446,8 @@ const loadRead = async (force = false) => {
       if (author || sector) {
         return (
           <ItemMeta>
-            {author ? (
-              <>
-                Autor: <strong>{author}</strong>
-              </>
-            ) : null}
-            {sector ? (
-              <>
-                {" "}
-                • Setor: <strong>{sector}</strong>
-              </>
-            ) : null}
+            {author ? <>Autor: <strong>{author}</strong></> : null}
+            {sector ? <> {" "}• Setor: <strong>{sector}</strong></> : null}
           </ItemMeta>
         );
       }
@@ -530,19 +467,12 @@ const loadRead = async (force = false) => {
             </ActionPill>
           </RowTop>
 
-          {/* autor / setor */}
           {renderAuthorSector(it)}
 
-          {/* projeto / linha */}
           {it.project_name && (
             <ItemMeta>
               Projeto: <strong>{it.project_name}</strong>
-              {it.row_title ? (
-                <>
-                  {" "}
-                  — <em>{it.row_title}</em>
-                </>
-              ) : null}
+              {it.row_title ? <> — <em>{it.row_title}</em></> : null}
             </ItemMeta>
           )}
 
@@ -584,12 +514,6 @@ const loadRead = async (force = false) => {
     );
   };
 
-  /* =================== TABS (Navbar de botões) =================== */
-
-  {
-    /* Navbar de botões das abas */
-  }
-
   /* =================== RENDER =================== */
   const renderGroups = () => {
     const empty = currentList.length === 0;
@@ -598,17 +522,14 @@ const loadRead = async (force = false) => {
     if (isLoading && empty) {
       return (
         <div style={{ padding: 16, fontSize: 13, opacity: 0.85 }}>
-          <Spinner size={16} />{" "}
-          <span style={{ marginLeft: 8 }}>Carregando…</span>
+          <Spinner size={16} /> <span style={{ marginLeft: 8 }}>Carregando…</span>
         </div>
       );
     }
     if (empty) {
       return (
         <div style={{ padding: 16, fontSize: 13, opacity: 0.85 }}>
-          {activeTab === "unread"
-            ? "Sem novas notificações."
-            : "Sem notificações lidas."}
+          {activeTab === "unread" ? "Sem novas notificações." : "Sem notificações lidas."}
         </div>
       );
     }
@@ -667,19 +588,21 @@ const loadRead = async (force = false) => {
               $active={activeTab === "read"}
               onClick={async () => {
                 setActiveTab("read");
-                if (!readLoadedOnce) await loadRead();
+                if (!readLoadedOnce) await loadRead(true);
               }}
             >
               Lidas {read.length > 0 ? `(${read.length})` : ""}
             </TabButton>
           </TabsBar>
+
           <Header>
             <HeaderActions>
-                 {activeTab === "unread" && unread.length > 0 && (
+              {activeTab === "unread" && unread.length > 0 && (
                 <TinyButton onClick={markAllSeen} disabled={working || loading}>
                   {working ? <Spinner size={14} /> : "Marcar todos como lidos"}
                 </TinyButton>
               )}
+
               <TinyButton
                 onClick={async () => {
                   if (activeTab === "unread") {
@@ -689,6 +612,8 @@ const loadRead = async (force = false) => {
                   }
                 }}
                 disabled={activeTab === "unread" ? loading : loadingRead}
+                title="Atualizar"
+                aria-label="Atualizar"
               >
                 {(activeTab === "unread" ? loading : loadingRead) ? (
                   <Spinner size={14} />
@@ -696,12 +621,8 @@ const loadRead = async (force = false) => {
                   <FiRefreshCw aria-label="Atualizar" />
                 )}
               </TinyButton>
-
-             
             </HeaderActions>
           </Header>
-
-          {/* Navbar de botões das abas */}
 
           {renderGroups()}
         </Panel>,
@@ -710,15 +631,9 @@ const loadRead = async (force = false) => {
 
   return (
     <Container ref={triggerRef} onClick={(e) => e.stopPropagation()}>
-      <BellButton
-        onClick={onBellClick}
-        title="Notificações"
-        aria-label="Notificações"
-      >
+      <BellButton onClick={onBellClick} title="Notificações" aria-label="Notificações">
         <FiBell />
-        {totalUnseen > 0 && (
-          <Badge>{totalUnseen > 99 ? "99+" : totalUnseen}</Badge>
-        )}
+        {totalUnseen > 0 && <Badge>{totalUnseen > 99 ? "99+" : totalUnseen}</Badge>}
       </BellButton>
       {panel}
     </Container>
