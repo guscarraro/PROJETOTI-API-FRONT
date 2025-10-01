@@ -35,6 +35,7 @@ export const ALL_SECTORS = [
   { key: "FORNECEDORES", label: "Fornecedores", initial: "F", color: "#14b8a6" },
   { key: "RH", label: "RH", initial: "R", color: "#b8ad14ff" },
   { key: "MALKA", label: "Malka", initial: "M", color: "#b8ad14ff" },
+  { key: "PROJETOS", label: "Projetos", initial: "P", color: "#58b81484" },
   { key: "GERENTE OPERACAO", label: "Gerente operacao", initial: "GO", color: "#37ff00ff" },
 ];
 
