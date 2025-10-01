@@ -120,7 +120,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['Notebook', 'Desktop', 'Switch', 'Celular', 'Coletor', 'Roteador', 'Licença'].map(
+              {['Notebook', 'Desktop', 'Switch', 'Celular', 'Coletor', 'Roteador', 'Licença',"Bipe"].map(
                 (aparelho) => (
                   <option key={aparelho} value={aparelho}>{aparelho}</option>
                 )
@@ -265,6 +265,19 @@ function ModalAdd({ isOpen, toggle }) {
               </StyledFormGroup>
             </>
           )}
+          {formData.tipo_aparelho === 'Bipe' && (
+            <>
+              <StyledFormGroup>
+                <Label for="pessoa_responsavel">Responsavel </Label>
+                <Input type="text" name="pessoa_responsavel" value={formData.pessoa_responsavel} onChange={handleInputChange} />
+              </StyledFormGroup>
+
+              <StyledFormGroup>
+                <Label for="numero_serie">Número de patrimonio</Label>
+                <Input type="text" name="numero_serie" value={formData.numero_serie} onChange={handleInputChange} />
+              </StyledFormGroup>
+            </>
+          )}
           {formData.tipo_aparelho === 'Licença' && (
             <>
               <StyledFormGroup>
@@ -309,7 +322,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['SJP', 'COLOMBO', 'PINHAIS', 'PTO', 'MGA', 'MINAS', 'GOIAS', 'CUIABA', 'SP', 'RS', 'SC', 'LONDRINA'].map((local) => (
+              {['SJP', 'COLOMBO', 'PINHAIS', 'PTO', 'MGA', 'MINAS', 'GOIAS', 'CUIABA', 'SP', 'RS', 'SC', 'LONDRINA',"ES"].map((local) => (
                 <option key={local} value={local}>
                   {local}
                 </option>
