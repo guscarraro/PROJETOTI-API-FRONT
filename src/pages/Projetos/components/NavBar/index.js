@@ -20,6 +20,7 @@ import {
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
+import Notas from "./Notas";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -118,10 +119,8 @@ export default function NavBar() {
     return base;
   }, [isAdmin]);
 
-  const avatarInitial =
-    userSectorNames[0]?.[0]?.toUpperCase() ||
-    user?.email?.[0]?.toUpperCase() ||
-    "U";
+const avatarInitial = (user?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCase();
+
 
   const handleLogout = async () => {
     try {
@@ -166,7 +165,19 @@ export default function NavBar() {
         ))}
 
         <NavSpacer />
-
+{user && (
+  <NavItem
+    role="button"
+    title="Notas de atualização"
+    $active={false}
+    onClick={(e) => e.stopPropagation()}
+  >
+    <NavIcon style={{ position: "relative" }}>
+      <Notas version="1.2" />   {/* << ADICIONE ESTA LINHA */}
+    </NavIcon>
+    <NavLabel>Notas nova versão</NavLabel>
+  </NavItem>
+)}
         {user && (
           <NavItem
             role="button"

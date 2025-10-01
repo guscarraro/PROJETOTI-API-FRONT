@@ -240,9 +240,12 @@ const apiLocal = {
 
   updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
 
-  updateProjetoSetores: (id, setores, actor_sector_id) =>
-    api.put(`/projetos/${id}/setores`, { setores, actor_sector_id }),
-
+  updateProjetoSetores: (id, setores, actor_sector_id, setor_users) =>
+    api.put(`/projetos/${id}/setores`, {
+      setores,
+      actor_sector_id,
+      ...(setor_users ? { setor_users } : {}),
+    }),
   lockProjeto: (id, action, actor_sector_id) =>
     api.post(`/projetos/${id}/lock`, { action, actor_sector_id }),
 
@@ -264,13 +267,14 @@ const apiLocal = {
 
   getNotifFeed: (
     userId,
-    { projectId, unseenOnly = false, limit = 50, before } = {}
+    { projectId, unseenOnly = false, seenOnly = false, limit = 50, before } = {}
   ) =>
     api.get("/projects/notifications/feed", {
       params: {
         user_id: String(userId),
         ...(projectId ? { project_id: String(projectId) } : {}),
         ...(unseenOnly ? { unseen_only: true } : {}),
+        ...(seenOnly ? { seen_only: true } : {}),
         ...(before ? { before } : {}),
         limit,
       },
@@ -313,17 +317,17 @@ const apiLocal = {
 
   listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
 
-  addProjetoRow: (projectId, body, actor_sector_id) =>
-    api.post(`/projetos/${projectId}/rows`, {
-      ...body, // { title, row_sectors?: string[] }
-      actor_sector_id,
-    }),
+  addProjetoRow: (projectId, body) =>
+    api.post(`/projetos/${projectId}/rows`, body),
 
   updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
     api.put(`/projetos/${projectId}/rows/${rowId}`, {
-      ...body, // { title?, row_sectors?: string[] }
+      ...body, // { title?, row_sectors?, stage_no?, stage_label?, assignee_setor_id?, assignees? }
       actor_sector_id,
     }),
+
+  setProjetoRowAssignee: (projectId, rowId, body) =>
+    api.put(`/projetos/${projectId}/rows/${rowId}/assignee`, body),
 
   deleteProjetoRow: (projectId, rowId, actor_sector_id) =>
     api.delete(`/projetos/${projectId}/rows/${rowId}`, {
@@ -358,17 +362,22 @@ const apiLocal = {
       actor_sector_id,
     }),
 
-  getProjetosLean: (visibleFor, status) =>
+  // services/apiLocal.js (já tem getProjetosLean)
+  // services/apiLocal.js  (apenas este método)
+  getProjetosLean: (visibleForSectors, status, visibleUsers) =>
     api.get("/projetos/lean", {
       params: {
         ...(status ? { status } : {}),
-        ...(visibleFor?.length ? { visible_for: visibleFor } : {}),
+        ...(visibleForSectors?.length
+          ? { visible_for: visibleForSectors }
+          : {}),
+        ...(visibleUsers?.length ? { visible_for_user: visibleUsers[0] } : {}), // << CORRIGIDO
       },
     }),
 
   patchProjetoMeta: (
     id,
-    { nome, setores, add_setores } = {},
+    { nome, setores, add_setores, setor_users } = {},
     actor_sector_id
   ) =>
     api.patch(`/projetos/${id}/meta`, {
@@ -378,6 +387,7 @@ const apiLocal = {
       ...(Array.isArray(add_setores)
         ? { add_setores: add_setores.map(Number) }
         : {}),
+      ...(setor_users ? { setor_users } : {}),
     }),
 };
 

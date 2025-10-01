@@ -40,6 +40,7 @@ export default function AttachmentComposer({
   canCreateComment,
   setImgPreview,
   sectors = [],
+  users = [],
 }) {
   const fileInputRef = useRef(null);
   const editorRef = useRef(null);
@@ -54,6 +55,9 @@ export default function AttachmentComposer({
   const [isBold, setIsBold] = useState(false);
   const [isList, setIsList] = useState(false);
   const [activeColorName, setActiveColorName] = useState("default"); // default|red|green|blue
+
+  // suprimir a próxima abertura de menções após Backspace/Delete que remove uma pill
+  const skipMentionOnceRef = useRef(false);
 
   const THEME_DEFAULT_LIGHT = "#111827";
   const THEME_DEFAULT_DARK = "#e5e7eb";
@@ -116,6 +120,14 @@ export default function AttachmentComposer({
   };
 
   const refreshMention = () => {
+    // se marcado para pular UMA vez (após apagar uma pill), limpa o flag e não abre menções
+    if (skipMentionOnceRef.current) {
+      skipMentionOnceRef.current = false;
+      setMentionOpen(false);
+      setMentionQ("");
+      return;
+    }
+
     const root = editorRef.current;
     if (!root) return;
     const { text, rect } = getTextBeforeCaret(root);
@@ -156,9 +168,18 @@ export default function AttachmentComposer({
     span.appendChild(document.createTextNode(" "));
     span.appendChild(text);
 
-    r.insertNode(span);
+    const wrap = document.createElement("div");
+    wrap.className = "mention-block";
+    wrap.setAttribute("contenteditable", "false");
+    wrap.setAttribute("data-type", "sector");
+    wrap.style.cssText =
+      "display:inline-block;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:6px;padding:2px 6px;margin:0 2px;";
+    wrap.appendChild(span);
+
+    r.insertNode(wrap);
+
     const space = document.createTextNode(" ");
-    span.after(space);
+    wrap.after(space);
 
     const sel = window.getSelection && window.getSelection();
     if (sel) {
@@ -174,6 +195,54 @@ export default function AttachmentComposer({
     syncToState();
     focusEditor();
     enforceTypingColor();
+  };
+
+  const selectUserMention = (u) => {
+    const root = editorRef.current;
+    if (!root) return;
+    const r = rangeFromTextOffsets(root, mentionStart, mentionEnd);
+    r.deleteContents();
+
+    const span = document.createElement("span");
+    span.className = "user-pill";
+    span.setAttribute("contenteditable", "false");
+    span.setAttribute("data-user", String(u.id));
+    const text = document.createTextNode(u.label || String(u.id));
+    span.appendChild(text);
+
+    const wrap = document.createElement("div");
+    wrap.className = "mention-block";
+    wrap.setAttribute("contenteditable", "false");
+    wrap.setAttribute("data-type", "user");
+    wrap.style.cssText =
+      "display:inline-block;background:rgba(59,130,246,.12);border:1px solid rgba(59,130,246,.25);border-radius:6px;padding:2px 6px;margin:0 2px;";
+    wrap.appendChild(span);
+
+    r.insertNode(wrap);
+
+    const space = document.createTextNode(" ");
+    wrap.after(space);
+
+    const sel = window.getSelection && window.getSelection();
+    if (sel) {
+      const after = document.createRange();
+      after.setStart(space, 1);
+      after.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(after);
+    }
+
+    setMentionOpen(false);
+    setMentionQ("");
+    syncToState();
+    focusEditor();
+    enforceTypingColor();
+  };
+
+  const handleSelectMention = (item) => {
+    if (!item) return;
+    if (item.__type === "user") return selectUserMention(item);
+    return selectSectorMention(item);
   };
 
   const onBold = () => {
@@ -297,7 +366,7 @@ export default function AttachmentComposer({
     if (!f) return;
 
     const type = f.type || "";
-    const name = (f.name || "").toLowerCase();
+       const name = (f.name || "").toLowerCase();
     const isImage = /^image\//i.test(type);
     const isPdf = /pdf$/i.test(type) || name.endsWith(".pdf");
     const isExcel =
@@ -361,6 +430,7 @@ export default function AttachmentComposer({
 
   let mentionOptions = [];
   if (mentionOpen) {
+    // Setores
     for (let i = 0; i < sectors.length; i++) {
       const s = sectors[i] || {};
       const label = (s.label || s.key || "").toString();
@@ -368,12 +438,26 @@ export default function AttachmentComposer({
       const q = (mentionQ || "").toLowerCase();
       const inLabel = label.toLowerCase().indexOf(q) >= 0;
       const inKey = key.toLowerCase().indexOf(q) >= 0;
-      if (q === "" || inLabel || inKey) mentionOptions.push(s);
+      if (q === "" || inLabel || inKey)
+        mentionOptions.push({ ...s, __type: "sector" });
       if (mentionOptions.length >= 8) break;
+    }
+    // Usuários
+    if (mentionOptions.length < 8) {
+      for (let i = 0; i < users.length; i++) {
+        const u = users[i] || {};
+        const label = (u.nome || u.email || String(u.id) || "").toString();
+        const q = (mentionQ || "").toLowerCase();
+        if (q === "" || label.toLowerCase().includes(q)) {
+          mentionOptions.push({ __type: "user", id: String(u.id), label });
+        }
+        if (mentionOptions.length >= 8) break;
+      }
     }
   }
 
   const onEditorKeyDown = (e) => {
+    // Navegação/seleção do menu de menção quando aberto
     if (mentionOpen && mentionOptions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
@@ -388,7 +472,7 @@ export default function AttachmentComposer({
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         const s = mentionOptions[mentionIndex] || mentionOptions[0];
-        if (s) selectSectorMention(s);
+        if (s) handleSelectMention(s);
         return;
       }
       if (e.key === "Escape") {
@@ -396,6 +480,12 @@ export default function AttachmentComposer({
         setMentionOpen(false);
         return;
       }
+    }
+
+    // Se usuário pressionar Backspace/Delete, suprimimos a PRÓXIMA checagem de menção
+    // Isso evita reabrir o menu logo após remover uma mention-block.
+    if (e.key === "Backspace" || e.key === "Delete") {
+      skipMentionOnceRef.current = true;
     }
   };
 
@@ -424,7 +514,7 @@ export default function AttachmentComposer({
         {empty && (
           <Placeholder>
             {canCreateComment
-              ? "Adicionar novo comentário... (clipe para anexar) — use @ para marcar setor"
+              ? "Adicionar novo comentário... (clipe para anexar) — use @ para marcar setor/usuário"
               : "Você não pode comentar aqui"}
           </Placeholder>
         )}
@@ -455,7 +545,7 @@ export default function AttachmentComposer({
             options={mentionOptions}
             activeIndex={mentionIndex}
             onHover={(i) => setMentionIndex(i)}
-            onSelect={(s) => selectSectorMention(s)}
+            onSelect={(s) => handleSelectMention(s)}
           />
         )}
 

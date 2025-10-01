@@ -595,9 +595,10 @@ export const TimelineWrap = styled.div`
 
 export const ContentGrid = styled.div`
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: ${(p) => (p.$leftWidth ? `${p.$leftWidth}px 1fr` : "280px 1fr")};
+  /* opcional: garante que nada “vaze” do lado esquerdo */
+  overflow: hidden;
 `;
-
 export const FixedColHeader = styled.div`
   padding: 18px 12px;
   font-weight: 700;
@@ -606,7 +607,7 @@ export const FixedColHeader = styled.div`
   position: sticky;
   top: 0;
   z-index: 3;
-
+width: min-content;
   [data-theme="dark"] & {
     background: #0b1220;
     border-bottom-color: rgba(255,255,255,.08);

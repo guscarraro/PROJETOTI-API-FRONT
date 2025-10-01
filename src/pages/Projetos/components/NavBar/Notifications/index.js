@@ -35,7 +35,7 @@ import {
 } from "./style";
 import { Spinner } from "../../Loader";
 
-/* Helpers de HTML seguro */
+/* ===== Helpers de HTML seguro (fallback para preview) ===== */
 function decodeEntities(input) {
   const doc = new DOMParser().parseFromString(String(input || ""), "text/html");
   return doc.documentElement.textContent || "";
@@ -47,18 +47,7 @@ function stripDataUrls(html) {
 }
 function sanitizeBasicHtml(dirty) {
   const allowed = new Set([
-    "B",
-    "I",
-    "U",
-    "EM",
-    "STRONG",
-    "BR",
-    "P",
-    "DIV",
-    "UL",
-    "OL",
-    "LI",
-    "A",
+    "B", "I", "U", "EM", "STRONG", "BR", "P", "DIV", "UL", "OL", "LI", "A",
   ]);
   const doc = new DOMParser().parseFromString(dirty, "text/html");
   const walk = (node) => {
@@ -97,7 +86,7 @@ function buildSafeHtmlFromMessage(raw) {
   return sanitizeBasicHtml(br);
 }
 
-/* Utils autor/setor */
+/* ===== Utils autor/setor ===== */
 function getAuthorName(it) {
   return (
     it?.author_name ||
@@ -126,6 +115,74 @@ function getCreatorSector(it) {
   return it?.project_sector_name || it?.origin_sector_name || getSectorName(it) || "";
 }
 
+/* ===== Labels de ação (inclui novas ações do back) ===== */
+const ACTION = {
+  PROJECT_CREATED: "PROJECT_CREATED",
+  PROJECT_STATUS_CHANGED: "PROJECT_STATUS_CHANGED",
+  PROJECT_LOCKED: "PROJECT_LOCKED",
+  PROJECT_UNLOCKED: "PROJECT_UNLOCKED",
+  ROW_ASSIGNED: "ROW_ASSIGNED",
+  ROW_COMMENT: "ROW_COMMENT",
+  MENTION: "MENTION",
+  ROW_STAGE_CHANGED: "ROW_STAGE_CHANGED",
+  ROW_SECTORS_CHANGED: "ROW_SECTORS_CHANGED",
+  ROW_ASSIGNEE_CHANGED: "ROW_ASSIGNEE_CHANGED",
+};
+
+// === Deriva a ação "local" (MENTION_USER x MENTION_SECTOR) a partir do item ===
+function localAction(it) {
+  const base = String(it?.action || "").toUpperCase();
+  if (base !== ACTION.MENTION) return base;
+
+  const p = it?.payload || {};
+  const hasUserTarget =
+    it?.target_user_id ||
+    p.target_user_id ||
+    p.user_id ||
+    (Array.isArray(p.mention_user_ids) && p.mention_user_ids.length > 0);
+
+  return hasUserTarget ? "MENTION_USER" : "MENTION_SECTOR";
+}
+
+const actionLabel = (action) => {
+  const a = (action || "").toUpperCase();
+  switch (a) {
+    case ACTION.PROJECT_CREATED: return "Projeto";
+    case ACTION.PROJECT_STATUS_CHANGED: return "Status do projeto";
+    case ACTION.PROJECT_LOCKED: return "Projeto bloqueado";
+    case ACTION.PROJECT_UNLOCKED: return "Projeto desbloqueado";
+    case ACTION.ROW_ASSIGNED: return "Atribuição";
+    case ACTION.ROW_ASSIGNEE_CHANGED: return "Responsável";
+    case ACTION.ROW_STAGE_CHANGED: return "Etapa";
+    case ACTION.ROW_SECTORS_CHANGED: return "Setores";
+    case ACTION.ROW_COMMENT: return "Comentário";
+    case "MENTION_USER": return "Menção (usuário)";
+    case "MENTION_SECTOR": return "Menção (setor)";
+    case ACTION.MENTION: return "Menção";
+    default: return "Info";
+  }
+};
+
+const titleFor = (it) => {
+  if (it?.title) return it.title;
+  const a = localAction(it);
+  switch (a) {
+    case ACTION.PROJECT_CREATED: return "Novo projeto";
+    case ACTION.PROJECT_STATUS_CHANGED: return "Status do projeto alterado";
+    case ACTION.PROJECT_LOCKED: return "Projeto bloqueado";
+    case ACTION.PROJECT_UNLOCKED: return "Projeto desbloqueado";
+    case ACTION.ROW_ASSIGNED: return "Linha atribuída";
+    case ACTION.ROW_ASSIGNEE_CHANGED: return "Responsável alterado";
+    case ACTION.ROW_STAGE_CHANGED: return "Etapa alterada";
+    case ACTION.ROW_SECTORS_CHANGED: return "Setores alterados";
+    case ACTION.ROW_COMMENT: return "Comentário na linha";
+    case "MENTION_USER": return "Você foi mencionado (usuário)";
+    case "MENTION_SECTOR": return "Menção ao seu setor";
+    case ACTION.MENTION: return "Você foi mencionado";
+    default: return "Atualização";
+  }
+};
+
 const Notifications = forwardRef(function Notifications(
   { user, onOpenProject, navWidth = 0 },
   ref
@@ -133,14 +190,12 @@ const Notifications = forwardRef(function Notifications(
   const userId = user?.id;
 
   const [open, setOpen] = useState(false);
-
-  // abas
   const [activeTab, setActiveTab] = useState("unread"); // 'unread' | 'read'
 
   // contadores / estados
   const [totalUnseen, setTotalUnseen] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [loadingRead, setLoadingRead] = useState(false); // loading da aba Lidas (lazy)
+  const [loadingRead, setLoadingRead] = useState(false);
   const [working, setWorking] = useState(false);
 
   // dados por aba
@@ -234,12 +289,11 @@ const Notifications = forwardRef(function Notifications(
   };
   useEffect(() => {
     loadCounters();
-    // >>> polling a cada 20s (antes estava 30s / parecia 2s pelo loop de paginação)
     const t = setInterval(loadCounters, 20000);
     return () => clearInterval(t);
   }, [userId]);
 
-  // === BUSCA UMA PÁGINA (sem loop de paginação agressivo) ===
+  // === BUSCA UMA PÁGINA ===
   const fetchPage = async (params) => {
     const r = await apiLocal.getNotifFeed(userId, { limit: 200, ...params });
     const items = r?.data?.items || [];
@@ -252,7 +306,7 @@ const Notifications = forwardRef(function Notifications(
     setLoading(true);
     try {
       const { items } = await fetchPage({ unseenOnly: true });
-      setUnread(items);
+      setUnread(Array.isArray(items) ? items : []);
     } catch {
       setUnread([]);
     } finally {
@@ -260,14 +314,13 @@ const Notifications = forwardRef(function Notifications(
     }
   };
 
-  // carrega Lidas sob demanda (ou forçado)
   const loadRead = async (force = false) => {
     if (!userId || (readLoadedOnce && !force)) return;
     setLoadingRead(true);
     try {
-      // traz uma página geral e filtra por lidas (seen_at)
       const { items } = await fetchPage({ unseenOnly: false });
-      setRead(items.filter((it) => !!it.seen_at));
+      const all = Array.isArray(items) ? items : [];
+      setRead(all.filter((it) => !!it.seen_at));
       setReadLoadedOnce(true);
     } catch {
       setRead([]);
@@ -282,7 +335,6 @@ const Notifications = forwardRef(function Notifications(
     if (open) return;
     setOpen(true);
     placePanelInitial();
-    // carregar as duas abas para exibir ambos contadores/quantidades
     await Promise.all([loadUnread(), loadRead(true)]);
   };
   const closePanel = () => setOpen(false);
@@ -311,15 +363,16 @@ const Notifications = forwardRef(function Notifications(
       // move do "Não lidas" -> "Lidas"
       let moved = null;
       setUnread((prev) => {
-        const idx = prev.findIndex(
+        const safe = Array.isArray(prev) ? prev : [];
+        const idx = safe.findIndex(
           (i) => String(i.notification_id) === String(notificationId)
         );
-        if (idx >= 0) moved = prev[idx];
-        return prev.filter(
+        if (idx >= 0) moved = safe[idx];
+        return safe.filter(
           (i) => String(i.notification_id) !== String(notificationId)
         );
       });
-      if (moved) setRead((prev) => [moved, ...prev]);
+      if (moved) setRead((prev) => [moved, ...(Array.isArray(prev) ? prev : [])]);
 
       setTotalUnseen((n) => Math.max(0, n - 1));
     } catch {
@@ -330,12 +383,13 @@ const Notifications = forwardRef(function Notifications(
   };
 
   const markAllSeen = async () => {
-    if (!userId || unread.length === 0) return;
+    const list = Array.isArray(unread) ? unread : [];
+    if (!userId || list.length === 0) return;
     setWorking(true);
     try {
-      const ids = unread.map((i) => String(i.notification_id));
+      const ids = list.map((i) => String(i.notification_id));
       await apiLocal.markNotifsSeen(userId, ids);
-      setRead((prev) => [...unread, ...prev]);
+      setRead((prev) => [...list, ...(Array.isArray(prev) ? prev : [])]);
       setUnread([]);
       setTotalUnseen(0);
     } catch {
@@ -348,6 +402,25 @@ const Notifications = forwardRef(function Notifications(
   const openProject = async (projectId) => {
     setWorking(true);
     try {
+      // 1) marca como visto por projeto no back
+
+      // 2) atualiza localmente: move todas UNREAD do projeto p/ READ
+      let moved = [];
+      setUnread((prev) => {
+        const safe = Array.isArray(prev) ? prev : [];
+        const keep = [];
+        for (const it of safe) {
+          if (String(it.project_id) === String(projectId)) moved.push(it);
+          else keep.push(it);
+        }
+        return keep;
+      });
+      if (moved.length > 0) {
+        setRead((prev) => [...moved, ...(Array.isArray(prev) ? prev : [])]);
+        setTotalUnseen((n) => Math.max(0, n - moved.length));
+      }
+
+      // 3) navega
       onOpenProject?.(projectId);
     } finally {
       setWorking(false);
@@ -356,23 +429,6 @@ const Notifications = forwardRef(function Notifications(
   };
 
   /* =================== LABELS =================== */
-  const titleFor = (it) => {
-    if (it?.title) return it.title;
-    const a = (it?.action || "").toUpperCase();
-    if (a === "PROJECT_CREATED") return "Novo projeto";
-    if (a === "ROW_ASSIGNED") return "Linha atribuída";
-    if (a === "ROW_COMMENT") return "Comentário na linha";
-    if (a === "MENTION") return "Você foi mencionado";
-    return "Atualização";
-  };
-  const actionLabel = (action) => {
-    const a = (action || "").toUpperCase();
-    if (a === "PROJECT_CREATED") return "Projeto";
-    if (a === "ROW_ASSIGNED") return "Atribuição";
-    if (a === "ROW_COMMENT") return "Comentário";
-    if (a === "MENTION") return "Menção";
-    return "Info";
-  };
   const timeStr = (iso) => {
     try {
       const d = new Date(iso);
@@ -382,22 +438,26 @@ const Notifications = forwardRef(function Notifications(
     }
   };
 
-  /* ====== Agrupamento por tipo ====== */
-  const currentList = activeTab === "unread" ? unread : read;
+  /* ====== Agrupamento por tipo (inclui menções separadas) ====== */
+  const currentList = activeTab === "unread" ? (Array.isArray(unread) ? unread : []) : (Array.isArray(read) ? read : []);
 
   const groups = {
-    MENTION: [],
+    MENTION_USER: [],
+    MENTION_SECTOR: [],
     PROJECT_CREATED: [],
+    PROJECT_STATUS_CHANGED: [],
+    PROJECT_LOCKED: [],
+    PROJECT_UNLOCKED: [],
     ROW_ASSIGNED: [],
+    ROW_ASSIGNEE_CHANGED: [],
+    ROW_STAGE_CHANGED: [],
+    ROW_SECTORS_CHANGED: [],
     ROW_COMMENT: [],
     OTHER: [],
   };
   for (const it of currentList) {
-    const a = String(it.action || "").toUpperCase();
-    if (a === "MENTION") groups.MENTION.push(it);
-    else if (a === "PROJECT_CREATED") groups.PROJECT_CREATED.push(it);
-    else if (a === "ROW_ASSIGNED") groups.ROW_ASSIGNED.push(it);
-    else if (a === "ROW_COMMENT") groups.ROW_COMMENT.push(it);
+    const a = localAction(it);
+    if (Object.prototype.hasOwnProperty.call(groups, a)) groups[a].push(it);
     else groups.OTHER.push(it);
   }
 
@@ -419,12 +479,12 @@ const Notifications = forwardRef(function Notifications(
 
   /* =================== ITEM =================== */
   const renderAuthorSector = (it) => {
-    const a = (it?.action || "").toUpperCase();
+    const a = localAction(it);
     const author = getAuthorName(it);
     const sector = getSectorName(it);
     const creatorSector = getCreatorSector(it);
 
-    if (a === "MENTION") {
+    if (a === "MENTION_USER" || a === "MENTION_SECTOR") {
       if (author || sector) {
         return (
           <ItemMeta>
@@ -433,7 +493,7 @@ const Notifications = forwardRef(function Notifications(
           </ItemMeta>
         );
       }
-    } else if (a === "PROJECT_CREATED") {
+    } else if (a === ACTION.PROJECT_CREATED) {
       if (creatorSector || author) {
         return (
           <ItemMeta>
@@ -456,14 +516,21 @@ const Notifications = forwardRef(function Notifications(
   };
 
   const renderItem = (it) => {
-    const safePreview = buildSafeHtmlFromMessage(it.message_preview || "");
+    // Se o back já retorna message_html (saneado), priorize-o
+    const html = String(it?.message_html || "").trim();
+    const safePreview = html
+      ? html
+      : buildSafeHtmlFromMessage(it.message_preview || "");
+
+    const act = localAction(it);
+
     return (
       <SubCard key={String(it.notification_id)}>
         <ItemMain>
           <RowTop>
             <ItemTitle>{titleFor(it)}</ItemTitle>
-            <ActionPill $variant={(it.action || "").toUpperCase()}>
-              {actionLabel(it.action)}
+            <ActionPill $variant={act}>
+              {actionLabel(act)}
             </ActionPill>
           </RowTop>
 
@@ -476,7 +543,7 @@ const Notifications = forwardRef(function Notifications(
             </ItemMeta>
           )}
 
-          {!!(it.message_preview || "").trim() && (
+          {!!safePreview && (
             <RichHtml dangerouslySetInnerHTML={{ __html: safePreview }} />
           )}
 
@@ -516,7 +583,8 @@ const Notifications = forwardRef(function Notifications(
 
   /* =================== RENDER =================== */
   const renderGroups = () => {
-    const empty = currentList.length === 0;
+    const list = currentList || [];
+    const empty = list.length === 0;
     const isLoading = activeTab === "unread" ? loading : loadingRead;
 
     if (isLoading && empty) {
@@ -536,31 +604,70 @@ const Notifications = forwardRef(function Notifications(
 
     return (
       <>
-        {groups.MENTION.length > 0 && (
+        {(groups.MENTION_USER || []).length > 0 && (
           <>
-            <SectionTitle>Menções</SectionTitle>
-            <List>{groups.MENTION.map(renderItem)}</List>
+            <SectionTitle>Menções a usuários</SectionTitle>
+            <List>{groups.MENTION_USER.map(renderItem)}</List>
           </>
         )}
-        {groups.PROJECT_CREATED.length > 0 && (
+        {(groups.MENTION_SECTOR || []).length > 0 && (
+          <>
+            <SectionTitle>Menções a setores</SectionTitle>
+            <List>{groups.MENTION_SECTOR.map(renderItem)}</List>
+          </>
+        )}
+        {(groups.PROJECT_CREATED || []).length > 0 && (
           <>
             <SectionTitle>Novos projetos</SectionTitle>
             <List>{groups.PROJECT_CREATED.map(renderItem)}</List>
           </>
         )}
-        {groups.ROW_ASSIGNED.length > 0 && (
+        {(groups.PROJECT_STATUS_CHANGED || []).length > 0 && (
+          <>
+            <SectionTitle>Status do projeto</SectionTitle>
+            <List>{groups.PROJECT_STATUS_CHANGED.map(renderItem)}</List>
+          </>
+        )}
+        {((groups.PROJECT_LOCKED || []).length > 0 || (groups.PROJECT_UNLOCKED || []).length > 0) && (
+          <>
+            <SectionTitle>Bloqueios</SectionTitle>
+            <List>
+              {groups.PROJECT_LOCKED.map(renderItem)}
+              {groups.PROJECT_UNLOCKED.map(renderItem)}
+            </List>
+          </>
+        )}
+        {(groups.ROW_ASSIGNED || []).length > 0 && (
           <>
             <SectionTitle>Atribuições</SectionTitle>
             <List>{groups.ROW_ASSIGNED.map(renderItem)}</List>
           </>
         )}
-        {groups.ROW_COMMENT.length > 0 && (
+        {(groups.ROW_ASSIGNEE_CHANGED || []).length > 0 && (
+          <>
+            <SectionTitle>Responsável</SectionTitle>
+            <List>{groups.ROW_ASSIGNEE_CHANGED.map(renderItem)}</List>
+          </>
+        )}
+        {(groups.ROW_STAGE_CHANGED || []).length > 0 && (
+          <>
+            <SectionTitle>Etapas</SectionTitle>
+            <List>{groups.ROW_STAGE_CHANGED.map(renderItem)}</List>
+          </>
+        )}
+        {(groups.ROW_SECTORS_CHANGED || []).length > 0 && (
+          <>
+            <SectionTitle>Setores</SectionTitle>
+            <List>{groups.ROW_SECTORS_CHANGED.map(renderItem)}</List>
+          </>
+        )}
+        {(groups.ROW_COMMENT || []).length > 0 && (
           <>
             <SectionTitle>Comentários</SectionTitle>
             <List>{groups.ROW_COMMENT.map(renderItem)}</List>
           </>
         )}
-        {groups.OTHER.length > 0 && (
+        {(groups.OTHER || []).length > 0 && (
           <>
             <SectionTitle>Outros</SectionTitle>
             <List>{groups.OTHER.map(renderItem)}</List>
@@ -591,13 +698,13 @@ const Notifications = forwardRef(function Notifications(
                 if (!readLoadedOnce) await loadRead(true);
               }}
             >
-              Lidas {read.length > 0 ? `(${read.length})` : ""}
+              Lidas {Array.isArray(read) && read.length > 0 ? `(${read.length})` : ""}
             </TabButton>
           </TabsBar>
 
           <Header>
             <HeaderActions>
-              {activeTab === "unread" && unread.length > 0 && (
+              {activeTab === "unread" && (Array.isArray(unread) && unread.length > 0) && (
                 <TinyButton onClick={markAllSeen} disabled={working || loading}>
                   {working ? <Spinner size={14} /> : "Marcar todos como lidos"}
                 </TinyButton>

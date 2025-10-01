@@ -1,3 +1,4 @@
+// src/pages/Projetos/ProjetoDetalhe/Timeline/hooks/useTimelineActions.js
 import { toast } from "react-toastify";
 
 export default function useTimelineActions({
@@ -12,14 +13,40 @@ export default function useTimelineActions({
   fetchProjetoIfNeeded,
   handleTimelineError,
 }) {
-  // ===== helper só para request de COR (sem mexer em estado)
+  // ==== helpers ==============================================================
+  const getActorSectorId = () => {
+    const n = Number(actorSectorId);
+    if (Number.isFinite(n)) return n;
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      const sid = Array.isArray(u?.setor_ids) ? Number(u.setor_ids[0]) : undefined;
+      if (Number.isFinite(sid)) return sid;
+    } catch {}
+    return undefined;
+  };
+
+  const normalizeSectorKeys = (keyOrKeys) => {
+    if (keyOrKeys == null) return [];
+    if (typeof keyOrKeys === "string") return [keyOrKeys];
+    if (Array.isArray(keyOrKeys)) return keyOrKeys.flat().map(String);
+    if (typeof keyOrKeys === "object" && typeof keyOrKeys.key === "string") {
+      return [keyOrKeys.key];
+    }
+    return [];
+  };
+
+  const onlyDefined = (obj) =>
+    Object.fromEntries(
+      Object.entries(obj).filter(([, v]) => v !== undefined)
+    );
+
+  // ==== CELLS (cor, comentário, baseline) ===================================
   const upsertCellColor = (rowId, dayISO, color) =>
     apiLocal.upsertProjetoCell(projectId, rowId, dayISO, {
       color: color ?? "",
-      actor_sector_id: Number(actorSectorId),
+      actor_sector_id: Number(getActorSectorId()),
     });
 
-  // ===== server-first (mantém para usos não-otimistas)
   const setCellColor = async (rowId, dayISO, color) => {
     if (readOnly || !timelineEnabled) return;
     try {
@@ -38,11 +65,8 @@ export default function useTimelineActions({
     }
   };
 
-  // ===== otimista só para COR
   const pickColorOptimistic = async (rowId, dayISO, color) => {
     let prevCell = null;
-
-    // pinta na hora (optimistic)
     setRows((prev) => {
       const next = [];
       for (let i = 0; i < prev.length; i++) {
@@ -61,9 +85,8 @@ export default function useTimelineActions({
     });
 
     try {
-      await upsertCellColor(rowId, dayISO, color); // só request
+      await upsertCellColor(rowId, dayISO, color);
     } catch (err) {
-      // rollback
       setRows((prev) => {
         const next = [];
         for (let i = 0; i < prev.length; i++) {
@@ -92,7 +115,7 @@ export default function useTimelineActions({
       const res = await apiLocal.upsertProjetoCell(projectId, rowId, dayISO, {
         comment,
         author_initial: authorInitial,
-        actor_sector_id: Number(actorSectorId),
+        actor_sector_id: Number(getActorSectorId()),
       });
 
       const created = res?.data?.data?.comment || res?.data?.comment || null;
@@ -142,7 +165,7 @@ export default function useTimelineActions({
     try {
       await apiLocal.upsertProjetoCell(projectId, rowId, dayISO, {
         baseline: enabled,
-        actor_sector_id: Number(actorSectorId),
+        actor_sector_id: Number(getActorSectorId()),
       });
       setRows((prev) =>
         prev.map((r) => {
@@ -167,7 +190,7 @@ export default function useTimelineActions({
         rowId,
         dayISO,
         commentId,
-        Number(actorSectorId)
+        Number(getActorSectorId())
       );
       setRows((prev) =>
         prev.map((r) => {
@@ -195,10 +218,38 @@ export default function useTimelineActions({
     }
   };
 
-  const deleteRow = async (rowId) => {
+  // ==== ROWS (update composto, rename, setores, reorder, add) ================
+  const updateRow = async (rowId, patchPayload) => {
+    // patchPayload pode conter: title, row_sectors, assignees, stage_no, stage_label, assignee_setor_id
+    const sid = getActorSectorId();
+    if (!Number.isFinite(sid)) {
+      toast.error("Setor do ator não encontrado. Recarregue a página ou faça login novamente.");
+      return;
+    }
+
+    const body = onlyDefined({
+      title: patchPayload?.title?.trim?.() || patchPayload?.title,
+      row_sectors: Array.isArray(patchPayload?.row_sectors)
+        ? patchPayload.row_sectors.flat().map(String)
+        : undefined,
+      assignees: Array.isArray(patchPayload?.assignees)
+        ? patchPayload.assignees.map(String)
+        : undefined,
+      stage_no: Number.isFinite(Number(patchPayload?.stage_no))
+        ? Number(patchPayload.stage_no)
+        : undefined,
+      stage_label: patchPayload?.stage_label != null
+        ? String(patchPayload.stage_label)
+        : undefined,
+      assignee_setor_id: Number.isFinite(Number(patchPayload?.assignee_setor_id))
+        ? Number(patchPayload.assignee_setor_id)
+        : undefined,
+      actor_sector_id: sid,
+    });
+
     try {
-      await apiLocal.deleteProjetoRow(projectId, rowId, Number(actorSectorId));
-      setRows((prev) => prev.filter((r) => r.id !== rowId));
+      await apiLocal.updateProjetoRow(projectId, rowId, body, sid);
+      await fetchProjetoIfNeeded(); // atualiza grid com o retorno mais recente
     } catch (e) {
       if (!handleTimelineError(e)) throw e;
     }
@@ -211,34 +262,43 @@ export default function useTimelineActions({
       prev.map((r) => (r.id === rowId ? { ...r, titulo: newTitle } : r))
     );
     try {
-      await apiLocal.updateProjetoRow(
-        projectId,
-        rowId,
-        { title: newTitle, actor_sector_id: Number(actorSectorId) },
-        Number(actorSectorId)
-      );
+      await updateRow(rowId, { title: newTitle });
     } catch (e) {
       setRows(snapshot);
       if (!handleTimelineError(e)) throw e;
     }
   };
 
-  const setRowSector = async (rowId, sectorKey) => {
+  const setRowSector = async (rowId, sectorKeyOrKeys) => {
     const row = rows.find((r) => r.id === rowId);
     const current = Array.isArray(row?.sectors) ? row.sectors : [];
-    const next = current.includes(sectorKey)
-      ? current.filter((k) => k !== sectorKey)
-      : current.concat([sectorKey]);
 
+    // se veio um único setor (toggle), mantém comportamento antigo;
+    // se vier array, substitui pelos fornecidos:
+    const next = Array.isArray(sectorKeyOrKeys)
+      ? normalizeSectorKeys(sectorKeyOrKeys)
+      : (current.includes(sectorKeyOrKeys)
+          ? current.filter((k) => k !== sectorKeyOrKeys)
+          : current.concat([sectorKeyOrKeys]));
+
+    // otimista simples:
     setRows((prev) =>
       prev.map((r) => (r.id === rowId ? { ...r, sectors: next } : r))
     );
 
     try {
-      const body = { row_sectors: next, actor_sector_id: Number(actorSectorId) };
-      await apiLocal.updateProjetoRow(projectId, rowId, body, Number(actorSectorId));
+      await updateRow(rowId, { row_sectors: next });
     } catch (e) {
       if (!handleTimelineError(e)) await fetchProjetoIfNeeded();
+    }
+  };
+
+  const deleteRow = async (rowId) => {
+    try {
+      await apiLocal.deleteProjetoRow(projectId, rowId, Number(getActorSectorId()));
+      setRows((prev) => prev.filter((r) => r.id !== rowId));
+    } catch (e) {
+      if (!handleTimelineError(e)) throw e;
     }
   };
 
@@ -249,18 +309,31 @@ export default function useTimelineActions({
       orders.push({ row_id: newOrder[i].id, order_index: i });
     }
     try {
-      await apiLocal.reorderProjetoRows(projectId, orders, Number(actorSectorId));
+      await apiLocal.reorderProjetoRows(projectId, orders, Number(getActorSectorId()));
     } catch {
       await fetchProjetoIfNeeded();
     }
   };
 
-  const addRow = async ({ titulo, sectorKeys }) => {
-    await apiLocal.addProjetoRow(
-      projectId,
-      { title: titulo, row_sectors: sectorKeys || [] },
-      Number(actorSectorId)
-    );
+  const addRow = async (payload) => {
+    const sid = getActorSectorId();
+    if (!Number.isFinite(sid)) {
+      toast.error("Setor do ator não encontrado. Recarregue a página ou faça login novamente.");
+      return;
+    }
+
+    const body = {
+      ...payload, // title, row_sectors, assignees, stage_no, stage_label, assignee_setor_id
+      row_sectors: Array.isArray(payload?.row_sectors)
+        ? payload.row_sectors.flat().map(String)
+        : [],
+      assignees: Array.isArray(payload?.assignees)
+        ? payload.assignees.map(String)
+        : [],
+      actor_sector_id: sid,
+    };
+
+    await apiLocal.addProjetoRow(projectId, body);
     await fetchProjetoIfNeeded();
   };
 
@@ -280,19 +353,62 @@ export default function useTimelineActions({
     await fetchProjetoIfNeeded();
   };
 
+
+    const setRowAssignee = async (rowId, userIdOrNull, assigneeSetorId) => {
+    const sid = getActorSectorId();
+    if (!Number.isFinite(sid)) {
+      toast.error("Setor do ator não encontrado. Recarregue a página ou faça login novamente.");
+      return;
+    }
+
+    // snapshot p/ rollback
+    const snapshot = rows;
+
+    // otimista: seta assignees e assignee_setor_id localmente
+    setRows((prev) =>
+      prev.map((r) =>
+        String(r.id) === String(rowId)
+          ? {
+              ...r,
+              assignees: userIdOrNull ? [String(userIdOrNull)] : [],
+              ...(assigneeSetorId != null ? { assignee_setor_id: Number(assigneeSetorId) } : {}),
+            }
+          : r
+      )
+    );
+
+    try {
+      await apiLocal.setProjetoRowAssignee(projectId, rowId, {
+        actor_sector_id: sid,
+        assignee_user_id: userIdOrNull ? String(userIdOrNull) : null,
+        ...(assigneeSetorId != null ? { assignee_setor_id: Number(assigneeSetorId) } : {}),
+      });
+      await fetchProjetoIfNeeded(); // garante consistência
+    } catch (e) {
+      // rollback
+      setRows(snapshot);
+      if (!handleTimelineError(e)) {
+        toast.error(e?.response?.data?.detail || "Falha ao atualizar responsável.");
+      }
+    }
+  };
   return {
-    // server-first
+    // CELLS
     setCellColor,
+    pickColorOptimistic,
     setCellComment,
     toggleBaseline,
     deleteComment,
-    deleteRow,
+
+    // ROWS
+    updateRow,          // << NOVO: PUT composto (title, row_sectors, stage, assignees, assignee_setor_id)
     renameRow,
     setRowSector,
+    deleteRow,
     handleReorderRows,
+    setRowAssignee,
+    // PROJECT
     addRow,
     addCosts,
-    // otimista
-    pickColorOptimistic,
   };
 }

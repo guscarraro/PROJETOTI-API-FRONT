@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+// src/pages/Projetos/ProjetoDetalhePage.jsx
+import React, { useEffect, useMemo, useState } from "react";
 import { Button } from "reactstrap";
 import { useNavigate, useParams } from "react-router-dom";
 import NavBar from "../components/NavBar";
@@ -30,7 +31,7 @@ export default function ProjetoDetalhePage() {
   const [statusMenu, setStatusMenu] = useState(null);
   const [openEdit, setOpenEdit] = useState(false);
 
-  // dados & derivados
+  // dados & derivados do hook principal do projeto
   const {
     user,
     actorSectorId,
@@ -56,6 +57,7 @@ export default function ProjetoDetalhePage() {
     handleTimelineError,
   } = useProjetoData({ projectId: id, loading });
 
+
   const readOnly = locked;
   const showLoader = !projeto || loading.any();
 
@@ -68,7 +70,7 @@ export default function ProjetoDetalhePage() {
     canDeleteCommentCell,
     canDeleteRowItem,
     canToggleBaselineCell,
-    sameSectorAsProjectCreator, 
+    sameSectorAsProjectCreator,
   } = useTimelinePerms({
     user,
     rows,
@@ -79,7 +81,7 @@ export default function ProjetoDetalhePage() {
     project: projeto,
   });
 
-  // ações da timeline (server-first)
+  // ações da timeline
   const {
     setCellColor,
     pickColorOptimistic,
@@ -92,8 +94,12 @@ export default function ProjetoDetalhePage() {
     handleReorderRows,
     addRow,
     addCosts,
+    setRowAssignee,
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+    updateRow, // <-- PUT único (title,row_sectors,assignees,stage_no,stage_label,assignee_setor_id)
+    // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
   } = useTimelineActions({
-    apiLocal, // se preferir, importe no topo
+    apiLocal,
     projectId: projeto?.id,
     rows,
     setRows,
@@ -119,28 +125,87 @@ export default function ProjetoDetalhePage() {
     setStatusMenu({ x: left, y: top });
   };
   const closeStatusMenu = () => setStatusMenu(null);
-  // depois da destruturação acima:
+
   const canSeeCosts =
     isAdminRole || isDiretoriaRole || sameSectorAsProjectCreator;
 
-  // options do modal de nova linha
+  const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
+
+  // ====== carregar todos os usuários ======
+  const [allUsers, setAllUsers] = useState([]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await apiLocal.getUsuarios();
+        const users = (r.data || []).map((u) => ({
+          id: u.id,
+          email: u.email,
+          nome: u.nome || u.email,
+          setor_ids: Array.isArray(u.setor_ids)
+            ? u.setor_ids.map(Number)
+            : u.setor_ids
+            ? [Number(u.setor_ids)]
+            : [],
+        }));
+        setAllUsers(users);
+      } catch {
+        setAllUsers([]);
+      }
+    })();
+  }, []);
+
+  // opções de setor usando IDs REAIS do projeto
   const sectorOptions = useMemo(() => {
-    const norm = (s = "") =>
-      s
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toUpperCase()
-        .replace(/\s+/g, "_");
-    const out = [];
-    for (let i = 0; i < sectors.length; i++) {
-      const s = sectors[i];
-      if (projectSectorKeys.includes(norm(s.nome)))
-        out.push({ key: norm(s.nome), label: s.nome });
+    if (!projeto?.setores?.length) return [];
+    return projeto.setores
+      .map((sid) => {
+        const s = sectors.find((x) => Number(x.id) === Number(sid));
+        return s ? { key: Number(s.id), label: s.nome } : null;
+      })
+      .filter(Boolean);
+  }, [projeto?.setores, sectors]);
+
+  // mapa de usuários por setor (respeitando participantes do projeto)
+  const usersBySector = useMemo(() => {
+    const map = {};
+    const allowedSetores = new Set((projeto?.setores || []).map(Number));
+    const participants = projeto?.setor_users || {}; // { setor_id: [user_id] }
+
+    for (const sid of allowedSetores) {
+      let users = allUsers.filter((u) => u.setor_ids.includes(Number(sid)));
+      const onlyIds = participants[sid];
+      if (Array.isArray(onlyIds) && onlyIds.length) {
+        const allowedIds = new Set(onlyIds.map(String));
+        users = users.filter((u) => allowedIds.has(String(u.id)));
+      }
+      map[Number(sid)] = users;
     }
-    return out;
-  }, [sectors, projectSectorKeys]);
-// ADICIONE
-const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
+    return map;
+  }, [allUsers, projeto?.setores, projeto?.setor_users]);
+
+  const usersIndex = useMemo(() => {
+    const idx = {};
+    Object.values(usersBySector || {}).forEach((list) => {
+      (list || []).forEach((u) => {
+        idx[String(u.id)] = u;
+      });
+    });
+    return idx;
+  }, [usersBySector]);
+
+  // etapas existentes derivadas das rows
+  const stageDefs = useMemo(() => {
+    const m = new Map();
+    for (const r of rows || []) {
+      const n = Number(r.stageNo || r.stage_no);
+      if (!Number.isNaN(n) && n >= 1) {
+        if (!m.has(n)) m.set(n, r.stageLabel || r.stage_label || "");
+      }
+    }
+    return Array.from(m.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([no, label]) => ({ no, label }));
+  }, [rows]);
 
   return (
     <Page>
@@ -165,7 +230,6 @@ const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
             accent={accent}
             daysCount={days.length}
             totalCustos={safeTotalCustos}
-            // em InfoSummary:
             onOpenCosts={canSeeCosts ? () => setShowCosts(true) : undefined}
             onOpenStatusMenu={openStatusMenu}
             canChangeStatus={canUnlockByRole}
@@ -199,39 +263,48 @@ const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
           )}
         </div>
 
-        {/* ====== Timeline (filho) ====== */}
+        {/* ====== Timeline ====== */}
         <Timeline
           days={days}
           rows={rows}
           currentUserInitial={sectorInitial}
           currentUserId={user?.id}
           isAdmin={isAdminRole}
-          onPickColor={readOnly || !timelineEnabled ? undefined : pickColorOptimistic}
+          onPickColor={
+            readOnly || !timelineEnabled ? undefined : pickColorOptimistic
+          }
           onSetCellComment={
             readOnly || !timelineEnabled ? undefined : setCellComment
           }
-          onSetRowSector={
-            readOnly || !timelineEnabled ? undefined : setRowSector
-          }
-          canMarkBaseline={!readOnly && timelineEnabled}
-          baselineColor="#0ea5e9"
           onToggleBaseline={
             readOnly || !timelineEnabled ? undefined : toggleBaseline
           }
-          canReorderRows={!readOnly && timelineEnabled}
           onReorderRows={handleReorderRows}
-          isBusy={loading.any()}
-          availableSectorKeys={projectSectorKeys}
-          onRenameRow={renameRow}
           onDeleteRow={deleteRow}
           onDeleteComment={deleteComment}
-          // gates de permissão
+          // legado ainda usado em outros pontos:
+          onRenameRow={renameRow}
+          onSetRowSector={
+            readOnly || !timelineEnabled ? undefined : setRowSector
+          }
+          // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+          // NOVO: habilita PUT único da linha (resolve seu problema do payload)
+          onUpdateRow={updateRow}
+          // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+          onChangeAssignee={setRowAssignee}
+          canMarkBaseline={!readOnly && timelineEnabled}
+          baselineColor="#0ea5e9"
+          canReorderRows={!readOnly && timelineEnabled}
+          isBusy={loading.any()}
+          availableSectorKeys={projectSectorKeys}
           canEditColorCell={canEditColorCell}
           canCreateCommentCell={canCreateCommentCell}
           canDeleteCommentCell={canDeleteCommentCell}
           canDeleteRowItem={canDeleteRowItem}
           canToggleBaselineCell={canToggleBaselineCell}
-          currentUserSectorId={actorSectorId} 
+          currentUserSectorId={actorSectorId}
+          usersBySector={usersBySector}
+          usersIndex={usersIndex}
         />
       </Section>
 
@@ -261,21 +334,23 @@ const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
       <ModalDemanda
         isOpen={openDemanda}
         toggle={() => setOpenDemanda(false)}
-        onConfirm={async ({ titulo, sectorKeys }) => {
-          await addRow({ titulo, sectorKeys });
+        onConfirm={async (payload) => {
+          await addRow(payload);
           setOpenDemanda(false);
         }}
         sectorOptions={sectorOptions}
+        usersBySector={usersBySector}
+        stages={stageDefs}
       />
+
       <ModalEdit
         isOpen={openEdit}
         toggle={() => setOpenEdit(false)}
         project={projeto}
         sectors={sectors}
         actorSectorId={actorSectorId}
-        canSave={isAdminRole} // só Admin salva; Diretoria pode visualizar
+        canSave={isAdminRole}
         onSaved={(pLean) => {
-          // mescla campos lean no projeto atual sem perder custos/rows carregados
           setProjeto((prev) =>
             prev
               ? {
@@ -287,7 +362,6 @@ const safeTotalCustos = canSeeCosts ? totalCustos : undefined;
                 }
               : pLean
           );
-          // opcional: garantir que cache/derivados atualizem
           fetchProjetoIfNeeded();
         }}
       />

@@ -35,6 +35,7 @@ sectorsDoProjeto = [],
   canCreateCommentCell = () => true,
   canDeleteCommentCell = () => true,
   currentUserSectorId,
+  usersDoProjeto = [],
 }) {
   const commentsRef = useRef(null);
   const containerRef = useRef(null);
@@ -241,6 +242,7 @@ sectorsDoProjeto = [],
           canCreateComment={canCreateComment}
           setImgPreview={setImgPreview}
           sectors={sectorsDoProjeto}
+          users={usersDoProjeto}
         />
 
         <ActionsRow>

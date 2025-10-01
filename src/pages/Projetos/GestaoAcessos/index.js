@@ -22,6 +22,7 @@ import ModalAddSetor from "./ModalAddSetor";
 import apiLocal from "../../../services/apiLocal";
 import useLoading from "../../../hooks/useLoading";
 import { PageLoader } from "../components/Loader";
+import CardUsersSetor from "./CardUsersSetor";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -63,6 +64,22 @@ export default function GestaoAcessos() {
     () => sectors.map((s) => ({ id: s.id, nome: s.nome })),
     [sectors]
   );
+
+  const usersBySector = useMemo(() => {
+  const idx = new Map(sectors.map(s => [Number(s.id), { sector: s, users: [] }]));
+  for (const u of users) {
+    const sids = Array.isArray(u.setor_ids) ? u.setor_ids.map(Number) : [];
+    for (const sid of sids) {
+      if (idx.has(sid)) idx.get(sid).users.push(u);
+    }
+  }
+  // ordena usuários por e-mail para cada setor
+  for (const g of idx.values()) {
+    g.users.sort((a, b) => (a.email || "").localeCompare(b.email || ""));
+  }
+  return Array.from(idx.values());
+}, [users, sectors]);
+
 
   const filtered = useMemo(() => {
     if (!q) return users;
@@ -162,6 +179,7 @@ export default function GestaoAcessos() {
                 </div>
               </div>
             </Inline>
+            
             {sectorError && (
               <Help style={{ color: "#ef4444", marginTop: 8 }}>
                 {sectorError}
@@ -169,7 +187,12 @@ export default function GestaoAcessos() {
             )}
           </UserCard>
         </List>
-
+<List style={{ marginTop: 16 }}>
+  {usersBySector.map(({ sector, users }) => (
+    <CardUsersSetor key={sector.id} sector={sector} users={users} />
+  ))}
+</List>
+        <h3>Usuarios</h3>
         <List>
           {filtered.map((u) => {
             const isOpen = expanded === u.id;

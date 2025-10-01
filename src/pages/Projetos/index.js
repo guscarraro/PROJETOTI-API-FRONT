@@ -8,8 +8,8 @@ import {
   TitleBar,
   H1,
   CardGrid,
-  SearchWrap,     // <<< novo
-  SearchInput,    // <<< novo
+  SearchWrap,
+  SearchInput,
 } from "./style";
 import CreateProjectModal from "./components/CreateProjectModal";
 import NavBar from "./components/NavBar";
@@ -92,6 +92,8 @@ export default function ProjetosListPage() {
     }
   }, []);
 
+  const userId = useMemo(() => (user?.id ? String(user.id) : null), [user]);
+
   const actorSectorId = useMemo(() => {
     const first =
       Array.isArray(user?.setor_ids) && user.setor_ids.length
@@ -138,41 +140,38 @@ export default function ProjetosListPage() {
     return Array.from(new Set(names.map((s) => (s || "").trim())));
   }, [user, sectors]);
 
-  /* ====== LOAD INICIAL ÚNICO: setores + projetos ====== */
+  /* ====== LOAD INICIAL: setores + projetos (VISIBILIDADE POR USUÁRIO) ====== */
   useEffect(() => {
     (async () => {
-      const visibleFor = Array.isArray(user?.setor_ids)
-        ? user.setor_ids.map(Number)
-        : [];
+      if (!userId) return;
       await loading.wrap("init", async () => {
         const [sRes, pRes] = await Promise.all([
           apiLocal.getSetores(),
-          // status default = ANDAMENTO
-          apiLocal.getProjetosLean(visibleFor, "ANDAMENTO"),
+          // usa visibilidade por usuário e já filtra ANDAMENTO
+          apiLocal.getProjetosLean(undefined, "ANDAMENTO", [userId]),
         ]);
         setSectors(sRes.data || []);
         setProjects(pRes.data || []);
       });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]); // não incluir `loading` para evitar loop
+  }, [userId]); // não incluir `loading` para evitar loop
 
-  /* Recarrega só projetos quando necessário (ex.: após criar) */
+  /* Recarrega só projetos quando necessário (ex.: após criar ou trocar status) */
   const reloadProjects = useCallback(
     async (nextStatus) => {
-      const visibleFor = Array.isArray(user?.setor_ids)
-        ? user.setor_ids.map(Number)
-        : [];
+      if (!userId) return;
       await loading.wrap("reload-projects", async () => {
         const status = nextStatus ?? statusFilter;
         const r = await apiLocal.getProjetosLean(
-          visibleFor,
-          status === "TODOS" ? undefined : status
+          undefined,
+          status === "TODOS" ? undefined : status,
+          [userId]
         );
         setProjects(r.data || []);
       });
     },
-    [user, loading, statusFilter]
+    [userId, loading, statusFilter]
   );
 
   // aplica busca livre
@@ -187,11 +186,11 @@ export default function ProjetosListPage() {
       const sectorName =
         normalize(
           sectors.find((s) => Number(s.id) === Number(p?.created_by_sector_id))?.nome ||
-          p?.created_by_sector_name ||
-          ""
+            p?.created_by_sector_name ||
+            ""
         );
 
-      return name.includes(q) || status.includes(q) || sectorName.includes(q);
+    return name.includes(q) || status.includes(q) || sectorName.includes(q);
     });
   }, [projects, sectors, query, normalize]);
 
@@ -308,7 +307,6 @@ export default function ProjetosListPage() {
   return (
     <>
       <Page>
-        {/* Loader só some depois do init/load ou reload-projects */}
         <PageLoader active={loading.any()} text="Processando..." />
         <NavBar />
 
