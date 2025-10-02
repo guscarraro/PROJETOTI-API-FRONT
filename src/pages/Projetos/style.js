@@ -805,6 +805,11 @@ export const MenuBox = styled.div`
   box-shadow: 0 12px 28px rgba(0,0,0,.12);
   padding: 8px;
   z-index: 1100;
+  max-height: calc(100vh - 24px); /* não ultrapassa a tela */
+ overflow-y: auto;               /* habilita scroll vertical */
+ overscroll-behavior: contain;   /* evita "puxar" o body junto */
+ max-width: 320px;               /* opcional: evita estourar na largura */
+ overflow-x: hidden; 
 
   [data-theme="dark"] & {
     background: #0f172a;

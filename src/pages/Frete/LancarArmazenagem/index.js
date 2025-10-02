@@ -468,7 +468,6 @@ const LancarArmazenagem = ({ onActionComplete }) => {
             name="valor"
             value={armazenagem.valor}
             onChange={handleInputChange}
-            disabled
             style={{color:"#fff"}} 
           />
         </FormGroup>

@@ -24,8 +24,9 @@ export const ALL_SECTORS = [
   { key: "OPERACAO",     label: "Operação",     initial: "O", color: "#059669" },
   { key: "FRETE",        label: "Frete",        initial: "F", color: "#f59e0b" },
   { key: "FROTA",        label: "Frota",        initial: "F", color: "#8b5cf6" },
-  { key: "DIRETORIA",    label: "Diretoria",    initial: "D", color: "#ef4444" },
+  { key: "DIRETORIA",    label: "Diretoria",    initial: "DI", color: "#ef4444" },
   { key: "QUALIDADE",    label: "Qualidade",    initial: "Q", color: "#44ef4dff" },
+  { key: "FARMACEUTICO",    label: "Farmaceutico",    initial: "FA", color: "#b644efb1" },
   { key: "TI",           label: "TI",           initial: "T", color: "#0ea5e9" },
   { key: "AIQIA",           label: "AIQIA",           initial: "AI", color: "#0ea5e9" },
   { key: "CLIENTES",     label: "Clientes",     initial: "C", color: "#10b981" },
@@ -35,8 +36,8 @@ export const ALL_SECTORS = [
   { key: "FORNECEDORES", label: "Fornecedores", initial: "F", color: "#14b8a6" },
   { key: "RH", label: "RH", initial: "R", color: "#b8ad14ff" },
   { key: "MALKA", label: "Malka", initial: "M", color: "#b8ad14ff" },
-  { key: "PROJETOS", label: "Projetos", initial: "P", color: "#58b81484" },
-  { key: "GERENTE OPERACAO", label: "Gerente operacao", initial: "GO", color: "#37ff00ff" },
+  { key: "PROJETOS", label: "Projetos", initial: "P", color: "#58b814c7" },
+  { key: "GERENTE_OPERACAO", label: "Gerente operacao", initial: "GO", color: "#37ff00ff" },
 ];
 
 export const COLOR_PALETTE = ["#60a5fa","#34d399","#f59e0b","#f87171","#a78bfa","#14b8a6"];
