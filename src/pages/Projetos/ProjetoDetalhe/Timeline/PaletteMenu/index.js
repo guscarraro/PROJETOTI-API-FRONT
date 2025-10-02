@@ -1,5 +1,12 @@
 // src/pages/Projetos/ProjetoDetalhe/Timeline/PaletteMenu/index.js
-import React, { useEffect, useMemo, useRef, useState, useLayoutEffect, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useLayoutEffect,
+  useCallback,
+} from "react";
 import { Palette, ActionsRow } from "../../../style";
 import { Button } from "reactstrap";
 import { toast } from "react-toastify";
@@ -26,7 +33,7 @@ export default function PaletteMenu({
   canMarkBaseline,
   baselineColor,
   close,
-sectorsDoProjeto = [],
+  sectorsDoProjeto = [],
   // permissões
   isAdmin = false,
   currentUserId,
@@ -67,17 +74,21 @@ sectorsDoProjeto = [],
     });
   }, [palette?.comments?.length]);
 
-  const canEditColorHere =
-    palette ? !!canEditColorCell(palette.rowId, palette.dayISO) : false;
+  const canEditColorHere = palette
+    ? !!canEditColorCell(palette.rowId, palette.dayISO)
+    : false;
   const canToggleBaseHere = palette
-    ? !!canMarkBaseline && !!canToggleBaselineCell(palette.rowId, palette.dayISO)
+    ? !!canMarkBaseline &&
+      !!canToggleBaselineCell(palette.rowId, palette.dayISO)
     : false;
   const canCreateComment = palette
     ? !!canCreateCommentCell(palette.rowId, palette.dayISO)
     : false;
 
   const draftText = palette?.commentDraft || "";
-  const draftFiles = Array.isArray(palette?.attachments) ? palette.attachments : [];
+  const draftFiles = Array.isArray(palette?.attachments)
+    ? palette.attachments
+    : [];
 
   const [imgPreview, setImgPreview] = useState(null);
   const [sending, setSending] = useState(false);
@@ -85,47 +96,53 @@ sectorsDoProjeto = [],
 
   const saveDisabled =
     sending ||
-    (!baselineDirty && !(draftText || "").trim().length && draftFiles.length === 0);
+    (!baselineDirty &&
+      !(draftText || "").trim().length &&
+      draftFiles.length === 0);
 
   // ======= Posicionamento automático (clamp/flip) sem "piscar" =======
-  const recomputePosition = useCallback((initial = false) => {
-    if (!palette) return;
+  const recomputePosition = useCallback(
+    (initial = false) => {
+      if (!palette) return;
 
-    const GAP = 12;   // distância do ponto de clique
-    const MARGIN = 8; // margem interna da viewport
+      const GAP = 12; // distância do ponto de clique
+      const MARGIN = 8; // margem interna da viewport
 
-    const el = containerRef.current;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+      const el = containerRef.current;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
 
-    // usa o tamanho real se já renderizado, senão chuta tamanhos padrão
-    const w = el?.offsetWidth || 360;
-    const h = el?.offsetHeight || 320;
+      // usa o tamanho real se já renderizado, senão chuta tamanhos padrão
+      const w = el?.offsetWidth || 360;
+      const h = el?.offsetHeight || 320;
 
-    let left = (palette.x || 0) + GAP;
-    let top = (palette.y || 0) + GAP;
+      let left = (palette.x || 0) + GAP;
+      let top = (palette.y || 0) + GAP;
 
-    // clamp horizontal
-    if (left + w > vw - MARGIN) {
-      left = Math.max(MARGIN, vw - w - MARGIN);
-    }
-    // flip/clamp vertical
-    if (top + h > vh - MARGIN) {
-      // tenta abrir para cima
-      top = (palette.y || 0) - h - GAP;
-      if (top < MARGIN) {
-        // se ainda estoura, encosta no topo ou no máximo possível
-        top = Math.max(MARGIN, vh - h - MARGIN);
+      // clamp horizontal
+      if (left + w > vw - MARGIN) {
+        left = Math.max(MARGIN, vw - w - MARGIN);
       }
-    }
+      // flip/clamp vertical
+      if (top + h > vh - MARGIN) {
+        // tenta abrir para cima
+        top = (palette.y || 0) - h - GAP;
+        if (top < MARGIN) {
+          // se ainda estoura, encosta no topo ou no máximo possível
+          top = Math.max(MARGIN, vh - h - MARGIN);
+        }
+      }
 
-    setPos(prev => {
-      const next = { left, top, ready: true };
-      // evita re-render desnecessário (e flicker) se posição não mudou
-      if (!prev.ready || initial || prev.left !== left || prev.top !== top) return next;
-      return prev;
-    });
-  }, [palette?.x, palette?.y, palette]);
+      setPos((prev) => {
+        const next = { left, top, ready: true };
+        // evita re-render desnecessário (e flicker) se posição não mudou
+        if (!prev.ready || initial || prev.left !== left || prev.top !== top)
+          return next;
+        return prev;
+      });
+    },
+    [palette?.x, palette?.y, palette]
+  );
 
   // 1) posiciona quando abre/muda âncora
   useLayoutEffect(() => {
@@ -163,6 +180,11 @@ sectorsDoProjeto = [],
   }, [recomputePosition]);
 
   if (!palette) return null;
+
+  const emailToInitials = (email) => {
+    const u = String(email || "").split("@")[0] || "";
+    return u.slice(0, 2).toUpperCase() || "U";
+  };
 
   return (
     <div
@@ -217,8 +239,8 @@ sectorsDoProjeto = [],
             setImgPreview={setImgPreview}
             deletingId={deletingId}
             setDeletingId={setDeletingId}
-            userSectorId={currentUserSectorId}
-
+            currentUserId={currentUserId} // << NOVO
+            usersDoProjeto={usersDoProjeto} // << NOVO
           />
         </div>
 
@@ -231,7 +253,9 @@ sectorsDoProjeto = [],
           // aceita function-updater OU array
           setDraftFiles={(updaterOrArray) =>
             setPalette((prev) => {
-              const cur = Array.isArray(prev?.attachments) ? prev.attachments : [];
+              const cur = Array.isArray(prev?.attachments)
+                ? prev.attachments
+                : [];
               const next =
                 typeof updaterOrArray === "function"
                   ? updaterOrArray(cur)
@@ -246,7 +270,12 @@ sectorsDoProjeto = [],
         />
 
         <ActionsRow>
-          <Button size="sm" color="secondary" onClick={close} disabled={sending}>
+          <Button
+            size="sm"
+            color="secondary"
+            onClick={close}
+            disabled={sending}
+          >
             Cancelar
           </Button>
           <Button
@@ -260,15 +289,47 @@ sectorsDoProjeto = [],
                 const text = String(draftText || "").trim();
                 const pieces = [];
                 if (text) pieces.push(text);
-                for (let i = 0; i < draftFiles.length; i++) pieces.push(draftFiles[i]);
+                for (let i = 0; i < draftFiles.length; i++)
+                  pieces.push(draftFiles[i]);
                 const message = pieces.join(",");
+                // calcula as iniciais: prioridade para prop, senão pega pelo currentUserId em usersDoProjeto, senão tenta localStorage
+                // pega o usuário pelo id (quando disponível) ou do localStorage
+                const userFromList = Array.isArray(usersDoProjeto)
+                  ? usersDoProjeto.find(
+                      (u) => String(u.id) === String(currentUserId)
+                    )
+                  : null;
 
-                if (message && canCreateComment && typeof onSetCellComment === "function") {
+                const lsUser = (() => {
+                  try {
+                    return JSON.parse(localStorage.getItem("user") || "null");
+                  } catch {
+                    return null;
+                  }
+                })();
+
+                const initialsFromEmail =
+                  emailToInitials(userFromList?.email) ||
+                  emailToInitials(lsUser?.email);
+
+                // >>> prioriza SEMPRE o e-mail; só usa currentUserInitial como último fallback
+                const initials =
+                  initialsFromEmail ||
+                  String(currentUserInitial || "")
+                    .slice(0, 2)
+                    .toUpperCase() ||
+                  "U";
+
+                if (
+                  message &&
+                  canCreateComment &&
+                  typeof onSetCellComment === "function"
+                ) {
                   const created = await onSetCellComment(
                     palette.rowId,
                     palette.dayISO,
                     message,
-                    currentUserInitial
+                    initials
                   );
 
                   setPalette((prev) =>
@@ -278,10 +339,12 @@ sectorsDoProjeto = [],
                           commentDraft: "",
                           attachments: [],
                           comments: [
-                            ...(Array.isArray(prev.comments) ? prev.comments : []),
+                            ...(Array.isArray(prev.comments)
+                              ? prev.comments
+                              : []),
                             created || {
                               id: `tmp-${Date.now()}`,
-                              authorInitial: currentUserInitial,
+                              authorInitial: initials,
                               message,
                               created_at: new Date().toISOString(),
                               deleted: false,
@@ -308,8 +371,10 @@ sectorsDoProjeto = [],
               } catch (err) {
                 const s = err?.response?.status;
                 const d = err?.response?.data?.detail;
-                if (s === 403) toast.error("Sem permissão para executar esta ação.");
-                else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
+                if (s === 403)
+                  toast.error("Sem permissão para executar esta ação.");
+                else if (s === 423)
+                  toast.error("Projeto bloqueado. Ação não permitida.");
                 else toast.error(d || "Falha ao salvar alterações.");
               } finally {
                 setSending(false);

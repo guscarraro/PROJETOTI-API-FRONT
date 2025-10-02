@@ -339,12 +339,16 @@ const apiLocal = {
     rowId,
     dayISO,
     commentId,
-    actorSectorId
+    actorSectorId,
+    actorUserId           // << ADICIONE ESTE ARGUMENTO
   ) =>
     api.delete(
       `/projetos/${projectId}/rows/${rowId}/cells/${dayISO}/comments/${commentId}`,
       {
-        params: { actor_sector_id: Number(actorSectorId) },
+        params: {
+          actor_sector_id: Number(actorSectorId),
+          actor_user_id: String(actorUserId || ""),  // << ADICIONE ESTA LINHA
+        },
       }
     ),
 

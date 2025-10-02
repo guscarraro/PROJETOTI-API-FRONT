@@ -31,7 +31,6 @@ const RichHtml = styled.div`
   .dark & .sector-pill, [data-theme="dark"] & .sector-pill { background: #111a2d; border-color: #334155; }
 `;
 
-// pega só o HTML antes do primeiro ",data:" (anexos vêm depois)
 function extractHtmlFromMessage(msg) {
   const s = String(msg || "");
   const i = s.indexOf(",data:");
@@ -48,6 +47,11 @@ const myTagStyle = {
   borderRadius: 999,
 };
 
+const emailToInitials = (email) => {
+  const u = String(email || "").split("@")[0] || "";
+  return u.slice(0, 2).toUpperCase() || "U";
+};
+
 export default function CommentList({
   comments = [],
   palette,
@@ -57,7 +61,8 @@ export default function CommentList({
   setImgPreview,
   deletingId,
   setDeletingId,
-  userSectorId,                 // <<< NOVO: setor logado para destacar
+  currentUserId,
+  usersDoProjeto = [],
 }) {
   return (
     <>
@@ -71,19 +76,23 @@ export default function CommentList({
             const parts = parseMessageParts(raw);
             const html = extractHtmlFromMessage(raw);
             const htmlWithBR = html.replace(/(\r\n|\n|\r)/g, "<br/>");
+            const commentAuthorId = c?.authorId ?? c?.author_id ?? c?.user_id ?? c?.created_by ?? null;
+            const isMine = commentAuthorId && currentUserId ? String(commentAuthorId) === String(currentUserId) : false;
 
-            const isMine =
-              userSectorId != null &&
-              String(c?.sector_id) === String(userSectorId);
+            let initials = (c.authorInitial || c.author_initial || "").toString().trim();
+            if (!initials) {
+              const u = usersDoProjeto.find((u) => String(u.id) === String(commentAuthorId));
+              if (u?.email) initials = emailToInitials(u.email);
+            }
+            if (!initials) initials = "U";
 
             return (
               <div
                 key={c.id}
                 style={{ display: "flex", alignItems: "flex-start", gap: 8, margin: "6px 0", flexDirection: isMine ? "row-reverse" : "row" }}
-
               >
                 <SectorDot $color={isMine ? "#1e40af" : "#111827"}>
-                  {(c.authorInitial || "U").toUpperCase()}
+                  {String(initials).slice(0, 2).toUpperCase()}
                 </SectorDot>
 
                 <CommentBubble
@@ -108,7 +117,7 @@ export default function CommentList({
                     }}
                   >
                     {new Date(c.created_at).toLocaleString()}
-                    {isMine && <span style={myTagStyle}>MEU SETOR</span>}
+                    {isMine && <span style={myTagStyle}>MEU COMENTÁRIO</span>}
 
                     {canDeleteThis && (
                       <DeleteCommentBtn

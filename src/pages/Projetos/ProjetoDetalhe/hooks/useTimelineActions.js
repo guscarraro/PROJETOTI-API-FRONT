@@ -25,6 +25,15 @@ export default function useTimelineActions({
     return undefined;
   };
 
+  const getActorUserId = () => {
+    try {
+      const u = JSON.parse(localStorage.getItem("user") || "null");
+      return u?.id ? String(u.id) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+
   const normalizeSectorKeys = (keyOrKeys) => {
     if (keyOrKeys == null) return [];
     if (typeof keyOrKeys === "string") return [keyOrKeys];
@@ -36,15 +45,14 @@ export default function useTimelineActions({
   };
 
   const onlyDefined = (obj) =>
-    Object.fromEntries(
-      Object.entries(obj).filter(([, v]) => v !== undefined)
-    );
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined));
 
   // ==== CELLS (cor, comentário, baseline) ===================================
   const upsertCellColor = (rowId, dayISO, color) =>
     apiLocal.upsertProjetoCell(projectId, rowId, dayISO, {
       color: color ?? "",
       actor_sector_id: Number(getActorSectorId()),
+      actor_user_id: getActorUserId(),              // << ADICIONADO
     });
 
   const setCellColor = async (rowId, dayISO, color) => {
@@ -116,6 +124,7 @@ export default function useTimelineActions({
         comment,
         author_initial: authorInitial,
         actor_sector_id: Number(getActorSectorId()),
+        actor_user_id: getActorUserId(),            // já estava aqui
       });
 
       const created = res?.data?.data?.comment || res?.data?.comment || null;
@@ -166,6 +175,7 @@ export default function useTimelineActions({
       await apiLocal.upsertProjetoCell(projectId, rowId, dayISO, {
         baseline: enabled,
         actor_sector_id: Number(getActorSectorId()),
+        actor_user_id: getActorUserId(),            // << ADICIONADO
       });
       setRows((prev) =>
         prev.map((r) => {
@@ -190,7 +200,8 @@ export default function useTimelineActions({
         rowId,
         dayISO,
         commentId,
-        Number(getActorSectorId())
+        Number(getActorSectorId()),
+        getActorUserId()
       );
       setRows((prev) =>
         prev.map((r) => {
@@ -220,7 +231,6 @@ export default function useTimelineActions({
 
   // ==== ROWS (update composto, rename, setores, reorder, add) ================
   const updateRow = async (rowId, patchPayload) => {
-    // patchPayload pode conter: title, row_sectors, assignees, stage_no, stage_label, assignee_setor_id
     const sid = getActorSectorId();
     if (!Number.isFinite(sid)) {
       toast.error("Setor do ator não encontrado. Recarregue a página ou faça login novamente.");
@@ -249,7 +259,7 @@ export default function useTimelineActions({
 
     try {
       await apiLocal.updateProjetoRow(projectId, rowId, body, sid);
-      await fetchProjetoIfNeeded(); // atualiza grid com o retorno mais recente
+      await fetchProjetoIfNeeded();
     } catch (e) {
       if (!handleTimelineError(e)) throw e;
     }
@@ -273,15 +283,12 @@ export default function useTimelineActions({
     const row = rows.find((r) => r.id === rowId);
     const current = Array.isArray(row?.sectors) ? row.sectors : [];
 
-    // se veio um único setor (toggle), mantém comportamento antigo;
-    // se vier array, substitui pelos fornecidos:
     const next = Array.isArray(sectorKeyOrKeys)
       ? normalizeSectorKeys(sectorKeyOrKeys)
       : (current.includes(sectorKeyOrKeys)
           ? current.filter((k) => k !== sectorKeyOrKeys)
           : current.concat([sectorKeyOrKeys]));
 
-    // otimista simples:
     setRows((prev) =>
       prev.map((r) => (r.id === rowId ? { ...r, sectors: next } : r))
     );
@@ -323,7 +330,7 @@ export default function useTimelineActions({
     }
 
     const body = {
-      ...payload, // title, row_sectors, assignees, stage_no, stage_label, assignee_setor_id
+      ...payload,
       row_sectors: Array.isArray(payload?.row_sectors)
         ? payload.row_sectors.flat().map(String)
         : [],
@@ -353,18 +360,15 @@ export default function useTimelineActions({
     await fetchProjetoIfNeeded();
   };
 
-
-    const setRowAssignee = async (rowId, userIdOrNull, assigneeSetorId) => {
+  const setRowAssignee = async (rowId, userIdOrNull, assigneeSetorId) => {
     const sid = getActorSectorId();
     if (!Number.isFinite(sid)) {
       toast.error("Setor do ator não encontrado. Recarregue a página ou faça login novamente.");
       return;
     }
 
-    // snapshot p/ rollback
     const snapshot = rows;
 
-    // otimista: seta assignees e assignee_setor_id localmente
     setRows((prev) =>
       prev.map((r) =>
         String(r.id) === String(rowId)
@@ -383,15 +387,15 @@ export default function useTimelineActions({
         assignee_user_id: userIdOrNull ? String(userIdOrNull) : null,
         ...(assigneeSetorId != null ? { assignee_setor_id: Number(assigneeSetorId) } : {}),
       });
-      await fetchProjetoIfNeeded(); // garante consistência
+      await fetchProjetoIfNeeded();
     } catch (e) {
-      // rollback
       setRows(snapshot);
       if (!handleTimelineError(e)) {
         toast.error(e?.response?.data?.detail || "Falha ao atualizar responsável.");
       }
     }
   };
+
   return {
     // CELLS
     setCellColor,
@@ -401,12 +405,13 @@ export default function useTimelineActions({
     deleteComment,
 
     // ROWS
-    updateRow,          // << NOVO: PUT composto (title, row_sectors, stage, assignees, assignee_setor_id)
+    updateRow,
     renameRow,
     setRowSector,
     deleteRow,
     handleReorderRows,
     setRowAssignee,
+
     // PROJECT
     addRow,
     addCosts,

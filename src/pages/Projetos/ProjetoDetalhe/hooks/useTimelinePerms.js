@@ -51,9 +51,7 @@ export default function useTimelinePerms({
 
     if (cid && String(cid) === String(user?.id)) return true;
 
-    const myInit = (sectorInitial || "U").toUpperCase();
-    const cInit = ((c?.authorInitial || c?.author_initial) || "U").toUpperCase();
-    return myInit === cInit;
+    return false; // apenas autor (ou ADM/Diretoria)
   };
 
   const canToggleBaselineCell = (rowId, dayISO) => {
