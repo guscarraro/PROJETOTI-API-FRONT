@@ -289,7 +289,7 @@ const Notifications = forwardRef(function Notifications(
   };
   useEffect(() => {
     loadCounters();
-    const t = setInterval(loadCounters, 20000);
+    const t = setInterval(loadCounters, 120000);
     return () => clearInterval(t);
   }, [userId]);
 

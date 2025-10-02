@@ -64,6 +64,8 @@ const toId = (s) => s.replace(/[^a-zA-Z0-9_-]/g, "_");
  *   **Finais de semana = 0** (área até o eixo X).
  */
 function useChartData(data, selectedTomadores, selectedMonths, monthlyGoal) {
+
+  
   return useMemo(() => {
     const days = generateDays();
 
@@ -87,29 +89,39 @@ function useChartData(data, selectedTomadores, selectedMonths, monthlyGoal) {
     if (selectedTomadores.length === 0) {
       for (const item of filtered) {
         if (!item.emissao) continue;
-        const [year, month, day] = item.emissao.split("-");
-        const dnum = parseInt(day, 10);
-        const monthLabel = `${month}/${year}`;
-        const lineKey = `Total (${monthLabel})`;
-        const ym = `${year}-${month}`;
-        monthsPresent.add(ym);
-        if (!grouped[lineKey]) grouped[lineKey] = {};
-        grouped[lineKey][dnum] =
-          (grouped[lineKey][dnum] || 0) + (item.valor_bruto || 0);
+const parts = String(item.emissao).split("-");
+if (parts.length < 3) continue; // garante YYYY-MM-DD
+const year = parts[0], month = parts[1], day = parts[2];
+const dnum = parseInt(day, 10);
+if (!Number.isFinite(dnum) || dnum < 1 || dnum > 31) continue;
+
+const monthLabel = `${month}/${year}`;
+const lineKey = `Total (${monthLabel})`;
+const ym = `${year}-${month}`;
+monthsPresent.add(ym);
+if (!grouped[lineKey]) grouped[lineKey] = {};
+grouped[lineKey][dnum] =
+  (grouped[lineKey][dnum] || 0) + (item.valor_bruto || 0);
+
       }
     } else {
       for (const item of filtered) {
         if (!item.emissao) continue;
-        const [year, month, day] = item.emissao.split("-");
-        const dnum = parseInt(day, 10);
-        const monthLabel = `${month}/${year}`;
-        const tom = item.tomador_servico || "Total Geral";
-        const lineKey = `${tom} (${monthLabel})`;
-        const ym = `${year}-${month}`;
-        monthsPresent.add(ym);
-        if (!grouped[lineKey]) grouped[lineKey] = {};
-        grouped[lineKey][dnum] =
-          (grouped[lineKey][dnum] || 0) + (item.valor_bruto || 0);
+const parts = String(item.emissao).split("-");
+if (parts.length < 3) continue; // garante YYYY-MM-DD
+const year = parts[0], month = parts[1], day = parts[2];
+const dnum = parseInt(day, 10);
+if (!Number.isFinite(dnum) || dnum < 1 || dnum > 31) continue;
+
+const monthLabel = `${month}/${year}`;
+const tom = item.tomador_servico || "Total Geral";
+const lineKey = `${tom} (${monthLabel})`;
+const ym = `${year}-${month}`;
+monthsPresent.add(ym);
+if (!grouped[lineKey]) grouped[lineKey] = {};
+grouped[lineKey][dnum] =
+  (grouped[lineKey][dnum] || 0) + (item.valor_bruto || 0);
+
       }
     }
 

@@ -26,7 +26,15 @@ import LineChartReceita from "./LineChartReceita";
 function parseEmissaoToISO(emissaoRaw) {
   if (!emissaoRaw) return null;
   const s = String(emissaoRaw).trim();
-  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+
+  // Caso já esteja em ISO
+  if (/^\d{4}-\d{2}(-\d{2})?$/.test(s)) {
+    // Se vier só YYYY-MM, completa com -01
+    if (/^\d{4}-\d{2}$/.test(s)) return `${s}-01`;
+    return s.slice(0, 10);
+  }
+
+  // DD/MM/YYYY ou DD/MM/YY
   const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
   if (m) {
     let [, d, mth, y] = m;
@@ -35,8 +43,13 @@ function parseEmissaoToISO(emissaoRaw) {
     const mm = String(mth).padStart(2, "0");
     return `${y}-${mm}-${dd}`;
   }
-  return s.slice(0, 10);
+
+  // Fallback: se vier algo tipo '2025/07/15' etc.
+  const guess = s.slice(0, 10);
+  if (/^\d{4}-\d{2}$/.test(guess)) return `${guess}-01`;
+  return guess;
 }
+
 
 /** Extrai YYYY-MM para filtros */
 function getMonthKey(emissaoRaw) {
@@ -150,7 +163,7 @@ const OperacaoFechamento = () => {
         tomadorSet.size === 0 || tomadorSet.has(item.tomador_servico);
 
       return (
-        allowedStatuses.has(item.status) &&
+        String(item.status).toLowerCase() !== "cancelado" &&
         item.tipo_servico === "Normal" &&
         isMonthSelected &&
         isTomadorSelected
@@ -170,9 +183,11 @@ const OperacaoFechamento = () => {
       const isTomadorSelected =
         tomadorSet.size === 0 || tomadorSet.has(item.tomador_servico);
       if (
-        allowedStatuses.has(item.status) &&
-        isMonthSelected &&
-        isTomadorSelected
+String(item.status).toLowerCase() !== "cancelado" &&
+(item.tipo_servico === "Normal" || item.tipo_servico === "Complementar") &&
+isMonthSelected &&
+isTomadorSelected
+
       ) {
         out.push(item);
       }
@@ -214,6 +229,60 @@ const OperacaoFechamento = () => {
       .sort((a, b) => b.totalPeso - a.totalPeso)
       .slice(0, 10);
   }, [filteredData]);
+
+  const totalsByNotCancelled = () => {
+    let valorBrutoNormal = 0;
+    let valorBrutoComplementar = 0;
+    let valorMercadoriaTotal = 0;
+    const pieData = {};
+
+    const months = new Set(selectedMonths.map((m) => m.value));
+    const tomadores = new Set(selectedTomadores.map((t) => t.value));
+
+    for (let i = 0; i < data.length; i++) {
+      const item = data[i];
+      const status = String(item.status || "").toLowerCase();
+      if (status === "cancelado") continue;
+
+      const itemMonth = getMonthKey(item.emissao);
+      const isMonthSelected = months.size === 0 || months.has(itemMonth);
+      const isTomadorSelected =
+        tomadores.size === 0 || tomadores.has(item.tomador_servico);
+
+      if (!isMonthSelected || !isTomadorSelected) continue;
+
+      if (item.tipo_servico === "Normal") {
+        valorBrutoNormal += item.valor_bruto || 0;
+        valorMercadoriaTotal += item.valor_mercadoria || 0;
+        const key = item.fil_dest || "Não especificado";
+        pieData[key] = (pieData[key] || 0) + (item.valor_bruto || 0);
+      } else if (item.tipo_servico === "Complementar") {
+        valorBrutoComplementar += item.valor_bruto || 0;
+      }
+    }
+
+    const valorBrutoTotal = valorBrutoNormal + valorBrutoComplementar;
+    const barData = [];
+    for (const k in pieData) {
+      barData.push({ name: k, value: pieData[k] });
+    }
+    const percentages = [];
+    for (let i = 0; i < barData.length; i++) {
+      const it = barData[i];
+      percentages.push({
+        name: it.name,
+        percent: valorBrutoNormal > 0 ? (it.value / valorBrutoNormal) * 100 : 0,
+      });
+    }
+
+    return {
+      valorBruto: valorBrutoTotal,
+      valorMercadoria: valorMercadoriaTotal,
+      barData,
+      percentages,
+      valorBrutoNormal,
+    };
+  };
 
   const totalsByStatus = (status) => {
     let valorBrutoNormal = 0;
@@ -262,7 +331,7 @@ const OperacaoFechamento = () => {
     };
   };
 
-  const totalsEncerrado = totalsByStatus("Encerrado");
+  const totalsGeral = totalsByNotCancelled();
 
   // ========= RENDER: bloqueia tudo até loading=false =========
   if (loading) {
@@ -357,16 +426,16 @@ const OperacaoFechamento = () => {
               icon={MdDoneOutline}
               bgColor="rgba(0, 255, 127, 0.35)"
               data={{
-                valorBruto: totalsEncerrado.valorBruto,
-                valorMercadoria: totalsEncerrado.valorMercadoria,
+                valorBruto: totalsGeral.valorBruto,
+                valorMercadoria: totalsGeral.valorMercadoria,
               }}
               documentData={filteredData}
             />
           </Col>
           <Col md="8">
             <FilialChart
-              barData={totalsEncerrado.barData}
-              percentages={totalsEncerrado.percentages}
+              barData={totalsGeral.barData}
+              percentages={totalsGeral.percentages}
             />
           </Col>
         </Row>
@@ -398,8 +467,6 @@ const OperacaoFechamento = () => {
           </Col>
         </Row>
 
-       
-
         <Row>
           <Col md="12">
             <Box style={{ paddingBottom: 10 }}>
@@ -414,7 +481,7 @@ const OperacaoFechamento = () => {
             </Box>
           </Col>
         </Row>
-         <Row>
+        <Row>
           <Col md="6">
             <TopTomadores data={groupedByTomador} />
           </Col>
