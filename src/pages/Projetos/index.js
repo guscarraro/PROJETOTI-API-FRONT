@@ -338,6 +338,7 @@ export default function ProjetosListPage() {
               color="primary"
               onClick={() => setOpenCreate(true)}
               disabled={loading.any() || !actorSectorId}
+              hidden={Number(actorSectorId) === 19}
             >
               + Criar novo projeto
             </Button>

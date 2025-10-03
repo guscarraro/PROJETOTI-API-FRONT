@@ -63,7 +63,7 @@ export default function Notas({ version = "1.2" }) {
       <Modal
         isOpen={open}
         toggle={toggle}
-        size="md"
+        size="lg"
         contentClassName={MODAL_CLASS}
       >
         <ModalHeader toggle={toggle}>Novidades (v{version})</ModalHeader>
