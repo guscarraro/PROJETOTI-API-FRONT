@@ -167,18 +167,18 @@ const titleFor = (it) => {
   if (it?.title) return it.title;
   const a = localAction(it);
   switch (a) {
-    case ACTION.PROJECT_CREATED: return "Novo projeto";
-    case ACTION.PROJECT_STATUS_CHANGED: return "Status do projeto alterado";
-    case ACTION.PROJECT_LOCKED: return "Projeto bloqueado";
-    case ACTION.PROJECT_UNLOCKED: return "Projeto desbloqueado";
-    case ACTION.ROW_ASSIGNED: return "Linha atribuída";
-    case ACTION.ROW_ASSIGNEE_CHANGED: return "Responsável alterado";
-    case ACTION.ROW_STAGE_CHANGED: return "Etapa alterada";
-    case ACTION.ROW_SECTORS_CHANGED: return "Setores alterados";
-    case ACTION.ROW_COMMENT: return "Comentário na linha";
-    case "MENTION_USER": return "Você foi mencionado (usuário)";
-    case "MENTION_SECTOR": return "Menção ao seu setor";
-    case ACTION.MENTION: return "Você foi mencionado";
+      case ACTION.PROJECT_STATUS_CHANGED: return "Status do projeto alterado";
+      case ACTION.PROJECT_LOCKED: return "Projeto bloqueado";
+      case ACTION.PROJECT_UNLOCKED: return "Projeto desbloqueado";
+      case ACTION.ROW_ASSIGNED: return "Linha atribuída";
+      case ACTION.ROW_ASSIGNEE_CHANGED: return "Responsável alterado";
+      case ACTION.ROW_STAGE_CHANGED: return "Etapa alterada";
+      case ACTION.ROW_SECTORS_CHANGED: return "Setores alterados";
+      case ACTION.ROW_COMMENT: return "Comentário na linha";
+      case "MENTION_USER": return "Você foi mencionado (usuário)";
+      case "MENTION_SECTOR": return "Menção ao seu setor";
+      case ACTION.MENTION: return "Você foi mencionado";
+      case ACTION.PROJECT_CREATED: return "Novo projeto";
     default: return "Atualização";
   }
 };
@@ -444,7 +444,6 @@ const Notifications = forwardRef(function Notifications(
   const groups = {
     MENTION_USER: [],
     MENTION_SECTOR: [],
-    PROJECT_CREATED: [],
     PROJECT_STATUS_CHANGED: [],
     PROJECT_LOCKED: [],
     PROJECT_UNLOCKED: [],
@@ -453,6 +452,7 @@ const Notifications = forwardRef(function Notifications(
     ROW_STAGE_CHANGED: [],
     ROW_SECTORS_CHANGED: [],
     ROW_COMMENT: [],
+    PROJECT_CREATED: [],
     OTHER: [],
   };
   for (const it of currentList) {
@@ -616,12 +616,7 @@ const Notifications = forwardRef(function Notifications(
             <List>{groups.MENTION_SECTOR.map(renderItem)}</List>
           </>
         )}
-        {(groups.PROJECT_CREATED || []).length > 0 && (
-          <>
-            <SectionTitle>Novos projetos</SectionTitle>
-            <List>{groups.PROJECT_CREATED.map(renderItem)}</List>
-          </>
-        )}
+
         {(groups.PROJECT_STATUS_CHANGED || []).length > 0 && (
           <>
             <SectionTitle>Status do projeto</SectionTitle>
@@ -671,6 +666,12 @@ const Notifications = forwardRef(function Notifications(
           <>
             <SectionTitle>Outros</SectionTitle>
             <List>{groups.OTHER.map(renderItem)}</List>
+          </>
+        )}
+                {(groups.PROJECT_CREATED || []).length > 0 && (
+          <>
+            <SectionTitle>Novos projetos</SectionTitle>
+            <List>{groups.PROJECT_CREATED.map(renderItem)}</List>
           </>
         )}
       </>
