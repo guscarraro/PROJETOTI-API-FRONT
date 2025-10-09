@@ -89,7 +89,8 @@ export default function useProjetoData({ projectId, loading }) {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
     try {
-      const r = await apiLocal.getProjetoById(projectId);
+      const r = await apiLocal.getProjetoById(projectId, { user_id: user?.id });
+
       const data = r.data?.data || r.data;
       setProjeto(data);
       const rawRows = Array.isArray(data?.rows) ? data.rows : [];

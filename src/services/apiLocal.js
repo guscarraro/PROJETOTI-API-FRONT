@@ -234,8 +234,8 @@ const apiLocal = {
       params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
     }),
 
-  getProjetoById: (id) => api.get(`/projetos/${id}`),
-
+  getProjetoById: (id, params = {}) => api.get(`/projetos/${id}`, { params }),
+  
   createProjeto: (data) => api.post("/projetos/", data),
 
   updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),

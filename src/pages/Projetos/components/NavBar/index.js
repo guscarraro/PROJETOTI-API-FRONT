@@ -194,7 +194,7 @@ export default function NavBar() {
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
         )}
-        {/* {user && (
+        {user && (
           <NavItem
             role="button"
             title="Notificações"
@@ -214,7 +214,7 @@ export default function NavBar() {
             </NavIcon>
             <NavLabel>Notificações</NavLabel>
           </NavItem>
-        )} */}
+        )}
 
         {user && (
           <NavItem
