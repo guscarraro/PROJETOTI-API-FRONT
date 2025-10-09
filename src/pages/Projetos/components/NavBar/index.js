@@ -103,9 +103,24 @@ export default function NavBar() {
 
   const items = useMemo(() => {
     const base = [
-      { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
-      { key: "frete", label: "Ir para o Frete", icon: <FiTruck />, to: "/frete" },
-      { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" },
+      {
+        key: "projetos",
+        label: "Projetos",
+        icon: <FiFolder />,
+        to: "/projetos",
+      },
+      {
+        key: "frete",
+        label: "Ir para o Frete",
+        icon: <FiTruck />,
+        to: "/frete",
+      },
+      {
+        key: "sac",
+        label: "Ir para o SAC",
+        icon: <FiHeadphones />,
+        to: "/sac",
+      },
     ];
     if (isAdmin) {
       base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
@@ -119,8 +134,9 @@ export default function NavBar() {
     return base;
   }, [isAdmin]);
 
-const avatarInitial = (user?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCase();
-
+  const avatarInitial = (
+    user?.email?.split("@")[0]?.slice(0, 2) || "U"
+  ).toUpperCase();
 
   const handleLogout = async () => {
     try {
@@ -165,20 +181,20 @@ const avatarInitial = (user?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCa
         ))}
 
         <NavSpacer />
-{user && (
-  <NavItem
-    role="button"
-    title="Notas de atualização"
-    $active={false}
-    onClick={(e) => e.stopPropagation()}
-  >
-    <NavIcon style={{ position: "relative" }}>
-      <Notas version="1.2" />   {/* << ADICIONE ESTA LINHA */}
-    </NavIcon>
-    <NavLabel>Notas nova versão</NavLabel>
-  </NavItem>
-)}
         {user && (
+          <NavItem
+            role="button"
+            title="Notas de atualização"
+            $active={false}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <NavIcon style={{ position: "relative" }}>
+              <Notas version="1.2" /> {/* << ADICIONE ESTA LINHA */}
+            </NavIcon>
+            <NavLabel>Notas nova versão</NavLabel>
+          </NavItem>
+        )}
+        {/* {user && (
           <NavItem
             role="button"
             title="Notificações"
@@ -192,17 +208,19 @@ const avatarInitial = (user?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCa
             <NavIcon style={{ position: "relative" }}>
               <Notifications
                 user={user}
-                navWidth={navWidth}              // <<<<<< repassa a largura
+                navWidth={navWidth} // <<<<<< repassa a largura
                 onOpenProject={(pid) => navigate(`/projetos/${pid}`)}
               />
             </NavIcon>
             <NavLabel>Notificações</NavLabel>
           </NavItem>
-        )}
+        )} */}
 
         {user && (
           <NavItem
-            title={userSectorNames.length ? userSectorNames.join(", ") : "Usuário"}
+            title={
+              userSectorNames.length ? userSectorNames.join(", ") : "Usuário"
+            }
           >
             <NavIcon>
               <span
@@ -224,7 +242,9 @@ const avatarInitial = (user?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCa
               </span>
             </NavIcon>
             <NavLabel>
-              {userSectorNames.length ? userSectorNames[0] : user?.email || "Usuário"}
+              {userSectorNames.length
+                ? userSectorNames[0]
+                : user?.email || "Usuário"}
             </NavLabel>
           </NavItem>
         )}
