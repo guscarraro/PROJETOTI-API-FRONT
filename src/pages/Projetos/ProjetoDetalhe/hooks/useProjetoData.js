@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { STATUS, rangeDays } from "../../utils";
 import apiLocal from "../../../../services/apiLocal";
-
+import { useNavigate } from "react-router-dom";
 const STATUS_COLORS = {
   ANDAMENTO: "#10b981",
   STANDBY: "#f59e0b",
@@ -17,6 +17,7 @@ export default function useProjetoData({ projectId, loading }) {
   const [sectors, setSectors] = useState([]);
   const [locked, setLocked] = useState(false);
   const [timelineEnabled, setTimelineEnabled] = useState(true);
+  const navigate = useNavigate();
 
   const user = useMemo(() => {
     try {
@@ -85,44 +86,40 @@ export default function useProjetoData({ projectId, loading }) {
   }, []);
 
   const fetchingRef = useRef(false);
-  const fetchProjeto = useCallback(async () => {
-    if (fetchingRef.current) return;
-    fetchingRef.current = true;
-    try {
-      const r = await apiLocal.getProjetoById(projectId, { user_id: user?.id });
+const fetchProjeto = useCallback(async () => {
+  if (fetchingRef.current) return;
+  fetchingRef.current = true;
+  try {
+    const r = await apiLocal.getProjetoById(projectId, { user_id: user?.id });
+    const data = r.data?.data || r.data;
+    setProjeto(data);
 
-      const data = r.data?.data || r.data;
-      setProjeto(data);
-      const rawRows = Array.isArray(data?.rows) ? data.rows : [];
-      const fixed = rawRows.map((row) => {
-        const arr = Array.isArray(row?.sectors) ? row.sectors : [];
-
-        // Converte números e strings numéricas para número
-        const numLike = [];
-        let allNumLike = true;
-        for (let i = 0; i < arr.length; i++) {
-          const v = arr[i];
-          if (typeof v === "number" && Number.isFinite(v)) {
-            numLike.push(v);
-            continue;
-          }
-          if (typeof v === "string" && /^\d+$/.test(v)) {
-            numLike.push(Number(v));
-            continue;
-          }
-          allNumLike = false;
-          break;
-        }
-
-        return allNumLike ? { ...row, sectors: idsToKeys(numLike) } : row;
-      });
-      setRows(fixed);
-
-      setLocked(Boolean(data?.locked));
-    } finally {
-      fetchingRef.current = false;
+    const rawRows = Array.isArray(data?.rows) ? data.rows : [];
+    const fixed = rawRows.map((row) => {
+      const arr = Array.isArray(row?.sectors) ? row.sectors : [];
+      const numLike = [];
+      let allNumLike = true;
+      for (let i = 0; i < arr.length; i++) {
+        const v = arr[i];
+        if (typeof v === "number" && Number.isFinite(v)) { numLike.push(v); continue; }
+        if (typeof v === "string" && /^\d+$/.test(v)) { numLike.push(Number(v)); continue; }
+        allNumLike = false; break;
+      }
+      return allNumLike ? { ...row, sectors: idsToKeys(numLike) } : row;
+    });
+    setRows(fixed);
+    setLocked(Boolean(data?.locked));
+  } catch (e) {
+    if (e?.response?.status === 403) {
+      toast.error("Sem permissão para acessar este projeto.");
+      navigate("/Projetos", { replace: true });
+      return; // evita rethrow
     }
-  }, [projectId, sectors]);
+    throw e; // outros erros seguem o fluxo normal
+  } finally {
+    fetchingRef.current = false;
+  }
+}, [projectId, sectors, user?.id, navigate]);
 
   useEffect(() => {
     loading.wrap("bootstrap", async () => {

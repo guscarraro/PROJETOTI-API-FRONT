@@ -235,7 +235,7 @@ const apiLocal = {
     }),
 
   getProjetoById: (id, params = {}) => api.get(`/projetos/${id}`, { params }),
-  
+
   createProjeto: (data) => api.post("/projetos/", data),
 
   updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
@@ -368,16 +368,24 @@ const apiLocal = {
 
   // services/apiLocal.js (já tem getProjetosLean)
   // services/apiLocal.js  (apenas este método)
-  getProjetosLean: (visibleForSectors, status, visibleUsers) =>
-    api.get("/projetos/lean", {
-      params: {
-        ...(status ? { status } : {}),
-        ...(visibleForSectors?.length
-          ? { visible_for: visibleForSectors }
-          : {}),
-        ...(visibleUsers?.length ? { visible_for_user: visibleUsers[0] } : {}), // << CORRIGIDO
-      },
-    }),
+// apiLocal.js (ou services/apiLocal.js)
+getProjetosLean: (visibleFor /* array opcional de setores */, status, userId /* string */) =>
+  api.get('/projetos/lean', {
+    params: {
+      status,
+      ...(userId ? { visible_for_user: userId } : {}),
+      ...(Array.isArray(visibleFor) && visibleFor.length ? { visible_for: visibleFor } : {}),
+    },
+    // evita serializar userId como array/brackets
+    paramsSerializer: (params) => {
+      const usp = new URLSearchParams();
+      if (params.status) usp.set('status', params.status);
+      if (params.visible_for_user) usp.set('visible_for_user', params.visible_for_user);
+      if (params.visible_for) for (const v of params.visible_for) usp.append('visible_for', String(v));
+      return usp.toString();
+    }
+  }),
+
 
   patchProjetoMeta: (
     id,

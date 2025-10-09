@@ -33,9 +33,16 @@ const RichHtml = styled.div`
 
 function extractHtmlFromMessage(msg) {
   const s = String(msg || "");
-  const i = s.indexOf(",data:");
-  return (i >= 0 ? s.slice(0, i) : s).trim();
+
+  // acha "data:" no início OU após vírgula
+  const i = s.search(/(?:^|,)\s*data:/i);
+
+  // se achou, corta tudo dali pra frente (sobra só o texto antes dos anexos)
+  const before = i >= 0 ? s.slice(0, i) : s;
+
+  return before.trim();
 }
+
 
 const myTagStyle = {
   fontSize: 10,

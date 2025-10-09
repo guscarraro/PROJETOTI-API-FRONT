@@ -468,7 +468,7 @@ const LancarArmazenagem = ({ onActionComplete }) => {
             name="valor"
             value={armazenagem.valor}
             onChange={handleInputChange}
-            style={{color:"#fff"}} 
+            style={{color:"grey"}} 
           />
         </FormGroup>
 

@@ -144,15 +144,21 @@ export default function ProjetosListPage() {
   useEffect(() => {
     (async () => {
       if (!userId) return;
-      await loading.wrap("init", async () => {
-        const [sRes, pRes] = await Promise.all([
-          apiLocal.getSetores(),
-          // usa visibilidade por usuário e já filtra ANDAMENTO
-          apiLocal.getProjetosLean(undefined, "ANDAMENTO", [userId]),
-        ]);
-        setSectors(sRes.data || []);
-        setProjects(pRes.data || []);
-      });
+await loading.wrap("init", async () => {
+   try {
+     const [sRes, pRes] = await Promise.all([
+       apiLocal.getSetores(),
+       apiLocal.getProjetosLean(undefined, "ANDAMENTO", userId),
+     ]);
+     setSectors(sRes.data || []);
+     setProjects(pRes.data || []);
+   } catch (err) {
+     console.error(err);
+     setProjects([]);
+     // opcional: feedback amigável
+     // toast.error(err?.response?.data?.detail || "Falha ao listar projetos.");
+   }
+ });
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]); // não incluir `loading` para evitar loop
@@ -166,7 +172,7 @@ export default function ProjetosListPage() {
         const r = await apiLocal.getProjetosLean(
           undefined,
           status === "TODOS" ? undefined : status,
-          [userId]
+          userId
         );
         setProjects(r.data || []);
       });
