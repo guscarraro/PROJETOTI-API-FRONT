@@ -28,6 +28,13 @@ const CARD_COLORS = {
   overdue: "rgba(255, 69, 0, 0.35)",    // Pendente
 };
 
+const currency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 2,
+});
+const formatMoney = (v) => currency.format(Number(v || 0));
+
 const TodasPaletizacoes = () => {
   const [paletizacoes, setPaletizacoes] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -68,14 +75,22 @@ const TodasPaletizacoes = () => {
       if (inicio && fim) {
         const dIni = new Date(inicio);
         const dFim = new Date(fim);
-        data = data.filter((item) => {
+        dFim.setHours(23, 59, 59, 999); // inclui o dia final inteiro
+        const tmp = [];
+        for (const item of data) {
           const dt = new Date(item.dt_inclusao);
-          return dt >= dIni && dt <= dFim;
-        });
+          if (dt >= dIni && dt <= dFim) tmp.push(item);
+        }
+        data = tmp;
       }
 
       if (clienteId) {
-        data = data.filter((item) => item.cliente_id === parseInt(clienteId));
+        const idNum = parseInt(clienteId);
+        const tmp = [];
+        for (const item of data) {
+          if (item.cliente_id === idNum) tmp.push(item);
+        }
+        data = tmp;
       }
 
       data.sort((a, b) => b.id - a.id);
@@ -102,62 +117,105 @@ const TodasPaletizacoes = () => {
     return 0;
   };
 
+  // Lê uma propriedade apenas se existir no objeto (para diferenciar "não veio" de "0")
+  const readMaybe = (obj, ...keys) => {
+    if (!obj) return null;
+    for (const k of keys) {
+      if (Object.prototype.hasOwnProperty.call(obj, k) && obj[k] != null) {
+        return parseValorBR(obj[k]);
+      }
+    }
+    return null;
+  };
+
   useEffect(() => {
     if (!paletizacoes.length || !destinos.length || !clientes.length) return;
 
     const destinosMap = {};
-    destinos.forEach((d) => {
-      destinosMap[d.id?.toString()] = { nome: d.nome, cidade: d.cidade };
-    });
+    for (const d of destinos) {
+      destinosMap[d.id?.toString()] = {
+        nome: d.nome,
+        cidade: d.cidade,
+        // aceitar "valor_palet" e "valor_pallet"
+        valor_palet_num: readMaybe(d, "valor_palet", "valor_pallet"),
+      };
+    }
 
     const clientesMap = {};
-    clientes.forEach((c) => {
+    for (const c of clientes) {
       clientesMap[c.id?.toString()] = {
         ...c,
-        valor_pallet_num: parseValorBR(c.valor_pallet),
+        // aceitar "valor_palet" e "valor_pallet"
+        valor_pallet_num: readMaybe(c, "valor_pallet", "valor_palet"),
       };
-    });
+    }
 
-    const enriched = paletizacoes.map((p) => {
+    const enriched = [];
+    for (const p of paletizacoes) {
       const destinoIdStr = p.destino_id?.toString();
       const clienteIdStr = p.cliente_id?.toString();
 
       const destino = destinosMap[destinoIdStr];
       const cliente = clientesMap[clienteIdStr];
 
-      const valorUnit = cliente?.valor_pallet_num || 0;
       const qtd = Number(p.qtde_palet) || 0;
-      const valor_total = qtd * valorUnit;
 
-      return {
+      // prioridade para manter o que funcionava antes:
+      // 1) cliente  2) item  3) destino
+      const unitFromCliente = readMaybe(cliente, "valor_pallet_num");
+      const unitFromItem = readMaybe(p, "valor_palet", "valor_pallet");
+      const unitFromDestino = readMaybe(destino, "valor_palet_num");
+
+      const valorUnit =
+        (unitFromCliente !== null ? unitFromCliente : null) ??
+        (unitFromItem !== null ? unitFromItem : null) ??
+        (unitFromDestino !== null ? unitFromDestino : null) ??
+        0;
+
+      const valor_total = qtd * (Number(valorUnit) || 0);
+
+      const valor_cobrado_num = readMaybe(p, "valor_cobrado");
+      const valor_nao_cobrado_num = readMaybe(p, "valor_nao_cobrado");
+
+      const cte_numero =
+        p.documento_transporte?.length === 44
+          ? p.documento_transporte.slice(24, 33)
+          : p.documento_transporte;
+
+      enriched.push({
         ...p,
         cliente_nome: cliente?.nome || "N/A",
         destino_nome: destino?.nome || "N/A",
         destino_cidade: destino?.cidade || "N/A",
-        cte_numero:
-          p.documento_transporte?.length === 44
-            ? p.documento_transporte.slice(24, 33)
-            : p.documento_transporte,
+        cte_numero,
+        valor_unit: Number(valorUnit) || 0,
         valor_total,
-      };
-    });
+        valor_cobrado_num: valor_cobrado_num ?? 0,
+        valor_nao_cobrado_num: valor_nao_cobrado_num ?? 0,
+      });
+    }
 
     setFiltered(enriched);
   }, [paletizacoes, destinos, clientes]);
 
+  // Totais dos cards: preferir (cobrado / não cobrado) e cair para valor_total se não vier
   const totalsByStatus = useMemo(() => {
-    const base = {
-      pendente: 0,
-      concluido: 0,
-      cancelado: 0,
-      aguardando: 0,
-    };
+    const base = { pendente: 0, concluido: 0, cancelado: 0, aguardando: 0 };
     for (const p of filtered) {
       const s = String(p.verificado || "").toUpperCase().trim();
-      if (s === "PENDENTE") base.pendente += p.valor_total || 0;
-      else if (s === "CONFIRMADO") base.concluido += p.valor_total || 0;
-      else if (s === "CANCELADO") base.cancelado += p.valor_total || 0;
-      else if (s === "AGUARDANDO RETORNO") base.aguardando += p.valor_total || 0;
+      const totalCobrado = p.valor_cobrado_num || 0;
+      const totalNaoCobrado = p.valor_nao_cobrado_num || 0;
+      const fallback = p.valor_total || 0;
+
+      if (s === "CONFIRMADO") {
+        base.concluido += totalCobrado || fallback;
+      } else if (s === "CANCELADO") {
+        base.cancelado += totalNaoCobrado || fallback;
+      } else if (s === "PENDENTE") {
+        base.pendente += totalNaoCobrado || fallback;
+      } else if (s === "AGUARDANDO RETORNO") {
+        base.aguardando += totalNaoCobrado || fallback;
+      }
     }
     return base;
   }, [filtered]);
@@ -168,24 +226,28 @@ const TodasPaletizacoes = () => {
       return;
     }
 
-    const dataToExport = filtered.map((p) => ({
-      ID: p.id,
-      "Documento Transporte": p.documento_transporte,
-      "NF Referência": p.nf_ref,
-      Cliente: p.cliente_nome,
-      Destino: p.destino_nome,
-      Cidade: p.destino_cidade,
-      "Data Inclusão": new Date(p.dt_inclusao).toLocaleString(),
-      "Data Início": p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : "",
-      "Data Final": p.dt_final ? new Date(p.dt_final).toLocaleString() : "",
-      "Qtd Palet": p.qtde_palet,
-      Agendamento: p.agendamento ? "Sim" : "Não",
-      Valor: Number(p.valor_total || 0).toFixed(2),
-      Verificado: p.verificado ? "Sim" : "Não",
-      "Nº Cobrança": p.nr_cobranca,
-    }));
+    const rows = [];
+    for (const p of filtered) {
+      rows.push({
+        ID: p.id,
+        "Documento Transporte": p.documento_transporte,
+        "NF Referência": p.nf_ref,
+        Cliente: p.cliente_nome,
+        Destino: p.destino_nome,
+        Cidade: p.destino_cidade,
+        "Data Inclusão": p.dt_inclusao ? new Date(p.dt_inclusao).toLocaleString() : "",
+        "Data Início": p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : "",
+        "Data Final": p.dt_final ? new Date(p.dt_final).toLocaleString() : "",
+        "Qtd Palet": p.qtde_palet,
+        Agendamento: p.agendamento ? "Sim" : "Não",
+        // exporta o mesmo valor da coluna (valor_total calculado)
+        Valor: Number(p.valor_total || 0).toFixed(2),
+        Verificado: p.verificado || "",
+        "Nº Cobrança": p.nr_cobranca || "",
+      });
+    }
 
-    const ws = XLSX.utils.json_to_sheet(dataToExport);
+    const ws = XLSX.utils.json_to_sheet(rows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Paletizações");
     XLSX.writeFile(wb, "RelatorioPaletizacoes.xlsx");
@@ -218,6 +280,7 @@ const TodasPaletizacoes = () => {
         }}
       />
 
+      {/* Cards de totais */}
       <div
         style={{
           width: "100%",
@@ -241,7 +304,7 @@ const TodasPaletizacoes = () => {
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 14, opacity: 0.8 }}>Pendente</span>
             <strong style={{ fontSize: 20 }}>
-              R$ {Number(totalsByStatus.pendente || 0).toFixed(2)}
+              {formatMoney(totalsByStatus.pendente || 0)}
             </strong>
           </div>
           <FaHourglassHalf size={26} />
@@ -260,7 +323,7 @@ const TodasPaletizacoes = () => {
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 14, opacity: 0.8 }}>Concluído</span>
             <strong style={{ fontSize: 20 }}>
-              R$ {Number(totalsByStatus.concluido || 0).toFixed(2)}
+              {formatMoney(totalsByStatus.concluido || 0)}
             </strong>
           </div>
           <FaCheckCircle size={26} />
@@ -279,7 +342,7 @@ const TodasPaletizacoes = () => {
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 14, opacity: 0.8 }}>Cancelado</span>
             <strong style={{ fontSize: 20 }}>
-              R$ {Number(totalsByStatus.cancelado || 0).toFixed(2)}
+              {formatMoney(totalsByStatus.cancelado || 0)}
             </strong>
           </div>
           <FaTimesCircle size={26} />
@@ -298,16 +361,17 @@ const TodasPaletizacoes = () => {
           <div style={{ display: "flex", flexDirection: "column" }}>
             <span style={{ fontSize: 14, opacity: 0.8 }}>Aguardando</span>
             <strong style={{ fontSize: 20 }}>
-              R$ {Number(totalsByStatus.aguardando || 0).toFixed(2)}
+              {formatMoney(totalsByStatus.aguardando || 0)}
             </strong>
           </div>
           <FaClock size={26} />
         </div>
       </div>
 
+      {/* Filtros */}
       <HeaderContainer>
-        <Button color="success" onClick={handleExportExcel}>
-          <FaFileExcel /> Exportar para Excel
+        <Button color="success" onClick={handleExportExcel} style={{width:120}}>
+          <FaFileExcel /> Exportar
         </Button>
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
           <div>
@@ -354,105 +418,123 @@ const TodasPaletizacoes = () => {
         </div>
       </HeaderContainer>
 
+      {/* Tabela com wrapper para não quebrar a página */}
       {loading ? (
         <LoadingDots />
       ) : (
-        <Table>
-          <thead>
-            <TableRow>
-              <TableHeader>ID</TableHeader>
-              <TableHeader>Documento</TableHeader>
-              <TableHeader>NF Referência</TableHeader>
-              <TableHeader>Cliente</TableHeader>
-              <TableHeader>Destino</TableHeader>
-              <TableHeader>Cidade</TableHeader>
-              <TableHeader>Dt Inclusão</TableHeader>
-              <TableHeader>Início</TableHeader>
-              <TableHeader>Fim</TableHeader>
-              <TableHeader>Qtd Palet</TableHeader>
-              <TableHeader>Agendado</TableHeader>
-              <TableHeader>Valor</TableHeader>
-              <TableHeader>Verificado</TableHeader>
-              <TableHeader>Nº Cobrança</TableHeader>
-              <TableHeader></TableHeader>
-            </TableRow>
-          </thead>
-          <tbody>
-            {filtered.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{p.id}</TableCell>
-                <TableCell>{p.cte_numero}</TableCell>
-
-                <TableCell>{p.nf_ref}</TableCell>
-                <TableCell>{p.cliente_nome}</TableCell>
-                <TableCell>{p.destino_nome}</TableCell>
-                <TableCell>{p.destino_cidade}</TableCell>
-                <TableCell>
-                  {new Date(p.dt_inclusao).toLocaleString()}
-                </TableCell>
-                <TableCell>
-                  {p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : ""}
-                </TableCell>
-                <TableCell>
-                  {p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}
-                </TableCell>
-                <TableCell>{p.qtde_palet}</TableCell>
-                <TableCell>{p.agendamento ? "Sim" : "Não"}</TableCell>
-                <TableCell>{Number(p.valor_total || 0).toFixed(2)}</TableCell>
-                <TableCell>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      whiteSpace: "nowrap",
-                      padding: "4px 8px",
-                      borderRadius: "6px",
-                      color: "#fff",
-                      backgroundColor:
-                        p.verificado === "CONFIRMADO"
-                          ? "green"
-                          : p.verificado === "CANCELADO"
-                          ? "red"
-                          : p.verificado === "AGUARDANDO RETORNO"
-                          ? "orange"
-                          : "gray",
-                    }}
-                  >
-                    {p.verificado === "CONFIRMADO" && <FaCheckCircle />}
-                    {p.verificado === "CANCELADO" && <FaTimesCircle />}
-                    {p.verificado === "AGUARDANDO RETORNO" && <FaEdit />}
-                    {p.verificado === "PENDENTE" && <FaEdit />}
-                    <span>{p.verificado}</span>
-                  </div>
-                </TableCell>
-
-                <TableCell>{p.nr_cobranca || ""}</TableCell>
-                <TableCell>
-                  <button
-                    onClick={() => {
-                      setSelectedPaletizacao(p);
-                      setModalVisible(true);
-                    }}
-                    style={{
-                      backgroundColor: "#007bff",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "6px",
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "5px",
-                    }}
-                  >
-                    <FaEdit /> Editar
-                  </button>
-                </TableCell>
+        <div style={{ width: "100%", maxWidth: 1400, overflowX: "auto" }}>
+          <Table style={{ minWidth: 1200 }}>
+            <thead>
+              <TableRow>
+                <TableHeader>ID</TableHeader>
+                <TableHeader>Documento</TableHeader>
+                <TableHeader>NF Referência</TableHeader>
+                <TableHeader>Cliente</TableHeader>
+                <TableHeader>Destino</TableHeader>
+                <TableHeader>Cidade</TableHeader>
+                <TableHeader>Dt Inclusão</TableHeader>
+                <TableHeader>Início</TableHeader>
+                <TableHeader>Fim</TableHeader>
+                <TableHeader>Qtd Palet</TableHeader>
+                <TableHeader>Agendado</TableHeader>
+                <TableHeader>Valor</TableHeader>
+                <TableHeader>Verificado</TableHeader>
+                <TableHeader>Nº Cobrança</TableHeader>
+                <TableHeader></TableHeader>
               </TableRow>
-            ))}
-          </tbody>
-        </Table>
+            </thead>
+            <tbody>
+              {filtered.map((p) => {
+                const s = String(p.verificado || "").toUpperCase().trim();
+
+                const badgeColor = (() => {
+                  if (s === "CONFIRMADO") return "green";
+                  if (s === "CANCELADO") return "red";
+                  if (s === "AGUARDANDO RETORNO") return "orange";
+                  if (s === "PENDENTE") return "gray";
+                  return "gray";
+                })();
+
+                return (
+                  <TableRow key={p.id}>
+                    <TableCell>{p.id}</TableCell>
+                    <TableCell>{p.cte_numero}</TableCell>
+
+                    <TableCell style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.nf_ref}
+                    </TableCell>
+                    <TableCell style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.cliente_nome}
+                    </TableCell>
+                    <TableCell style={{ maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.destino_nome}
+                    </TableCell>
+                    <TableCell style={{ maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.destino_cidade}
+                    </TableCell>
+                    <TableCell>
+                      {p.dt_inclusao ? new Date(p.dt_inclusao).toLocaleString() : ""}
+                    </TableCell>
+                    <TableCell>
+                      {p.dt_inicio ? new Date(p.dt_inicio).toLocaleString() : ""}
+                    </TableCell>
+                    <TableCell>
+                      {p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}
+                    </TableCell>
+                    <TableCell>{p.qtde_palet}</TableCell>
+                    <TableCell>{p.agendamento ? "Sim" : "Não"}</TableCell>
+
+                    {/* VOLTA a exibir exatamente o valor_total calculado (linha a linha) */}
+                    <TableCell>{formatMoney(p.valor_total || 0)}</TableCell>
+
+                    <TableCell>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          whiteSpace: "nowrap",
+                          padding: "4px 8px",
+                          borderRadius: "6px",
+                          color: "#fff",
+                          backgroundColor: badgeColor,
+                        }}
+                      >
+                        {s === "CONFIRMADO" && <FaCheckCircle />}
+                        {s === "CANCELADO" && <FaTimesCircle />}
+                        {(s === "AGUARDANDO RETORNO" || s === "PENDENTE") && <FaEdit />}
+                        <span>{p.verificado}</span>
+                      </div>
+                    </TableCell>
+
+                    <TableCell>{p.nr_cobranca || ""}</TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => {
+                          setSelectedPaletizacao(p);
+                          setModalVisible(true);
+                        }}
+                        style={{
+                          backgroundColor: "#007bff",
+                          color: "white",
+                          border: "none",
+                          borderRadius: "6px",
+                          padding: "6px 10px",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "5px",
+                        }}
+                      >
+                        <FaEdit /> Editar
+                      </button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
       )}
     </div>
   );
