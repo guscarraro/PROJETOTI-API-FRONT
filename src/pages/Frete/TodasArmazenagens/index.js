@@ -403,7 +403,7 @@ const TodasArmazenagens = () => {
                   {p.dt_final ? new Date(p.dt_final).toLocaleString() : ""}
                 </TableCell>
                 <TableCell>{p.qtde_dias}</TableCell>
-                <TableCell>{Number(p.valor_total || 0).toFixed(2)}</TableCell>
+                <TableCell>{Number(p.valor || 0).toFixed(2)}</TableCell>
 
                 <TableCell>
                   <div
