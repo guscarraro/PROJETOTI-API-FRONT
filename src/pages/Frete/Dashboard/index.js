@@ -397,23 +397,23 @@ const [ocorrenciasForaAcordo, setOcorrenciasForaAcordo] = useState([]);
   }
 };
 
-
-  const handleApplyFilters = () => {
-    const filters = {
-      dtInicio,
-      dtFinal,
-      motoristas: selectedMotoristas.map((m) => m.value),
-      clientes: selectedClientes.map((c) => c.value),
-      destinos: selectedDestinos.map((d) => d.value),
-    };
-    fetchDashboardData(filters);
+const handleApplyFilters = () => {
+  const filters = {
+    dtInicio,
+    dtFinal,
+    motoristas: selectedMotoristas.map((m) => m.value),
+    clientes: selectedClientes.map((c) => c.value),
+    destinos: selectedDestinos.map((d) => d.value),
   };
+  fetchDashboardData(filters);
+};
+console.log(todasOcorrencias)
 
-  return (
-    <Row
-      style={{
-        display: "flex",
-        flexDirection: "column",
+return (
+  <Row
+  style={{
+    display: "flex",
+    flexDirection: "column",
         gap: 20,
         margin: 20,
         width: "100%",

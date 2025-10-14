@@ -84,7 +84,6 @@ const ModalCteCobrado = ({ data, onClose }) => {
     XLSX.utils.book_append_sheet(wb, ws, "CTEs Cobrados (Geral)");
     XLSX.writeFile(wb, "CTEs_Cobrados_Geral.xlsx");
   };
-
   return (
     <div style={backdropStyle} onClick={onClose}>
       <div style={modalStyle} onClick={(e) => e.stopPropagation()}>

@@ -445,7 +445,8 @@ isTomadorSelected
             <Box>
               <h5>Toneladas Carregadas por Dia</h5>
               <LineChartToneladas
-                data={filteredData}
+               data={filteredData.filter((i) => i.emissao)}
+
                 selectedTomadores={selectedTomadores.map((t) => t.value)}
                 selectedMonths={selectedMonths.map((m) => m.value)}
               />
