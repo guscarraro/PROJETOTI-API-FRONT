@@ -176,6 +176,7 @@ const TodasOcorrencias = () => {
       Permanência: ocorrencia.permanencia,
       "Tempo para Abrir": ocorrencia.tempo_para_abrir,
       "Tipo de Ocorrência": ocorrencia.tipo_ocorrencia,
+      "Observação": ocorrencia.obs,
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(dataToExport);
@@ -183,7 +184,6 @@ const TodasOcorrencias = () => {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Ocorrencias");
     XLSX.writeFile(workbook, "TodasOcorrencias.xlsx");
   };
-
 
   return (
     <div
@@ -197,8 +197,8 @@ const TodasOcorrencias = () => {
       }}
     >
       <HeaderContainer>
-        <Button color="success" onClick={handleExportExcel}>
-          <FaFileExcel /> Exportar para Excel
+        <Button color="success" onClick={handleExportExcel} style={{marginRight: 15, display:"flex", alignItems:"center"}}>
+          <FaFileExcel /> Exportar
         </Button>
         <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
 
@@ -264,6 +264,7 @@ const TodasOcorrencias = () => {
               <TableHeader onClick={() => handleSort("permanencia")}>Permanência</TableHeader>
               <TableHeader onClick={() => handleSort("tempo_para_abrir")}>Tempo para Abrir</TableHeader>
               <TableHeader onClick={() => handleSort("tipo_ocorrencia")}>Tipo de Ocorrência</TableHeader>
+              <TableHeader onClick={() => handleSort("obs")}>Observação</TableHeader>
             </TableRow>
           </thead>
           <tbody>
@@ -289,6 +290,7 @@ const TodasOcorrencias = () => {
                 <TableCell>{ocorrencia.permanencia}</TableCell>
                 <TableCell>{ocorrencia.tempo_para_abrir}</TableCell>
                 <TableCell>{ocorrencia.tipo_ocorrencia}</TableCell>
+                <TableCell>{ocorrencia.obs}</TableCell>
               </TableRow>
             ))}
           </tbody>
