@@ -87,6 +87,7 @@ export default function ProjetoDetalhePage() {
     pickColorOptimistic,
     setCellComment,
     toggleBaseline,
+    toggleCompleted,
     deleteComment,
     deleteRow,
     renameRow,
@@ -279,6 +280,7 @@ export default function ProjetoDetalhePage() {
           onToggleBaseline={
             readOnly || !timelineEnabled ? undefined : toggleBaseline
           }
+          onToggleCompleted={ readOnly || !timelineEnabled ? undefined : toggleCompleted }
           onReorderRows={handleReorderRows}
           onDeleteRow={deleteRow}
           onDeleteComment={deleteComment}

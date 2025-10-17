@@ -1,4 +1,3 @@
-// src/pages/Projetos/ProjetoDetalhe/Timeline/index.jsx
 import React, { useRef, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
@@ -26,13 +25,6 @@ import ModalDetalheComment from "./ModalDetalheComment";
 import ModalEditRow from "./ModalEditRow";
 import AssigneeMenu from "./AssigneeMenu";
 
-/**
- * Props esperados:
- * - onPickColor, onSetCellComment, onToggleBaseline, onDeleteComment
- * - onReorderRows, onDeleteRow
- * - onRenameRow? (compat), onSetRowSector? (compat), onSetRowStage? (compat), onSetRowAssignees? (compat)
- * - onUpdateRow?  << preferido: PUT único (title,row_sectors,assignees,stage_no,stage_label,assignee_setor_id)
- */
 export default function Timeline({
   days = [],
   rows = [],
@@ -48,17 +40,18 @@ export default function Timeline({
   onDeleteRow,
   onDeleteComment,
 
-  // compat:
   onRenameRow,
   onSetRowSector,
   onSetRowStage,
   onSetRowAssignees,
+  onToggleCompleted,
 
-  // novo preferido:
   onUpdateRow,
   onChangeAssignee,
   canMarkBaseline = false,
   baselineColor = "#111827",
+  canMarkCompleted = true,
+  canToggleCompletedCell = () => true,
   canReorderRows = false,
   isBusy = false,
   availableSectorKeys = [],
@@ -81,7 +74,6 @@ export default function Timeline({
       firstColRef.current.scrollTop = e.currentTarget.scrollTop;
   };
 
-  // ===== MAPAS DE SETOR =====
   const sectorMap = useMemo(() => {
     const map = {};
     for (let i = 0; i < ALL_SECTORS.length; i++) {
@@ -100,7 +92,6 @@ export default function Timeline({
     return m;
   }, []);
 
-  // mapeia KEY -> ID (string) para lookup no menu
   const sectorIdByKey = useMemo(() => {
     const m = {};
     for (const s of ALL_SECTORS) {
@@ -112,20 +103,12 @@ export default function Timeline({
   const tokenToKey = (tok) => {
     if (!tok) return null;
     if (typeof tok === "string" && sectorMap[tok]) return tok;
-    if (
-      typeof tok === "object" &&
-      typeof tok.key === "string" &&
-      sectorMap[tok.key]
-    )
-      return tok.key;
-    if (typeof tok === "string" && /^[0-9]+$/.test(tok) && sectorKeyById[tok])
-      return sectorKeyById[tok];
-    if (typeof tok === "number" && sectorKeyById[String(tok)])
-      return sectorKeyById[String(tok)];
+    if (typeof tok === "object" && typeof tok.key === "string" && sectorMap[tok.key]) return tok.key;
+    if (typeof tok === "string" && /^[0-9]+$/.test(tok) && sectorKeyById[tok]) return sectorKeyById[tok];
+    if (typeof tok === "number" && sectorKeyById[String(tok)]) return sectorKeyById[String(tok)];
     return null;
   };
 
-  // usersBySector pode vir por id — normaliza para key
   const usersBySectorKey = useMemo(() => {
     const keys = Object.keys(usersBySector || {});
     if (!keys.length) return {};
@@ -140,7 +123,6 @@ export default function Timeline({
     return out;
   }, [usersBySector, sectorMap, sectorKeyById]);
 
-  // aceita lookup por KEY (ex: "TI") e também por ID (ex: "2")
   const usersBySectorLookup = useMemo(() => {
     const out = { ...(usersBySectorKey || {}) };
     for (const s of ALL_SECTORS) {
@@ -151,13 +133,11 @@ export default function Timeline({
     return out;
   }, [usersBySectorKey]);
 
-  // depois do usersBySectorLookup
   const usersBySectorUnion = useMemo(
     () => ({ ...(usersBySectorKey || {}), ...(usersBySector || {}) }),
     [usersBySectorKey, usersBySector]
   );
 
-  // depois dos useMemo de sectorMap/sectorKeyById/usersBySectorKey
   const usersIndexFromSectors = useMemo(() => {
     const idx = {};
     const src = usersBySectorKey || {};
@@ -177,25 +157,16 @@ export default function Timeline({
     [usersIndexFromSectors, usersIndex]
   );
 
-  // rows normalizadas (sectors -> keys)
   const normRows = useMemo(() => {
     if (!Array.isArray(rows)) return [];
     return rows.map((r) => {
-      const raw = Array.isArray(r?.sectors)
-        ? r.sectors
-        : r?.sector
-        ? [r.sector]
-        : [];
+      const raw = Array.isArray(r?.sectors) ? r.sectors : r?.sector ? [r.sector] : [];
       const keys = [];
       for (let i = 0; i < raw.length; i++) {
         const k = tokenToKey(raw[i]);
         if (k && !keys.includes(k)) keys.push(k);
       }
-      const sectors = keys.length
-        ? keys
-        : Array.isArray(r?.sectors)
-        ? r.sectors
-        : [];
+      const sectors = keys.length ? keys : Array.isArray(r?.sectors) ? r.sectors : [];
       return { ...r, sectors };
     });
   }, [rows]);
@@ -242,15 +213,12 @@ export default function Timeline({
   const [editingRowId, setEditingRowId] = useState(null);
   const [editDraft, setEditDraft] = useState("");
 
-  // larguras coluna esquerda
   const SECTORS_COL_W = 85;
   const RESP_COL_W = 50;
   const STAGE_COL_W = 95;
   const [leftDemandWidth, setLeftDemandWidth] = useState(320);
-  const LEFT_COL_WIDTH =
-    SECTORS_COL_W + RESP_COL_W + leftDemandWidth + STAGE_COL_W;
+  const LEFT_COL_WIDTH = SECTORS_COL_W + RESP_COL_W + leftDemandWidth + STAGE_COL_W;
 
-  // tooltips / menus
   const [tooltip, setTooltip] = useState(null);
   const showTooltip = (e, text, authorInitial) => {
     const { clientX: x, clientY: y } = e;
@@ -270,11 +238,8 @@ export default function Timeline({
   const [assigneeMenu, setAssigneeMenu] = useState(null);
   const openAssigneeMenu = (rowId, e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const W = 280,
-      H = 320,
-      M = 8;
-    let x = rect.left,
-      y = rect.bottom + 8;
+    const W = 280, H = 320, M = 8;
+    let x = rect.left, y = rect.bottom + 8;
     if (x + W > window.innerWidth - M) x = window.innerWidth - W - M;
     if (y + H > window.innerHeight - M) y = rect.top - H - M;
     setAssigneeMenu({ rowId, x, y });
@@ -300,11 +265,8 @@ export default function Timeline({
       toast.error("Você não tem permissão para editar esta célula.");
       return;
     }
-    const W = 340,
-      H = 320,
-      M = 8;
+    const W = 340, H = 320, M = 8;
     let left, top;
-
     if (e && e.currentTarget && e.currentTarget.getBoundingClientRect) {
       const rect = e.currentTarget.getBoundingClientRect();
       left = rect.left;
@@ -320,9 +282,7 @@ export default function Timeline({
       top = Math.max(M, (window.innerHeight - H) / 2);
     }
 
-    const comments = Array.isArray(existing?.comments)
-      ? existing.comments.slice()
-      : [];
+    const comments = Array.isArray(existing?.comments) ? existing.comments.slice() : [];
     setPalette({
       rowId,
       dayISO,
@@ -331,6 +291,8 @@ export default function Timeline({
       commentDraft: "",
       baseline: !!existing?.baseline,
       baselineOriginal: !!existing?.baseline,
+      completed: !!existing?.completed,
+      completedOriginal: !!existing?.completed,
       comments,
     });
   };
@@ -347,8 +309,39 @@ export default function Timeline({
   };
 
   const [selectedSectorKey, setSelectedSectorKey] = useState("ALL");
+  const [selectedDemandFilter, setSelectedDemandFilter] = useState("ALL_DEMANDS");
 
-  const filteredRows = useMemo(() => {
+  const myCommentsCount = useMemo(() => {
+    if (!currentUserSectorId) return 0;
+    let n = 0;
+    for (const r of normRows) {
+      const cells = r?.cells || {};
+      for (const day in cells) {
+        const list = (cells[day]?.comments || []).filter(
+          (c) => !c?.deleted && String(c?.sector_id) === String(currentUserSectorId)
+        );
+        n += list.length;
+      }
+    }
+    return n;
+  }, [normRows, currentUserSectorId]);
+
+  const completedRowIds = useMemo(() => {
+    const set = new Set();
+    for (const r of normRows) {
+      const cells = r?.cells || {};
+      for (const day in cells) {
+        const c = cells[day];
+        if (c && typeof c === "object" && c.completed) {
+          set.add(r.id);
+          break;
+        }
+      }
+    }
+    return set;
+  }, [normRows]);
+
+  const baseSectorFilteredRows = useMemo(() => {
     if (selectedSectorKey === "ALL") return normRows;
     if (selectedSectorKey === "MINE") {
       return normRows.filter((r) => {
@@ -360,7 +353,6 @@ export default function Timeline({
         return ids.some((id) => String(id) === String(currentUserId));
       });
     }
-
     const out = [];
     for (let i = 0; i < normRows.length; i++) {
       const keys = getRowSectorKeys(normRows[i]);
@@ -374,7 +366,23 @@ export default function Timeline({
       if (has) out.push(normRows[i]);
     }
     return out;
-  }, [normRows, selectedSectorKey]);
+  }, [normRows, selectedSectorKey, currentUserId]);
+
+  const filteredRows = useMemo(() => {
+    if (selectedDemandFilter === "ALL_DEMANDS") return baseSectorFilteredRows;
+    const wantCompleted = selectedDemandFilter === "COMPLETED";
+    return baseSectorFilteredRows.filter((r) => {
+      const isCompleted = completedRowIds.has(r.id);
+      return wantCompleted ? isCompleted : !isCompleted;
+    });
+  }, [baseSectorFilteredRows, selectedDemandFilter, completedRowIds]);
+
+  const totalInView = baseSectorFilteredRows.length;
+  const totalCompletedInView = useMemo(
+    () => baseSectorFilteredRows.filter((r) => completedRowIds.has(r.id)).length,
+    [baseSectorFilteredRows, completedRowIds]
+  );
+  const totalPendingInView = totalInView - totalCompletedInView;
 
   const {
     draggingId,
@@ -387,7 +395,6 @@ export default function Timeline({
   } = useDnDRows(filteredRows, canReorderRows, isBusy, onReorderRows);
 
   const [deletingRowId, setDeletingRowId] = useState(null);
-
   const [editRowModal, setEditRowModal] = useState({ open: false, row: null });
 
   const userCanEditRow = (row) => {
@@ -408,15 +415,12 @@ export default function Timeline({
   };
   const closeEditRow = () => setEditRowModal({ open: false, row: null });
 
-  // ===== SUBMIT DO MODAL (PUT único preferencial) ============================
   const handleEditRowSubmit = async (rowId, payload) => {
     try {
       if (typeof onUpdateRow === "function") {
-        await onUpdateRow(rowId, payload); // PUT único
+        await onUpdateRow(rowId, payload);
       } else {
-        // compat: quebra o payload em chamadas antigas, se não houver onUpdateRow
-        const { title, row_sectors, assignees, stage_no, stage_label } =
-          payload || {};
+        const { title, row_sectors, assignees, stage_no, stage_label } = payload || {};
         if (title != null && title !== "") {
           await onRenameRow?.(rowId, title);
         }
@@ -426,10 +430,7 @@ export default function Timeline({
         if (Array.isArray(assignees)) {
           await onSetRowAssignees?.(rowId, assignees);
         }
-        if (
-          typeof onSetRowStage === "function" &&
-          (stage_no != null || stage_label != null)
-        ) {
+        if (typeof onSetRowStage === "function" && (stage_no != null || stage_label != null)) {
           await onSetRowStage(rowId, stage_no, stage_label);
         }
       }
@@ -462,22 +463,6 @@ export default function Timeline({
           (currentUserInitial || "U").toUpperCase());
     return !!isAuthor;
   };
-
-  const myCommentsCount = useMemo(() => {
-    if (!currentUserSectorId) return 0;
-    let n = 0;
-    for (const r of normRows) {
-      const cells = r?.cells || {};
-      for (const day in cells) {
-        const list = (cells[day]?.comments || []).filter(
-          (c) =>
-            !c?.deleted && String(c?.sector_id) === String(currentUserSectorId)
-        );
-        n += list.length;
-      }
-    }
-    return n;
-  }, [normRows, currentUserSectorId]);
 
   const myCommentsItems = useMemo(() => {
     if (!currentUserSectorId) return [];
@@ -518,16 +503,10 @@ export default function Timeline({
     setShowMyCommentsModal(false);
   };
 
-  // === helper de pickAssignee para AssigneeMenu: usa onUpdateRow se houver ===
-  const handlePickAssignee = async (
-    rowId,
-    userIdOrNull,
-    assigneeSetorIdOptional
-  ) => {
+  const handlePickAssignee = async (rowId, userIdOrNull, assigneeSetorIdOptional) => {
     if (typeof onChangeAssignee === "function") {
       return onChangeAssignee(rowId, userIdOrNull, assigneeSetorIdOptional);
     }
-    // fallback: se alguém abrir essa timeline sem o novo prop
     if (typeof onUpdateRow === "function") {
       return onUpdateRow(rowId, {
         assignees: userIdOrNull ? [String(userIdOrNull)] : [],
@@ -536,11 +515,7 @@ export default function Timeline({
           : {}),
       });
     }
-    // último fallback legacy:
-    return onSetRowAssignees?.(
-      rowId,
-      userIdOrNull ? [String(userIdOrNull)] : []
-    );
+    return onSetRowAssignees?.(rowId, userIdOrNull ? [String(userIdOrNull)] : []);
   };
 
   return (
@@ -552,23 +527,79 @@ export default function Timeline({
           value={selectedSectorKey}
           onChange={(k) => setSelectedSectorKey(k)}
           options={[
-            {
-              key: "ALL",
-
-              label: "Todos os setores",
-              color: "#9ca3af",
-              initial: "*",
-            },
-            {
-              key: "MINE",
-              label: "Minha demanda",
-              color: "#2563eb",
-              initial: "@",
-            },
-
+            { key: "ALL", label: "Todos os setores", color: "#9ca3af", initial: "*" },
+            { key: "MINE", label: "Minha demanda", color: "#2563eb", initial: "@" },
             ...SECTORS,
           ]}
         />
+
+        <FilterLabel htmlFor="demand-filter" style={{ marginLeft: 12 }}>
+          Demandas:
+        </FilterLabel>
+        <SectorDropdown
+          id="demand-filter"
+          value={selectedDemandFilter}
+          onChange={(k) => setSelectedDemandFilter(k)}
+          options={[
+            { key: "ALL_DEMANDS", label: "Todas", color: "#9ca3af", initial: "*" },
+            { key: "PENDING", label: "Pendentes", color: "#f59e0b", initial: "P" },
+            { key: "COMPLETED", label: "Concluídas", color: "#10b981", initial: "C" },
+          ]}
+        />
+
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            marginLeft: 12,
+            padding: "4px 8px",
+            borderRadius: 8,
+            background: "rgba(0,0,0,0.04)",
+          }}
+          title="Resumo das demandas no filtro de setor atual"
+        >
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "rgba(31,41,55,0.08)",
+              color: "grey",
+            }}
+          >
+            Total: {totalInView}
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "rgba(245,158,11,0.14)",
+              color: "#b45309",
+              boxShadow: "inset 0 0 0 1px rgba(245,158,11,0.35)",
+            }}
+            title="Pendentes"
+          >
+            Pendentes: {totalPendingInView}
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              padding: "2px 8px",
+              borderRadius: 999,
+              background: "rgba(16,185,129,0.14)",
+              color: "#065f46",
+              boxShadow: "inset 0 0 0 1px rgba(16,185,129,0.35)",
+            }}
+            title="Concluídas"
+          >
+            Concluídas: {totalCompletedInView}
+          </span>
+        </div>
 
         {currentUserSectorId != null && (
           <MyCommentsBtn
@@ -583,7 +614,7 @@ export default function Timeline({
 
       <LegendBar sectors={SECTORS} />
 
-      <ContentGrid $leftWidth={LEFT_COL_WIDTH}>
+      <ContentGrid $leftWidth={SECTORS_COL_W + RESP_COL_W + leftDemandWidth + STAGE_COL_W}>
         <LeftColumn
           rows={filteredRows}
           sectorMap={sectorMap}
@@ -609,6 +640,7 @@ export default function Timeline({
           setLeftDemandWidth={setLeftDemandWidth}
           onContextEditRow={openEditRow}
           currentUserId={currentUserId}
+          completedRowIds={completedRowIds}
         />
 
         <RightGrid
@@ -618,6 +650,7 @@ export default function Timeline({
           rows={filteredRows}
           openPalette={openPalette}
           baselineColor={baselineColor}
+          completedRowIds={completedRowIds}
           syncLeftScroll={syncLeftScroll}
           dropIndicatorStyle={dropIndicatorStyle}
           showTooltip={showTooltip}
@@ -656,15 +689,13 @@ export default function Timeline({
         sectorMenu={sectorMenu}
         pickSector={async (keyOrKeys) => {
           try {
-            // usa handler legado (que por sua vez chama updateRow no hook)
             await onSetRowSector?.(sectorMenu.rowId, keyOrKeys);
             setSectorMenu(null);
           } catch (err) {
             const s = err?.response?.status;
             const d = err?.response?.data?.detail;
             if (s === 403) toast.error("Sem permissão para alterar o setor.");
-            else if (s === 423)
-              toast.error("Projeto bloqueado. Ação não permitida.");
+            else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
             else toast.error(d || "Falha ao alterar o setor.");
           }
         }}
@@ -706,15 +737,14 @@ export default function Timeline({
         canEditColorCell={canEditColorCell}
         canToggleBaselineCell={canToggleBaselineCell}
         canCreateCommentCell={canCreateCommentCell}
-        canDeleteCommentCell={
-          canDeleteCommentCell || defaultCanDeleteCommentCell
-        }
+        canDeleteCommentCell={canDeleteCommentCell || ((...args) => defaultCanDeleteCommentCell(...args))}
         isAdmin={isAdmin}
         currentUserId={currentUserId}
         sectorsDoProjeto={SECTORS}
-        usersDoProjeto={Object.values(usersIndexMerged).filter(
-          (u) => !/admin@/i.test(u?.email || "")
-        )}
+        usersDoProjeto={Object.values(usersIndexMerged).filter((u) => !/admin@/i.test(u?.email || ""))}
+        canMarkCompleted={canMarkCompleted}
+        canToggleCompletedCell={canToggleCompletedCell}
+        onToggleCompleted={onToggleCompleted}
       />
 
       <ModalDetalheComment
@@ -734,10 +764,8 @@ export default function Timeline({
         usersIndex={usersIndexMerged}
         canEdit={editRowModal.row ? userCanEditRow(editRowModal.row) : false}
         canEditAssignee={true}
-        canEditSectors={
-          editRowModal.row ? userCanEditRow(editRowModal.row) : false
-        }
-        onSubmit={handleEditRowSubmit} // << agora envia (rowId, payload)
+        canEditSectors={editRowModal.row ? userCanEditRow(editRowModal.row) : false}
+        onSubmit={handleEditRowSubmit}
         stages={Array.from(
           new Set(
             normRows
@@ -749,10 +777,8 @@ export default function Timeline({
           .map((no) => ({
             no,
             label:
-              normRows.find((r) => Number(r.stageNo || r.stage_no) === no)
-                ?.stageLabel ||
-              normRows.find((r) => Number(r.stageNo || r.stage_no) === no)
-                ?.stage_label ||
+              normRows.find((r) => Number(r.stageNo || r.stage_no) === no)?.stageLabel ||
+              normRows.find((r) => Number(r.stageNo || r.stage_no) === no)?.stage_label ||
               "",
           }))}
       />

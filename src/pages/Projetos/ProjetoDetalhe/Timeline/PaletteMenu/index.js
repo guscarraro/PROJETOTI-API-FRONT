@@ -27,6 +27,7 @@ export default function PaletteMenu({
   onSetCellComment,
   onToggleBaseline,
   onDeleteComment,
+  onToggleCompleted,
 
   // contexto
   currentUserInitial,
@@ -39,10 +40,12 @@ export default function PaletteMenu({
   currentUserId,
   canEditColorCell = () => true,
   canToggleBaselineCell = () => true,
+  canToggleCompletedCell = () => true,
   canCreateCommentCell = () => true,
   canDeleteCommentCell = () => true,
   currentUserSectorId,
   usersDoProjeto = [],
+  canMarkCompleted = true,
 }) {
   const commentsRef = useRef(null);
   const containerRef = useRef(null);
@@ -55,6 +58,12 @@ export default function PaletteMenu({
     if (typeof palette.baselineOriginal === "undefined") return false;
     return !!palette.baseline !== !!palette.baselineOriginal;
   }, [palette?.baseline, palette?.baselineOriginal]);
+
+  const completedDirty = useMemo(() => {
+    if (!palette) return false;
+    if (typeof palette.completedOriginal === "undefined") return false;
+    return !!palette.completed !== !!palette.completedOriginal;
+  }, [palette?.completed, palette?.completedOriginal]);
 
   useEffect(() => {
     if (!palette) return;
@@ -81,6 +90,11 @@ export default function PaletteMenu({
     ? !!canMarkBaseline &&
       !!canToggleBaselineCell(palette.rowId, palette.dayISO)
     : false;
+
+  const canToggleCompletedHere = palette
+    ? !!canMarkCompleted &&
+      !!canToggleCompletedCell(palette.rowId, palette.dayISO)
+    : false;
   const canCreateComment = palette
     ? !!canCreateCommentCell(palette.rowId, palette.dayISO)
     : false;
@@ -94,11 +108,12 @@ export default function PaletteMenu({
   const [sending, setSending] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
 
-  const saveDisabled =
-    sending ||
-    (!baselineDirty &&
-      !(draftText || "").trim().length &&
-      draftFiles.length === 0);
+const saveDisabled =
+  sending ||
+  (!baselineDirty &&
+   !completedDirty &&                // << NOVO
+   !(draftText || "").trim().length &&
+   draftFiles.length === 0);
 
   // ======= Posicionamento automático (clamp/flip) sem "piscar" =======
   const recomputePosition = useCallback(
@@ -216,6 +231,7 @@ export default function PaletteMenu({
           canEditColorHere={canEditColorHere}
           onPickColor={onPickColor}
           canToggleBaseHere={canToggleBaseHere}
+          canToggleCompletedHere={canToggleCompletedHere}
           baselineColor={baselineColor}
           palette={palette}
           setPalette={setPalette}
@@ -364,6 +380,17 @@ export default function PaletteMenu({
                     palette.rowId,
                     palette.dayISO,
                     !!palette.baseline
+                  );
+                }
+                if (
+                  completedDirty &&
+                  canToggleCompletedHere &&
+                  typeof onToggleCompleted === "function"
+                ) {
+                  await onToggleCompleted(
+                    palette.rowId,
+                    palette.dayISO,
+                    !!palette.completed
                   );
                 }
 

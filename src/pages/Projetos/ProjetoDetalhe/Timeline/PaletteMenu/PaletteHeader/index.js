@@ -1,6 +1,6 @@
 import React from "react";
 import { ColorsRow, ColorDot, ClearBtn, BaselineMark } from "../../../../style";
-import { FiFlag } from "react-icons/fi";
+import { FiFlag, FiCheckCircle } from "react-icons/fi";
 import { toast } from "react-toastify";
 
 export default function PaletteHeader({
@@ -8,6 +8,7 @@ export default function PaletteHeader({
   canEditColorHere,
   onPickColor,
   canToggleBaseHere,
+  canToggleCompletedHere,
   baselineColor,
   palette,
   setPalette,
@@ -35,7 +36,8 @@ export default function PaletteHeader({
                 const s = err?.response?.status;
                 const d = err?.response?.data?.detail;
                 if (s === 403) toast.error("Sem permissão para alterar a cor.");
-                else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
+                else if (s === 423)
+                  toast.error("Projeto bloqueado. Ação não permitida.");
                 else toast.error(d || "Falha ao alterar a cor.");
               }
             }}
@@ -60,7 +62,8 @@ export default function PaletteHeader({
               const s = err?.response?.status;
               const d = err?.response?.data?.detail;
               if (s === 403) toast.error("Sem permissão para limpar a cor.");
-              else if (s === 423) toast.error("Projeto bloqueado. Ação não permitida.");
+              else if (s === 423)
+                toast.error("Projeto bloqueado. Ação não permitida.");
               else toast.error(d || "Falha ao limpar a cor.");
             }
           }}
@@ -86,13 +89,57 @@ export default function PaletteHeader({
               setPalette((prev) => ({ ...prev, baseline: e.target.checked }))
             }
           />
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+          >
             <span>Marco do plano</span>
             <span style={{ position: "relative", width: 18, height: 18 }}>
-              <span style={{ position: "absolute", inset: 0, display: "inline-block" }}>
+              <span
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "inline-block",
+                }}
+              >
                 <BaselineMark $color={baselineColor}>
                   <FiFlag size={12} style={{ color: "grey" }} />
                 </BaselineMark>
+              </span>
+            </span>
+          </span>
+        </label>
+      )}
+      {canToggleCompletedHere && (
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            fontSize: 12,
+            margin: "4px 0 0",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={!!palette.completed}
+            onChange={(e) =>
+              setPalette((prev) => ({ ...prev, completed: e.target.checked }))
+            }
+          />
+          <span
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            title="Marcar demanda como concluída"
+          >
+            <span>Demanda concluída</span>
+            <span style={{ position: "relative", width: 18, height: 18 }}>
+              <span
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  display: "inline-block",
+                }}
+              >
+                <FiCheckCircle size={16} style={{ opacity: 0.9 }} />
               </span>
             </span>
           </span>

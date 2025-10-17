@@ -360,6 +360,30 @@ export default function useTimelineActions({
     await fetchProjetoIfNeeded();
   };
 
+   const toggleCompleted = async (rowId, dayISO, enabled) => {
+   if (readOnly || !timelineEnabled) return;
+   try {
+     await apiLocal.upsertProjetoCell(projectId, rowId, dayISO, {
+       completed: enabled,
+       actor_sector_id: Number(getActorSectorId()),
+       actor_user_id: getActorUserId(),
+     });
+     setRows((prev) =>
+       prev.map((r) => {
+         if (String(r.id) !== String(rowId)) return r;
+         const prevCell = r.cells?.[dayISO];
+         const base = typeof prevCell === "object" ? prevCell : {};
+         return {
+           ...r,
+           cells: { ...r.cells, [dayISO]: { ...base, completed: !!enabled } },
+         };
+       })
+     );
+   } catch (e) {
+     if (!handleTimelineError(e)) await fetchProjetoIfNeeded();
+   }
+ };
+
   const setRowAssignee = async (rowId, userIdOrNull, assigneeSetorId) => {
     const sid = getActorSectorId();
     if (!Number.isFinite(sid)) {
@@ -402,6 +426,7 @@ export default function useTimelineActions({
     pickColorOptimistic,
     setCellComment,
     toggleBaseline,
+    toggleCompleted, 
     deleteComment,
 
     // ROWS

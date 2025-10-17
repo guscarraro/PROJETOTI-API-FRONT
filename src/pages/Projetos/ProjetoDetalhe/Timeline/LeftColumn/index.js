@@ -1,22 +1,12 @@
-// src/pages/Projetos/ProjetoDetalhe/Timeline/LeftColumn.jsx
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   FixedColHeader,
   FirstCol,
   FirstColRow,
   SectorDot,
 } from "../../../style";
+import { FiCheckCircle } from "react-icons/fi";
 
-/**
- * Novos props:
- * - usersIndex?: { [userId]: { id, email, nome? } }
- * - usersBySector?: { [sectorKey|string|number]: Array<{id, nome?, email?}> }
- * - leftDemandWidth: number   (px)  // DEMANDA é a única coluna com resize
- * - setLeftDemandWidth: (n:number) => void
- * - onContextEditRow?: (row) => void
- * - openSectorMenu: (rowId, event) => void           (já existia)
- * - openAssigneeMenu: (rowId, event) => void         (NOVO)
- */
 export default function LeftColumn({
   rows,
   sectorMap,
@@ -24,7 +14,7 @@ export default function LeftColumn({
   isBusy,
   passWheelToRight,
   openSectorMenu,
-  openAssigneeMenu, // << NOVO
+  openAssigneeMenu,
   dropIndicatorStyle,
   onDragStart,
   onDragOverRow,
@@ -41,12 +31,12 @@ export default function LeftColumn({
   leftDemandWidth = 320,
   setLeftDemandWidth,
   onContextEditRow,
-  currentUserId
+  currentUserId,
+  completedRowIds = new Set(),
 }) {
-  // larguras fixas (somente a coluna Demanda é redimensionável)
-  const FIXED_SECTORS_W = 85; // chips de setores
-  const FIXED_RESP_W = 50; // avatar/iniciais + padding
-  const FIXED_STAGE_W = 70; // faixa + textos
+  const FIXED_SECTORS_W = 85;
+  const FIXED_RESP_W = 50;
+  const FIXED_STAGE_W = 70;
   const MIN_DEMAND_W = 180;
   const MAX_DEMAND_W = 640;
 
@@ -55,7 +45,6 @@ export default function LeftColumn({
   const internalScrollRef = useRef(null);
   const demandScrollRef = firstColRef ?? internalScrollRef;
 
-  // Handle de resize só para DEMANDA
   const startResize = useCallback(
     (e) => {
       e.preventDefault();
@@ -113,12 +102,10 @@ export default function LeftColumn({
     return palette[(n - 1) % palette.length];
   };
 
-  // borda suave (dark-aware por CSS global do modal)
   const colBorder = "1px solid rgba(0,0,0,0.12)";
 
   return (
     <div ref={containerRef}>
-      {/* Cabeçalho com 4 colunas fixas (só DEMANDA redimensiona) */}
       <FixedColHeader>
         <div
           style={{
@@ -127,21 +114,16 @@ export default function LeftColumn({
             alignItems: "center",
           }}
         >
-          {/* 1) Setores */}
           <div
             style={{ paddingLeft: 6, borderRight: colBorder, fontWeight: 600 }}
           >
             Setor
           </div>
-
-          {/* 2) Responsável */}
           <div
             style={{ paddingLeft: 6, borderRight: colBorder, fontWeight: 600 }}
           >
             Resp.
           </div>
-
-          {/* 3) Demanda (redimensionável) */}
           <div
             style={{
               position: "relative",
@@ -151,7 +133,6 @@ export default function LeftColumn({
             }}
           >
             Demanda
-            {/* handle ↔ apenas nesta coluna */}
             <button
               type="button"
               onMouseDown={startResize}
@@ -174,19 +155,17 @@ export default function LeftColumn({
               ↔
             </button>
           </div>
-
-          {/* 4) Etapa */}
           <div style={{ paddingLeft: 6, fontWeight: 600 }}>Etapa</div>
         </div>
       </FixedColHeader>
 
-      {/* Lista (SEM scroll horizontal; todas colunas são fixas) */}
       <FirstCol ref={demandScrollRef} onWheel={passWheelToRight}>
         {rows.map((r) => {
-const assignee = getAssignee(r);
- const initials = getInitials(assignee);
- const isLoggedAssignee =
-   assignee && currentUserId && String(assignee.id) === String(currentUserId);
+          const rowCompleted = completedRowIds.has(r.id);
+          const assignee = getAssignee(r);
+          const initials = getInitials(assignee);
+          const isLoggedAssignee =
+            assignee && currentUserId && String(assignee.id) === String(currentUserId);
           const stageNo = Number(r?.stageNo || r?.stage_no || 1);
           const stageLbl = r?.stageLabel || r?.stage_label || "";
           const tone = stageTone(stageNo);
@@ -198,8 +177,12 @@ const assignee = getAssignee(r);
                 cursor: canReorderRows && !isBusy ? "grab" : "pointer",
                 ...dropIndicatorStyle(r.id),
                 paddingRight: 0,
-                background: isLoggedAssignee ? "linear-gradient(90deg, rgba(249, 116, 22, 0.31) 0, rgba(249,115,22,0.06) 50px, transparent 64px)" : undefined,
-
+                background: rowCompleted
+                  ? "linear-gradient(90deg, rgba(16,185,129,0.30) 0, rgba(16,185,129,0.26) 80px, transparent 220px)"
+                  : (isLoggedAssignee
+                      ? "linear-gradient(90deg, rgba(249,116,22,0.31) 0, rgba(249,115,22,0.06) 50px, transparent 64px)"
+                      : undefined),
+                boxShadow: rowCompleted ? "inset 0 0 0 1px rgba(16,185,129,0.20)" : undefined,
               }}
               title={String(r.titulo ?? "").trim()}
               draggable={canReorderRows && !isBusy}
@@ -220,13 +203,12 @@ const assignee = getAssignee(r);
                   width: "100%",
                 }}
               >
-                {/* 1) Setores (FIXO) */}
                 <div
                   style={{
                     display: "flex",
-gap: 0,                        // << ALTERE
-flexWrap: "nowrap",            // << ALTERE
-overflow: "hidden",
+                    gap: 0,
+                    flexWrap: "nowrap",
+                    overflow: "hidden",
                     borderRight: colBorder,
                     paddingRight: 6,
                     paddingLeft: 2,
@@ -246,12 +228,12 @@ overflow: "hidden",
                             key={key}
                             $color={s?.color}
                             title={s?.label || s?.nome || key}
-                              style={{
-    marginLeft: idx ? -6 : 0,           // << ADICIONE
-    zIndex: 100 - idx,                  // << ADICIONE (mantém a primeira por cima)
-    flex: "0 0 auto",                   // << ADICIONE (evita quebra)
-    boxShadow: "0 0 0 1px transparent",        // << ADICIONE (borda para destacar a sobreposição)
-  }}
+                            style={{
+                              marginLeft: idx ? -6 : 0,
+                              zIndex: 100 - idx,
+                              flex: "0 0 auto",
+                              boxShadow: "0 0 0 1px transparent",
+                            }}
                           >
                             {s?.initial || "?"}
                           </SectorDot>
@@ -265,7 +247,6 @@ overflow: "hidden",
                   )}
                 </div>
 
-                {/* 2) Responsável (FIXO) */}
                 <div
                   style={{
                     display: "flex",
@@ -275,9 +256,7 @@ overflow: "hidden",
                     height: 34,
                     cursor: "pointer",
                   }}
-                  title={
-                    assignee?.email || assignee?.nome || "Definir responsável"
-                  }
+                  title={assignee?.email || assignee?.nome || "Definir responsável"}
                   onClick={(e) => openAssigneeMenu?.(r.id, e)}
                 >
                   <div
@@ -296,8 +275,7 @@ overflow: "hidden",
                         : `1px dashed ${
                             typeof window !== "undefined" &&
                             window.matchMedia &&
-                            window.matchMedia("(prefers-color-scheme: dark)")
-                              .matches
+                            window.matchMedia("(prefers-color-scheme: dark)").matches
                               ? "grey"
                               : "grey"
                           }`,
@@ -307,22 +285,39 @@ overflow: "hidden",
                   >
                     {assignee ? initials : "—"}
                   </div>
-                  
                 </div>
 
-                {/* 3) Demanda (REDIMENSIONÁVEL) + clique abre menu de setor como antes */}
                 <div
                   onClick={(e) => openSectorMenu(r.id, e)}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
+                    gap: 8,
                     overflow: "hidden",
                     borderRight: colBorder,
                     paddingRight: 6,
                     paddingLeft: 2,
                   }}
                 >
+                  {rowCompleted && (
+                    <span
+                      title="Atividade concluída"
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 18,
+                        height: 18,
+                        borderRadius: 4,
+                        background: "rgba(16,185,129,0.12)",
+                        boxShadow: "inset 0 0 0 1px rgba(16,185,129,0.35)",
+                        flex: "0 0 auto",
+                        color: "#059669",
+                      }}
+                    >
+                      <FiCheckCircle size={12} />
+                    </span>
+                  )}
                   <div
                     style={{
                       fontWeight: 600,
@@ -348,8 +343,7 @@ overflow: "hidden",
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter") {
-                            if (onRenameRow)
-                              onRenameRow(r.id, (editDraft || "").trim());
+                            if (onRenameRow) onRenameRow(r.id, (editDraft || "").trim());
                             setEditingRowId(null);
                           }
                           if (e.key === "Escape") {
@@ -365,14 +359,9 @@ overflow: "hidden",
                   </div>
                 </div>
 
-                {/* 4) Etapa (FIXO) */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <div
-                    title={
-                      stageLbl
-                        ? `Etapa ${stageNo} — ${stageLbl}`
-                        : `Etapa ${stageNo}`
-                    }
+                    title={stageLbl ? `Etapa ${stageNo} — ${stageLbl}` : `Etapa ${stageNo}`}
                     style={{
                       width: 4,
                       height: 32,
@@ -399,7 +388,6 @@ overflow: "hidden",
                           overflow: "hidden",
                           textOverflow: "ellipsis",
                           opacity: 0.9,
-                          
                         }}
                         title={stageLbl}
                       >
