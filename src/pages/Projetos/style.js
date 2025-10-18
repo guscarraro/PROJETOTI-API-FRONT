@@ -15,42 +15,55 @@ export const FilterLabel = styled.label`
   line-height: 1;
   padding: 6px 10px;
   border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    rgba(0, 0, 0, 0.04),
-    rgba(0, 0, 0, 0.02)
-  );
+  background: linear-gradient(180deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02));
   color: #374151;            /* slate-700 */
   border: 1px solid #e5e7eb; /* gray-200 */
   letter-spacing: 0.2px;
 
-  /* Dark mode: automático e via classe/atributo */
-  @media (prefers-color-scheme: dark) {
+  /* Dark mode somente quando a app mandar */
+  .dark &,
+  [data-theme="dark"] & {
     color: #e5e7eb;            /* gray-200 */
     border-color: #334155;     /* slate-700 */
     background: linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.04),
-      rgba(255, 255, 255, 0.02)
-    );
-  }
-  .dark &,
-  [data-theme="dark"] & {
-    color: #e5e7eb;
-    border-color: #334155;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.04),
-      rgba(255, 255, 255, 0.02)
+      rgba(255,255,255,0.04),
+      rgba(255,255,255,0.02)
     );
   }
 `;
-
 /* Arrow SVG embutida (mantém nativo + estilizado) */
 export const arrowSvg = encodeURIComponent(
   `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>`
 );
 
+export const ThemeScope = styled.div`
+  /* Defaults = LIGHT */
+  --bg-panel: #ffffff;
+  --bg-panel-2: #fafafa;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --chip-bg: #f3f4f6;
+  --chip-border: rgba(0,0,0,.08);
+  --thumb-bg: #ffffff;
+  --shadow: 0 10px 30px rgba(0,0,0,.12);
+color-scheme: ${(p) => (p.$mode === "dark" ? "dark" : "light")};
+  /* Estado DARK (por classe OU atributo) */
+  &.dark,
+  &[data-theme="dark"] {
+    --bg-panel: #0f172a;
+    --bg-panel-2: #0b1220;
+    --text: #e5e7eb;
+    --muted: #9aa3b2;
+    --border: #334155;
+    --chip-bg: #111a2d;
+    --chip-border: #334155;
+    --thumb-bg: #0f172a;
+    --shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+   & * { color-scheme: inherit; }
+`;
 export const SectorSelect = styled.select`
   height: 34px;
   padding: 0 36px 0 12px;

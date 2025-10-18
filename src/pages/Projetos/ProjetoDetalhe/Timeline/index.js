@@ -1,3 +1,4 @@
+// src/pages/Projetos/ProjetoDetalhe/Timeline/index.jsx
 import React, { useRef, useState, useMemo } from "react";
 import { toast } from "react-toastify";
 import {
@@ -7,6 +8,7 @@ import {
   SectorFilterBar,
   FilterLabel,
   MyCommentsBtn,
+  ThemeScope, // << usar do style.js
 } from "../../style";
 import { ALL_SECTORS, COLOR_PALETTE, monthBgTones } from "./constants";
 import useMonthsSegments from "./hooks/useMonthsSegments";
@@ -217,7 +219,6 @@ export default function Timeline({
   const RESP_COL_W = 50;
   const STAGE_COL_W = 95;
   const [leftDemandWidth, setLeftDemandWidth] = useState(320);
-  const LEFT_COL_WIDTH = SECTORS_COL_W + RESP_COL_W + leftDemandWidth + STAGE_COL_W;
 
   const [tooltip, setTooltip] = useState(null);
   const showTooltip = (e, text, authorInitial) => {
@@ -518,34 +519,57 @@ export default function Timeline({
     return onSetRowAssignees?.(rowId, userIdOrNull ? [String(userIdOrNull)] : []);
   };
 
+  // ===== Tema só para a barra de filtros =====
+  const isDark =
+    (typeof window !== "undefined" &&
+      (localStorage.getItem("theme") === "dark" ||
+        document.documentElement.classList.contains("dark") ||
+        document.documentElement.getAttribute("data-theme") === "dark")) ||
+    false;
+  const themeMode = isDark ? "dark" : "light";
+
   return (
     <TimelineWrap>
       <SectorFilterBar>
-        <FilterLabel htmlFor="sector-filter">Filtrar por:</FilterLabel>
-        <SectorDropdown
-          id="sector-filter"
-          value={selectedSectorKey}
-          onChange={(k) => setSelectedSectorKey(k)}
-          options={[
-            { key: "ALL", label: "Todos os setores", color: "#9ca3af", initial: "*" },
-            { key: "MINE", label: "Minha demanda", color: "#2563eb", initial: "@" },
-            ...SECTORS,
-          ]}
-        />
+        {/* escopo de tema somente para os dois dropdowns/labels */}
+        <ThemeScope
+          $mode={themeMode}
+          data-theme={themeMode}
+          className={isDark ? "dark" : ""}
+          style={{ display: "inline-flex", gap: 10, alignItems: "center" }}
+        >
+          <FilterLabel htmlFor="sector-filter">Filtrar por:</FilterLabel>
 
-        <FilterLabel htmlFor="demand-filter" style={{ marginLeft: 12 }}>
-          Demandas:
-        </FilterLabel>
-        <SectorDropdown
-          id="demand-filter"
-          value={selectedDemandFilter}
-          onChange={(k) => setSelectedDemandFilter(k)}
-          options={[
-            { key: "ALL_DEMANDS", label: "Todas", color: "#9ca3af", initial: "*" },
-            { key: "PENDING", label: "Pendentes", color: "#f59e0b", initial: "P" },
-            { key: "COMPLETED", label: "Concluídas", color: "#10b981", initial: "C" },
-          ]}
-        />
+          <SectorDropdown
+            key={`sector-${themeMode}`}
+            id="sector-filter"
+            value={selectedSectorKey}
+            onChange={(k) => setSelectedSectorKey(k)}
+            options={[
+              { key: "ALL",  label: "Todos os setores", color: "#9ca3af", initial: "*" },
+              { key: "MINE", label: "Minha demanda",    color: "#2563eb", initial: "@" },
+              ...SECTORS,
+            ]}
+            themeMode={themeMode}
+          />
+
+          <FilterLabel htmlFor="demand-filter" style={{ marginLeft: 12 }}>
+            Demandas:
+          </FilterLabel>
+
+          <SectorDropdown
+            key={`demand-${themeMode}`}
+            id="demand-filter"
+            value={selectedDemandFilter}
+            onChange={(k) => setSelectedDemandFilter(k)}
+            options={[
+              { key: "ALL_DEMANDS", label: "Todas",      color: "#9ca3af", initial: "*" },
+              { key: "PENDING",     label: "Pendentes",  color: "#f59e0b", initial: "P" },
+              { key: "COMPLETED",   label: "Concluídas", color: "#10b981", initial: "C" },
+            ]}
+            themeMode={themeMode}
+          />
+        </ThemeScope>
 
         <div
           style={{
@@ -555,7 +579,7 @@ export default function Timeline({
             marginLeft: 12,
             padding: "4px 8px",
             borderRadius: 8,
-            background: "rgba(0,0,0,0.04)",
+            background: "transparent",
           }}
           title="Resumo das demandas no filtro de setor atual"
         >
@@ -565,8 +589,11 @@ export default function Timeline({
               fontWeight: 700,
               padding: "2px 8px",
               borderRadius: 999,
-              background: "rgba(31,41,55,0.08)",
-              color: "grey",
+              background: isDark ? "rgba(255,255,255,0.08)" : "rgba(31,41,55,0.08)",
+              color: isDark ? "#d1d5db" : "grey",
+              boxShadow: isDark
+                ? "inset 0 0 0 1px rgba(255,255,255,0.10)"
+                : "inset 0 0 0 1px rgba(31,41,55,0.12)",
             }}
           >
             Total: {totalInView}
@@ -577,9 +604,11 @@ export default function Timeline({
               fontWeight: 700,
               padding: "2px 8px",
               borderRadius: 999,
-              background: "rgba(245,158,11,0.14)",
-              color: "#b45309",
-              boxShadow: "inset 0 0 0 1px rgba(245,158,11,0.35)",
+              background: isDark ? "rgba(245,158,11,0.20)" : "rgba(245,158,11,0.14)",
+              color: isDark ? "#fbbf24" : "#b45309",
+              boxShadow: isDark
+                ? "inset 0 0 0 1px rgba(245,158,11,0.45)"
+                : "inset 0 0 0 1px rgba(245,158,11,0.35)",
             }}
             title="Pendentes"
           >
@@ -591,9 +620,11 @@ export default function Timeline({
               fontWeight: 700,
               padding: "2px 8px",
               borderRadius: 999,
-              background: "rgba(16,185,129,0.14)",
-              color: "#065f46",
-              boxShadow: "inset 0 0 0 1px rgba(16,185,129,0.35)",
+              background: isDark ? "rgba(16,185,129,0.22)" : "rgba(16,185,129,0.14)",
+              color: isDark ? "#34d399" : "#065f46",
+              boxShadow: isDark
+                ? "inset 0 0 0 1px rgba(16,185,129,0.50)"
+                : "inset 0 0 0 1px rgba(16,185,129,0.35)",
             }}
             title="Concluídas"
           >

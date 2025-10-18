@@ -115,9 +115,12 @@ export default function AttachmentComposer({
   };
 
   const enforceTypingColor = () => {
-    applyCmd("styleWithCSS", true);
-    applyCmd("foreColor", colorFromName(activeColorName));
-  };
+  // só aplica cor se NÃO for default
+  if (activeColorName === "default") return;
+  applyCmd("styleWithCSS", true);
+  applyCmd("foreColor", colorFromName(activeColorName));
+};
+
 
   const refreshMention = () => {
     // se marcado para pular UMA vez (após apagar uma pill), limpa o flag e não abre menções
@@ -261,14 +264,23 @@ export default function AttachmentComposer({
     updateToolbarState();
   };
 
-  const onPickColorName = (name) => {
-    setActiveColorName(name);
-    focusEditor();
+const onPickColorName = (name) => {
+  setActiveColorName(name);
+  focusEditor();
+
+  if (name === "default") {
+    // voltando para o padrão: não force cor inline
+    // (opcional) limpe cores locais da seleção atual
+    try { document.execCommand("removeFormat"); } catch(_) {}
+  } else {
     applyCmd("styleWithCSS", true);
     applyCmd("foreColor", colorFromName(name));
-    syncToState();
-    updateToolbarState();
-  };
+  }
+
+  syncToState();
+  updateToolbarState();
+};
+
 
   const onClearAll = () => {
     const el = editorRef.current;
@@ -519,24 +531,37 @@ export default function AttachmentComposer({
           </Placeholder>
         )}
 
-        <EditableArea
-          editorRef={editorRef}
-          disabled={disabled}
-          onInput={() => {
-            enforceTypingColor();
-            syncToState();
-            refreshMention();
-            updateToolbarState();
-          }}
-          onBlur={() => {
-            syncToState();
-            setMentionOpen(false);
-          }}
-          onPaste={onPastePlain}
-          onKeyDown={onEditorKeyDown}
-          onMouseUp={updateToolbarState}
-          onKeyUp={updateToolbarState}
-        />
+<EditableArea
+  editorRef={editorRef}
+  disabled={disabled}
+
+  // aplique a cor antes de inserir o próximo caractere
+  onBeforeInput={() => {
+    enforceTypingColor();          // <- aqui, antes de digitar
+  }}
+
+  onFocus={() => {
+    enforceTypingColor();          // <- garante cor ao focar se swatch != default
+  }}
+
+  onInput={() => {
+    // NADA de enforceTypingColor aqui
+    syncToState();
+    refreshMention();
+    updateToolbarState();
+  }}
+
+  onBlur={() => {
+    syncToState();
+    setMentionOpen(false);
+  }}
+
+  onPaste={onPastePlain}
+  onKeyDown={onEditorKeyDown}
+  onMouseUp={updateToolbarState}
+  onKeyUp={updateToolbarState}
+/>
+
 
         {mentionOpen && mentionOptions.length > 0 && (
           <MentionList

@@ -146,7 +146,7 @@ export default function RightGrid({
                       gap: 6,
                       fontSize: 11,
                       fontWeight: 700,
-                      color: "#065f46",
+                      color: "#38a385ff",
                       opacity: 0.95,
                       pointerEvents: "none",
                       zIndex: 3,
