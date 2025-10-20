@@ -528,6 +528,8 @@ export default function Timeline({
     false;
   const themeMode = isDark ? "dark" : "light";
 
+
+
   return (
     <TimelineWrap>
       <SectorFilterBar>
