@@ -253,7 +253,7 @@ export default function ProjetoDetalhePage() {
         // Título / Info Projeto
         ws.mergeCells("A1:E1");
         ws.getCell("A1").value = `Projeto: ${projeto?.nome || ""}`;
-        ws.getCell("A1").font = { bold: true, size: 14 };
+        ws.getCell("A1").font = { bold: true, size: 14 }; 
   
         ws.addRow([]);
   
