@@ -41,7 +41,7 @@ const App = () => {
 
   // 🔐 Autologout por inatividade (front < back)
   useInactivityLogout({
-    timeoutMs: 25 * 60 * 1000,
+    timeoutMs: 600 * 60 * 1000,
     onTimeout: async () => {
       try { await apiLocal.authLogout(); } catch {}
       localStorage.removeItem('user');
