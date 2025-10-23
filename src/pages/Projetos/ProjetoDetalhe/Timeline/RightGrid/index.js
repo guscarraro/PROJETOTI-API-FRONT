@@ -63,34 +63,7 @@ export default function RightGrid({
           100% { transform: translateX(120%); opacity: 0; }
         }
 
-        @keyframes rgDustRise {
-          0%   { transform: translateY(100%) scale(.96); opacity: 0; }
-          10%  { opacity: .18; }
-          45%  { opacity: .28; }
-          80%  { opacity: .12; }
-          100% { transform: translateY(-35%) scale(1.06); opacity: 0; }
-        }
-
-        .rg-dust {
-          position: absolute;
-          left: -6%;
-          width: 112%;
-          height: 37px;
-          bottom: 0;
-          pointer-events: none;
-          z-index: 2;
-          filter: saturate(105%);
-          animation: rgDustRise 2400ms ease-out infinite;
-          mask-image: linear-gradient(to top, rgba(0,0,0,.0) 0%, rgba(0,0,0,.85) 32%, rgba(0,0,0,.92) 58%, rgba(0,0,0,0) 100%);
-          background-image:
-            radial-gradient(circle at 10% 88%, rgba(5,150,105,.20) 0 2px, rgba(5,150,105,0) 3px),
-            radial-gradient(circle at 26% 94%, rgba(16,185,129,.18) 0 2px, rgba(16,185,129,0) 3px),
-            radial-gradient(circle at 40% 86%, rgba(16,185,129,.22) 0 1.8px, rgba(16,185,129,0) 3px),
-            radial-gradient(circle at 58% 92%, rgba(5,150,105,.18) 0 2.2px, rgba(5,150,105,0) 3px),
-            radial-gradient(circle at 74% 84%, rgba(16,185,129,.20) 0 1.6px, rgba(16,185,129,0) 3px),
-            radial-gradient(circle at 90% 90%, rgba(16,185,129,.14) 0 2px, rgba(16,185,129,0) 3px);
-          background-repeat: no-repeat;
-        }
+       
       `}</style>
 
       <HeaderLayer>
@@ -250,15 +223,7 @@ export default function RightGrid({
                               anim.STAGGER}ms forwards`,
                           }}
                         />
-                        <span
-                          className="rg-dust"
-                          aria-hidden
-                          style={{
-                            height: `${anim.CELL_H}px`,
-                            animationDelay: `${(i % 6) * 120}ms`,
-                            bottom: 0,
-                          }}
-                        />
+                      
                       </>
                     )}
 
