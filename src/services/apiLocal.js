@@ -72,6 +72,7 @@ const apiLocal = {
     api.post("/ocorrencias/filtrar", filters),
   updateCobrancaAdicional: (data) =>
     api.put("/ocorrencias/cobranca-adicional", data),
+  decodeBarcodes: (imageDataUrl) => api.post("/barcode/decode", { image: imageDataUrl }),
 
   getOcorrenciasSTH: () => api.get("/ocorren-sth/"),
   createOrUpdateOcorrenciaSTH: (data) => api.post("/ocorren-sth/", data),

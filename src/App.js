@@ -15,6 +15,7 @@ import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
 import EstoqueTi from './pages/EstoqueTi';
+import Separacao from './pages/Separacao';
 
 import apiLocal from './services/apiLocal';
 import { useInactivityLogout } from './hooks/useInactivityLogout';
@@ -202,6 +203,15 @@ const App = () => {
           path="/Projetos/GestaoAcessos"
           element={<PrivateRoute element={<GestaoAcessos />} allowedSectors={[SECTORS.ADMIN]} />}
         />
+          <Route
+         path="/separacao"
+         element={
+           <PrivateRoute
+             element={<Separacao />}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
+           />
+         }
+       />
       </Routes>
     </>
   );

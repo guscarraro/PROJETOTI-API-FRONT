@@ -17,6 +17,7 @@ import {
   FiShield,
   FiHeadphones,
   FiLogOut,
+  FiPackage,
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
@@ -121,6 +122,12 @@ export default function NavBar() {
         icon: <FiHeadphones />,
         to: "/sac",
       },
+      // {
+      //   key: "separacao",
+      //   label: "Separação",
+      //   icon: <FiPackage />,
+      //   to: "/separacao",
+      // },
     ];
     if (isAdmin) {
       base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
