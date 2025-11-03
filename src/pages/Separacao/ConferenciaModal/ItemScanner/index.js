@@ -1,203 +1,193 @@
 import React, { useEffect, useRef, useState } from "react";
-import { BrowserMultiFormatReader } from "@zxing/browser";
-import { VideoBox, Banner } from "../CameraVideo/style";
 import bep from "../../../../sounds/beep-ok.mp3";
 import beperr from "../../../../sounds/beep-error.mp3";
 
 const beepOk = new Audio(bep);
 const beepErr = new Audio(beperr);
 
-export default function ItemScanner({ onScan, loading, expectedBars = [] }) {
-  const videoRef = useRef(null);
-  const inputRef = useRef(null);
-  const [camOk, setCamOk] = useState(false);
-  const [reading, setReading] = useState(false);
-  const [errMsg, setErrMsg] = useState("");
-  const stopFnRef = useRef(null);
-  const lastScanTsRef = useRef(0); // cooldown por tempo
+/**
+ * Props:
+ * - expectedBars: string[] (EANs esperados, usado só para beep “ok/erro”)
+ * - onScanEan: (ean:string) => void
+ * - onScanLoteQuantidade: ({ lote:string, quantidade:number }) => void
+ */
+export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQuantidade }) {
+  const eanRef = useRef(null);
+  const loteRef = useRef(null);
+  const qtdRef = useRef(null);
 
-  // --- USB SCANNER (modo teclado) ---
+  const [bufEAN, setBufEAN] = useState("");
+  const [bufLote, setBufLote] = useState("");
+  const [bufQTD, setBufQTD] = useState("");
+
+  // helper: foco
   useEffect(() => {
-    const el = inputRef.current;
+    setTimeout(() => {
+      try { eanRef.current?.focus({ preventScroll: true }); } catch {}
+    }, 0);
+  }, []);
+
+  // USB-like buffer por campo: EAN
+  useEffect(() => {
+    const el = eanRef.current;
     if (!el) return;
 
     let buf = "";
     let tm = null;
-
     function flush() {
       const code = buf.trim();
       buf = "";
-      if (code) handleCode(code);
-      // mantém foco para o coletor
-      setTimeout(() => { try { el.focus({ preventScroll: true }); } catch {} }, 0);
+      if (code) handleEAN(code);
     }
-
     function onKey(e) {
       if (tm) clearTimeout(tm);
-      if (e.key === "Enter") {
-        flush();
-      } else if (e.key.length === 1) {
+      if (e.key === "Enter") flush();
+      else if (e.key.length === 1) {
         buf += e.key;
         tm = setTimeout(flush, 120);
       }
     }
-
     el.addEventListener("keydown", onKey);
-    el.focus({ preventScroll: true });
-
-    return () => {
-      el.removeEventListener("keydown", onKey);
-    };
+    return () => el.removeEventListener("keydown", onKey);
   }, []);
 
-  // --- ZXING CAMERA (stream constante) ---
+  // USB-like buffer por campo: LOTE
   useEffect(() => {
-    let active = true;
-    const reader = new BrowserMultiFormatReader();
+    const el = loteRef.current;
+    if (!el) return;
 
-    (async () => {
-      try {
-        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        if (!devices || !devices.length) {
-          setErrMsg("Nenhuma câmera encontrada.");
-          setCamOk(false);
-          return;
-        }
-
-        // escolhe traseira se possível
-        let selected = devices[0];
-        for (let i = 0; i < devices.length; i++) {
-          const lbl = String(devices[i].label || "").toLowerCase();
-          if (lbl.includes("back") || lbl.includes("rear") || lbl.includes("traseira")) {
-            selected = devices[i];
-            break;
-          }
-        }
-
-        const controls = await reader.decodeFromVideoDevice(
-          selected.deviceId,
-          videoRef.current,
-          (result) => {
-            if (!active) return;
-            if (result) {
-              const code = String(result.getText() || "").trim();
-              if (code) handleCode(code);
-            }
-          }
-        );
-
-        stopFnRef.current = controls.stop;
-        setCamOk(true);
-        setErrMsg("");
-      } catch (err) {
-        console.error("Erro ao inicializar câmera:", err);
-        setCamOk(false);
-        if (window.location.protocol !== "https:" && window.location.hostname !== "localhost") {
-          setErrMsg("Use HTTPS para habilitar a câmera no navegador.");
-        } else {
-          setErrMsg("Erro ao acessar câmera. Verifique permissões.");
-        }
+    let buf = "";
+    let tm = null;
+    function flush() {
+      const code = buf.trim();
+      buf = "";
+      if (code) {
+        setBufLote(code);
+        setTimeout(() => { try { qtdRef.current?.focus({ preventScroll: true }); } catch {} }, 0);
       }
-    })();
-
-    return () => {
-      active = false;
-      try {
-        if (stopFnRef.current) stopFnRef.current();
-      } catch {}
-    };
+    }
+    function onKey(e) {
+      if (tm) clearTimeout(tm);
+      if (e.key === "Enter") flush();
+      else if (e.key.length === 1) {
+        buf += e.key;
+        tm = setTimeout(flush, 120);
+      }
+    }
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
   }, []);
 
-  // --- Processa cada leitura (USB/Câmera) ---
-  async function handleCode(code) {
-    if (!code) return;
+  // USB-like buffer por campo: QTD
+  useEffect(() => {
+    const el = qtdRef.current;
+    if (!el) return;
 
-    // cooldown de 300ms para não multiplicar no mesmo frame
-    const now = Date.now();
-    if (now - lastScanTsRef.current < 300) return;
-    lastScanTsRef.current = now;
+    let buf = "";
+    let tm = null;
+    function flush() {
+      const code = buf.trim();
+      buf = "";
+      if (code) {
+        setBufQTD(code);
+        handleLoteQtd(bufLote || "", code);
+      }
+    }
+    function onKey(e) {
+      if (tm) clearTimeout(tm);
+      if (e.key === "Enter") flush();
+      else if (e.key.length === 1) {
+        buf += e.key;
+        tm = setTimeout(flush, 120);
+      }
+    }
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, [bufLote]);
 
-    setReading(true);
-
-    // Beep de OK/ERR (apenas feedback)
+  // Handlers explícitos (permite digitar/manual também)
+  function handleEAN(code) {
+    const val = String(code || bufEAN || "").trim();
+    if (!val) return;
     let exists = false;
     for (let i = 0; i < expectedBars.length; i++) {
-      if (String(expectedBars[i]).trim() === code) { exists = true; break; }
+      if (String(expectedBars[i]).trim() === val) { exists = true; break; }
     }
     try {
       if (exists) { beepOk.currentTime = 0; beepOk.play(); }
       else { beepErr.currentTime = 0; beepErr.play(); }
     } catch {}
+    setBufEAN("");
+    if (onScanEan) onScanEan(val);
+  }
 
-    if (onScan) onScan(code);
-
-    await new Promise((r) => setTimeout(r, 150));
-    setReading(false);
+  function handleLoteQtd(lote, qtdStr) {
+    const loteVal = String(lote || bufLote || "").trim();
+    const qtdVal = String(qtdStr || bufQTD || "").trim();
+    const qn = parseInt(qtdVal, 10);
+    if (!loteVal) return;
+    if (!qn || isNaN(qn) || qn <= 0) return;
+    setBufLote("");
+    setBufQTD("");
+    if (onScanLoteQuantidade) onScanLoteQuantidade({ lote: loteVal, quantidade: qn });
+    try { beepOk.currentTime = 0; beepOk.play(); } catch {}
+    setTimeout(() => { try { loteRef.current?.focus({ preventScroll: true }); } catch {} }, 0);
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      {/* USB input (fica acima da câmera) */}
-      <div>
-        <div style={{ fontSize: 12, opacity: 0.8, marginBottom: 6 }}>Leitor USB (modo teclado)</div>
+    <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "grid", gap: 6 }}>
+        <SmallLabel>Leitura por EAN (unitária)</SmallLabel>
         <input
-          ref={inputRef}
-          type="text"
-          inputMode="none"
+          ref={eanRef}
+          value={bufEAN}
+          onChange={(e) => setBufEAN(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleEAN(); }}
+          placeholder="Aponte o leitor aqui para EAN..."
           style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 10,
-            border: "1px dashed #94a3b8",
-            background: loading ? "rgba(16,185,129,.08)" : "transparent",
-            fontWeight: 600,
+            width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
+            fontWeight: 600
           }}
-          placeholder="Aponte o leitor aqui (foco automático)"
         />
+        <div style={{ fontSize: 12, opacity: .7 }}>
+          Cada leitura de EAN abate <strong>1 unidade</strong>.
+        </div>
       </div>
 
-      {/* CÂMERA — maior para o operador ver */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          maxWidth: 800,
-          aspectRatio: "16/9",
-          borderRadius: 16,
-          overflow: "hidden",
-          background: "#111",
-          marginInline: "auto",
-        }}
-      >
-        <VideoBox style={{ position: "absolute", inset: 0 }}>
-          <video
-            ref={videoRef}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-            muted
-            playsInline
+      <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+        <SmallLabel>Leitura por LOTE (caixa fechada)</SmallLabel>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 8 }}>
+          <input
+            ref={loteRef}
+            value={bufLote}
+            onChange={(e) => setBufLote(e.target.value)}
+            placeholder="Bipe o LOTE aqui..."
+            style={{
+              width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
+              fontWeight: 600
+            }}
           />
-          {!camOk && <Banner>{errMsg || "Leitura por câmera não suportada."}</Banner>}
-          {reading && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.25)",
-                display: "grid",
-                placeItems: "center",
-                color: "#fff",
-                fontWeight: 800,
-              }}
-            >
-              Lendo código…
-            </div>
-          )}
-        </VideoBox>
-      </div>
-
-      <div style={{ fontSize: 12, opacity: 0.65 }}>
-        Dica: mantenha o código centralizado e use HTTPS no mobile.
+          <input
+            ref={qtdRef}
+            value={bufQTD}
+            onChange={(e) => setBufQTD(e.target.value)}
+            placeholder="QTD"
+            inputMode="numeric"
+            style={{
+              width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
+              fontWeight: 700, textAlign: "center"
+            }}
+            onKeyDown={(e) => { if (e.key === "Enter") handleLoteQtd(); }}
+          />
+        </div>
+        <div style={{ fontSize: 12, opacity: .7 }}>
+          1) Bipe o <strong>LOTE</strong> • 2) Bipe a <strong>QUANTIDADE</strong> (código numérico). O sistema abate a quantidade.
+        </div>
       </div>
     </div>
   );
+}
+
+function SmallLabel({ children }) {
+  return <div style={{ fontSize: 12, opacity: 0.8 }}>{children}</div>;
 }

@@ -1,17 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "reactstrap";
 import styled from "styled-components";
 import NavBar from "../Projetos/components/NavBar";
-// import apiLocal from "../../services/apiLocal";
-import {
-  Page,
-  TitleBar,
-  H1,
-  CardGrid,
-  SearchWrap,
-  SearchInput,
-} from "../Projetos/style";
-import { PageLoader } from "../Projetos/components/Loader";
+import { Page, TitleBar, H1, CardGrid, SearchWrap, SearchInput } from "../Projetos/style";
+// (Opcional) Se quiser manter o visual do PageLoader, pode remover este import e o componente abaixo.
+// import { PageLoader } from "../Projetos/components/Loader";
 import useLoading from "../../hooks/useLoading";
 import UploadCsvModal from "./UploadCsvModal";
 import PedidoFormModal from "./PedidoFormModal";
@@ -22,8 +16,11 @@ import { STATUS_PEDIDO } from "./constants";
 import Indicators from "./Indicators";
 import ConferenciaModal from "./ConferenciaModal";
 import FakeLabelsModal from "./FakeLabelsModal";
+import ModalExpedidos from "./ModalExpedidos";
+import apiLocal from "../../services/apiLocal";
 
 const CAN_EXPEDIR_EMAILS = ["expedicao@empresa.com.br"];
+const ADM_EMAILS = ["admin@empresa.com.br"];
 
 function canExpedir(user) {
   const email = String(user?.email || "").toLowerCase();
@@ -32,20 +29,61 @@ function canExpedir(user) {
   }
   return false;
 }
+function isAdmin(user) {
+  const email = String(user?.email || "").toLowerCase();
+  for (let i = 0; i < ADM_EMAILS.length; i++) {
+    if (email === ADM_EMAILS[i].toLowerCase()) return true;
+  }
+  if (String(user?.tipo || "").toLowerCase() === "adm") return true;
+  return false;
+}
+
+/** Overlay global via portal (sempre acima do modal do Bootstrap) */
+function GlobalLoader({ active, text }) {
+  if (!active) return null;
+  return createPortal(
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 20000, // acima de .modal (1050) e .modal-backdrop (1040)
+        background: "rgba(17, 24, 39, 0.45)",
+        display: "grid",
+        placeItems: "center",
+        backdropFilter: "blur(1px)",
+      }}
+    >
+      <div
+        style={{
+          background: "#111827",
+          color: "#fff",
+          padding: "16px 18px",
+          borderRadius: 12,
+          minWidth: 220,
+          textAlign: "center",
+          boxShadow: "0 10px 25px rgba(0,0,0,.35)",
+          border: "1px solid rgba(255,255,255,.08)",
+        }}
+      >
+        <div className="spinner-border spinner-border-sm" role="status" style={{ marginRight: 8 }} />
+        <span style={{ fontWeight: 700 }}>{text || "Carregando..."}</span>
+      </div>
+    </div>,
+    document.body
+  );
+}
 
 export default function SeparacaoPage() {
   const loading = useLoading();
 
   const [user] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
+    try { return JSON.parse(localStorage.getItem("user") || "null"); }
+    catch { return null; }
   });
 
   const [pedidos, setPedidos] = useState([]);
   const [query, setQuery] = useState("");
+  const [loadingLabel, setLoadingLabel] = useState("Carregando...");
 
   const [openCsv, setOpenCsv] = useState(false);
   const [openManual, setOpenManual] = useState(false);
@@ -55,7 +93,13 @@ export default function SeparacaoPage() {
 
   const [openConf, setOpenConf] = useState(false);
   const [confPedido, setConfPedido] = useState(null);
+
   const [openFake, setOpenFake] = useState(false);
+  const [openExpedidos, setOpenExpedidos] = useState(false);
+
+  const [deletedPedidos, setDeletedPedidos] = useState([]);
+  const [showDeleted, setShowDeleted] = useState(false);
+
   const normalize = useCallback(
     (s) =>
       String(s || "")
@@ -66,86 +110,15 @@ export default function SeparacaoPage() {
     []
   );
 
+  // ---------- carga inicial ----------
   useEffect(() => {
     (async () => {
+      setLoadingLabel("Carregando...");
       loading.start("fetch");
       try {
-        const now = new Date().toISOString();
-        const mock = [
-          {
-            nr_pedido: "11321",
-            cliente: "FERSA",
-            destino: "CONDOR",
-            transportador: "TRANSLOVATO",
-            separador: "Lucas Lima",
-            itens: [
-              {
-                cod_prod: "321",
-                qtde: 5,
-                um_med: "cx",
-                bar_code: "7894900012345",
-              },
-              {
-                cod_prod: "123",
-                qtde: 12,
-                um_med: "un",
-                bar_code: "1234567890123",
-              },
-            ],
-            status: STATUS_PEDIDO.PENDENTE,
-            created_at: now,
-            logs: [],
-            expedido: false,
-            nota: null,
-          },
-          {
-            nr_pedido: "12331",
-            cliente: "PFI",
-            destino: "FAGUNDES",
-            transportador: "SÃO MIGUEL",
-            separador: "Jair Oliveira",
-            itens: [
-              {
-                cod_prod: "32132",
-                qtde: 2,
-                um_med: "pc",
-                bar_code: "123456789012",
-              },
-            ],
-            status: STATUS_PEDIDO.PENDENTE,
-            created_at: now,
-            logs: [],
-            expedido: false,
-            nota: null,
-          },
-          {
-            nr_pedido: "11322",
-            cliente: "FERSA",
-            destino: "BAGGIO",
-            transportador: "CARRARO",
-            separador: "Miguel Santos",
-            itens: [
-              {
-                cod_prod: "3321",
-                qtde: 3,
-                um_med: "cx",
-                bar_code: "5555555555555",
-              },
-            ],
-            status: STATUS_PEDIDO.PRIMEIRA_CONF,
-            created_at: now,
-            logs: [
-              {
-                text: "Primeira conferência por Ana",
-                user: "ops@empresa.com",
-                at: now,
-              },
-            ],
-            expedido: false,
-            nota: null,
-          },
-        ];
-        setPedidos(mock);
+        const resp = await apiLocal.getPedidos({ events_preview: 5 });
+        const arr = Array.isArray(resp.data) ? resp.data : [];
+        setPedidos(arr);
       } finally {
         loading.stop("fetch");
       }
@@ -153,30 +126,125 @@ export default function SeparacaoPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const upsertPedidos = (novos) => {
-    const map = new Map();
-    for (let i = 0; i < pedidos.length; i++) {
-      const p = pedidos[i];
-      map.set(String(p.nr_pedido), p);
+  // ---------- util: merge/hidratação ----------
+  const mergeListaComDetalhes = (lista, detalhesPorNr) => {
+    const out = [];
+    for (let i = 0; i < lista.length; i++) {
+      const p = lista[i];
+      const key = String(p.nr_pedido);
+      const det = detalhesPorNr.get(key);
+      out.push(det || p);
     }
-    for (let i = 0; i < novos.length; i++) {
-      const np = novos[i];
-      map.set(String(np.nr_pedido), np);
-    }
-    setPedidos(Array.from(map.values()));
+    return out;
   };
 
+  // ---------- IMPORTAÇÃO CSV ----------
   const onImportedCsv = async (novosPedidos) => {
-    upsertPedidos(novosPedidos);
-    setOpenCsv(false);
+    setLoadingLabel("Importando pedidos...");
+    loading.start("import");
+    try {
+      const criados = [];
+      for (let i = 0; i < novosPedidos.length; i++) {
+        const p = novosPedidos[i];
+        try {
+          const r = await apiLocal.createPedido(p);
+          if (r?.data) criados.push(r.data);
+        } catch (e) {
+          console.error("Falha ao inserir pedido", p?.nr_pedido, e);
+        }
+      }
+
+      const listResp = await apiLocal.getPedidos({ events_preview: 5 });
+      const lista = Array.isArray(listResp?.data) ? listResp.data : [];
+
+      const detalhesMap = new Map();
+      const nrs = criados.map(x => String(x.nr_pedido));
+      for (let i = 0; i < nrs.length; i++) {
+        const nr = nrs[i];
+        try {
+          const d = await apiLocal.getPedidoByNr(nr);
+          const detail = d?.data || {};
+          const merged = {
+            ...(detail.pedido || {}),
+            itens: Array.isArray(detail.itens) ? detail.itens : [],
+            eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
+            eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : [],
+          };
+          merged.nr_pedido = merged.nr_pedido || nr;
+          detalhesMap.set(nr, merged);
+        } catch (e) {
+          console.error("Falha ao buscar detalhe do pedido recém-importado", nr, e);
+        }
+      }
+
+      const listaHidratada = mergeListaComDetalhes(lista, detalhesMap);
+      setPedidos(listaHidratada);
+    } finally {
+      loading.stop("import");
+      setOpenCsv(false);
+      setLoadingLabel("Carregando...");
+    }
   };
 
+  // ---------- criação manual ----------
   const onCreatedManual = async (pedido) => {
-    upsertPedidos([pedido]);
-    setOpenManual(false);
+    try {
+      setLoadingLabel("Criando pedido...");
+      loading.start("create");
+      await apiLocal.createPedido(pedido);
+      const listResp = await apiLocal.getPedidos({ events_preview: 5 });
+      const lista = Array.isArray(listResp?.data) ? listResp.data : [];
+      setPedidos(lista);
+    } finally {
+      loading.stop("create");
+      setOpenManual(false);
+      setLoadingLabel("Carregando...");
+    }
   };
 
+  // ---------- refresh individual ----------
+  const refreshPedido = useCallback(async (nr_pedido) => {
+    try {
+      const resp = await apiLocal.getPedidoByNr(nr_pedido);
+      const detail = resp?.data || {};
+      const merged = {
+        ...(detail.pedido || {}),
+        itens: Array.isArray(detail.itens) ? detail.itens : [],
+        eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
+        eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : [],
+      };
+
+      const next = [];
+      let updatedObject = null;
+      for (let i = 0; i < pedidos.length; i++) {
+        const p = pedidos[i];
+        if (String(p.nr_pedido) === String(nr_pedido)) {
+          const up = { ...p, ...merged };
+          next.push(up);
+          updatedObject = up;
+        } else {
+          next.push(p);
+        }
+      }
+      setPedidos(next);
+
+      if (activePedido && String(activePedido.nr_pedido) === String(nr_pedido)) {
+        setActivePedido(updatedObject || merged);
+      }
+      if (confPedido && String(confPedido.nr_pedido) === String(nr_pedido)) {
+        setConfPedido(updatedObject || merged);
+      }
+    } catch (e) {
+      console.error("Falha ao recarregar pedido:", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedidos, activePedido, confPedido]);
+
+  // ---------- atualização local opcional ----------
   const onUpdatePedido = async (nr_pedido, patch) => {
+    try {
+      await apiLocal.updatePedido(nr_pedido, patch);
+    } catch {}
     const next = [];
     let updatedObject = null;
     for (let i = 0; i < pedidos.length; i++) {
@@ -198,13 +266,31 @@ export default function SeparacaoPage() {
     }
   };
 
-  const onDeletePedido = async (nr_pedido) => {
+  // ---------- exclusão local ----------
+  const onDeletePedido = async (nr_pedido, opts) => {
     const next = [];
+    let removed = null;
     for (let i = 0; i < pedidos.length; i++) {
       const p = pedidos[i];
-      if (String(p.nr_pedido) !== String(nr_pedido)) next.push(p);
+      if (String(p.nr_pedido) !== String(nr_pedido)) {
+        next.push(p);
+      } else {
+        removed = p;
+      }
     }
     setPedidos(next);
+    if (removed) {
+      const rec = {
+        nr_pedido,
+        by: opts?.user || "usuário",
+        at: new Date().toISOString(),
+        justificativa: String(opts?.justificativa || "").trim() || "-",
+        snapshot: removed,
+      };
+      const delNext = deletedPedidos.slice();
+      delNext.push(rec);
+      setDeletedPedidos(delNext);
+    }
     if (activePedido && String(activePedido.nr_pedido) === String(nr_pedido)) {
       setOpenInfo(false);
       setActivePedido(null);
@@ -215,31 +301,72 @@ export default function SeparacaoPage() {
     }
   };
 
-  const onExpedirPedido = async (nr_pedido) => {
+  // ---------- expedição ----------
+  const onExpedirPedido = async (nr_pedido, nota) => {
     if (!canExpedir(user)) return;
     let alvo = null;
     for (let i = 0; i < pedidos.length; i++) {
       const p = pedidos[i];
       if (String(p.nr_pedido) === String(nr_pedido)) {
-        alvo = p;
-        break;
+        alvo = p; break;
       }
     }
     if (!alvo) return;
-    const pode = !!alvo?.segundaConferencia?.colaborador;
+    const pode = !!alvo?.conferente || !!alvo?.primeiraConferencia?.colaborador;
     if (!pode) return;
-
-    const log = {
-      text: "Pedido expedido",
-      user: user?.email || "usuário",
-      at: new Date().toISOString(),
-    };
-    await onUpdatePedido(nr_pedido, {
-      expedido: true,
-      logs: [...(alvo.logs || []), log],
-    });
+    try {
+      await apiLocal.expedirPedido({
+        nr_pedido,
+        nota: nota || alvo.nota || null,
+        by: user?.email || "usuario",
+      });
+      await refreshPedido(nr_pedido);
+    } catch (e) {
+      console.error("Falha ao expedir no back:", nr_pedido, e);
+    }
   };
 
+  const openConferencia = (p) => {
+    setConfPedido(p);
+    setOpenConf(true);
+  };
+
+  const handleConfirmConferencia = async (payload) => {
+    const name = String(payload?.conferente || "").trim();
+    if (!name || !confPedido) return;
+    try {
+      await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
+        conferente: name,
+        scans: payload.scans || {},
+        evidences: payload.evidences || [],
+        by: user?.email || "usuario",
+      });
+      await refreshPedido(confPedido.nr_pedido);
+    } catch (e) {
+      console.error("Falha ao finalizar conferência no back:", e);
+    }
+    setOpenConf(false);
+    setConfPedido(null);
+  };
+
+  const handleOccurrence = async ({ reason, missing, evidences }) => {
+    if (!confPedido) return;
+    try {
+      await apiLocal.registrarOcorrenciaConferencia(confPedido.nr_pedido, {
+        reason,
+        missing: Array.isArray(missing) ? missing : [],
+        evidences: Array.isArray(evidences) ? evidences : [],
+        by: user?.email || "usuario",
+      });
+      await refreshPedido(confPedido.nr_pedido);
+    } catch (e) {
+      console.error("Falha ao registrar ocorrência no back:", e);
+    }
+    setOpenConf(false);
+    setConfPedido(null);
+  };
+
+  // ---------- filtros/derivados ----------
   const pedidosFiltrados = useMemo(() => {
     const q = normalize(query);
     if (!q) return pedidos;
@@ -254,76 +381,46 @@ export default function SeparacaoPage() {
     return out;
   }, [pedidos, query, normalize]);
 
-  const openConferencia = (p) => {
-    setConfPedido(p);
-    setOpenConf(true);
-  };
-
-  const handleConfirmConferencia = async (payload) => {
-    const name = String(payload?.conferente || "").trim();
-    if (!name || !confPedido) return;
-
-    const now = new Date().toISOString();
-    const log = {
-      text: `Conferência finalizada por ${name}`,
-      user: user?.email || "usuário",
-      at: now,
-    };
-
-    if (confPedido.status === STATUS_PEDIDO.PENDENTE) {
-      await onUpdatePedido(confPedido.nr_pedido, {
-        status: STATUS_PEDIDO.PRIMEIRA_CONF,
-        primeiraConferencia: {
-          colaborador: name,
-          at: now,
-          scans: payload.scans || {},
-          evidences: payload.evidences || [],
-        },
-        logs: [...(confPedido.logs || []), log],
-      });
-    } else {
-      await onUpdatePedido(confPedido.nr_pedido, {
-        status: STATUS_PEDIDO.CONCLUIDO,
-        segundaConferencia: {
-          colaborador: name,
-          at: now,
-          scans: payload.scans || {},
-          evidences: payload.evidences || [],
-        },
-        logs: [...(confPedido.logs || []), log],
-      });
+  const candidatosExpedicao = useMemo(() => {
+    const out = [];
+    for (let i = 0; i < pedidos.length; i++) {
+      const p = pedidos[i];
+      const conferido = !!p?.conferente || !!p?.primeiraConferencia?.colaborador;
+      if (p.status === STATUS_PEDIDO.PRIMEIRA_CONF && conferido && !p.expedido) {
+        out.push(p);
+      }
     }
+    return out;
+  }, [pedidos]);
 
-    setOpenConf(false);
-    setConfPedido(null);
-  };
-
-  const handleOccurrence = async ({ reason, missing, evidences }) => {
-    if (!confPedido) return;
-    const now = new Date().toISOString();
-    const log = {
-      text: `Ocorrência na conferência: ${reason}`,
-      user: user?.email || "usuário",
-      at: now,
-    };
-
-    await onUpdatePedido(confPedido.nr_pedido, {
-      logs: [...(confPedido.logs || []), log],
-      ocorrenciaConferencia: {
-        reason,
-        missing: Array.isArray(missing) ? missing : [],
-        evidences: Array.isArray(evidences) ? evidences : [],
-        at: now,
-      },
-    });
-
-    setOpenConf(false);
-    setConfPedido(null);
-  };
+  // ---------- abrir modal de info com detalhe ----------
+  async function openInfoWithFetch(p) {
+    if (!p) return;
+    setLoadingLabel("Carregando detalhes...");
+    loading.start("detail");
+    try {
+      const resp = await apiLocal.getPedidoByNr(p.nr_pedido);
+      const detail = resp?.data || {};
+      const merged = {
+        ...(detail.pedido || p),
+        itens: Array.isArray(detail.itens) ? detail.itens : (p.itens || []),
+        eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
+        eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : (p.eventos_preview || []),
+      };
+      setActivePedido(merged);
+      setOpenInfo(true);
+      await onUpdatePedido(p.nr_pedido, merged);
+    } finally {
+      loading.stop("detail");
+      setLoadingLabel("Carregando...");
+    }
+  }
 
   return (
     <Page>
-      <PageLoader active={loading.any()} text="Carregando..." />
+      {/* Overlay global por portal */}
+      <GlobalLoader active={loading.any()} text={loadingLabel} />
+
       <NavBar />
 
       <TitleBar style={{ zIndex: 1100 }}>
@@ -350,16 +447,71 @@ export default function SeparacaoPage() {
           <Button color="info" onClick={() => setOpenFake(true)}>
             Etiquetas Teste
           </Button>
+
+          <Button
+            color="success"
+            disabled={!canExpedir(user) || candidatosExpedicao.length === 0}
+            onClick={() => setOpenExpedidos(true)}
+            title={
+              canExpedir(user)
+                ? "Selecionar pedidos para expedir"
+                : "Sem permissão para expedir"
+            }
+          >
+            Expedir Pedidos
+          </Button>
+
+          {isAdmin(user) && (
+            <Button
+              color={showDeleted ? "danger" : "dark"}
+              onClick={() => setShowDeleted(!showDeleted)}
+              title="Registros de exclusões"
+            >
+              Excluídos ({deletedPedidos.length})
+            </Button>
+          )}
         </RightRow>
       </TitleBar>
 
       <Indicators pedidos={pedidos} canExpedir={canExpedir(user)} />
 
       <Legend>
-        <StatusPill $variant="pendente">Pendente em separação</StatusPill>
-        <StatusPill $variant="primeira">1ª conferência</StatusPill>
-        <StatusPill $variant="concluido">Concluído</StatusPill>
+        <StatusPill $variant="pendente">Aguardando conferência</StatusPill>
+        <StatusPill $variant="primeira">Pronto para expedir</StatusPill>
+        <StatusPill $variant="concluido">Expedido</StatusPill>
       </Legend>
+
+      {isAdmin(user) && showDeleted && (
+        <DeletedPanel>
+          <h4 style={{ margin: 0 }}>Registros de Exclusões</h4>
+          <div style={{ marginTop: 8 }}>
+            {deletedPedidos.length === 0 && (
+              <div style={{ opacity: 0.7 }}>Nenhum registro.</div>
+            )}
+            {deletedPedidos.map((r, idx) => (
+              <div
+                key={`${r.nr_pedido}-${idx}`}
+                style={{
+                  fontSize: 13,
+                  padding: "6px 8px",
+                  border: "1px solid #eee",
+                  borderRadius: 8,
+                  marginBottom: 6,
+                  background: "#fafafa",
+                }}
+              >
+                <div>
+                  <strong>Pedido #{r.nr_pedido}</strong> — <em>{r.by}</em>{" "}
+                  <small>({new Date(r.at).toLocaleString("pt-BR")})</small>
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <strong>Justificativa:</strong> {r.justificativa}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DeletedPanel>
+      )}
 
       <CardGrid>
         {pedidosFiltrados.map((p) => (
@@ -368,14 +520,17 @@ export default function SeparacaoPage() {
             pedido={p}
             currentUser={user}
             onUpdate={onUpdatePedido}
-            onDelete={onDeletePedido}
-            onOpen={() => {
-              setActivePedido(p);
-              setOpenInfo(true);
-            }}
+            onDelete={(nr, payload) =>
+              onDeletePedido(nr, {
+                ...(payload || {}),
+                user: user?.email || "usuário",
+              })
+            }
+            onOpen={() => openInfoWithFetch(p)}
             onExpedir={onExpedirPedido}
             canExpedir={canExpedir(user)}
             onOpenConferencia={() => openConferencia(p)}
+            refreshPedido={refreshPedido}
           />
         ))}
       </CardGrid>
@@ -400,11 +555,15 @@ export default function SeparacaoPage() {
         onClose={() => setOpenInfo(false)}
         pedido={activePedido}
         onUpdate={onUpdatePedido}
-        onExpedir={onExpedirPedido}
-        canExpedir={canExpedir(user)}
         onOpenConferencia={() => {
           if (activePedido) openConferencia(activePedido);
         }}
+        onDeleted={(nr, payload) =>
+          onDeletePedido(nr, {
+            ...(payload || {}),
+            user: user?.email || "usuário",
+          })
+        }
       />
 
       <ConferenciaModal
@@ -417,7 +576,22 @@ export default function SeparacaoPage() {
         onConfirm={handleConfirmConferencia}
         onOccurrence={handleOccurrence}
       />
+
       <FakeLabelsModal isOpen={openFake} onClose={() => setOpenFake(false)} />
+
+      <ModalExpedidos
+        isOpen={openExpedidos}
+        onClose={() => setOpenExpedidos(false)}
+        pedidos={candidatosExpedicao}
+        onConfirm={async (selecionados) => {
+          for (let i = 0; i < selecionados.length; i++) {
+            const s = selecionados[i];
+            await onExpedirPedido(s.nr_pedido, s.nota);
+          }
+          setOpenExpedidos(false);
+        }}
+        canExpedir={canExpedir(user)}
+      />
     </Page>
   );
 }
@@ -433,4 +607,12 @@ const Legend = styled.div`
   align-items: center;
   gap: 8px;
   margin: 12px 0;
+`;
+
+const DeletedPanel = styled.div`
+  border: 1px dashed #bbb;
+  border-radius: 12px;
+  padding: 10px;
+  margin: 8px 0 16px 0;
+  background: #fff;
 `;

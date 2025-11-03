@@ -1,37 +1,95 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, FlexRow, Muted } from "../../Projetos/style";
-import { StatusPill, Row, Col, Field, TinyBtn, DangerBtn, IconBtn } from "../style";
+import { StatusPill, Row } from "../style";
 import { STATUS_PEDIDO } from "../constants";
-import { printPedidoLabels } from "../print";
-import { FiEdit2, FiSave, FiX, FiTrash2, FiUserCheck, FiTag, FiTruck, FiCamera } from "react-icons/fi";
+import styled from "styled-components";
+import apiLocal from "../../../services/apiLocal";
 
 export default function PedidoCard({
   pedido,
-  currentUser,
-  onUpdate,
-  onDelete,
   onOpen,
-  onExpedir,
-  canExpedir,
-  onOpenConferencia
+  onUpdate, // ainda uso para cachear itens após buscar
 }) {
-  const [edit, setEdit] = useState(false);
-  const [tmpSep, setTmpSep] = useState(pedido.separador || "");
-  const [tmpTransp, setTmpTransp] = useState(pedido.transportador || "");
-  const [nomePrimeira, setNomePrimeira] = useState("");
-  const [nomeSegunda, setNomeSegunda] = useState("");
+  // total de itens (busca 1x se não vier no objeto)
+  const [lazyTotal, setLazyTotal] = useState(null);
 
   const totalItens = useMemo(() => {
     let total = 0;
-    if (Array.isArray(pedido.itens)) {
-      for (let i = 0; i < pedido.itens.length; i++) {
-        const it = pedido.itens[i];
-        const n = Number(it?.qtde || 0);
+    const arr = Array.isArray(pedido.itens) ? pedido.itens : null;
+    if (arr && arr.length > 0) {
+      for (let i = 0; i < arr.length; i++) {
+        const n = Number(arr[i]?.qtde || 0);
         total += isNaN(n) ? 0 : n;
       }
+      return total;
     }
-    return total;
-  }, [pedido.itens]);
+    if (typeof lazyTotal === "number") return lazyTotal;
+    if (typeof pedido.total_itens === "number") return pedido.total_itens; // caso o back já mande
+    return 0;
+  }, [pedido.itens, pedido.total_itens, lazyTotal]);
+
+  // Regra: só exibir conferente se houver separador
+  const conferenteNome = useMemo(() => {
+    const hasSeparador = !!(pedido?.separador && String(pedido.separador).trim());
+    if (!hasSeparador) return "";
+    const c1 = pedido?.conferente ? String(pedido.conferente).trim() : "";
+    const c2 = pedido?.primeiraConferencia?.colaborador
+      ? String(pedido.primeiraConferencia.colaborador).trim()
+      : "";
+    return c1 || c2 || "";
+  }, [pedido?.separador, pedido?.conferente, pedido?.primeiraConferencia?.colaborador]);
+
+  // Detecta ocorrência relacionada à conferência (eventos/eventos_preview)
+  const hasOcorrenciaConferencia = useMemo(() => {
+    function matchArray(arr) {
+      if (!Array.isArray(arr)) return false;
+      for (let i = 0; i < arr.length; i++) {
+        const ev = arr[i] || {};
+        const tipo = String(ev.tipo || "").toLowerCase();
+        const texto = String(ev.texto || "").toLowerCase();
+
+        // heurísticas simples (sem reduce)
+        // cobre nomes prováveis de evento e palavras-chave comuns
+        if (tipo === "ocorrencia_conferencia" || tipo === "ocorrência_conferência") return true;
+        if (tipo.includes("ocorr") || tipo.includes("diverg") || tipo.includes("falta") || tipo.includes("avaria"))
+          return true;
+        if (texto.includes("ocorr") || texto.includes("diverg") || texto.includes("falta") || texto.includes("avaria"))
+          return true;
+      }
+      return false;
+    }
+
+    // verifica eventos completos e a prévia
+    if (matchArray(pedido?.eventos)) return true;
+    if (matchArray(pedido?.eventos_preview)) return true;
+    return false;
+  }, [pedido?.eventos, pedido?.eventos_preview]);
+
+  useEffect(() => {
+    // Garante o contador de itens no card SEM depender de eventos:
+    // se não veio itens, busca uma vez direto do endpoint de itens.
+    if (!Array.isArray(pedido.itens)) {
+      (async () => {
+        try {
+          const resp = await apiLocal.getItensByNr(pedido.nr_pedido);
+          const itens = Array.isArray(resp?.data) ? resp.data : [];
+          let soma = 0;
+          for (let i = 0; i < itens.length; i++) {
+            const n = Number(itens[i]?.qtde || 0);
+            soma += isNaN(n) ? 0 : n;
+          }
+          setLazyTotal(soma);
+          // cache local no pai, evita refetchs em modais
+          if (typeof onUpdate === "function") {
+            await onUpdate(pedido.nr_pedido, { itens });
+          }
+        } catch {
+          /* silencioso */
+        }
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedido.nr_pedido]);
 
   const variant =
     pedido.status === STATUS_PEDIDO.CONCLUIDO
@@ -40,264 +98,123 @@ export default function PedidoCard({
       ? "primeira"
       : "pendente";
 
-  const commitBasics = async () => {
-    const updates = {};
-    let any = false;
+  function renderPreviewLogs() {
+    const ev = Array.isArray(pedido.eventos_preview)
+      ? pedido.eventos_preview
+      : null;
 
-    if ((pedido.separador || "") !== (tmpSep || "")) {
-      any = true;
-      const log = {
-        text: `Separador alterado de "${pedido.separador || "-"}" para "${tmpSep || "-"}"`,
-        user: currentUser?.email || "usuário",
-        at: new Date().toISOString(),
-      };
-      updates.separador = tmpSep || null;
-      updates.logs = [...(pedido.logs || []), log];
+    if (ev && ev.length > 0) {
+      const out = [];
+      for (let i = 0; i < ev.length; i++) {
+        const e = ev[i];
+        const when = e.created_at ? new Date(e.created_at).toLocaleString("pt-BR") : "";
+        out.push(
+          <div key={e.id || i} style={{ fontSize: 12, opacity: 0.9 }}>
+            • {e.texto || e.tipo} — <em>{e.user_ref || "sistema"}</em>{" "}
+            <Muted>({when})</Muted>
+          </div>
+        );
+      }
+      return out;
     }
 
-    if ((pedido.transportador || "") !== (tmpTransp || "")) {
-      any = true;
-      const log = {
-        text: `Transportadora alterada de "${pedido.transportador || "-"}" para "${tmpTransp || "-"}"`,
-        user: currentUser?.email || "usuário",
-        at: new Date().toISOString(),
-      };
-      updates.transportador = tmpTransp || null;
-      updates.logs = [...(updates.logs || pedido.logs || []), log];
+    // fallback legado (se ainda existir "logs" no objeto antigo)
+    const logs = pedido.logs || [];
+    if (logs.length === 0) {
+      return <div style={{ opacity: 0.7, fontSize: 12 }}>Sem alterações.</div>;
     }
-
-    if (!any) {
-      setEdit(false);
-      return;
+    const out = [];
+    for (let i = logs.length - 1; i >= 0; i--) {
+      const l = logs[i];
+      out.push(
+        <div key={i} style={{ fontSize: 12, opacity: 0.9 }}>
+          • {l.text} — <em>{l.user}</em>{" "}
+          <Muted>({new Date(l.at).toLocaleString("pt-BR")})</Muted>
+        </div>
+      );
     }
-    await onUpdate(pedido.nr_pedido, updates);
-    setEdit(false);
-  };
-
-  const marcarPrimeira = async () => {
-    const nome = (nomePrimeira || "").trim();
-    if (!nome) return;
-    const updates = {
-      status: STATUS_PEDIDO.PRIMEIRA_CONF,
-      primeiraConferencia: { colaborador: nome, at: new Date().toISOString() },
-      logs: [
-        ...(pedido.logs || []),
-        { text: `Primeira conferência por ${nome}`, user: currentUser?.email || "usuário", at: new Date().toISOString() },
-      ],
-    };
-    await onUpdate(pedido.nr_pedido, updates);
-    setNomePrimeira("");
-  };
-
-  const marcarSegunda = async () => {
-    const nome = (nomeSegunda || "").trim();
-    if (!nome) return;
-    const updates = {
-      status: STATUS_PEDIDO.CONCLUIDO,
-      segundaConferencia: { colaborador: nome, at: new Date().toISOString() },
-      logs: [
-        ...(pedido.logs || []),
-        { text: `Segunda conferência por ${nome}`, user: currentUser?.email || "usuário", at: new Date().toISOString() },
-      ],
-    };
-    await onUpdate(pedido.nr_pedido, updates);
-    setNomeSegunda("");
-  };
-
-  const podeExpedir = !!pedido?.segundaConferencia?.colaborador && canExpedir;
+    return out;
+  }
 
   return (
     <Card role="group" onClick={onOpen} style={{ cursor: "pointer" }}>
-      <FlexRow>
+      <FlexRow style={{ gap: 8, alignItems: "center" }}>
         <h3 style={{ margin: 0 }}>Pedido #{pedido.nr_pedido}</h3>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <IconBtn
-            title="Imprimir etiquetas"
-            onClick={(e) => { e.stopPropagation(); printPedidoLabels(pedido); }}
-          >
-            <FiTag size={16} />
-          </IconBtn>
 
-          <IconBtn
-            title="Conferir com câmera"
-            onClick={(e) => { e.stopPropagation(); onOpenConferencia(); }}
-          >
-            <FiCamera size={16} />
-          </IconBtn>
-
-          <IconBtn
-            title={podeExpedir ? "Marcar como expedido" : "Expedir (precisa 2ª conferência e permissão)"}
-            disabled={!podeExpedir || pedido.expedido}
-            onClick={(e) => { e.stopPropagation(); if (podeExpedir && !pedido.expedido) onExpedir(pedido.nr_pedido); }}
-          >
-            <FiTruck size={16} />
-          </IconBtn>
-
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
+          {hasOcorrenciaConferencia && (
+            <OccurrenceBadge title="Ocorrência registrada na conferência">
+              Ocorrência na conferência
+            </OccurrenceBadge>
+          )}
           <StatusPill $variant={variant}>
-            {variant === "pendente" && "Pendente em separação"}
-            {variant === "primeira" && "1ª conferência"}
-            {variant === "concluido" && (pedido.expedido ? "Concluído • Expedido" : "Concluído")}
+            {variant === "pendente" && "Aguardando conferência"}
+            {variant === "primeira" && "Pronto para expedir"}
+            {variant === "concluido" && "Expedido"}
           </StatusPill>
         </div>
       </FlexRow>
 
       <div style={{ marginTop: 8 }}>
         <Row>
-          <strong>Cliente:</strong> <span>{pedido.cliente}</span>
+          <strong>Cliente:</strong>{" "}
+          <span>{pedido.cliente || <em>—</em>}</span>
         </Row>
         <Row>
-          <strong>Destino:</strong> <span>{pedido.destino}</span>
+          <strong>Destino:</strong>{" "}
+          <span>{pedido.destino || <em>—</em>}</span>
         </Row>
         <Row>
-          <strong>Itens:</strong> <span>{totalItens} embalagem(ns)</span>
+          <strong>Total volume:</strong>{" "}
+          <span>{totalItens}</span>
         </Row>
         <Row>
-          <strong>Nota (NF):</strong> <span>{pedido.nota || <em>—</em>}</span>
+          <strong>Nota (NF):</strong>{" "}
+          <span>{pedido.nota || <em>—</em>}</span>
         </Row>
-      </div>
-
-      <div style={{ marginTop: 10 }}>
-        {!edit ? (
-          <>
-            <Row>
-              <strong>Separador:</strong> <span>{pedido.separador || <em>—</em>}</span>
-            </Row>
-            <Row>
-              <strong>Transportadora:</strong>{" "}
-              <span>{pedido.transportador || <em>—</em>}</span>
-            </Row>
-
-            <Row style={{ marginTop: 8, gap: 6 }}>
-              <TinyBtn
-                onClick={(e) => { e.stopPropagation(); setEdit(true); }}
-                title="Editar separador/transportadora"
-              >
-                <FiEdit2 /> Editar
-              </TinyBtn>
-              <DangerBtn
-                onClick={(e) => { e.stopPropagation(); onDelete(pedido.nr_pedido); }}
-                title="Excluir pedido"
-              >
-                <FiTrash2 /> Excluir
-              </DangerBtn>
-            </Row>
-          </>
-        ) : (
-          <>
-            <Col>
-              <label>Separador</label>
-              <Field
-                value={tmpSep}
-                onChange={(e) => setTmpSep(e.target.value)}
-                placeholder="Nome do separador (opcional)"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </Col>
-            <Col style={{ marginTop: 6 }}>
-              <label>Transportadora</label>
-              <Field
-                value={tmpTransp}
-                onChange={(e) => setTmpTransp(e.target.value)}
-                placeholder="Nome da transportadora (opcional)"
-                onClick={(e) => e.stopPropagation()}
-              />
-            </Col>
-            <Row style={{ marginTop: 8, gap: 6 }}>
-              <TinyBtn onClick={(e) => { e.stopPropagation(); commitBasics(); }}>
-                <FiSave /> Salvar
-              </TinyBtn>
-              <TinyBtn
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setEdit(false);
-                  setTmpSep(pedido.separador || "");
-                  setTmpTransp(pedido.transportador || "");
-                }}
-              >
-                <FiX /> Cancelar
-              </TinyBtn>
-            </Row>
-          </>
-        )}
+        <Row>
+          <strong>Separador:</strong>{" "}
+          <span>{pedido.separador || <em>—</em>}</span>
+        </Row>
+        <Row>
+          <strong>Conferente:</strong>{" "}
+          <span>{conferenteNome || <em>—</em>}</span>
+        </Row>
+        <Row>
+          <strong>Transportadora:</strong>{" "}
+          <span>{pedido.transportador || <em>—</em>}</span>
+        </Row>
       </div>
 
       <div style={{ marginTop: 12 }}>
-        <strong>Conferências</strong>
+        <strong>Eventos (últimos)</strong>
         <div style={{ marginTop: 6 }}>
-          <Row>
-            <span>1ª conferência: </span>
-            <span style={{ fontWeight: 700, marginLeft: 6 }}>
-              {pedido.primeiraConferencia?.colaborador || "—"}
-            </span>
-          </Row>
-          <Row>
-            <span>2ª conferência: </span>
-            <span style={{ fontWeight: 700, marginLeft: 6 }}>
-              {pedido.segundaConferencia?.colaborador || "—"}
-            </span>
-          </Row>
-        </div>
-
-        <div style={{ marginTop: 8 }}>
-          {pedido.status !== STATUS_PEDIDO.CONCLUIDO && (
-            <>
-              {pedido.status === STATUS_PEDIDO.PENDENTE && (
-                <Row style={{ gap: 6 }}>
-                  <Field
-                    style={{ maxWidth: 220 }}
-                    value={nomePrimeira}
-                    onChange={(e) => setNomePrimeira(e.target.value)}
-                    placeholder="Nome 1ª conferência"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <TinyBtn onClick={(e) => { e.stopPropagation(); marcarPrimeira(); }}>
-                    <FiUserCheck /> Marcar 1ª
-                  </TinyBtn>
-                  <TinyBtn onClick={(e) => { e.stopPropagation(); onOpenConferencia(); }}>
-                    <FiCamera /> Conferir com câmera
-                  </TinyBtn>
-                </Row>
-              )}
-
-              {pedido.status !== STATUS_PEDIDO.PENDENTE && (
-                <Row style={{ gap: 6, marginTop: 6 }}>
-                  <Field
-                    style={{ maxWidth: 220 }}
-                    value={nomeSegunda}
-                    onChange={(e) => setNomeSegunda(e.target.value)}
-                    placeholder="Nome 2ª conferência"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <TinyBtn onClick={(e) => { e.stopPropagation(); marcarSegunda(); }}>
-                    <FiUserCheck /> Marcar 2ª (Concluir)
-                  </TinyBtn>
-                  <TinyBtn onClick={(e) => { e.stopPropagation(); onOpenConferencia(); }}>
-                    <FiCamera /> Conferir com câmera
-                  </TinyBtn>
-                </Row>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12 }}>
-        <strong>Log</strong>
-        <div style={{ marginTop: 6 }}>
-          {(pedido.logs || [])
-            .slice()
-            .reverse()
-            .map((l, idx) => (
-              <div key={idx} style={{ fontSize: 12, opacity: 0.9 }}>
-                • {l.text} — <em>{l.user}</em>{" "}
-                <Muted>({new Date(l.at).toLocaleString("pt-BR")})</Muted>
-              </div>
-            ))}
-          {(pedido.logs || []).length === 0 && (
-            <div style={{ opacity: 0.7, fontSize: 12 }}>Sem alterações.</div>
-          )}
+          {renderPreviewLogs()}
         </div>
       </div>
     </Card>
   );
 }
+
+const OccurrenceBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fef3c7;   /* âmbar claro 100 */
+  border: 1px solid #fdba74; /* âmbar 300 */
+  color: #9a3412;        /* âmbar 800 */
+`;
+
+const Overlay = styled.div`
+  /* Mantive o estilo caso ainda use overlay em outras iterações */
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1300;
+`;

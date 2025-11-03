@@ -11,18 +11,17 @@ const api = axios.create({
   timeout: 100 * 60 * 1000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
-  withCredentials: true, // essencial p/ cookie HttpOnly
+  withCredentials: true,
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
-// 🔐 401 handler sem causar loop (ignora /auth/login e /auth/me)
+// 🔐 401 handler
 let isRedirecting401 = false;
 api.interceptors.response.use(
   (r) => r,
   (err) => {
     const status = err?.response?.status;
     const url = (err?.config?.url || "").toLowerCase();
-
     if (status === 401) {
       if (url.includes("/auth/login") || url.includes("/auth/me")) {
         return Promise.reject(err);
@@ -184,7 +183,7 @@ const apiLocal = {
   getDocumentoTransporte: (numero_cte) =>
     api.get(`/documentos-transporte/${numero_cte}`),
 
-  getCustosFrete: (filters) => api.get("/custos-frete/"),
+  getCustosFrete: () => api.get("/custos-frete/"),
   createOrUpdateCustosFrete: (data) => api.post("/custos-frete/", data),
   deleteCustosFrete: (id) => api.delete(`/custos-frete/${id}`),
 
@@ -309,7 +308,7 @@ const apiLocal = {
   getProjetoParcels: (projectId, costId) =>
     api.get(`/projetos/${projectId}/custos/${costId}/parcelas`),
 
-  // Timeline (linhas e células)
+  // Timeline
   unpayParcela: (projectId, costId, parcelIndex, actorSectorId) =>
     api.post(
       `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
@@ -323,7 +322,7 @@ const apiLocal = {
 
   updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
     api.put(`/projetos/${projectId}/rows/${rowId}`, {
-      ...body, // { title?, row_sectors?, stage_no?, stage_label?, assignee_setor_id?, assignees? }
+      ...body,
       actor_sector_id,
     }),
 
@@ -341,14 +340,14 @@ const apiLocal = {
     dayISO,
     commentId,
     actorSectorId,
-    actorUserId           // << ADICIONE ESTE ARGUMENTO
+    actorUserId
   ) =>
     api.delete(
       `/projetos/${projectId}/rows/${rowId}/cells/${dayISO}/comments/${commentId}`,
       {
         params: {
           actor_sector_id: Number(actorSectorId),
-          actor_user_id: String(actorUserId || ""),  // << ADICIONE ESTA LINHA
+          actor_user_id: String(actorUserId || ""),
         },
       }
     ),
@@ -363,30 +362,70 @@ const apiLocal = {
 
   reorderProjetoRows: (projectId, orders, actor_sector_id) =>
     api.post(`/projetos/${projectId}/rows/reorder`, {
-      orders, // [{ row_id, order_index }]
+      orders,
       actor_sector_id,
     }),
 
-  // services/apiLocal.js (já tem getProjetosLean)
-  // services/apiLocal.js  (apenas este método)
-// apiLocal.js (ou services/apiLocal.js)
-getProjetosLean: (visibleFor /* array opcional de setores */, status, userId /* string */) =>
-  api.get('/projetos/lean', {
-    params: {
-      status,
-      ...(userId ? { visible_for_user: userId } : {}),
-      ...(Array.isArray(visibleFor) && visibleFor.length ? { visible_for: visibleFor } : {}),
-    },
-    // evita serializar userId como array/brackets
-    paramsSerializer: (params) => {
-      const usp = new URLSearchParams();
-      if (params.status) usp.set('status', params.status);
-      if (params.visible_for_user) usp.set('visible_for_user', params.visible_for_user);
-      if (params.visible_for) for (const v of params.visible_for) usp.append('visible_for', String(v));
-      return usp.toString();
-    }
-  }),
+  getProjetosLean: (visibleFor, status, userId) =>
+    api.get("/projetos/lean", {
+      params: {
+        status,
+        ...(userId ? { visible_for_user: userId } : {}),
+        ...(Array.isArray(visibleFor) && visibleFor.length
+          ? { visible_for: visibleFor }
+          : {}),
+      },
+      paramsSerializer: (params) => {
+        const usp = new URLSearchParams();
+        if (params.status) usp.set("status", params.status);
+        if (params.visible_for_user) usp.set("visible_for_user", params.visible_for_user);
+        if (params.visible_for)
+          for (let i = 0; i < params.visible_for.length; i++) {
+            usp.append("visible_for", String(params.visible_for[i]));
+          }
+        return usp.toString();
+      },
+    }),
 
+  // ========================
+  // PEDIDOS
+  // ========================
+  getPedidos: (params = {}) =>
+    api.get("/pedidos/", {
+      params: { events_preview: 5, ...params }, // <- preview na lista
+    }),
+  getPedidoByNr: (nr_pedido) => api.get(`/pedidos/${nr_pedido}`), // detalhe completo
+  createPedido: (data) => api.post("/pedidos/", data),
+  updatePedido: (nr_pedido, data) => api.put(`/pedidos/${nr_pedido}`, data),
+  deletePedido: (id, payload) => api.delete(`/pedidos/${id}`, { data: payload }),
+  updatePedidoBasics: (nr_pedido, data) =>
+    api.put(`/pedidos/${nr_pedido}/basics`, data),
+  updatePedidoNF: (nr_pedido, { nota, by }) =>
+    api.put(`/pedidos/${nr_pedido}/nf`, { nota, by }),
+
+  // ========================
+  // CONFERÊNCIAS
+  // ========================
+  iniciarConferencia: (nr_pedido, data) =>
+    api.post(`/conferencias/${nr_pedido}/iniciar`, data),
+  salvarConferencia: (nr_pedido, data) =>
+    api.post(`/conferencias/${nr_pedido}/salvar`, data),
+  finalizarConferencia: (nr_pedido, data) =>
+    api.post(`/conferencias/${nr_pedido}/finalizar`, data),
+  registrarOcorrenciaConferencia: (nr_pedido, data) =>
+    api.post(`/conferencias/${nr_pedido}/ocorrencia`, data),
+
+  // ========================
+  // EXPEDIÇÃO
+  // ========================
+  expedirPedido: (data) => api.post("/expedicao/expedir", data),
+  expedirLote: (data) => api.post("/expedicao/expedir-lote", data),
+
+  // ========================
+  // ETIQUETAS
+  // ========================
+  registrarImpressaoEtiquetas: (nr_pedido, data) =>
+    api.post(`/etiquetas/${nr_pedido}/imprimir`, data),
 
   patchProjetoMeta: (
     id,

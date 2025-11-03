@@ -1,21 +1,111 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Table } from "reactstrap";
-import { Row, Field, SmallMuted, IconBtn, TinyBtn } from "../style";
+import { Row, Col, Field, SmallMuted, TinyBtn } from "../style";
 import { STATUS_PEDIDO } from "../constants";
+import { FiSave, FiCheckSquare, FiEdit2, FiX, FiTrash2, FiTag } from "react-icons/fi";
 import { printPedidoLabels } from "../print";
-import { FiTag, FiSave, FiTruck, FiCamera } from "react-icons/fi";
+import ModalImpressao from "./ModalImpressao";
+import apiLocal from "../../../services/apiLocal";
+import styled from "styled-components";
 
 export default function ModalInfo({
   isOpen,
   onClose,
   pedido,
   onUpdate,
-  onExpedir,
-  canExpedir,
-  onOpenConferencia
+  onOpenConferencia,
+  onDeleted,
 }) {
-  const [nota, setNota] = useState(pedido?.nota || "");
+  // ------- user -------
+  const [user] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("user") || "null"); }
+    catch { return null; }
+  });
 
+  // ------- NF -------
+  const [nota, setNota] = useState(pedido?.nota || "");
+  const [savingNF, setSavingNF] = useState(false);
+
+  // ------- Basics -------
+  const [editBasics, setEditBasics] = useState(false);
+  const [tmpSep, setTmpSep] = useState(pedido?.separador || "");
+  const [tmpTransp, setTmpTransp] = useState(pedido?.transportador || "");
+  const [savingBasics, setSavingBasics] = useState(false);
+
+  // ------- Conferente (depende de separador) -------
+  const [editConf, setEditConf] = useState(false);
+  const [tmpConf, setTmpConf] = useState(
+    pedido?.conferente || pedido?.primeiraConferencia?.colaborador || ""
+  );
+  const [savingConf, setSavingConf] = useState(false);
+
+  // ------- Impressão -------
+  const [showLabelModal, setShowLabelModal] = useState(false);
+
+  // ------- Exclusão -------
+  const [askDelete, setAskDelete] = useState(false);
+  const [motivoDel, setMotivoDel] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  // ------- efeitos -------
+  useEffect(() => {
+    setNota(pedido?.nota || "");
+    setTmpSep(pedido?.separador || "");
+    setTmpTransp(pedido?.transportador || "");
+    setTmpConf(pedido?.conferente || pedido?.primeiraConferencia?.colaborador || "");
+  }, [
+    pedido?.nr_pedido,
+    pedido?.nota,
+    pedido?.separador,
+    pedido?.transportador,
+    pedido?.conferente,
+    pedido?.primeiraConferencia?.colaborador
+  ]);
+
+  // se abrir sem itens/eventos, buscar detalhe
+  useEffect(() => {
+    (async () => {
+      if (!isOpen) return;
+      if (!pedido) return;
+      const needItens = !Array.isArray(pedido.itens);
+      const needEventos = !Array.isArray(pedido.eventos);
+      if (!needItens && !needEventos) return;
+      try {
+        const resp = await apiLocal.getPedidoByNr(pedido.nr_pedido);
+        const detail = resp?.data || {};
+        const merged = {
+          ...(detail.pedido || pedido),
+          itens: Array.isArray(detail.itens) ? detail.itens : (pedido.itens || []),
+          eventos: Array.isArray(detail.eventos) ? detail.eventos : (pedido.eventos || []),
+          eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : (pedido.eventos_preview || []),
+        };
+        await onUpdate(pedido.nr_pedido, merged);
+      } catch (e) {
+        console.error("Falha ao buscar detalhe dentro do modal:", e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  // recarrega após alterações
+  async function refreshDetail() {
+    if (!pedido) return;
+    try {
+      const resp = await apiLocal.getPedidoByNr(pedido.nr_pedido);
+      const detail = resp?.data || {};
+      const merged = {
+        ...(detail.pedido || pedido),
+        itens: Array.isArray(detail.itens) ? detail.itens : (pedido.itens || []),
+        eventos: Array.isArray(detail.eventos) ? detail.eventos : (pedido.eventos || []),
+        eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : (pedido.eventos_preview || []),
+      };
+      await onUpdate(pedido.nr_pedido, merged);
+    } catch (e) {
+      console.error("Falha ao recarregar detalhe:", e);
+    }
+  }
+
+  // ------- totais -------
   const totalItens = useMemo(() => {
     let t = 0;
     if (Array.isArray(pedido?.itens)) {
@@ -26,189 +116,591 @@ export default function ModalInfo({
     return t;
   }, [pedido]);
 
+  // ------- dedupe local -------
+  const eventosDedupe = useMemo(() => {
+    const arr = Array.isArray(pedido?.eventos) ? pedido.eventos : [];
+    const seen = new Set();
+    const out = [];
+    for (let i = 0; i < arr.length; i++) {
+      const ev = arr[i] || {};
+      const key = [
+        (ev.tipo || "").trim(),
+        (ev.texto || "").trim(),
+        (ev.user_ref || "").trim(),
+        String(ev.created_at || "").slice(0, 19),
+      ].join("|");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(ev);
+    }
+    return out;
+  }, [pedido?.eventos]);
+
+  // ------- ocorrências ligadas à conferência -------
+  const hasOcorrenciaConferencia = useMemo(() => {
+    function matchArray(arr) {
+      if (!Array.isArray(arr)) return false;
+      for (let i = 0; i < arr.length; i++) {
+        const ev = arr[i] || {};
+        const tipo = String(ev.tipo || "").toLowerCase();
+        const texto = String(ev.texto || "").toLowerCase();
+        if (tipo === "ocorrencia_conferencia" || tipo === "ocorrência_conferência") return true;
+        if (tipo.includes("ocorr") || tipo.includes("diverg") || tipo.includes("falta") || tipo.includes("avaria")) return true;
+        if (texto.includes("ocorr") || texto.includes("diverg") || texto.includes("falta") || texto.includes("avaria")) return true;
+      }
+      return false;
+    }
+    if (matchArray(pedido?.eventos)) return true;
+    if (matchArray(pedido?.eventos_preview)) return true;
+    return false;
+  }, [pedido?.eventos, pedido?.eventos_preview]);
+
+  const ocorrenciasConferencia = useMemo(() => {
+    const out = [];
+    const seen = new Set();
+    function pushFrom(arr) {
+      if (!Array.isArray(arr)) return;
+      for (let i = 0; i < arr.length; i++) {
+        const ev = arr[i] || {};
+        const tipo = String(ev.tipo || "");
+        const texto = String(ev.texto || "");
+        const low = (tipo + " " + texto).toLowerCase();
+        const isConf =
+          tipo.toLowerCase() === "ocorrencia_conferencia" ||
+          tipo.toLowerCase() === "ocorrência_conferência" ||
+          low.includes("ocorr") || low.includes("diverg") || low.includes("falta") || low.includes("avaria");
+        if (!isConf) continue;
+
+        const key = (texto || tipo || "") + "|" + String(ev.created_at || "").slice(0, 19);
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        out.push({
+          when: ev.created_at ? new Date(ev.created_at).toLocaleString("pt-BR") : "",
+          text: texto || tipo || "Ocorrência",
+          user: ev.user_ref || "sistema",
+        });
+      }
+    }
+    pushFrom(pedido?.eventos);
+    pushFrom(pedido?.eventos_preview);
+    return out;
+  }, [pedido?.eventos, pedido?.eventos_preview]);
+
   if (!pedido) return null;
 
-  const saveNota = async () => {
+  // ------- helpers de regra -------
+  const hasSeparador = !!(pedido?.separador && String(pedido.separador).trim());
+  const currentConferente = (pedido?.conferente && String(pedido.conferente).trim())
+    || (pedido?.primeiraConferencia?.colaborador && String(pedido.primeiraConferencia.colaborador).trim())
+    || "";
+
+  // Botões dependem de ter conferente
+  const canStartConferencia = !!currentConferente;
+  const canPrintLabels = !!currentConferente;
+
+  // ------- ações -------
+  async function saveNota() {
+    if (savingNF) return;
     const next = String(nota || "").trim();
     if ((pedido.nota || "") === next) return;
-    const log = {
-      text: `Nota (NF) alterada de "${pedido.nota || "-"}" para "${next || "-"}"`,
-      user: "usuário",
-      at: new Date().toISOString(),
-    };
-    await onUpdate(pedido.nr_pedido, {
-      nota: next || null,
-      logs: [...(pedido.logs || []), log],
-    });
-  };
 
-  const podeExpedir = !!pedido?.segundaConferencia?.colaborador && canExpedir;
+    setSavingNF(true);
+    try {
+      await apiLocal.updatePedidoNF(pedido.nr_pedido, {
+        nota: next || null,
+        by: user?.email || "usuario",
+      });
+      await refreshDetail();
+    } catch (e) {
+      console.error("Falha ao salvar NF no back:", e);
+    } finally {
+      setSavingNF(false);
+    }
+  }
 
+  async function saveBasics() {
+    if (savingBasics) return;
+
+    const updates = {};
+    let any = false;
+
+    if ((pedido.separador || "") !== (tmpSep || "")) {
+      any = true;
+      updates.separador = tmpSep || null;
+    }
+    if ((pedido.transportador || "") !== (tmpTransp || "")) {
+      any = true;
+      updates.transportador = tmpTransp || null;
+    }
+
+    if (!any) {
+      setEditBasics(false);
+      return;
+    }
+
+    setSavingBasics(true);
+    try {
+      await apiLocal.updatePedidoBasics(pedido.nr_pedido, {
+        separador: tmpSep ?? null,
+        transportador: tmpTransp ?? null,
+        by: user?.email || "usuario",
+      });
+      await refreshDetail();
+      setEditBasics(false);
+    } catch (e) {
+      console.error("Falha ao salvar básicos:", e);
+    } finally {
+      setSavingBasics(false);
+    }
+  }
+
+  async function saveConferente() {
+    if (savingConf) return;
+    // regra: não permite salvar conferente sem separador
+    if (!hasSeparador) return;
+    const nome = (tmpConf || "").trim();
+    if (!nome) return;
+
+    setSavingConf(true);
+    try {
+      await apiLocal.updatePedidoBasics(pedido.nr_pedido, {
+        conferente: nome,
+        by: user?.email || "usuario",
+      });
+      await refreshDetail();
+    } catch (e) {
+      console.error("Falha ao salvar conferente:", e);
+    } finally {
+      setSavingConf(false);
+      setEditConf(false);
+    }
+  }
+
+  async function handlePrintLabels({ caixas }) {
+    setShowLabelModal(false);
+    // regra: só imprime se houver conferente
+    const conferente = currentConferente || "-";
+    if (!currentConferente) return;
+
+    printPedidoLabels(pedido, { caixas, conferente });
+    try {
+      await apiLocal.registrarImpressaoEtiquetas(pedido.nr_pedido, {
+        caixas,
+        conferente,
+        by: user?.email || "usuario",
+      });
+      await refreshDetail();
+    } catch (e) {
+      console.error("Falha ao registrar impressão no back:", e);
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting || !motivoDel) return;
+    setDeleting(true);
+    try {
+      await apiLocal.deletePedido(pedido.nr_pedido, {
+        justificativa: String(motivoDel || "").trim(),
+        by: user?.email || "usuario",
+      });
+      if (typeof onDeleted === "function") {
+        onDeleted(pedido.nr_pedido, {
+          justificativa: String(motivoDel || "").trim(),
+          user: user?.email || "usuário",
+        });
+      }
+      setAskDelete(false);
+      onClose();
+    } catch (e) {
+      console.error("Falha ao excluir pedido:", e);
+    } finally {
+      setDeleting(false);
+      setMotivoDel("");
+    }
+  }
+
+  // Mantive calculo antigo, mas os botões agora dependem exclusivamente de "currentConferente"
+  const conferenciaConcluida =
+    pedido?.status === STATUS_PEDIDO.PRIMEIRA_CONF ||
+    !!(pedido?.conferente || pedido?.primeiraConferencia?.colaborador);
+
+  // ------- UI -------
   return (
-    <Modal
-      isOpen={isOpen}
-      toggle={onClose}
-      size="lg"
-      contentClassName="project-modal"
-    >
-      <ModalHeader toggle={onClose}>
-        Detalhes do Pedido #{pedido.nr_pedido}
-        <div style={{ marginLeft: "auto", display: "inline-flex", gap: 8 }}>
-          <IconBtn title="Imprimir etiquetas" onClick={() => printPedidoLabels(pedido)}>
-            <FiTag size={16} />
-          </IconBtn>
-          <IconBtn title="Conferir com câmera" onClick={onOpenConferencia}>
-            <FiCamera size={16} />
-          </IconBtn>
-          <IconBtn
-            title={podeExpedir ? "Marcar como expedido" : "Expedir (precisa 2ª conferência e permissão)"}
-            disabled={!podeExpedir || pedido.expedido}
-            onClick={() => { if (podeExpedir && !pedido.expedido) onExpedir(pedido.nr_pedido); }}
-          >
-            <FiTruck size={16} />
-          </IconBtn>
-        </div>
-      </ModalHeader>
-
-      <ModalBody>
-        <div style={{ display: "grid", gap: 10, gridTemplateColumns: "1fr 1fr" }}>
-          <div>
-            <SmallMuted>Cliente</SmallMuted>
-            <div style={{ fontWeight: 700 }}>{pedido.cliente || "—"}</div>
-          </div>
-          <div>
-            <SmallMuted>Destino</SmallMuted>
-            <div style={{ fontWeight: 700 }}>{pedido.destino || "—"}</div>
-          </div>
-          <div>
-            <SmallMuted>Transportadora</SmallMuted>
-            <div>{pedido.transportador || "—"}</div>
-          </div>
-          <div>
-            <SmallMuted>Separador</SmallMuted>
-            <div>{pedido.separador || "—"}</div>
-          </div>
-          <div>
-            <SmallMuted>Data de criação</SmallMuted>
-            <div>{pedido.created_at ? new Date(pedido.created_at).toLocaleString("pt-BR") : "—"}</div>
-          </div>
-          <div>
-            <SmallMuted>Status</SmallMuted>
-            <div>
-              {pedido.status === STATUS_PEDIDO.PENDENTE && "Pendente em separação"}
-              {pedido.status === STATUS_PEDIDO.PRIMEIRA_CONF && "1ª conferência"}
-              {pedido.status === STATUS_PEDIDO.CONCLUIDO && (pedido.expedido ? "Concluído • Expedido" : "Concluído")}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <SmallMuted>Nota (NF) — adicionada depois da conferência</SmallMuted>
-          <Row style={{ marginTop: 6 }}>
-            <Field
-              style={{ maxWidth: 260 }}
-              value={nota}
-              onChange={(e) => setNota(e.target.value)}
-              placeholder="Ex.: 123456"
-            />
-            <TinyBtn onClick={saveNota}>
-              <FiSave /> Salvar NF
-            </TinyBtn>
-          </Row>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <SmallMuted>Total de volumes (embalagens)</SmallMuted>
-          <div><strong>{totalItens}</strong></div>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <SmallMuted>Itens do Pedido</SmallMuted>
-          <Table striped responsive size="sm" className="mt-2">
-            <thead>
-              <tr>
-                <th style={{ whiteSpace: "nowrap" }}>Cód. Produto</th>
-                <th>Qtde</th>
-                <th style={{ whiteSpace: "nowrap" }}>UM</th>
-                <th>Barcode</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(pedido.itens || []).map((it, idx) => (
-                <tr key={idx}>
-                  <td>{it.cod_prod || "—"}</td>
-                  <td>{Number(it.qtde || 0)}</td>
-                  <td>{it.um_med || "—"}</td>
-                  <td>{it.bar_code || "—"}</td>
-                </tr>
-              ))}
-              {(pedido.itens || []).length === 0 && (
-                <tr>
-                  <td colSpan={4} style={{ opacity: 0.7 }}>Sem itens.</td>
-                </tr>
-              )}
-            </tbody>
-          </Table>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <SmallMuted>Conferências</SmallMuted>
-          <div style={{ marginTop: 6, display: "grid", gap: 4 }}>
-            <div>
-              <strong>1ª:</strong> {pedido.primeiraConferencia?.colaborador || "—"}{" "}
-              {pedido.primeiraConferencia?.at && (
-                <SmallMuted>
-                  ({new Date(pedido.primeiraConferencia.at).toLocaleString("pt-BR")})
-                </SmallMuted>
-              )}
-            </div>
-            <div>
-              <strong>2ª:</strong> {pedido.segundaConferencia?.colaborador || "—"}{" "}
-              {pedido.segundaConferencia?.at && (
-                <SmallMuted>
-                  ({new Date(pedido.segundaConferencia.at).toLocaleString("pt-BR")})
-                </SmallMuted>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 12 }}>
-          <SmallMuted>Log</SmallMuted>
-          <div style={{ marginTop: 6 }}>
-            {(pedido.logs || [])
-              .slice()
-              .reverse()
-              .map((l, idx) => (
-                <div key={idx} style={{ fontSize: 12, opacity: 0.9 }}>
-                  • {l.text} — <em>{l.user}</em>{" "}
-                  <SmallMuted>({new Date(l.at).toLocaleString("pt-BR")})</SmallMuted>
-                </div>
-              ))}
-            {(pedido.logs || []).length === 0 && (
-              <div style={{ opacity: 0.7, fontSize: 12 }}>Sem alterações.</div>
+    <>
+      <Modal isOpen={isOpen} toggle={onClose} size="lg" contentClassName="project-modal">
+        <ModalHeader toggle={onClose}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span>Detalhes do Pedido #{pedido.nr_pedido}</span>
+            {hasOcorrenciaConferencia && (
+              <OccurrenceBadge title="Ocorrência registrada na conferência">
+                Ocorrência na conferência
+              </OccurrenceBadge>
             )}
           </div>
-        </div>
-      </ModalBody>
+        </ModalHeader>
 
-      <ModalFooter>
-        <Button color="secondary" onClick={onClose}>Fechar</Button>
-        <Button color="primary" onClick={() => printPedidoLabels(pedido)}>
-          <FiTag style={{ marginRight: 6 }} /> Imprimir etiquetas
-        </Button>
-        <Button color="info" onClick={onOpenConferencia}>
-          <FiCamera style={{ marginRight: 6 }} /> Conferir com câmera
-        </Button>
-        <Button
-          color="success"
-          disabled={!podeExpedir || pedido.expedido}
-          onClick={() => { if (podeExpedir && !pedido.expedido) onExpedir(pedido.nr_pedido); }}
-          title={podeExpedir ? "Marcar como expedido" : "Expedir (precisa 2ª conferência e permissão)"}
-        >
-          <FiTruck style={{ marginRight: 6 }} /> Expedir
-        </Button>
-      </ModalFooter>
-    </Modal>
+        <ModalBody>
+          {/* Box com ocorrências detectadas (quando houver) */}
+          {hasOcorrenciaConferencia && (
+            <div
+              style={{
+                border: "1px solid #fdba74",
+                background: "#fef3c7",
+                color: "#9a3412",
+                borderRadius: 10,
+                padding: 10,
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Ocorrências desta separação</div>
+              <div style={{ display: "grid", gap: 4 }}>
+                {ocorrenciasConferencia.map((ev, idx) => (
+                  <div key={idx} style={{ fontSize: 12 }}>
+                    • {ev.text} — <em>{ev.user}</em> {ev.when && <SmallMuted>({ev.when})</SmallMuted>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cabeçalho */}
+          <div style={{ display: "grid", gap: 12, gridTemplateColumns: "1fr 1fr" }}>
+            <div>
+              <SmallMuted>Cliente</SmallMuted>
+              <div style={{ fontWeight: 700 }}>{pedido.cliente || "—"}</div>
+            </div>
+            <div>
+              <SmallMuted>Destino</SmallMuted>
+              <div style={{ fontWeight: 700 }}>{pedido.destino || "—"}</div>
+            </div>
+            <div>
+              <SmallMuted>Transportadora</SmallMuted>
+              <div>{pedido.transportador || "—"}</div>
+            </div>
+            <div>
+              <SmallMuted>Separador</SmallMuted>
+              <div>{pedido.separador || "—"}</div>
+            </div>
+            <div>
+              <SmallMuted>Data de criação</SmallMuted>
+              <div>
+                {pedido.created_at ? new Date(pedido.created_at).toLocaleString("pt-BR") : "—"}
+              </div>
+            </div>
+            <div>
+              <SmallMuted>Status</SmallMuted>
+              <div>
+                {pedido.status === STATUS_PEDIDO.PENDENTE && "Aguardando conferência"}
+                {pedido.status === STATUS_PEDIDO.PRIMEIRA_CONF && "Pronto para expedir"}
+                {pedido.status === STATUS_PEDIDO.CONCLUIDO && "Expedido"}
+              </div>
+            </div>
+          </div>
+
+          {/* NF */}
+          <div style={{ marginTop: 14 }}>
+            <SmallMuted>Nota (NF)</SmallMuted>
+            <Row style={{ marginTop: 6 }}>
+              <Field
+                style={{ maxWidth: 260 }}
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                placeholder="Ex.: 123456"
+                disabled={savingNF}
+              />
+              <TinyBtn onClick={saveNota} disabled={savingNF}>
+                <FiSave /> {savingNF ? "Salvando..." : "Salvar NF"}
+              </TinyBtn>
+            </Row>
+          </div>
+
+          {/* Edição de Básicos */}
+          <div style={{ marginTop: 16 }}>
+            <SmallMuted>Separação / Transporte</SmallMuted>
+            {!editBasics ? (
+              <Row style={{ marginTop: 6, gap: 8, flexWrap: "wrap" }}>
+                <div><strong>Separador:</strong> {pedido.separador || <em>—</em>}</div>
+                <div><strong>Transportadora:</strong> {pedido.transportador || <em>—</em>}</div>
+                <TinyBtn onClick={() => setEditBasics(true)} title="Editar separador e transportadora">
+                  <FiEdit2 /> Editar
+                </TinyBtn>
+              </Row>
+            ) : (
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr 1fr" }}>
+                <Col>
+                  <label>Separador</label>
+                  <Field
+                    value={tmpSep}
+                    onChange={(e) => setTmpSep(e.target.value)}
+                    placeholder="Nome do separador (obrigatório para definir conferente)"
+                    disabled={savingBasics}
+                  />
+                </Col>
+                <Col>
+                  <label>Transportadora</label>
+                  <Field
+                    value={tmpTransp}
+                    onChange={(e) => setTmpTransp(e.target.value)}
+                    placeholder="Transportadora (opcional)"
+                    disabled={savingBasics}
+                  />
+                </Col>
+                <Row style={{ gap: 6 }}>
+                  <TinyBtn onClick={saveBasics} disabled={savingBasics}>
+                    <FiSave /> {savingBasics ? "Salvando..." : "Salvar"}
+                  </TinyBtn>
+                  <TinyBtn
+                    onClick={() => {
+                      setEditBasics(false);
+                      setTmpSep(pedido.separador || "");
+                      setTmpTransp(pedido.transportador || "");
+                    }}
+                    disabled={savingBasics}
+                  >
+                    <FiX /> Cancelar
+                  </TinyBtn>
+                </Row>
+              </div>
+            )}
+          </div>
+
+          {/* Edição de Conferente (bloqueado sem separador) */}
+          <div style={{ marginTop: 16 }}>
+            <SmallMuted>Conferência</SmallMuted>
+
+            {!hasSeparador && (
+              <div style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}>
+                Informe o <strong>Separador</strong> antes de definir o Conferente.
+              </div>
+            )}
+
+            {!editConf ? (
+              <Row style={{ marginTop: 6, gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <div>
+                  <strong>Conferente:</strong>{" "}
+                  <span style={{ fontWeight: 700 }}>
+                    {currentConferente || "—"}
+                  </span>
+                </div>
+                <TinyBtn
+                  onClick={() => hasSeparador && setEditConf(true)}
+                  title={hasSeparador ? "Editar conferente" : "Defina um Separador primeiro"}
+                  disabled={!hasSeparador}
+                >
+                  <FiEdit2 /> Editar
+                </TinyBtn>
+              </Row>
+            ) : (
+              <Row style={{ marginTop: 6, gap: 6 }}>
+                <Field
+                  style={{ maxWidth: 260 }}
+                  value={tmpConf}
+                  onChange={(e) => setTmpConf(e.target.value)}
+                  placeholder="Nome do conferente"
+                  disabled={savingConf || !hasSeparador}
+                />
+                <TinyBtn onClick={saveConferente} disabled={savingConf || !hasSeparador || !tmpConf.trim()}>
+                  <FiSave /> {savingConf ? "Salvando..." : "Salvar"}
+                </TinyBtn>
+                <TinyBtn
+                  onClick={() => {
+                    setEditConf(false);
+                    setTmpConf(pedido.conferente || pedido?.primeiraConferencia?.colaborador || "");
+                  }}
+                  disabled={savingConf}
+                >
+                  <FiX /> Cancelar
+                </TinyBtn>
+              </Row>
+            )}
+          </div>
+
+          {/* Indicador de volumes */}
+          <div style={{ marginTop: 16 }}>
+            <SmallMuted>Total de volumes (embalagens)</SmallMuted>
+            <div style={{ fontWeight: 800, fontSize: 20 }}>{totalItens}</div>
+          </div>
+
+          {/* Itens */}
+          <div style={{ marginTop: 14 }}>
+            <SmallMuted>Itens do Pedido</SmallMuted>
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                overflow: "hidden",
+                marginTop: 8,
+              }}
+            >
+              <Table responsive hover borderless className="mb-0">
+                <thead
+                  style={{
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <tr>
+                    <th style={{ whiteSpace: "nowrap" }}>Cód. Produto</th>
+                    <th>Lote</th>
+                    <th>Qtde</th>
+                    <th style={{ whiteSpace: "nowrap" }}>UM</th>
+                    <th>Barcode</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(pedido.itens || []).map((it, idx) => (
+                    <tr key={idx} style={{ borderTop: "1px solid #f1f5f9" }}>
+                      <td>{it.cod_prod || "—"}</td>
+                      <td>{it.lote || "—"}</td>
+                      <td style={{ fontWeight: 700 }}>{Number(it.qtde || 0)}</td>
+                      <td>{it.um_med || "—"}</td>
+                      <td style={{ fontFamily: "monospace" }}>{it.bar_code || "—"}</td>
+                    </tr>
+                  ))}
+                  {(pedido.itens || []).length === 0 && (
+                    <tr>
+                      <td colSpan={5} style={{ opacity: 0.7 }}>
+                        Sem itens.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </Table>
+            </div>
+          </div>
+
+          {/* Botão de exclusão + justificativa */}
+          <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6, marginBottom: 6 }}>
+            <Button
+              color={askDelete ? "danger" : "outline-danger"}
+              onClick={() => setAskDelete((v) => !v)}
+              title="Excluir pedido"
+              style={{ width: 150 }}
+            >
+              <FiTrash2 style={{ marginRight: 6 }} />
+              Excluir pedido
+            </Button>
+          </div>
+
+          {askDelete && (
+            <div
+              style={{
+                border: "1px solid #fecaca",
+                background: "#fff1f2",
+                borderRadius: 10,
+                padding: 12,
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                Confirme a exclusão do pedido #{pedido.nr_pedido}
+              </div>
+
+              <div style={{ display: "grid", gap: 8, gridTemplateColumns: "1fr" }}>
+                <label style={{ fontSize: 12, color: "#374151" }}>Motivo da exclusão</label>
+                <select
+                  value={motivoDel}
+                  onChange={(e) => setMotivoDel(e.target.value)}
+                  disabled={deleting}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                    outline: "none",
+                  }}
+                >
+                  <option value="">Selecione um motivo...</option>
+                  <option value="Faltou item na listagem do Excel">Faltou item na listagem do Excel</option>
+                  <option value="Foi acrescentado item ao pedido">Foi acrescentado item ao pedido</option>
+                  <option value="Pedido criado por engano">Pedido criado por engano</option>
+                </select>
+
+                <Row style={{ justifyContent: "flex-end", gap: 8 }}>
+                  <Button color="secondary" outline onClick={() => setAskDelete(false)} disabled={deleting}>
+                    <FiX style={{ marginRight: 6 }} />
+                    Cancelar
+                  </Button>
+                  <Button color="danger" onClick={handleDelete} disabled={deleting || !motivoDel}>
+                    <FiTrash2 style={{ marginRight: 6 }} />
+                    {deleting ? "Excluindo..." : "Confirmar exclusão"}
+                  </Button>
+                </Row>
+              </div>
+            </div>
+          )}
+
+          {/* Eventos (dedupe aplicado) */}
+          <div style={{ marginTop: 16 }}>
+            <SmallMuted>Eventos</SmallMuted>
+            <div style={{ marginTop: 6 }}>
+              {eventosDedupe.length > 0 ? (
+                eventosDedupe.map((ev, i) => {
+                  const when = ev.created_at ? new Date(ev.created_at).toLocaleString("pt-BR") : "";
+                  return (
+                    <div key={ev.id || `${ev.tipo}-${i}`} style={{ fontSize: 12, opacity: 0.9 }}>
+                      • {ev.texto || ev.tipo} — <em>{ev.user_ref || "sistema"}</em>{" "}
+                      <SmallMuted>({when})</SmallMuted>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ opacity: 0.7, fontSize: 12 }}>Sem eventos.</div>
+              )}
+            </div>
+          </div>
+        </ModalBody>
+
+        <ModalFooter>
+          <div style={{ display: "flex", flexDirection: "column", width: "100%", gap: 10 }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              <Button color="secondary" onClick={onClose}>
+                Fechar
+              </Button>
+
+              <Button
+                color="info"
+                onClick={onOpenConferencia}
+                title={canStartConferencia ? "Iniciar conferência de itens" : "Informe o Conferente para iniciar"}
+                disabled={!canStartConferencia}
+              >
+                <FiCheckSquare style={{ marginRight: 6 }} />
+                Iniciar conferência de itens
+              </Button>
+
+              <Button
+                color="primary"
+                disabled={!canPrintLabels}
+                onClick={() => setShowLabelModal(true)}
+                title={canPrintLabels ? "Imprimir etiquetas" : "Informe o Conferente para imprimir etiquetas"}
+              >
+                <FiTag style={{ marginRight: 6 }} />
+                Imprimir etiquetas
+              </Button>
+            </div>
+          </div>
+        </ModalFooter>
+      </Modal>
+
+      {showLabelModal && (
+        <ModalImpressao
+          isOpen={showLabelModal}
+          onClose={() => setShowLabelModal(false)}
+          onConfirm={handlePrintLabels}
+          pedido={pedido}
+        />
+      )}
+    </>
   );
 }
+
+const OccurrenceBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #fef3c7;   /* âmbar 100 */
+  border: 1px solid #fdba74; /* âmbar 300 */
+  color: #9a3412;        /* âmbar 800 */
+`;

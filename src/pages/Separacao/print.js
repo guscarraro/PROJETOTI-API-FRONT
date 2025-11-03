@@ -1,20 +1,24 @@
-// Gera e imprime etiquetas do pedido usando um iframe invisível (sem abrir nova aba)
-export function printPedidoLabels(pedido) {
+// Gera e imprime etiquetas usando um iframe invisível.
+// opts: { caixas: [{ tipo, peso }], conferente }
+export function printPedidoLabels(pedido, opts = {}) {
   if (!pedido) return;
 
-  const total = Array.isArray(pedido.itens)
-    ? pedido.itens.reduce((acc, it) => acc + (Number(it?.qtde || 0) || 0), 0)
-    : 0;
+  const caixas = Array.isArray(opts.caixas) ? opts.caixas : [];
+  if (caixas.length === 0) return;
 
-  const codes = (pedido.itens || [])
-    .map((it) => String(it.cod_prod || "").trim())
-    .filter(Boolean);
+  const conferente = String(opts.conferente || "-");
+  const impressaoAt = new Date();
 
-  const uniqueCodes = Array.from(new Set(codes)).join(", ");
+  const nf = pedido.nota ? String(pedido.nota) : "—";
+  const cliente = pedido.cliente || "—";
+  const destinatario = pedido.destino || "—";
+  const transportadora = pedido.transportador || "—";
+  const pedidoNr = pedido.nr_pedido;
 
-  const title = `Etiquetas - Pedido ${pedido.nr_pedido}`;
-  const nota = pedido.nota ? String(pedido.nota) : "—";
+  const title = `Etiquetas - Pedido ${pedidoNr}`;
+  const formatDate = (d) => (d ? d.toLocaleString("pt-BR") : "—");
 
+  // HTML PB moderno (destinatário/transportadora/pedido/embalagem em evidência)
   const html = `
 <!doctype html>
 <html lang="pt-br">
@@ -22,26 +26,40 @@ export function printPedidoLabels(pedido) {
 <meta charset="utf-8">
 <title>${title}</title>
 <style>
-  :root{ --border: #222; }
+  :root{ --ink:#111; --muted:#555; --line:#111; }
   * { box-sizing: border-box; }
-  body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 10mm; }
+  body {
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    margin: 0; padding: 10mm; color: var(--ink);
+  }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6mm; }
   .label {
-    border: 1px dashed var(--border);
+    border: 1px dashed var(--line);
     border-radius: 4mm;
     padding: 6mm;
     display: grid;
     grid-auto-rows: min-content;
-    gap: 2mm;
+    gap: 3mm;
     page-break-inside: avoid;
   }
-  .muted { opacity: .75; font-size: 9pt; }
-  .row { display: flex; align-items: center; gap: 6px; }
-  .big { font-size: 13pt; font-weight: 700; }
+  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .muted { color: var(--muted); font-size: 9pt; }
+  .big { font-size: 16pt; font-weight: 900; letter-spacing: .2px; }
+  .mid { font-size: 12pt; font-weight: 800; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   .pill {
-    display: inline-block; padding: 2px 8px; border-radius: 999px;
-    border: 1px solid rgba(0,0,0,.2);
-    font-size: 10pt; font-weight: 800;
+    display: inline-block; padding: 2px 12px; border-radius: 999px;
+    border: 1px solid #000; font-weight: 900; font-size: 10pt;
+  }
+  .header { display:flex; justify-content: space-between; align-items:center; }
+  .hr { height: 1px; background: #000; opacity: .15; }
+  .k { min-width: 120px; color: var(--muted); }
+  .kv { display:flex; gap:8px; }
+  .kv .v { font-weight:700; }
+  .chips { display:flex; gap:10px; flex-wrap:wrap; }
+  .chip {
+    display:inline-flex; gap:6px; align-items:center; padding:2px 8px;
+    border:1px solid #000; border-radius:8px; font-size:10pt; font-weight:700;
   }
   @media print {
     @page { size: A4; margin: 8mm; }
@@ -51,32 +69,51 @@ export function printPedidoLabels(pedido) {
 </head>
 <body>
   <div class="grid">
-    ${Array.from({ length: total }, (_, i) => {
-      const seq = i + 1;
-      return `
-      <div class="label">
-        <div class="row" style="justify-content: space-between;">
-          <div class="pill">EMBALAGEM ${seq}/${total}</div>
-          <div class="muted">Pedido #${pedido.nr_pedido}</div>
-        </div>
-        <div class="row"><span class="muted">Cliente:</span> <span class="big">${pedido.cliente || "—"}</span></div>
-        <div class="row"><span class="muted">Destino:</span> <span class="big">${pedido.destino || "—"}</span></div>
-        <div class="row"><span class="muted">Transportadora:</span> <span>${pedido.transportador || "—"}</span></div>
-        <div class="row"><span class="muted">Cód. Produto(s):</span> <span>${uniqueCodes || "—"}</span></div>
-        <div class="row"><span class="muted">Nota (NF):</span> <span>${nota}</span></div>
-      </div>
-      `;
-    }).join("")}
+    ${(() => {
+      let out = "";
+      const total = caixas.length;
+      for (let i = 0; i < total; i++) {
+        const seq = i + 1;
+        const tipo = String(caixas[i]?.tipo || "-").toUpperCase();
+        const pesoN = Number(caixas[i]?.peso || 0);
+        const pesoFmt = isNaN(pesoN) ? "-" : `${pesoN.toFixed(2)} kg`;
+
+        out += `
+        <div class="label">
+          <div class="header">
+            <div class="pill">EMBALAGEM ${seq}/${total}</div>
+            <div class="mid">Pedido #${pedidoNr}</div>
+          </div>
+
+          <div class="row"><span class="k">Destinatário:</span> <span class="big">${destinatario}</span></div>
+          <div class="row"><span class="k">Transportadora:</span> <span class="mid">${transportadora}</span></div>
+
+          <div class="hr"></div>
+
+          <div class="row kv"><span class="k">Nota Fiscal:</span> <span class="v mono">${nf}</span></div>
+          <div class="row kv"><span class="k">Cliente:</span> <span class="v">${cliente}</span></div>
+
+          <div class="hr"></div>
+
+          <div class="chips">
+            <div class="chip"><span class="muted">Tipo</span><span class="mono">${tipo}</span></div>
+            <div class="chip"><span class="muted">Peso</span><span class="mono">${pesoFmt}</span></div>
+            <div class="chip"><span class="muted">Conferente</span><span>${conferente}</span></div>
+            <div class="chip"><span class="muted">Impresso em</span><span class="mono">${formatDate(impressaoAt)}</span></div>
+          </div>
+        </div>`;
+      }
+      return out;
+    })()}
   </div>
+
   <script>
-    // garante que a página carregue CSS antes de imprimir
     window.onload = () => setTimeout(() => { window.focus(); window.print(); }, 150);
   </script>
 </body>
 </html>
   `.trim();
 
-  // cria iframe oculto para impressão
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -87,26 +124,17 @@ export function printPedidoLabels(pedido) {
   iframe.style.visibility = "hidden";
   document.body.appendChild(iframe);
 
-  // escreve o conteúdo e imprime
   const doc = iframe.contentWindow || iframe.contentDocument;
   const ddoc = doc.document || doc;
   ddoc.open();
   ddoc.write(html);
   ddoc.close();
 
-  // remove o iframe após a impressão (com fallback)
   const cleanup = () => {
     setTimeout(() => {
-      if (iframe && iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe);
-      }
+      if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
     }, 400);
   };
-
-  // melhor esforço: alguns navegadores disparam 'afterprint'
-  if (doc.addEventListener) {
-    doc.addEventListener("afterprint", cleanup);
-  }
-  // fallback agressivo
+  if (doc.addEventListener) doc.addEventListener("afterprint", cleanup);
   setTimeout(cleanup, 3000);
 }
