@@ -18,6 +18,9 @@ import {
   FiHeadphones,
   FiLogOut,
   FiPackage,
+  FiChevronDown,
+  FiClipboard,
+  FiUsers 
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
@@ -28,11 +31,17 @@ const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 export default function NavBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-
+  const [confOpen, setConfOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false;
     return (localStorage.getItem("theme") || "") === "dark";
   });
+
+
+
+  useEffect(() => {
+    setConfOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -46,13 +55,17 @@ export default function NavBar() {
   }, [dark]);
 
   const [allSectors, setAllSectors] = useState([]);
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  });
+const [user, setUser] = useState(() => {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
+});
+
+// ✅ evita piscar abas incorretas antes de saber quem é o usuário
+
+
 
   useEffect(() => {
     (async () => {
@@ -77,7 +90,6 @@ export default function NavBar() {
         }
       } catch {}
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dark, user?.id]);
 
   const userSectorNames = useMemo(() => {
@@ -102,6 +114,12 @@ export default function NavBar() {
     );
   }, [user?.tipo, userSectorNames]);
 
+const lowerSetores = Array.isArray(user?.setores) ? user.setores.map(s => String(s).toLowerCase()) : [];
+const isRestrictedUser =
+  user?.id === 23 ||
+  lowerSetores.includes("fersa_cliente") ||
+  userSectorNames.some((n) => n?.toLowerCase() === "fersa_cliente");
+
   const items = useMemo(() => {
     const base = [
       {
@@ -122,12 +140,6 @@ export default function NavBar() {
         icon: <FiHeadphones />,
         to: "/sac",
       },
-      // {
-      //   key: "separacao",
-      //   label: "Separação",
-      //   icon: <FiPackage />,
-      //   to: "/separacao",
-      // },
     ];
     if (isAdmin) {
       base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
@@ -155,7 +167,6 @@ export default function NavBar() {
     navigate("/");
   };
 
-  // Medir largura atual da navbar e repassar para <Notifications />
   const navWrapRef = useRef(null);
   const [navWidth, setNavWidth] = useState(0);
   useEffect(() => {
@@ -171,7 +182,128 @@ export default function NavBar() {
       window.removeEventListener("resize", update);
     };
   }, []);
+    const isSetor23 = Array.isArray(user?.setor_ids) && user.setor_ids.includes(23);
 
+  if (isRestrictedUser) {
+    return (
+      <NavWrap>
+        <NavInner>
+          <div style={{ position: "relative" }}>
+            <NavItem
+              key="conferencia"
+              $active={pathname.toLowerCase().startsWith("/conferencia")}
+              onClick={() => setConfOpen((v) => !v)}
+              title="Conferência"
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-around",
+              }}
+            >
+              <NavIcon>
+                <FiPackage />
+              </NavIcon>
+              <NavLabel>Conferência</NavLabel>
+              <NavIcon
+                style={{
+                  transition: "transform 0.2s ease",
+                  transform: confOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              >
+                <FiChevronDown />
+              </NavIcon>
+            </NavItem>
+
+            {confOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  background: "var(--nav-bg, #0f172a)",
+                  border: "1px solid rgba(255,255,255,.08)",
+                  borderRadius: 10,
+                  padding: 6,
+                  marginTop: 6,
+                  minWidth: "100%",
+                  boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+                  zIndex: 10,
+                }}
+              >
+                <NavItem
+                  $active={pathname === "/conferencia"}
+                  onClick={() => {
+                    setConfOpen(false);
+                    navigate("/conferencia");
+                  }}
+                  title="Pedidos"
+                  style={{ width: "100%" }}
+                >
+                  <NavIcon>
+                    <FiClipboard />
+                  </NavIcon>
+                  <NavLabel>Pedidos</NavLabel>
+                </NavItem>
+
+              </div>
+            )}
+          </div>
+
+          <NavSpacer />
+
+          {user && (
+            <NavItem
+              title={
+                userSectorNames.length ? userSectorNames.join(", ") : "Usuário"
+              }
+            >
+              <NavIcon>
+                <span
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: "50%",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    border: "1px solid #fff",
+                    color: "#fff",
+                    userSelect: "none",
+                  }}
+                >
+                  {avatarInitial}
+                </span>
+              </NavIcon>
+              <NavLabel>
+                {userSectorNames.length
+                  ? userSectorNames[0]
+                  : user?.email || "Usuário"}
+              </NavLabel>
+            </NavItem>
+          )}
+
+          <NavItem role="button" onClick={handleLogout} title="Sair">
+            <NavIcon>
+              <FiLogOut />
+            </NavIcon>
+            <NavLabel>Sair</NavLabel>
+          </NavItem>
+
+          <NavItem
+            role="button"
+            onClick={() => setDark((v) => !v)}
+            title={dark ? "Desativar Dark Mode" : "Ativar Dark Mode"}
+          >
+            <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
+            <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
+          </NavItem>
+        </NavInner>
+      </NavWrap>
+    );
+  }
+if (!user) return null;
   return (
     <NavWrap ref={navWrapRef}>
       <NavInner>
@@ -187,7 +319,84 @@ export default function NavBar() {
           </NavItem>
         ))}
 
+        <div style={{ position: "relative" }}>
+          <NavItem
+            key="conferencia"
+            $active={pathname.toLowerCase().startsWith("/conferencia")}
+            onClick={() => setConfOpen((v) => !v)}
+            title="Conferência"
+            style={{
+              width: "100%",
+              display: "flex",
+              justifyContent: "space-around",
+            }}
+          >
+            <NavIcon>
+              <FiPackage />
+            </NavIcon>
+            <NavLabel>Conferência</NavLabel>
+            <NavIcon
+              style={{
+                transition: "transform 0.2s ease",
+                transform: confOpen ? "rotate(180deg)" : "rotate(0deg)",
+              }}
+            >
+              <FiChevronDown />
+            </NavIcon>
+          </NavItem>
+
+          {confOpen && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                background: "var(--nav-bg, #0f172a)",
+                border: "1px solid rgba(255,255,255,.08)",
+                borderRadius: 10,
+                padding: 6,
+                marginTop: 6,
+                minWidth: "100%",
+                boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+                zIndex: 10,
+              }}
+            >
+              <NavItem
+                $active={pathname === "/conferencia"}
+                onClick={() => {
+                  setConfOpen(false);
+                  navigate("/conferencia");
+                }}
+                title="Pedidos"
+                style={{ width: "100%" }}
+              >
+                <NavIcon>
+                  <FiClipboard />
+                </NavIcon>
+                <NavLabel>Pedidos</NavLabel>
+              </NavItem>
+                                            {!isSetor23 && (
+                <NavItem
+                  $active={pathname === "/conferencia/integrantes"}
+                  onClick={() => {
+                    setConfOpen(false);
+                    navigate("/conferencia/integrantes");
+                  }}
+                  title="Integrantes"
+                  style={{ width: "100%" }}
+                >
+                  <NavIcon>
+                    <FiUsers />
+                  </NavIcon>
+                  <NavLabel>Integrantes</NavLabel>
+                </NavItem>
+              )}
+            </div>
+          )}
+        </div>
+
         <NavSpacer />
+
         {user && (
           <NavItem
             role="button"
@@ -196,7 +405,7 @@ export default function NavBar() {
             onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2" /> {/* << ADICIONE ESTA LINHA */}
+              <Notas version="1.2" />
             </NavIcon>
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
@@ -206,16 +415,12 @@ export default function NavBar() {
             role="button"
             title="Notificações"
             $active={false}
-            onClick={(e) => {
-              e.stopPropagation();
-              // o próprio componente controla abrir/fechar
-              // (clicar fora fecha)
-            }}
+            onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
               <Notifications
                 user={user}
-                navWidth={navWidth} // <<<<<< repassa a largura
+                navWidth={navWidth}
                 onOpenProject={(pid) => navigate(`/projetos/${pid}`)}
               />
             </NavIcon>

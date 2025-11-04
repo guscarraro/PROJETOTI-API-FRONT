@@ -402,6 +402,13 @@ const apiLocal = {
     api.put(`/pedidos/${nr_pedido}/basics`, data),
   updatePedidoNF: (nr_pedido, { nota, by }) =>
     api.put(`/pedidos/${nr_pedido}/nf`, { nota, by }),
+// ========================
+// INTEGRANTES
+// ========================
+getIntegrantes: () => api.get("/integrantes/"),
+createIntegrante: (data) => api.post("/integrantes/", data),
+updateIntegrante: (id, data) => api.put(`/integrantes/${id}`, data),
+deleteIntegrante: (id) => api.delete(`/integrantes/${id}`),
 
   // ========================
   // CONFERÊNCIAS
@@ -410,10 +417,20 @@ const apiLocal = {
     api.post(`/conferencias/${nr_pedido}/iniciar`, data),
   salvarConferencia: (nr_pedido, data) =>
     api.post(`/conferencias/${nr_pedido}/salvar`, data),
-  finalizarConferencia: (nr_pedido, data) =>
-    api.post(`/conferencias/${nr_pedido}/finalizar`, data),
-  registrarOcorrenciaConferencia: (nr_pedido, data) =>
-    api.post(`/conferencias/${nr_pedido}/ocorrencia`, data),
+// lista ocorrências da última conferência
+getOcorrenciasConferencia: (nr_pedido) =>
+  api.get(`/conferencias/${nr_pedido}/ocorrencias`),
+
+// CONFERÊNCIAS
+getUltimaConferencia: (nr_pedido) =>
+  api.get(`/conferencias/${nr_pedido}/ultima`),
+
+finalizarConferencia: (nr_pedido, data) =>
+  api.post(`/conferencias/${nr_pedido}/finalizar`, data),
+
+// envia ARRAY de ocorrências
+registrarOcorrenciaConferencia: (nr_pedido, ocorrenciasArray) =>
+  api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
 
   // ========================
   // EXPEDIÇÃO

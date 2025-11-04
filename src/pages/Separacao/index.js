@@ -24,11 +24,11 @@ const ADM_EMAILS = ["admin@empresa.com.br"];
 
 function canExpedir(user) {
   const email = String(user?.email || "").toLowerCase();
-  for (let i = 0; i < CAN_EXPEDIR_EMAILS.length; i++) {
-    if (email === CAN_EXPEDIR_EMAILS[i].toLowerCase()) return true;
-  }
-  return false;
+  const tipo  = String(user?.tipo  || "").toLowerCase();
+  if (tipo === "adm") return true; // libera admins
+  return ["expedicao@empresa.com.br", "admin@carraro.com"].includes(email);
 }
+
 function isAdmin(user) {
   const email = String(user?.email || "").toLowerCase();
   for (let i = 0; i < ADM_EMAILS.length; i++) {
@@ -99,6 +99,8 @@ export default function SeparacaoPage() {
 
   const [deletedPedidos, setDeletedPedidos] = useState([]);
   const [showDeleted, setShowDeleted] = useState(false);
+  const [statusFiltro, setStatusFiltro] = useState(null); // STATUS_PEDIDO.* | null
+
 
   const normalize = useCallback(
     (s) =>
@@ -300,6 +302,9 @@ export default function SeparacaoPage() {
       setConfPedido(null);
     }
   };
+  console.log('====================================');
+  console.log(user);
+  console.log('====================================');
 
   // ---------- expedição ----------
   const onExpedirPedido = async (nr_pedido, nota) => {
@@ -331,67 +336,119 @@ export default function SeparacaoPage() {
     setOpenConf(true);
   };
 
-  const handleConfirmConferencia = async (payload) => {
-    const name = String(payload?.conferente || "").trim();
-    if (!name || !confPedido) return;
-    try {
-      await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
-        conferente: name,
-        scans: payload.scans || {},
-        evidences: payload.evidences || [],
-        by: user?.email || "usuario",
-      });
-      await refreshPedido(confPedido.nr_pedido);
-    } catch (e) {
-      console.error("Falha ao finalizar conferência no back:", e);
-    }
-    setOpenConf(false);
-    setConfPedido(null);
-  };
+const handleConfirmConferencia = async (payload) => {
+  const name = String(payload?.conferente || "").trim();
+  if (!name || !confPedido) return;
 
-  const handleOccurrence = async ({ reason, missing, evidences }) => {
-    if (!confPedido) return;
-    try {
-      await apiLocal.registrarOcorrenciaConferencia(confPedido.nr_pedido, {
-        reason,
-        missing: Array.isArray(missing) ? missing : [],
-        evidences: Array.isArray(evidences) ? evidences : [],
-        by: user?.email || "usuario",
-      });
-      await refreshPedido(confPedido.nr_pedido);
-    } catch (e) {
-      console.error("Falha ao registrar ocorrência no back:", e);
-    }
-    setOpenConf(false);
-    setConfPedido(null);
-  };
+  // mapeia ocorrencias do camelCase (front) para snake_case (back)
+  const ocorrenciasOut = [];
+  const list = Array.isArray(payload?.ocorrencias) ? payload.ocorrencias : [];
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i] || {};
+    ocorrenciasOut.push({
+      tipo: o.tipo,
+      detalhe: o.detalhe || "-",
+      item_cod: o.itemCod || o.item_cod || null,
+      bar: o.bar || null,
+      lote: o.lote || null,
+      quantidade: o.quantidade != null ? o.quantidade : null,
+      status: o.status || "aberta",
+    });
+  }
+
+  try {
+    await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
+      conferente: name,
+      elapsedSeconds: payload?.elapsedSeconds || 0,
+      evidences: payload?.evidences || [],
+      scans: payload?.scans || {},
+      loteScans: payload?.loteScans || {},
+      foraLista: payload?.foraLista || [],
+      ocorrencias: ocorrenciasOut, // <- formato do back
+    });
+
+    await refreshPedido(confPedido.nr_pedido);
+  } catch (e) {
+    console.error("Falha ao finalizar conferência no back:", e);
+  }
+
+  setOpenConf(false);
+  setConfPedido(null);
+};
+
+
+const handleOccurrence = async ({ ocorrencias }) => {
+  if (!confPedido) return;
+
+  const arr = [];
+  const list = Array.isArray(ocorrencias) ? ocorrencias : [];
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i] || {};
+    arr.push({
+      tipo: o.tipo,
+      detalhe: o.detalhe || "-",
+      item_cod: o.itemCod || o.item_cod || null,
+      bar: o.bar || null,
+      lote: o.lote || null,
+      quantidade: o.quantidade != null ? o.quantidade : null,
+      status: o.status || "aberta",
+    });
+  }
+
+  try {
+    // OBS: endpoint plural e payload é um ARRAY
+    await apiLocal.registrarOcorrenciaConferencia(confPedido.nr_pedido, arr);
+    await refreshPedido(confPedido.nr_pedido);
+  } catch (e) {
+    console.error("Falha ao registrar ocorrências no back:", e);
+  }
+
+  setOpenConf(false);
+  setConfPedido(null);
+};
 
   // ---------- filtros/derivados ----------
-  const pedidosFiltrados = useMemo(() => {
-    const q = normalize(query);
-    if (!q) return pedidos;
-    const out = [];
-    for (let i = 0; i < pedidos.length; i++) {
-      const p = pedidos[i];
+const pedidosFiltrados = useMemo(() => {
+  const q = normalize(query);
+  const out = [];
+  for (let i = 0; i < pedidos.length; i++) {
+    const p = pedidos[i];
+
+    // filtro por busca
+    if (q) {
       const c = normalize(p.cliente);
       const d = normalize(p.destino);
       const n = normalize(p.nr_pedido);
-      if (c.includes(q) || d.includes(q) || n.includes(q)) out.push(p);
+      const match = c.includes(q) || d.includes(q) || n.includes(q);
+      if (!match) continue;
     }
-    return out;
-  }, [pedidos, query, normalize]);
 
-  const candidatosExpedicao = useMemo(() => {
-    const out = [];
-    for (let i = 0; i < pedidos.length; i++) {
-      const p = pedidos[i];
-      const conferido = !!p?.conferente || !!p?.primeiraConferencia?.colaborador;
-      if (p.status === STATUS_PEDIDO.PRIMEIRA_CONF && conferido && !p.expedido) {
-        out.push(p);
+    // filtro por status (vindo do gráfico/legenda)
+    if (statusFiltro) {
+      if (statusFiltro === STATUS_PEDIDO.CONCLUIDO) {
+        // considerar também flag expedido
+        const isOk = p.status === STATUS_PEDIDO.CONCLUIDO || p?.expedido;
+        if (!isOk) continue;
+      } else {
+        if (p.status !== statusFiltro) continue;
       }
     }
-    return out;
-  }, [pedidos]);
+
+    out.push(p);
+  }
+  return out;
+}, [pedidos, query, normalize, statusFiltro]);
+
+
+const candidatosExpedicao = useMemo(() => {
+  return pedidos.filter(
+    (p) =>
+      p.status === STATUS_PEDIDO.PRIMEIRA_CONF &&
+      (!p.expedido || p.expedido === false)
+  );
+}, [pedidos]);
+
+
 
   // ---------- abrir modal de info com detalhe ----------
   async function openInfoWithFetch(p) {
@@ -424,7 +481,7 @@ export default function SeparacaoPage() {
       <NavBar />
 
       <TitleBar style={{ zIndex: 1100 }}>
-        <H1 $accent="#0ea5e9">Separação</H1>
+        <H1 $accent="#0ea5e9">Conferência</H1>
 
         <RightRow>
           <SearchWrap title="Buscar por Nº pedido, cliente ou destino">
@@ -441,25 +498,29 @@ export default function SeparacaoPage() {
           <Button color="secondary" onClick={() => setOpenCsv(true)}>
             Importar CSV
           </Button>
-          <Button color="primary" onClick={() => setOpenManual(true)}>
+          {/* <Button color="primary" onClick={() => setOpenManual(true)}>
             + Novo Pedido
-          </Button>
-          <Button color="info" onClick={() => setOpenFake(true)}>
-            Etiquetas Teste
-          </Button>
+          </Button> */}
+          {user?.setor_ids != 23 && (
+  <>
+    {/* <Button color="info" onClick={() => setOpenFake(true)}>
+      Etiquetas Teste
+    </Button> */}
 
-          <Button
-            color="success"
-            disabled={!canExpedir(user) || candidatosExpedicao.length === 0}
-            onClick={() => setOpenExpedidos(true)}
-            title={
-              canExpedir(user)
-                ? "Selecionar pedidos para expedir"
-                : "Sem permissão para expedir"
-            }
-          >
-            Expedir Pedidos
-          </Button>
+    <Button
+      color="success"
+      disabled={!(canExpedir(user) || isAdmin(user)) || candidatosExpedicao.length === 0}
+      onClick={() => setOpenExpedidos(true)}
+      title={
+        (canExpedir(user) || isAdmin(user))
+          ? "Selecionar pedidos para expedir"
+          : "Sem permissão para expedir"
+      }
+    >
+      Expedir Pedidos
+    </Button>
+  </>
+)}
 
           {isAdmin(user) && (
             <Button
@@ -473,7 +534,14 @@ export default function SeparacaoPage() {
         </RightRow>
       </TitleBar>
 
-      <Indicators pedidos={pedidos} canExpedir={canExpedir(user)} />
+      <Indicators
+  pedidos={pedidos}
+  canExpedir={canExpedir(user)}
+  total={pedidos.length}
+  onSelectStatus={(st) => setStatusFiltro(st)}   // clique na fatia/legenda
+  selectedStatus={statusFiltro}
+/>
+
 
       <Legend>
         <StatusPill $variant="pendente">Aguardando conferência</StatusPill>

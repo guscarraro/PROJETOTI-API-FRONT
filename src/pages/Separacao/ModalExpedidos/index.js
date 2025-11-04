@@ -38,6 +38,13 @@ export default function ModalExpedidos({ isOpen, onClose, pedidos, onConfirm, ca
     }
     return out;
   }, [checks, notas]);
+  const allSelecionadosComNF = useMemo(() => {
+  for (let i = 0; i < selecionados.length; i++) {
+    if (!selecionados[i].nota) return false; // vazio/null => inválido
+  }
+  return selecionados.length > 0;
+}, [selecionados]);
+
 
   const toggleAll = () => {
     if (!canExpedir) return;
@@ -96,7 +103,7 @@ export default function ModalExpedidos({ isOpen, onClose, pedidos, onConfirm, ca
                     </div>
                   </div>
                   <div style={{ minWidth: 200 }}>
-                    <label style={{ fontSize: 12, opacity: 0.8 }}>Nota (NF) — opcional</label>
+                    <label style={{ fontSize: 12, opacity: 0.8 }}>Nota (NF) — obrigatória</label>
                     <Field
                       value={notas[p.nr_pedido] || ""}
                       disabled={!canExpedir}
@@ -118,7 +125,8 @@ export default function ModalExpedidos({ isOpen, onClose, pedidos, onConfirm, ca
           <Button color="secondary" onClick={onClose} disabled={busy}>Fechar</Button>
           <Button
             color="success"
-disabled={!canExpedir || selecionados.length === 0 || busy}
+disabled={!canExpedir || selecionados.length === 0 || !allSelecionadosComNF || busy}
+
             onClick={async () => {
               if (!canExpedir || selecionados.length === 0) return;
               try {

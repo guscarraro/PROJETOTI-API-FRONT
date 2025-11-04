@@ -9,6 +9,7 @@ import Cotacao from './pages/Cotacao';
 import Frete from './pages/Frete';
 import CargaLucrativa from './pages/CargaLucrativa';
 import Projetos from './pages/Projetos';
+import Integrantes from './pages/Projetos/Integrantes';
 import ProjetoDetalhe from './pages/Projetos/ProjetoDetalhe';
 import GestaoAcessos from './pages/Projetos/GestaoAcessos';
 import Login from './pages/Login';
@@ -29,6 +30,7 @@ const SECTORS = {
   OPERACAO: 5,
   TI: 2,
   GERENTE_OPERACAO: 16,
+  FERSA_CLIENTE: 23
 };
 
 const App = () => {
@@ -204,10 +206,19 @@ const App = () => {
           element={<PrivateRoute element={<GestaoAcessos />} allowedSectors={[SECTORS.ADMIN]} />}
         />
           <Route
-         path="/separacao"
+         path="/conferencia"
          element={
            <PrivateRoute
              element={<Separacao />}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN, SECTORS.FERSA_CLIENTE]}
+           />
+         }
+       />
+          <Route
+         path="/conferencia/integrantes"
+         element={
+           <PrivateRoute
+             element={<Integrantes />}
              allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
            />
          }

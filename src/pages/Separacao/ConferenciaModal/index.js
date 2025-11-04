@@ -385,32 +385,48 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
   const podeIrParaScan = conferente.trim().length > 0 && benchShots.length > 0;
   const podeSalvar100 = conferente.trim().length > 0 && allOk && foraLista.length === 0;
 
-  function salvarConferencia() {
-    if (!podeSalvar100) return;
+ function salvarConferencia() {
+  if (!podeSalvar100) return;
 
-    const scans = {};
-    for (let i = 0; i < linhas.length; i++) {
-      const k = linhas[i].bar || linhas[i].cod;
-      scans[k] = Number(linhas[i].scanned || 0);
-    }
+  const scans = {};
+  for (let i = 0; i < linhas.length; i++) {
+    const k = linhas[i].bar || linhas[i].cod;
+    scans[k] = Number(linhas[i].scanned || 0);
+  }
 
-    const loteScansOut = {};
-    for (let i = 0; i < linhas.length; i++) {
-      const r = linhas[i];
-      const key = r.cod || r.bar;
-      loteScansOut[key] = r.loteScans || {};
-    }
+  const loteScansOut = {};
+  for (let i = 0; i < linhas.length; i++) {
+    const r = linhas[i];
+    const key = r.cod || r.bar;
+    loteScansOut[key] = r.loteScans || {};
+  }
 
-    onConfirm({
-      conferente: conferente.trim(),
-      elapsedSeconds: elapsed,
-      evidences: benchShots.slice(), // 1..7 capturas (pelo menos 1, pois é requisito de avanço)
-      scans,
-      loteScans: loteScansOut,
-      foraLista: [],
-      ocorrencias: ocorrencias.slice(),
+  // >>> MAPEAMENTO para o formato do back (snake_case)
+  const ocorrenciasOut = [];
+  for (let i = 0; i < ocorrencias.length; i++) {
+    const o = ocorrencias[i] || {};
+    ocorrenciasOut.push({
+      tipo: o.tipo,
+      detalhe: o.detalhe || "-",
+      item_cod: o.itemCod || o.item_cod || null, // garante snake_case
+      bar: o.bar || null,
+      lote: o.lote || null,
+      quantidade: o.quantidade != null ? o.quantidade : null,
+      status: o.status || "aberta",
     });
   }
+
+  onConfirm({
+    conferente: conferente.trim(),
+    elapsedSeconds: elapsed,
+    evidences: benchShots.slice(0, 7),
+    scans,
+    loteScans: loteScansOut,
+    foraLista: [],
+    ocorrencias: ocorrenciasOut, // <- agora no formato que o back já aceita
+  });
+}
+
 
   return (
     <Modal isOpen={isOpen} toggle={onClose} size="xl" contentClassName="project-modal">
@@ -438,7 +454,7 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
             ))}
           </div>
 
-          {/* ===== ETAPA 1: Conferente + Fotos (ao vivo) ===== */}
+          {/* ===== ETAPA 1: Conferente + Fotos ===== */}
           {phase === "setup" && (
             <div style={{ display: "grid", gap: 12 }}>
               <div>

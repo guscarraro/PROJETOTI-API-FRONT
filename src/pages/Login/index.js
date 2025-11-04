@@ -4,9 +4,22 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { FaEnvelope, FaLock, FaArrowRight } from "react-icons/fa";
 import {
-  LoginWrap, GridFx, Particles, Bubble, GlassCard, AccentBar,
-  BrandRow, BrandLogo, Heading, Sub, StyledForm, Field, IconBox,
-  TextInput, Submit, HintRow,
+  LoginWrap,
+  GridFx,
+  Particles,
+  Bubble,
+  GlassCard,
+  AccentBar,
+  BrandRow,
+  BrandLogo,
+  Heading,
+  Sub,
+  StyledForm,
+  Field,
+  IconBox,
+  TextInput,
+  Submit,
+  HintRow,
 } from "./style";
 import LogoCarraro from "../../images/logologin.png";
 import apiLocal from "../../services/apiLocal";
@@ -49,9 +62,21 @@ export default function Login() {
         }
       }
       toast.success("Login realizado com sucesso!");
-      navigate("/Projetos");
+
+      // 🔹 Se for cliente Fersa (id 23 ou setor Fersa_Cliente), vai pra /conferencia
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      
+      if (
+        userData?.setor_ids == 23 ||
+        userData?.setores?.some?.((s) => s.toLowerCase() === "fersa_cliente")
+      ) {
+        navigate("/conferencia");
+      } else {
+        navigate("/Projetos");
+      }
     } catch (err) {
-      const msg = err?.response?.data?.detail || err?.message || "Erro ao fazer login";
+      const msg =
+        err?.response?.data?.detail || err?.message || "Erro ao fazer login";
       toast.error(msg);
     } finally {
       setBusy(false);
@@ -62,11 +87,53 @@ export default function Login() {
     <LoginWrap>
       <GridFx />
       <Particles>
-        <Bubble style={{ width: 120, height: 120, left: "8%", top: "12%", "--dur":"9s" }} />
-        <Bubble style={{ width: 90,  height: 90,  left: "18%", bottom: "10%", "--dur":"11s" }} blur />
-        <Bubble style={{ width: 140, height: 140, right: "14%", top: "16%", "--dur":"10s" }} />
-        <Bubble style={{ width: 110, height: 110, right: "10%", bottom: "14%", "--dur":"12s" }} blur />
-        <Bubble style={{ width: 70,  height: 70,  left: "45%", top: "8%", "--dur":"8.5s" }} />
+        <Bubble
+          style={{
+            width: 120,
+            height: 120,
+            left: "8%",
+            top: "12%",
+            "--dur": "9s",
+          }}
+        />
+        <Bubble
+          style={{
+            width: 90,
+            height: 90,
+            left: "18%",
+            bottom: "10%",
+            "--dur": "11s",
+          }}
+          blur
+        />
+        <Bubble
+          style={{
+            width: 140,
+            height: 140,
+            right: "14%",
+            top: "16%",
+            "--dur": "10s",
+          }}
+        />
+        <Bubble
+          style={{
+            width: 110,
+            height: 110,
+            right: "10%",
+            bottom: "14%",
+            "--dur": "12s",
+          }}
+          blur
+        />
+        <Bubble
+          style={{
+            width: 70,
+            height: 70,
+            left: "45%",
+            top: "8%",
+            "--dur": "8.5s",
+          }}
+        />
       </Particles>
 
       <GlassCard>
@@ -79,7 +146,9 @@ export default function Login() {
 
         <StyledForm onSubmit={handleLogin}>
           <Field>
-            <IconBox><FaEnvelope /></IconBox>
+            <IconBox>
+              <FaEnvelope />
+            </IconBox>
             <TextInput
               type="email"
               placeholder="Seu e-mail"
@@ -91,7 +160,9 @@ export default function Login() {
           </Field>
 
           <Field>
-            <IconBox><FaLock /></IconBox>
+            <IconBox>
+              <FaLock />
+            </IconBox>
             <TextInput
               type="password"
               placeholder="Sua senha"
@@ -107,8 +178,8 @@ export default function Login() {
           </Submit>
 
           <HintRow>
-            <span style={{ opacity: .8 }}>Problemas para entrar?</span>
-            <span style={{ opacity: .6 }}>Fale com o administrador</span>
+            <span style={{ opacity: 0.8 }}>Problemas para entrar?</span>
+            <span style={{ opacity: 0.6 }}>Fale com o administrador</span>
           </HintRow>
         </StyledForm>
       </GlassCard>

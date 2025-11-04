@@ -1,4 +1,6 @@
-// Gera e imprime etiquetas usando um iframe invisível.
+// src/pages/Separacao/print.js
+
+// Gera e imprime etiquetas no formato 100mm x 70mm (Argox) usando um iframe invisível.
 // opts: { caixas: [{ tipo, peso }], conferente }
 export function printPedidoLabels(pedido, opts = {}) {
   if (!pedido) return;
@@ -18,7 +20,7 @@ export function printPedidoLabels(pedido, opts = {}) {
   const title = `Etiquetas - Pedido ${pedidoNr}`;
   const formatDate = (d) => (d ? d.toLocaleString("pt-BR") : "—");
 
-  // HTML PB moderno (destinatário/transportadora/pedido/embalagem em evidência)
+  // HTML/CSS para 100x70mm, 1 etiqueta por página
   const html = `
 <!doctype html>
 <html lang="pt-br">
@@ -26,94 +28,136 @@ export function printPedidoLabels(pedido, opts = {}) {
 <meta charset="utf-8">
 <title>${title}</title>
 <style>
-  :root{ --ink:#111; --muted:#555; --line:#111; }
+  :root { --ink:#111; --muted:#555; --line:#111; }
+
   * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Tamanho físico da página da impressora (Argox) */
+  @page {
+    size: 100mm 70mm;
+    margin: 0; /* sem margens: usa toda a etiqueta */
+  }
+
   body {
+    width: 100mm;
+    height: 70mm;
+    margin: 0;
+    padding: 0;
+    color: var(--ink);
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    margin: 0; padding: 10mm; color: var(--ink);
   }
-  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6mm; }
+
+  /* Uma etiqueta ocupa a página inteira; se houver várias, cada <section> quebra página */
   .label {
-    border: 1px dashed var(--line);
-    border-radius: 4mm;
-    padding: 6mm;
+    width: 100mm;
+    height: 70mm;
+    padding: 6mm 6mm 5mm 6mm; /* respiro interno */
     display: grid;
-    grid-auto-rows: min-content;
-    gap: 3mm;
-    page-break-inside: avoid;
+    grid-template-rows: auto auto 1fr auto;
+    gap: 2.5mm;
+    page-break-after: always;
   }
-  .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .muted { color: var(--muted); font-size: 9pt; }
-  .big { font-size: 16pt; font-weight: 900; letter-spacing: .2px; }
-  .mid { font-size: 12pt; font-weight: 800; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  /* Bordas só para visualização em tela; na impressão ficam “limpas” */
+  @media screen {
+    .label { border: 1px dashed var(--line); border-radius: 3mm; }
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4mm;
+  }
+
   .pill {
-    display: inline-block; padding: 2px 12px; border-radius: 999px;
-    border: 1px solid #000; font-weight: 900; font-size: 10pt;
+    display: inline-block;
+    padding: 1mm 4mm;
+    border: 0.3mm solid #000;
+    border-radius: 12mm;
+    font-weight: 900;
+    font-size: 11pt;
+    line-height: 1;
+    white-space: nowrap;
   }
-  .header { display:flex; justify-content: space-between; align-items:center; }
-  .hr { height: 1px; background: #000; opacity: .15; }
-  .k { min-width: 120px; color: var(--muted); }
-  .kv { display:flex; gap:8px; }
-  .kv .v { font-weight:700; }
-  .chips { display:flex; gap:10px; flex-wrap:wrap; }
+
+  .mid  { font-size: 12pt; font-weight: 800; }
+  .big  { font-size: 16pt; font-weight: 900; letter-spacing: .2px; }
+
+  .row { display: flex; align-items: center; gap: 2mm; }
+  .muted { color: var(--muted); font-size: 9pt; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+
+  .hr { height: 0.3mm; background: #000; opacity: .18; }
+
+  .k { min-width: 26mm; color: var(--muted); font-size: 9pt; }
+  .kv { display: flex; gap: 2mm; align-items: baseline; }
+  .kv .v { font-weight: 800; }
+
+  .chips { display: flex; gap: 2.5mm; flex-wrap: wrap; }
   .chip {
-    display:inline-flex; gap:6px; align-items:center; padding:2px 8px;
-    border:1px solid #000; border-radius:8px; font-size:10pt; font-weight:700;
+    display: inline-flex; gap: 1.5mm; align-items: center;
+    padding: 1mm 3mm; border: 0.3mm solid #000; border-radius: 2.5mm;
+    font-size: 9pt; font-weight: 700;
   }
+
+  /* Evita quebrar textos longos e protege layout */
+  .nowrap { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Impresso: remove tudo que não seja conteúdo */
   @media print {
-    @page { size: A4; margin: 8mm; }
-    body { padding: 0; }
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
 <body>
-  <div class="grid">
-    ${(() => {
-      let out = "";
-      const total = caixas.length;
-      for (let i = 0; i < total; i++) {
-        const seq = i + 1;
-        const tipo = String(caixas[i]?.tipo || "-").toUpperCase();
-        const pesoN = Number(caixas[i]?.peso || 0);
-        const pesoFmt = isNaN(pesoN) ? "-" : `${pesoN.toFixed(2)} kg`;
+  ${(() => {
+    let out = "";
+    const total = caixas.length;
+    for (let i = 0; i < total; i++) {
+      const seq = i + 1;
+      const tipo = String(caixas[i]?.tipo || "-").toUpperCase();
+      const pesoN = Number(caixas[i]?.peso || 0);
+      // ⬇️ corrigido: evita template literal dentro de outro
+      const pesoFmt = isNaN(pesoN) ? "-" : (pesoN.toFixed(2) + " kg");
 
-        out += `
-        <div class="label">
-          <div class="header">
-            <div class="pill">EMBALAGEM ${seq}/${total}</div>
-            <div class="mid">Pedido #${pedidoNr}</div>
-          </div>
+      out += `
+      <section class="label">
+        <div class="header">
+          <div class="pill">EMBALAGEM ${seq}/${total}</div>
+          <div class="mid">Pedido #${pedidoNr}</div>
+        </div>
 
-          <div class="row"><span class="k">Destinatário:</span> <span class="big">${destinatario}</span></div>
-          <div class="row"><span class="k">Transportadora:</span> <span class="mid">${transportadora}</span></div>
+        <div class="row"><span class="k">Destinatário:</span> <span class="big nowrap">${destinatario}</span></div>
+        <div class="row"><span class="k">Transportadora:</span> <span class="mid nowrap">${transportadora}</span></div>
 
-          <div class="hr"></div>
+        <div class="hr"></div>
 
-          <div class="row kv"><span class="k">Nota Fiscal:</span> <span class="v mono">${nf}</span></div>
-          <div class="row kv"><span class="k">Cliente:</span> <span class="v">${cliente}</span></div>
+        <div class="row kv"><span class="k">Nota Fiscal:</span> <span class="v mono nowrap">${nf}</span></div>
+        <div class="row kv"><span class="k">Cliente:</span> <span class="v nowrap">${cliente}</span></div>
 
-          <div class="hr"></div>
+        <div class="hr"></div>
 
-          <div class="chips">
-            <div class="chip"><span class="muted">Tipo</span><span class="mono">${tipo}</span></div>
-            <div class="chip"><span class="muted">Peso</span><span class="mono">${pesoFmt}</span></div>
-            <div class="chip"><span class="muted">Conferente</span><span>${conferente}</span></div>
-            <div class="chip"><span class="muted">Impresso em</span><span class="mono">${formatDate(impressaoAt)}</span></div>
-          </div>
-        </div>`;
-      }
-      return out;
-    })()}
-  </div>
-
+        <div class="chips">
+          <div class="chip"><span class="muted">Tipo</span><span class="mono">${tipo}</span></div>
+          <div class="chip"><span class="muted">Peso</span><span class="mono">${pesoFmt}</span></div>
+          <div class="chip"><span class="muted">Conf.</span><span>${conferente}</span></div>
+          <div class="chip"><span class="muted">Impresso</span><span class="mono">${formatDate(impressaoAt)}</span></div>
+        </div>
+      </section>`;
+    }
+    return out;
+  })()}
   <script>
     window.onload = () => setTimeout(() => { window.focus(); window.print(); }, 150);
   </script>
 </body>
+
 </html>
   `.trim();
 
+  // Cria iframe oculto para imprimir
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
@@ -130,6 +174,7 @@ export function printPedidoLabels(pedido, opts = {}) {
   ddoc.write(html);
   ddoc.close();
 
+  // Cleanup pós-impressão
   const cleanup = () => {
     setTimeout(() => {
       if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);

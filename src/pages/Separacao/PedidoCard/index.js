@@ -40,30 +40,27 @@ export default function PedidoCard({
   }, [pedido?.separador, pedido?.conferente, pedido?.primeiraConferencia?.colaborador]);
 
   // Detecta ocorrência relacionada à conferência (eventos/eventos_preview)
-  const hasOcorrenciaConferencia = useMemo(() => {
-    function matchArray(arr) {
-      if (!Array.isArray(arr)) return false;
-      for (let i = 0; i < arr.length; i++) {
-        const ev = arr[i] || {};
-        const tipo = String(ev.tipo || "").toLowerCase();
-        const texto = String(ev.texto || "").toLowerCase();
+ // Preferir o booleano do back; se não vier, cai no fallback atual
+const hasOcorrenciaConferencia = useMemo(() => {
+  if (typeof pedido?.has_ocorrencia === "boolean") return pedido.has_ocorrencia;
 
-        // heurísticas simples (sem reduce)
-        // cobre nomes prováveis de evento e palavras-chave comuns
-        if (tipo === "ocorrencia_conferencia" || tipo === "ocorrência_conferência") return true;
-        if (tipo.includes("ocorr") || tipo.includes("diverg") || tipo.includes("falta") || tipo.includes("avaria"))
-          return true;
-        if (texto.includes("ocorr") || texto.includes("diverg") || texto.includes("falta") || texto.includes("avaria"))
-          return true;
-      }
-      return false;
+  function matchArray(arr) {
+    if (!Array.isArray(arr)) return false;
+    for (let i = 0; i < arr.length; i++) {
+      const ev = arr[i] || {};
+      const tipo = String(ev.tipo || "").toLowerCase();
+      const texto = String(ev.texto || "").toLowerCase();
+      if (tipo === "ocorrencia_conferencia" || tipo === "ocorrência_conferência") return true;
+      if (tipo.includes("ocorr") || tipo.includes("diverg") || tipo.includes("falta") || tipo.includes("avaria")) return true;
+      if (texto.includes("ocorr") || texto.includes("diverg") || texto.includes("falta") || texto.includes("avaria")) return true;
     }
-
-    // verifica eventos completos e a prévia
-    if (matchArray(pedido?.eventos)) return true;
-    if (matchArray(pedido?.eventos_preview)) return true;
     return false;
-  }, [pedido?.eventos, pedido?.eventos_preview]);
+  }
+
+  if (matchArray(pedido?.eventos)) return true;
+  if (matchArray(pedido?.eventos_preview)) return true;
+  return false;
+}, [pedido?.has_ocorrencia, pedido?.eventos, pedido?.eventos_preview]);
 
   useEffect(() => {
     // Garante o contador de itens no card SEM depender de eventos:
@@ -142,11 +139,7 @@ export default function PedidoCard({
         <h3 style={{ margin: 0 }}>Pedido #{pedido.nr_pedido}</h3>
 
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
-          {hasOcorrenciaConferencia && (
-            <OccurrenceBadge title="Ocorrência registrada na conferência">
-              Ocorrência na conferência
-            </OccurrenceBadge>
-          )}
+
           <StatusPill $variant={variant}>
             {variant === "pendente" && "Aguardando conferência"}
             {variant === "primeira" && "Pronto para expedir"}
@@ -180,6 +173,11 @@ export default function PedidoCard({
           <strong>Conferente:</strong>{" "}
           <span>{conferenteNome || <em>—</em>}</span>
         </Row>
+                  {hasOcorrenciaConferencia && (
+            <OccurrenceBadge title="Ocorrência registrada na conferência">
+              Ocorrência na conferência
+            </OccurrenceBadge>
+          )}
         <Row>
           <strong>Transportadora:</strong>{" "}
           <span>{pedido.transportador || <em>—</em>}</span>
