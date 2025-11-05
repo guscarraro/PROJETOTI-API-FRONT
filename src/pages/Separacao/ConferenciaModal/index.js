@@ -5,9 +5,18 @@ import { Row, Field, SmallMuted } from "../style";
 import BenchPhoto from "./BenchPhoto";
 import ItemScanner from "./ItemScanner";
 import { ItemsTable, ForaListaTable, OcorrenciasTable } from "./tables";
-import { modernTableStyles, occTableStyles, loteChipStyles } from "./tableStyles";
+import {
+  modernTableStyles,
+  occTableStyles,
+  loteChipStyles,
+} from "./tableStyles";
 
-export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm }) {
+export default function ConferenciaModal({
+  isOpen,
+  onClose,
+  pedido,
+  onConfirm,
+}) {
   // Etapas: 'setup' (conferente + fotos) -> 'scan' (leitura)
   const [phase, setPhase] = useState("setup");
   const [conferente, setConferente] = useState("");
@@ -28,7 +37,9 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
   const [ocorrencias, setOcorrencias] = useState([]); // {tipo, detalhe, itemCod?, bar?, lote?, quantidade?, status}
 
   // Toasts simples
-  const [toasts, setToasts] = useState([]); // {id, text, tone}
+  const [toasts, setToasts] = useState([]);
+  const [savingSubmit, setSavingSubmit] = useState(false); // <— NOVO
+  // {id, text, tone}
   function toast(text, tone = "info") {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setToasts((t) => [...t, { id, text, tone }]);
@@ -45,7 +56,9 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
 
       const lotesArr = Array.isArray(it.lotes)
         ? it.lotes.map((x) => String(x || "").trim()).filter(Boolean)
-        : (it.lote ? [String(it.lote).trim()] : []);
+        : it.lote
+        ? [String(it.lote).trim()]
+        : [];
 
       arr.push({
         cod: String(it.cod_prod || "").trim(),
@@ -115,7 +128,8 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
   // Tudo conferido?
   const allOk = useMemo(() => {
     for (let i = 0; i < linhas.length; i++) {
-      if (Number(linhas[i].scanned || 0) < Number(linhas[i].qtd || 0)) return false;
+      if (Number(linhas[i].scanned || 0) < Number(linhas[i].qtd || 0))
+        return false;
     }
     return linhas.length > 0;
   }, [linhas]);
@@ -208,48 +222,63 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
   }
 
   // ====== Leitura LOTE + QTD ======
-  function handleScanLoteQuantidade({ lote, quantidade }) {
-    const loteStr = String(lote || "").trim();
-    const qtdN = Number(quantidade || 0);
+function handleScanLoteQuantidade({ lote, quantidade }) {
+  const loteStr = String(lote || "").trim();
+  const qtdN = Number(quantidade || 0);
 
-    if (!selectedCod) {
-      toast("Selecione um item na tabela antes de bipar o lote.", "warn");
-      return;
+  if (!selectedCod) {
+    toast("Selecione um item na tabela antes de bipar o lote.", "warn");
+    return false; // <- aqui
+  }
+
+  // valida se o lote pertence à linha selecionada
+  const linhaSel = linhas.find((l) => String(l.cod) === String(selectedCod));
+  if (linhaSel && Array.isArray(linhaSel.lotes) && linhaSel.lotes.length > 0) {
+    const pertence = linhaSel.lotes.some(
+      (l) => l.toUpperCase() === loteStr.toUpperCase()
+    );
+    if (!pertence) {
+      toast(`Lote ${loteStr} não pertence ao item ${linhaSel.cod}.`, "error");
+      return false; // <- aqui
     }
-    if (!qtdN || isNaN(qtdN) || qtdN <= 0) {
-      toast("Quantidade inválida lida para o lote.", "error");
-      return;
-    }
+  }
 
-    setLinhas((prev) => {
-      const next = [];
-      for (let i = 0; i < prev.length; i++) {
-        const r = prev[i];
-        if (String(r.cod) === String(selectedCod)) {
-          const qtdSolic = Number(r.qtd || 0);
-          const atual = Number(r.scanned || 0);
-          if (atual >= qtdSolic) {
-            const warns = (r.warns || []).slice();
-            warns.push("Tentativa de excedente via lote. Devolver material.");
-            next.push({ ...r, warns });
+  if (!qtdN || isNaN(qtdN) || qtdN <= 0) {
+    toast("Quantidade inválida lida para o lote.", "error");
+    return false; // <- aqui
+  }
 
-            setOcorrencias((oc) => {
-              const oo = oc.slice();
-              oo.push({
-                tipo: "excedente_lote",
-                detalhe: `Excedente via lote "${loteStr}" (não abatido).`,
-                itemCod: r.cod,
-                lote: loteStr,
-                quantidade: qtdN,
-                status: "aberta",
-              });
-              return oo;
+  let abateu = false; // <- controla se houve abatimento
+
+  setLinhas((prev) => {
+    const next = [];
+    for (let i = 0; i < prev.length; i++) {
+      const r = prev[i];
+      if (String(r.cod) === String(selectedCod)) {
+        const qtdSolic = Number(r.qtd || 0);
+        const atual = Number(r.scanned || 0);
+        if (atual >= qtdSolic) {
+          const warns = (r.warns || []).slice();
+          warns.push("Tentativa de excedente via lote. Devolver material.");
+          next.push({ ...r, warns });
+
+          setOcorrencias((oc) => {
+            const oo = oc.slice();
+            oo.push({
+              tipo: "excedente_lote",
+              detalhe: `Excedente via lote "${loteStr}" (não abatido).`,
+              itemCod: r.cod,
+              lote: loteStr,
+              quantidade: qtdN,
+              status: "aberta",
             });
-            toast(`Item ${r.cod} já completo. Excedente ignorado.`, "warn");
-            continue;
-          }
+            return oo;
+          });
+          toast(`Item ${r.cod} já completo. Excedente ignorado.`, "warn");
+        } else {
           const disponivel = Math.max(0, qtdSolic - atual);
           const abatido = Math.min(disponivel, qtdN);
+          if (abatido > 0) abateu = true; // <- marca sucesso
 
           const novoLotes = { ...(r.loteScans || {}) };
           const key = loteStr || `lote_${Object.keys(novoLotes).length + 1}`;
@@ -284,11 +313,15 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
           }
 
           next.push(novo);
-        } else next.push(r);
-      }
-      return next;
-    });
-  }
+        }
+      } else next.push(r);
+    }
+    return next;
+  });
+
+  return abateu; // <- sucesso só se abateu algo
+}
+
 
   // Fora da lista → devolvido
   function marcarDevolvidoForaLista(barcode) {
@@ -305,9 +338,17 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
       const out = [];
       for (let i = 0; i < oc.length; i++) {
         const o = oc[i];
-        if (o.tipo === "produto_divergente" && String(o.bar || "") === String(barcode) && o.status === "aberta") {
+        if (
+          o.tipo === "produto_divergente" &&
+          String(o.bar || "") === String(barcode) &&
+          o.status === "aberta"
+        ) {
           found = true;
-          out.push({ ...o, detalhe: (o.detalhe || "") + " • Devolvido ao local de origem.", status: "fechada" });
+          out.push({
+            ...o,
+            detalhe: (o.detalhe || "") + " • Devolvido ao local de origem.",
+            status: "fechada",
+          });
         } else out.push(o);
       }
       if (!found) {
@@ -325,30 +366,44 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
 
   // Excedente (lote) → devolvido
   function marcarDevolvidoExcedente(cod) {
-    setLinhas(prev => {
+    setLinhas((prev) => {
       const out = [];
       for (let i = 0; i < prev.length; i++) {
         const r = prev[i];
         if (String(r.cod) === String(cod)) {
-          const warns = (r.warns || []).filter(w => !/excedente/i.test(w));
+          const warns = (r.warns || []).filter((w) => !/excedente/i.test(w));
           out.push({ ...r, warns });
         } else out.push(r);
       }
       return out;
     });
 
-    setOcorrencias(oc => {
+    setOcorrencias((oc) => {
       const out = [];
       let fechou = false;
       for (let i = 0; i < oc.length; i++) {
         const o = oc[i];
-        if (o.tipo === "excedente_lote" && String(o.itemCod) === String(cod) && o.status === "aberta" && !fechou) {
-          out.push({ ...o, detalhe: (o.detalhe || "") + " • Material devolvido ao local.", status: "fechada" });
+        if (
+          o.tipo === "excedente_lote" &&
+          String(o.itemCod) === String(cod) &&
+          o.status === "aberta" &&
+          !fechou
+        ) {
+          out.push({
+            ...o,
+            detalhe: (o.detalhe || "") + " • Material devolvido ao local.",
+            status: "fechada",
+          });
           fechou = true;
         } else out.push(o);
       }
       if (!fechou) {
-        out.push({ tipo: "excedente_lote", itemCod: cod, detalhe: "Material devolvido ao local.", status: "fechada" });
+        out.push({
+          tipo: "excedente_lote",
+          itemCod: cod,
+          detalhe: "Material devolvido ao local.",
+          status: "fechada",
+        });
       }
       return out;
     });
@@ -383,67 +438,99 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
   // >>> Regras de avanço/salvar
   // Agora OBRIGATÓRIO: pelo menos 1 foto E nome do conferente
   const podeIrParaScan = conferente.trim().length > 0 && benchShots.length > 0;
-  const podeSalvar100 = conferente.trim().length > 0 && allOk && foraLista.length === 0;
+  const podeSalvar100 =
+    conferente.trim().length > 0 && allOk && foraLista.length === 0;
 
- function salvarConferencia() {
-  if (!podeSalvar100) return;
+  async function salvarConferencia() {
+    if (!podeSalvar100 || savingSubmit) return;
 
-  const scans = {};
-  for (let i = 0; i < linhas.length; i++) {
-    const k = linhas[i].bar || linhas[i].cod;
-    scans[k] = Number(linhas[i].scanned || 0);
+    setSavingSubmit(true); // <— inicia loading
+    try {
+      const scans = {};
+      for (let i = 0; i < linhas.length; i++) {
+        const k = linhas[i].bar || linhas[i].cod;
+        scans[k] = Number(linhas[i].scanned || 0);
+      }
+
+      const loteScansOut = {};
+      for (let i = 0; i < linhas.length; i++) {
+        const r = linhas[i];
+        const key = r.cod || r.bar;
+        loteScansOut[key] = r.loteScans || {};
+      }
+
+      const ocorrenciasOut = [];
+      for (let i = 0; i < ocorrencias.length; i++) {
+        const o = ocorrencias[i] || {};
+        ocorrenciasOut.push({
+          tipo: o.tipo,
+          detalhe: o.detalhe || "-",
+          item_cod: o.itemCod || o.item_cod || null,
+          bar: o.bar || null,
+          lote: o.lote || null,
+          quantidade: o.quantidade != null ? o.quantidade : null,
+          status: o.status || "aberta",
+        });
+      }
+
+      // onConfirm pode ser assíncrono — aguardamos finalizar
+      await onConfirm({
+        conferente: conferente.trim(),
+        elapsedSeconds: elapsed,
+        evidences: benchShots.slice(0, 7),
+        scans,
+        loteScans: loteScansOut,
+        foraLista: [],
+        ocorrencias: ocorrenciasOut,
+      });
+    } finally {
+      setSavingSubmit(false); // <— encerra loading mesmo se der erro
+    }
   }
-
-  const loteScansOut = {};
-  for (let i = 0; i < linhas.length; i++) {
-    const r = linhas[i];
-    const key = r.cod || r.bar;
-    loteScansOut[key] = r.loteScans || {};
-  }
-
-  // >>> MAPEAMENTO para o formato do back (snake_case)
-  const ocorrenciasOut = [];
-  for (let i = 0; i < ocorrencias.length; i++) {
-    const o = ocorrencias[i] || {};
-    ocorrenciasOut.push({
-      tipo: o.tipo,
-      detalhe: o.detalhe || "-",
-      item_cod: o.itemCod || o.item_cod || null, // garante snake_case
-      bar: o.bar || null,
-      lote: o.lote || null,
-      quantidade: o.quantidade != null ? o.quantidade : null,
-      status: o.status || "aberta",
-    });
-  }
-
-  onConfirm({
-    conferente: conferente.trim(),
-    elapsedSeconds: elapsed,
-    evidences: benchShots.slice(0, 7),
-    scans,
-    loteScans: loteScansOut,
-    foraLista: [],
-    ocorrencias: ocorrenciasOut, // <- agora no formato que o back já aceita
-  });
-}
-
 
   return (
-    <Modal isOpen={isOpen} toggle={onClose} size="xl" contentClassName="project-modal">
-      <ModalHeader toggle={onClose}>Conferência — Pedido #{pedido?.nr_pedido}</ModalHeader>
+    <Modal
+      isOpen={isOpen}
+      toggle={onClose}
+      size="xl"
+      contentClassName="project-modal"
+    >
+      <ModalHeader toggle={onClose}>
+        Conferência — Pedido #{pedido?.nr_pedido}
+      </ModalHeader>
 
       <ModalBody>
         <Wrap>
           {/* TOASTS */}
-          <div style={{ position: "fixed", right: 16, bottom: 16, zIndex: 2000, display: "grid", gap: 8 }}>
+          <div
+            style={{
+              position: "fixed",
+              right: 16,
+              bottom: 16,
+              zIndex: 2000,
+              display: "grid",
+              gap: 8,
+            }}
+          >
             {toasts.map((t) => (
               <div
                 key={t.id}
                 style={{
-                  background: t.tone === "error" ? "#fee2e2" : t.tone === "warn" ? "#fef9c3" : "#e0f2fe",
+                  background:
+                    t.tone === "error"
+                      ? "#fee2e2"
+                      : t.tone === "warn"
+                      ? "#fef9c3"
+                      : "#e0f2fe",
                   color: "#111827",
                   border: "1px solid rgba(0,0,0,.08)",
-                  borderLeft: `4px solid ${t.tone === "error" ? "#ef4444" : t.tone === "warn" ? "#f59e0b" : "#38bdf8"}`,
+                  borderLeft: `4px solid ${
+                    t.tone === "error"
+                      ? "#ef4444"
+                      : t.tone === "warn"
+                      ? "#f59e0b"
+                      : "#38bdf8"
+                  }`,
                   padding: "8px 10px",
                   borderRadius: 10,
                   boxShadow: "0 6px 20px rgba(0,0,0,.12)",
@@ -458,23 +545,31 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
           {phase === "setup" && (
             <div style={{ display: "grid", gap: 12 }}>
               <div>
-                <SmallMuted>Conferente <span style={{ color: "#ef4444" }}>* obrigatório</span></SmallMuted>
+                <SmallMuted>
+                  Conferente{" "}
+                  <span style={{ color: "#ef4444" }}>* obrigatório</span>
+                </SmallMuted>
                 <Row style={{ marginTop: 6 }}>
                   <Field
                     style={{ minWidth: 220, maxWidth: 320 }}
-                    placeholder="Informe o nome do conferente"
+                    placeholder="Confirme o nome do conferente"
                     value={conferente}
                     onChange={(e) => setConferente(e.target.value)}
+                    disabled
                   />
                 </Row>
               </div>
 
               <div>
                 <SmallMuted>
-                  Fotos da bancada (mín. 1 e máx. 7) <span style={{ color: "#ef4444" }}>* obrigatório</span>
+                  Fotos da bancada (mín. 1 e máx. 7){" "}
+                  <span style={{ color: "#ef4444" }}>* obrigatório</span>
                 </SmallMuted>
                 <div style={{ marginTop: 8 }}>
-                  <BenchPhoto onCapture={handleBenchCapture} facing="environment" />
+                  <BenchPhoto
+                    onCapture={handleBenchCapture}
+                    facing="environment"
+                  />
                 </div>
 
                 {benchShots.length === 0 && (
@@ -519,7 +614,14 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
           {/* ===== ETAPA 2: Leitura ===== */}
           {phase === "scan" && (
             <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
                 <div style={{ display: "grid", gap: 6 }}>
                   <SmallMuted>Conferente</SmallMuted>
                   <Field
@@ -529,7 +631,9 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                     placeholder="Informe o nome do conferente"
                   />
                 </div>
-                <span style={{ fontSize: 12, opacity: 0.8 }}>⏱ {fmtTime(elapsed)}</span>
+                <span style={{ fontSize: 12, opacity: 0.8 }}>
+                  ⏱ {fmtTime(elapsed)}
+                </span>
               </div>
 
               <ItemScanner
@@ -555,14 +659,19 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                 />
               )}
 
-              <OcorrenciasTable ocorrencias={ocorrencias} styles={occTableStyles} />
+              <OcorrenciasTable
+                ocorrencias={ocorrencias}
+                styles={occTableStyles}
+              />
             </div>
           )}
         </Wrap>
       </ModalBody>
 
       <ModalFooter style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Button color="secondary" onClick={onClose}>Cancelar</Button>
+        <Button color="secondary" onClick={onClose}>
+          Cancelar
+        </Button>
 
         {phase === "setup" && (
           <Button
@@ -581,14 +690,20 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
 
         {phase === "scan" && (
           <>
-            <Button color="warning" onClick={() => setAbrirDiv(true)}>Abrir divergência</Button>
+            <Button color="warning" onClick={() => setAbrirDiv(true)}>
+              Abrir divergência
+            </Button>
             <Button
               color="success"
-              disabled={!podeSalvar100}
+              disabled={!podeSalvar100 || savingSubmit}
               onClick={salvarConferencia}
-              title={podeSalvar100 ? "Salvar conferência (100%)" : "Pendências ainda abertas"}
+              title={
+                podeSalvar100
+                  ? "Salvar conferência (100%)"
+                  : "Pendências ainda abertas"
+              }
             >
-              Salvar conferência (100%)
+              {savingSubmit ? "Lançando..." : "Salvar conferência (100%)"}
             </Button>
           </>
         )}
@@ -624,7 +739,12 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                 <select
                   value={divTipo}
                   onChange={(e) => setDivTipo(e.target.value)}
-                  style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    borderRadius: 10,
+                    border: "1px solid #e5e7eb",
+                  }}
                 >
                   <option value="falta">Falta</option>
                   <option value="avaria">Avaria</option>
@@ -640,7 +760,12 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                 <select
                   value={divItemCod}
                   onChange={(e) => setDivItemCod(e.target.value)}
-                  style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+                  style={{
+                    width: "100%",
+                    padding: 10,
+                    borderRadius: 10,
+                    border: "1px solid #e5e7eb",
+                  }}
                 >
                   <option value="">—</option>
                   {linhas.map((r) => (
@@ -668,7 +793,14 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
               </div>
             </div>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
               <Button color="secondary" onClick={() => setAbrirDiv(false)}>
                 Cancelar
               </Button>

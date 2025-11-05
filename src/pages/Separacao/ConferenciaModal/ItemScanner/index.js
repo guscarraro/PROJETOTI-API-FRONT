@@ -121,18 +121,50 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     if (onScanEan) onScanEan(val);
   }
 
-  function handleLoteQtd(lote, qtdStr) {
-    const loteVal = String(lote || bufLote || "").trim();
-    const qtdVal = String(qtdStr || bufQTD || "").trim();
-    const qn = parseInt(qtdVal, 10);
-    if (!loteVal) return;
-    if (!qn || isNaN(qn) || qn <= 0) return;
-    setBufLote("");
-    setBufQTD("");
-    if (onScanLoteQuantidade) onScanLoteQuantidade({ lote: loteVal, quantidade: qn });
-    try { beepOk.currentTime = 0; beepOk.play(); } catch {}
-    setTimeout(() => { try { loteRef.current?.focus({ preventScroll: true }); } catch {} }, 0);
+// dentro de ItemScanner (filho)
+async function handleLoteQtd(lote, qtdStr) {
+  const loteVal = String(lote || bufLote || "").trim();
+  const qtdVal = String(qtdStr || bufQTD || "").trim();
+  const qn = parseInt(qtdVal, 10);
+
+  // entradas inválidas: não chama o pai e não toca beep "ok"
+  if (!loteVal) {
+    try { beepErr.currentTime = 0; beepErr.play(); } catch {}
+    return;
   }
+  if (!qn || isNaN(qn) || qn <= 0) {
+    try { beepErr.currentTime = 0; beepErr.play(); } catch {}
+    return;
+  }
+
+  // limpa buffers apenas quando inputs são válidos
+  setBufLote("");
+  setBufQTD("");
+
+  // chama o pai e usa o retorno (true/false) para decidir o beep
+  let ok = false;
+  if (onScanLoteQuantidade) {
+    try {
+      ok = await Promise.resolve(
+        onScanLoteQuantidade({ lote: loteVal, quantidade: qn })
+      );
+    } catch {
+      ok = false;
+    }
+  }
+
+  try {
+    const audio = ok ? beepOk : beepErr;
+    audio.currentTime = 0;
+    audio.play();
+  } catch {}
+
+  // volta o foco para o campo de LOTE
+  setTimeout(() => {
+    try { loteRef.current?.focus({ preventScroll: true }); } catch {}
+  }, 0);
+}
+
 
   return (
     <div style={{ display: "grid", gap: 8 }}>

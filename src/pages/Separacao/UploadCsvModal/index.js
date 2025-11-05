@@ -217,7 +217,7 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
 
   // ======== UI ========
   return (
-    <Modal isOpen={isOpen} toggle={onClose} className="project-modal" size="lg">
+    <Modal isOpen={isOpen} toggle={onClose} className="project-modal" size="xl">
       <ModalHeader toggle={onClose}>Importar pedidos (CSV, TSV ou Excel)</ModalHeader>
 
       <ModalBody>
