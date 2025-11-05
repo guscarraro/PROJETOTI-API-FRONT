@@ -186,12 +186,13 @@ export default function NavBar() {
 
   const isSetor23 = setorIds.includes(23);
   const isSetor6 = setorIds.includes(6);
+  const isSetor9 = setorIds.includes(9)
 
   if (isRestrictedUser) {
     return (
       <NavWrap>
         <NavInner>
-          {(isSetor6 || isSetor23) && (
+          {(isSetor6 || isSetor9 || isSetor23) && (
             <div style={{ position: "relative" }}>
               <NavItem
                 key="conferencia"
@@ -321,7 +322,7 @@ export default function NavBar() {
             <NavLabel>{it.label}</NavLabel>
           </NavItem>
         ))}
-        {(isSetor6 || isSetor23) && (
+        {(isSetor6 || isSetor9 || isSetor23) && (
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"

@@ -239,7 +239,12 @@ const isValidSep = useMemo(() => {
     || "";
 
   const canStartConferencia = !!currentConferente;
-  const canPrintLabels = !!currentConferente;
+  const canPrintLabels =
+  !!currentConferente &&
+  !!(pedido?.nota && String(pedido.nota).trim()) &&
+  !!(pedido?.separador && String(pedido.separador).trim()) &&
+  !!(pedido?.conferente && String(pedido.conferente).trim());
+
 
   // ------- ações -------
   async function saveNota() {
