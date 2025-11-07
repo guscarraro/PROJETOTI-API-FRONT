@@ -571,6 +571,13 @@ export default function SeparacaoPage() {
     Importar CSV
   </Button>
 )}
+            <Button
+              color="dark"
+              onClick={() => setOpenFake(true)}
+              title="Gerar etiquetas (fake)"
+            >
+              Etiquetas (fake)
+            </Button>
 
             {user?.setor_ids != 23 && (
               <>

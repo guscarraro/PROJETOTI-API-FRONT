@@ -39,12 +39,27 @@ export default function ConferenciaModal({
   const [toasts, setToasts] = useState([]);
   const [savingSubmit, setSavingSubmit] = useState(false);
 
-  // === Input-sink para coletor (HID / DataWedge) ===
+  // === Input-sink para coletor (HID / DataWedge) — agora sem roubar foco ===
   const sinkRef = useRef(null);
   const bufferRef = useRef("");
 
-  function keepFocus() {
-    if (phase === "scan" && sinkRef.current) {
+  function isInteractive(el) {
+    if (!el) return false;
+    const t = (el.tagName || "").toLowerCase();
+    return (
+      t === "input" ||
+      t === "textarea" ||
+      t === "select" ||
+      el.isContentEditable === true
+    );
+  }
+
+  // Só foca o sink quando NÃO há um input/textarea/select focado.
+  function keepFocus(force = false) {
+    if (phase !== "scan") return;
+    const ae = document.activeElement;
+    if (!force && isInteractive(ae)) return;
+    if (sinkRef.current) {
       try {
         sinkRef.current.focus({ preventScroll: true });
       } catch {}
@@ -53,17 +68,17 @@ export default function ConferenciaModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    // foca ao abrir e quando entrar em "scan"
-    setTimeout(keepFocus, 0);
+    // foca ao abrir
+    setTimeout(() => keepFocus(true), 0);
   }, [isOpen]);
 
   useEffect(() => {
-    // sempre que mudar de fase tenta focar
-    setTimeout(keepFocus, 0);
+    // ao entrar na fase de scan, tenta focar o sink; se o usuário focar um input depois, não retomamos
+    if (phase === "scan") setTimeout(() => keepFocus(true), 0);
   }, [phase]);
 
   function onSinkKeyDown(e) {
-    // leitores costumam mandar Enter/Tab no final
+    // agrega caracteres do leitor quando o foco estiver no sink
     if (e.key === "Enter" || e.key === "Tab") {
       const code = bufferRef.current.trim();
       bufferRef.current = "";
@@ -71,7 +86,6 @@ export default function ConferenciaModal({
       e.preventDefault();
       return;
     }
-    // agrega apenas caracteres imprimíveis
     if (e.key && e.key.length === 1) {
       bufferRef.current += e.key;
     }
@@ -123,9 +137,7 @@ export default function ConferenciaModal({
     for (let i = 0; i < linhas.length; i++) {
       const lotes = Array.isArray(linhas[i].lotes) ? linhas[i].lotes : [];
       for (let j = 0; j < lotes.length; j++) {
-        const l = String(lotes[j] || "")
-          .trim()
-          .toUpperCase();
+        const l = String(lotes[j] || "").trim().toUpperCase();
         if (!l) continue;
         const arr = map.get(l) || [];
         arr.push(i);
@@ -277,9 +289,7 @@ export default function ConferenciaModal({
   }
 
   function handleScanLoteQuantidade({ lote, quantidade, ean }) {
-    const loteStr = String(lote || "")
-      .trim()
-      .toUpperCase();
+    const loteStr = String(lote || "").trim().toUpperCase();
     const qtdN = Number(quantidade || 0);
     const eanStr = String(ean || "").trim();
     if (!loteStr || !qtdN || isNaN(qtdN) || qtdN <= 0) {
@@ -306,10 +316,7 @@ export default function ConferenciaModal({
         return false;
       }
       if (candidatos.length > 0 && !candidatos.includes(idx)) {
-        toast(
-          `EAN não faz parte do lote ${loteStr} para este pedido.`,
-          "error"
-        );
+        toast(`EAN não faz parte do lote ${loteStr} para este pedido.`, "error");
         setOcorrencias((oc) => [
           ...oc,
           {
@@ -391,19 +398,14 @@ export default function ConferenciaModal({
             ...oc,
             {
               tipo: "excedente_lote",
-              detalhe: `Excedeu em ${
-                qtdN - disponivel
-              } un. via lote "${loteStr}".`,
+              detalhe: `Excedeu em ${qtdN - disponivel} un. via lote "${loteStr}".`,
               itemCod: r.cod,
               lote: loteStr,
               quantidade: qtdN,
               status: "aberta",
             },
           ]);
-          toast(
-            `Excedente no item ${r.cod}. Só ${abatido} contabilizados.`,
-            "warn"
-          );
+          toast(`Excedente no item ${r.cod}. Só ${abatido} contabilizados.`, "warn");
         }
       }
       next[targetIdx] = r;
@@ -563,7 +565,8 @@ export default function ConferenciaModal({
       <ModalHeader toggle={onClose}>
         Conferência — Pedido #{pedido?.nr_pedido}
       </ModalHeader>
-      <ModalBody onClick={keepFocus}>
+      {/* Clique em áreas vazias recaptura foco pro sink; se estiver num input, não recaptura */}
+      <ModalBody onClick={() => keepFocus(false)}>
         <BodyScroll>
           <Wrap>
             {/* TOASTS */}
@@ -713,7 +716,7 @@ export default function ConferenciaModal({
                   </div>
                 </HeadRow>
 
-                {/* INPUT-SINK: captura bipes HID/DataWedge e mantém foco */}
+                {/* INPUT-SINK: agora com tabIndex -1 e sem forçar foco quando há input ativo */}
                 <input
                   ref={sinkRef}
                   onKeyDown={onSinkKeyDown}
@@ -721,13 +724,12 @@ export default function ConferenciaModal({
                   autoCapitalize="off"
                   autoComplete="off"
                   autoCorrect="off"
-                  onBlur={keepFocus}
+                  tabIndex={-1}
+                  onBlur={() => setTimeout(() => keepFocus(false), 0)}
                   aria-hidden="true"
-                  tabIndex={0}
                   style={{
                     position: "fixed",
                     opacity: 0,
-                    pointerEvents: "none",
                     width: 1,
                     height: 1,
                     left: -9999,
@@ -735,7 +737,7 @@ export default function ConferenciaModal({
                   }}
                 />
 
-                <ScannerWrap onClick={keepFocus}>
+                <ScannerWrap>
                   <ItemScanner
                     expectedBars={expectedBars}
                     onScanEan={handleScanEAN}
