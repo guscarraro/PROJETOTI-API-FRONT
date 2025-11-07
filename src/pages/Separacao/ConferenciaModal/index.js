@@ -39,7 +39,28 @@ export default function ConferenciaModal({
   const [toasts, setToasts] = useState([]);
   const [savingSubmit, setSavingSubmit] = useState(false);
 
-  // === Input-sink para coletor (HID / DataWedge) — agora sem roubar foco ===
+  // === mata a câmera da etapa de fotos ao avançar ===
+  const benchAreaRef = useRef(null);
+  function stopMediaStreamsIn(rootEl) {
+    if (!rootEl) return;
+    const videos = rootEl.querySelectorAll("video");
+    for (let i = 0; i < videos.length; i++) {
+      const v = videos[i];
+      try {
+        const s = v.srcObject;
+        if (s && s.getTracks) s.getTracks().forEach((t) => t.stop());
+        v.srcObject = null;
+      } catch {}
+    }
+  }
+  function goToScan() {
+    // desliga a câmera da etapa de fotos para liberar o leitor HID/DataWedge
+    stopMediaStreamsIn(benchAreaRef.current);
+    setPhase("scan");
+    setTimeout(() => keepFocus(true), 0);
+  }
+
+  // === Input-sink para coletor (HID / DataWedge) — sem roubar foco de inputs ===
   const sinkRef = useRef(null);
   const bufferRef = useRef("");
 
@@ -54,7 +75,6 @@ export default function ConferenciaModal({
     );
   }
 
-  // Só foca o sink quando NÃO há um input/textarea/select focado.
   function keepFocus(force = false) {
     if (phase !== "scan") return;
     const ae = document.activeElement;
@@ -73,8 +93,11 @@ export default function ConferenciaModal({
   }, [isOpen]);
 
   useEffect(() => {
-    // ao entrar na fase de scan, tenta focar o sink; se o usuário focar um input depois, não retomamos
-    if (phase === "scan") setTimeout(() => keepFocus(true), 0);
+    // ao entrar na fase de scan, garante que nenhuma câmera antiga ficou ligada
+    if (phase === "scan") {
+      stopMediaStreamsIn(benchAreaRef.current);
+      setTimeout(() => keepFocus(true), 0);
+    }
   }, [phase]);
 
   function onSinkKeyDown(e) {
@@ -405,7 +428,10 @@ export default function ConferenciaModal({
               status: "aberta",
             },
           ]);
-          toast(`Excedente no item ${r.cod}. Só ${abatido} contabilizados.`, "warn");
+          toast(
+            `Excedente no item ${r.cod}. Só ${abatido} contabilizados.`,
+            "warn"
+          );
         }
       }
       next[targetIdx] = r;
@@ -627,7 +653,7 @@ export default function ConferenciaModal({
                   </Row>
                 </div>
 
-                <div>
+                <div ref={benchAreaRef}>
                   <SmallMuted>
                     Fotos da bancada (mín. 1 e máx. 7){" "}
                     <span style={{ color: "#ef4444" }}>* obrigatório</span>
@@ -775,14 +801,21 @@ export default function ConferenciaModal({
       </ModalBody>
 
       <ModalFooter style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <Button color="secondary" onClick={onClose}>
+        <Button
+          color="secondary"
+          onClick={() => {
+            // ao fechar, garante que qualquer câmera aberta seja encerrada
+            stopMediaStreamsIn(benchAreaRef.current);
+            onClose();
+          }}
+        >
           Cancelar
         </Button>
         {phase === "setup" && (
           <Button
             color="primary"
             disabled={!podeIrParaScan}
-            onClick={() => setPhase("scan")}
+            onClick={goToScan}
             title={
               podeIrParaScan
                 ? "Ir para etapa de leitura"
