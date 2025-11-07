@@ -39,6 +39,45 @@ export default function ConferenciaModal({
   const [toasts, setToasts] = useState([]);
   const [savingSubmit, setSavingSubmit] = useState(false);
 
+  // === Input-sink para coletor (HID / DataWedge) ===
+  const sinkRef = useRef(null);
+  const bufferRef = useRef("");
+
+  function keepFocus() {
+    if (phase === "scan" && sinkRef.current) {
+      try {
+        sinkRef.current.focus({ preventScroll: true });
+      } catch {}
+    }
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+    // foca ao abrir e quando entrar em "scan"
+    setTimeout(keepFocus, 0);
+  }, [isOpen]);
+
+  useEffect(() => {
+    // sempre que mudar de fase tenta focar
+    setTimeout(keepFocus, 0);
+  }, [phase]);
+
+  function onSinkKeyDown(e) {
+    // leitores costumam mandar Enter/Tab no final
+    if (e.key === "Enter" || e.key === "Tab") {
+      const code = bufferRef.current.trim();
+      bufferRef.current = "";
+      if (code) handleScanEAN(code);
+      e.preventDefault();
+      return;
+    }
+    // agrega apenas caracteres imprimíveis
+    if (e.key && e.key.length === 1) {
+      bufferRef.current += e.key;
+    }
+  }
+  // === FIM input-sink ===
+
   function toast(text, tone = "info") {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setToasts((t) => [...t, { id, text, tone }]);
@@ -524,9 +563,10 @@ export default function ConferenciaModal({
       <ModalHeader toggle={onClose}>
         Conferência — Pedido #{pedido?.nr_pedido}
       </ModalHeader>
-      <ModalBody>
+      <ModalBody onClick={keepFocus}>
         <BodyScroll>
           <Wrap>
+            {/* TOASTS */}
             <div
               style={{
                 position: "fixed",
@@ -673,7 +713,29 @@ export default function ConferenciaModal({
                   </div>
                 </HeadRow>
 
-                <ScannerWrap>
+                {/* INPUT-SINK: captura bipes HID/DataWedge e mantém foco */}
+                <input
+                  ref={sinkRef}
+                  onKeyDown={onSinkKeyDown}
+                  inputMode="none"
+                  autoCapitalize="off"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  onBlur={keepFocus}
+                  aria-hidden="true"
+                  tabIndex={0}
+                  style={{
+                    position: "fixed",
+                    opacity: 0,
+                    pointerEvents: "none",
+                    width: 1,
+                    height: 1,
+                    left: -9999,
+                    top: -9999,
+                  }}
+                />
+
+                <ScannerWrap onClick={keepFocus}>
                   <ItemScanner
                     expectedBars={expectedBars}
                     onScanEan={handleScanEAN}
