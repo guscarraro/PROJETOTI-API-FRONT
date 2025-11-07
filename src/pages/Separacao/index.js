@@ -3,8 +3,14 @@ import { createPortal } from "react-dom";
 import { Button } from "reactstrap";
 import styled from "styled-components";
 import NavBar from "../Projetos/components/NavBar";
-import { Page, TitleBar, H1, CardGrid, SearchWrap, SearchInput } from "../Projetos/style";
-// (Opcional) Se quiser manter o visual do PageLoader, pode remover este import e o componente abaixo.
+import {
+  Page,
+  TitleBar,
+  H1,
+  CardGrid,
+  SearchWrap,
+  SearchInput,
+} from "../Projetos/style";
 // import { PageLoader } from "../Projetos/components/Loader";
 import useLoading from "../../hooks/useLoading";
 import UploadCsvModal from "./UploadCsvModal";
@@ -22,9 +28,13 @@ import apiLocal from "../../services/apiLocal";
 const CAN_EXPEDIR_EMAILS = ["expedicao@empresa.com.br"];
 const ADM_EMAILS = ["admin@empresa.com.br"];
 
+/* medidas da navbar (mantidas em sincronia com a NavBar) */
+const NAV_SIDEBAR_W = 64; // largura base da sidebar (desktop, colapsada)
+const NAV_TOPBAR_H = 56; // altura da topbar (mobile)
+
 function canExpedir(user) {
   const email = String(user?.email || "").toLowerCase();
-  const tipo  = String(user?.tipo  || "").toLowerCase();
+  const tipo = String(user?.tipo || "").toLowerCase();
   if (tipo === "adm") return true; // libera admins
   return ["expedicao@empresa.com.br", "admin@carraro.com"].includes(email);
 }
@@ -46,7 +56,7 @@ function GlobalLoader({ active, text }) {
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 20000, // acima de .modal (1050) e .modal-backdrop (1040)
+        zIndex: 20000,
         background: "rgba(17, 24, 39, 0.45)",
         display: "grid",
         placeItems: "center",
@@ -65,7 +75,11 @@ function GlobalLoader({ active, text }) {
           border: "1px solid rgba(255,255,255,.08)",
         }}
       >
-        <div className="spinner-border spinner-border-sm" role="status" style={{ marginRight: 8 }} />
+        <div
+          className="spinner-border spinner-border-sm"
+          role="status"
+          style={{ marginRight: 8 }}
+        />
         <span style={{ fontWeight: 700 }}>{text || "Carregando..."}</span>
       </div>
     </div>,
@@ -77,8 +91,11 @@ export default function SeparacaoPage() {
   const loading = useLoading();
 
   const [user] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("user") || "null"); }
-    catch { return null; }
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
   });
 
   const [pedidos, setPedidos] = useState([]);
@@ -100,7 +117,6 @@ export default function SeparacaoPage() {
   const [deletedPedidos, setDeletedPedidos] = useState([]);
   const [showDeleted, setShowDeleted] = useState(false);
   const [statusFiltro, setStatusFiltro] = useState(null); // STATUS_PEDIDO.* | null
-
 
   const normalize = useCallback(
     (s) =>
@@ -160,7 +176,7 @@ export default function SeparacaoPage() {
       const lista = Array.isArray(listResp?.data) ? listResp.data : [];
 
       const detalhesMap = new Map();
-      const nrs = criados.map(x => String(x.nr_pedido));
+      const nrs = criados.map((x) => String(x.nr_pedido));
       for (let i = 0; i < nrs.length; i++) {
         const nr = nrs[i];
         try {
@@ -170,12 +186,18 @@ export default function SeparacaoPage() {
             ...(detail.pedido || {}),
             itens: Array.isArray(detail.itens) ? detail.itens : [],
             eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
-            eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : [],
+            eventos_preview: Array.isArray(detail.eventos)
+              ? detail.eventos.slice(0, 5)
+              : [],
           };
           merged.nr_pedido = merged.nr_pedido || nr;
           detalhesMap.set(nr, merged);
         } catch (e) {
-          console.error("Falha ao buscar detalhe do pedido recém-importado", nr, e);
+          console.error(
+            "Falha ao buscar detalhe do pedido recém-importado",
+            nr,
+            e
+          );
         }
       }
 
@@ -205,42 +227,50 @@ export default function SeparacaoPage() {
   };
 
   // ---------- refresh individual ----------
-  const refreshPedido = useCallback(async (nr_pedido) => {
-    try {
-      const resp = await apiLocal.getPedidoByNr(nr_pedido);
-      const detail = resp?.data || {};
-      const merged = {
-        ...(detail.pedido || {}),
-        itens: Array.isArray(detail.itens) ? detail.itens : [],
-        eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
-        eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : [],
-      };
+  const refreshPedido = useCallback(
+    async (nr_pedido) => {
+      try {
+        const resp = await apiLocal.getPedidoByNr(nr_pedido);
+        const detail = resp?.data || {};
+        const merged = {
+          ...(detail.pedido || {}),
+          itens: Array.isArray(detail.itens) ? detail.itens : [],
+          eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
+          eventos_preview: Array.isArray(detail.eventos)
+            ? detail.eventos.slice(0, 5)
+            : [],
+        };
 
-      const next = [];
-      let updatedObject = null;
-      for (let i = 0; i < pedidos.length; i++) {
-        const p = pedidos[i];
-        if (String(p.nr_pedido) === String(nr_pedido)) {
-          const up = { ...p, ...merged };
-          next.push(up);
-          updatedObject = up;
-        } else {
-          next.push(p);
+        const next = [];
+        let updatedObject = null;
+        for (let i = 0; i < pedidos.length; i++) {
+          const p = pedidos[i];
+          if (String(p.nr_pedido) === String(nr_pedido)) {
+            const up = { ...p, ...merged };
+            next.push(up);
+            updatedObject = up;
+          } else {
+            next.push(p);
+          }
         }
-      }
-      setPedidos(next);
+        setPedidos(next);
 
-      if (activePedido && String(activePedido.nr_pedido) === String(nr_pedido)) {
-        setActivePedido(updatedObject || merged);
+        if (
+          activePedido &&
+          String(activePedido.nr_pedido) === String(nr_pedido)
+        ) {
+          setActivePedido(updatedObject || merged);
+        }
+        if (confPedido && String(confPedido.nr_pedido) === String(nr_pedido)) {
+          setConfPedido(updatedObject || merged);
+        }
+      } catch (e) {
+        console.error("Falha ao recarregar pedido:", e);
       }
-      if (confPedido && String(confPedido.nr_pedido) === String(nr_pedido)) {
-        setConfPedido(updatedObject || merged);
-      }
-    } catch (e) {
-      console.error("Falha ao recarregar pedido:", e);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pedidos, activePedido, confPedido]);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [pedidos, activePedido, confPedido]
+  );
 
   // ---------- atualização local opcional ----------
   const onUpdatePedido = async (nr_pedido, patch) => {
@@ -302,9 +332,6 @@ export default function SeparacaoPage() {
       setConfPedido(null);
     }
   };
-  console.log('====================================');
-  console.log(user);
-  console.log('====================================');
 
   // ---------- expedição ----------
   const onExpedirPedido = async (nr_pedido, nota) => {
@@ -313,7 +340,8 @@ export default function SeparacaoPage() {
     for (let i = 0; i < pedidos.length; i++) {
       const p = pedidos[i];
       if (String(p.nr_pedido) === String(nr_pedido)) {
-        alvo = p; break;
+        alvo = p;
+        break;
       }
     }
     if (!alvo) return;
@@ -336,119 +364,159 @@ export default function SeparacaoPage() {
     setOpenConf(true);
   };
 
-const handleConfirmConferencia = async (payload) => {
-  const name = String(payload?.conferente || "").trim();
-  if (!name || !confPedido) return;
+  const handleConfirmConferencia = async (payload) => {
+    const name = String(payload?.conferente || "").trim();
+    if (!name || !confPedido) return;
 
-  // mapeia ocorrencias do camelCase (front) para snake_case (back)
-  const ocorrenciasOut = [];
-  const list = Array.isArray(payload?.ocorrencias) ? payload.ocorrencias : [];
-  for (let i = 0; i < list.length; i++) {
-    const o = list[i] || {};
-    ocorrenciasOut.push({
-      tipo: o.tipo,
-      detalhe: o.detalhe || "-",
-      item_cod: o.itemCod || o.item_cod || null,
-      bar: o.bar || null,
-      lote: o.lote || null,
-      quantidade: o.quantidade != null ? o.quantidade : null,
-      status: o.status || "aberta",
-    });
-  }
+    const ocorrenciasOut = [];
+    const list = Array.isArray(payload?.ocorrencias) ? payload.ocorrencias : [];
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i] || {};
+      ocorrenciasOut.push({
+        tipo: o.tipo,
+        detalhe: o.detalhe || "-",
+        item_cod: o.itemCod || o.item_cod || null,
+        bar: o.bar || null,
+        lote: o.lote || null,
+        quantidade: o.quantidade != null ? o.quantidade : null,
+        status: o.status || "aberta",
+      });
+    }
 
-  try {
-    await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
-      conferente: name,
-      elapsedSeconds: payload?.elapsedSeconds || 0,
-      evidences: payload?.evidences || [],
-      scans: payload?.scans || {},
-      loteScans: payload?.loteScans || {},
-      foraLista: payload?.foraLista || [],
-      ocorrencias: ocorrenciasOut, // <- formato do back
-    });
+    try {
+      await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
+        conferente: name,
+        elapsedSeconds: payload?.elapsedSeconds || 0,
+        evidences: payload?.evidences || [],
+        scans: payload?.scans || {},
+        loteScans: payload?.loteScans || {},
+        foraLista: payload?.foraLista || [],
+        ocorrencias: ocorrenciasOut,
+      });
 
-    await refreshPedido(confPedido.nr_pedido);
-  } catch (e) {
-    console.error("Falha ao finalizar conferência no back:", e);
-  }
+      await refreshPedido(confPedido.nr_pedido);
+    } catch (e) {
+      console.error("Falha ao finalizar conferência no back:", e);
+    }
 
-  setOpenConf(false);
-  setConfPedido(null);
-};
+    setOpenConf(false);
+    setConfPedido(null);
+  };
 
+  const handleOccurrence = async ({ ocorrencias }) => {
+    if (!confPedido) return;
 
-const handleOccurrence = async ({ ocorrencias }) => {
-  if (!confPedido) return;
+    const arr = [];
+    const list = Array.isArray(ocorrencias) ? ocorrencias : [];
+    for (let i = 0; i < list.length; i++) {
+      const o = list[i] || {};
+      arr.push({
+        tipo: o.tipo,
+        detalhe: o.detalhe || "-",
+        item_cod: o.itemCod || o.item_cod || null,
+        bar: o.bar || null,
+        lote: o.lote || null,
+        quantidade: o.quantidade != null ? o.quantidade : null,
+        status: o.status || "aberta",
+      });
+    }
 
-  const arr = [];
-  const list = Array.isArray(ocorrencias) ? ocorrencias : [];
-  for (let i = 0; i < list.length; i++) {
-    const o = list[i] || {};
-    arr.push({
-      tipo: o.tipo,
-      detalhe: o.detalhe || "-",
-      item_cod: o.itemCod || o.item_cod || null,
-      bar: o.bar || null,
-      lote: o.lote || null,
-      quantidade: o.quantidade != null ? o.quantidade : null,
-      status: o.status || "aberta",
-    });
-  }
+    try {
+      await apiLocal.registrarOcorrenciaConferencia(confPedido.nr_pedido, arr);
+      await refreshPedido(confPedido.nr_pedido);
+    } catch (e) {
+      console.error("Falha ao registrar ocorrências no back:", e);
+    }
 
-  try {
-    // OBS: endpoint plural e payload é um ARRAY
-    await apiLocal.registrarOcorrenciaConferencia(confPedido.nr_pedido, arr);
-    await refreshPedido(confPedido.nr_pedido);
-  } catch (e) {
-    console.error("Falha ao registrar ocorrências no back:", e);
-  }
+    setOpenConf(false);
+    setConfPedido(null);
+  };
+  // monta a lista de campos pesquisáveis (normalizados)
+  const buildSearchStrings = useCallback(
+    (p) => {
+      const out = [];
 
-  setOpenConf(false);
-  setConfPedido(null);
-};
+      // básicos
+      out.push(normalize(p.nr_pedido)); // Nº do pedido
+      out.push(normalize(p.nota)); // Nota (NF)
+      out.push(normalize(p.cliente));
+      out.push(normalize(p.destino));
+
+      // transportadora (alguns objetos usam "transportador" outros "transportadora")
+      out.push(normalize(p.transportador));
+      out.push(normalize(p.transportadora));
+
+      // usuários envolvidos
+      out.push(normalize(p.separador));
+      out.push(normalize(p.conferente));
+      out.push(normalize(p?.primeiraConferencia?.colaborador));
+      out.push(normalize(p.usuario)); // caso seu back envie "usuario"
+      out.push(normalize(p.user)); // variações comuns
+      out.push(normalize(p.criado_por));
+      out.push(normalize(p.created_by));
+
+      // se quiser que a busca pegue texto/usuário dos eventos mostrados no card:
+      if (Array.isArray(p.eventos_preview)) {
+        for (let i = 0; i < p.eventos_preview.length; i++) {
+          const ev = p.eventos_preview[i] || {};
+          out.push(normalize(ev.texto));
+          out.push(normalize(ev.tipo));
+          out.push(normalize(ev.user_ref));
+          out.push(normalize(ev.user));
+        }
+      }
+
+      return out.filter(Boolean);
+    },
+    [normalize]
+  );
 
   // ---------- filtros/derivados ----------
-const pedidosFiltrados = useMemo(() => {
-  const q = normalize(query);
-  const out = [];
-  for (let i = 0; i < pedidos.length; i++) {
-    const p = pedidos[i];
+  const pedidosFiltrados = useMemo(() => {
+    const q = normalize(query);
+    const out = [];
+    for (let i = 0; i < pedidos.length; i++) {
+      const p = pedidos[i];
 
-    // filtro por busca
-    if (q) {
-      const c = normalize(p.cliente);
-      const d = normalize(p.destino);
-      const n = normalize(p.nr_pedido);
-      const match = c.includes(q) || d.includes(q) || n.includes(q);
-      if (!match) continue;
+      if (q) {
+        const hay = buildSearchStrings(p);
+        let match = false;
+        for (let j = 0; j < hay.length; j++) {
+          if (hay[j].includes(q)) {
+            match = true;
+            break;
+          }
+        }
+        if (!match) continue;
+      }
+
+      if (statusFiltro) {
+        if (statusFiltro === STATUS_PEDIDO.CONCLUIDO) {
+          const isOk = p.status === STATUS_PEDIDO.CONCLUIDO || p?.expedido;
+          if (!isOk) continue;
+        } else {
+          if (p.status !== statusFiltro) continue;
+        }
+      }
+
+      out.push(p);
     }
+    return out;
+  }, [pedidos, query, normalize, statusFiltro]);
 
-    // filtro por status (vindo do gráfico/legenda)
-    if (statusFiltro) {
-      if (statusFiltro === STATUS_PEDIDO.CONCLUIDO) {
-        // considerar também flag expedido
-        const isOk = p.status === STATUS_PEDIDO.CONCLUIDO || p?.expedido;
-        if (!isOk) continue;
-      } else {
-        if (p.status !== statusFiltro) continue;
+  const candidatosExpedicao = useMemo(() => {
+    const res = [];
+    for (let i = 0; i < pedidos.length; i++) {
+      const p = pedidos[i];
+      if (
+        p.status === STATUS_PEDIDO.PRIMEIRA_CONF &&
+        (!p.expedido || p.expedido === false)
+      ) {
+        res.push(p);
       }
     }
-
-    out.push(p);
-  }
-  return out;
-}, [pedidos, query, normalize, statusFiltro]);
-
-
-const candidatosExpedicao = useMemo(() => {
-  return pedidos.filter(
-    (p) =>
-      p.status === STATUS_PEDIDO.PRIMEIRA_CONF &&
-      (!p.expedido || p.expedido === false)
-  );
-}, [pedidos]);
-
-
+    return res;
+  }, [pedidos]);
 
   // ---------- abrir modal de info com detalhe ----------
   async function openInfoWithFetch(p) {
@@ -460,9 +528,11 @@ const candidatosExpedicao = useMemo(() => {
       const detail = resp?.data || {};
       const merged = {
         ...(detail.pedido || p),
-        itens: Array.isArray(detail.itens) ? detail.itens : (p.itens || []),
+        itens: Array.isArray(detail.itens) ? detail.itens : p.itens || [],
         eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
-        eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : (p.eventos_preview || []),
+        eventos_preview: Array.isArray(detail.eventos)
+          ? detail.eventos.slice(0, 5)
+          : p.eventos_preview || [],
       };
       setActivePedido(merged);
       setOpenInfo(true);
@@ -480,194 +550,246 @@ const candidatosExpedicao = useMemo(() => {
 
       <NavBar />
 
-      <TitleBar style={{ zIndex: 1100 }}>
-        <H1 $accent="#0ea5e9">Conferência</H1>
+      {/* Conteúdo com recuos responsáveis pela navbar */}
+      <Content>
+        <TitleBarWrap>
+          <H1 $accent="#0ea5e9">Conferência</H1>
 
-        <RightRow>
-          <SearchWrap title="Buscar por Nº pedido, cliente ou destino">
-            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M13.477 12.307a6 6 0 11-1.172 1.172l3.327 3.327a.83.83 0 001.172-1.172l-3.327-3.327zM8.5 13a4.5 4.5 0 100-9 4.5 4.5 0 000 9z" />
-            </svg>
-            <SearchInput
-              placeholder="Buscar pedido..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-          </SearchWrap>
-
-          <Button color="secondary" onClick={() => setOpenCsv(true)}>
-            Importar CSV
-          </Button>
-          {/* <Button color="primary" onClick={() => setOpenManual(true)}>
-            + Novo Pedido
-          </Button> */}
-          {user?.setor_ids != 23 && (
-  <>
-    {/* <Button color="info" onClick={() => setOpenFake(true)}>
-      Etiquetas Teste
-    </Button> */}
-
-    <Button
-      color="success"
-      disabled={!(canExpedir(user) || isAdmin(user)) || candidatosExpedicao.length === 0}
-      onClick={() => setOpenExpedidos(true)}
-      title={
-        (canExpedir(user) || isAdmin(user))
-          ? "Selecionar pedidos para expedir"
-          : "Sem permissão para expedir"
-      }
-    >
-      Expedir Pedidos
-    </Button>
-  </>
-)}
-
-          {isAdmin(user) && (
-            <Button
-              color={showDeleted ? "danger" : "dark"}
-              onClick={() => setShowDeleted(!showDeleted)}
-              title="Registros de exclusões"
-            >
-              Excluídos ({deletedPedidos.length})
-            </Button>
-          )}
-        </RightRow>
-      </TitleBar>
-
-      <Indicators
-  pedidos={pedidos}
-  canExpedir={canExpedir(user)}
-  total={pedidos.length}
-  onSelectStatus={(st) => setStatusFiltro(st)}   // clique na fatia/legenda
-  selectedStatus={statusFiltro}
-/>
-
-
-      <Legend>
-        <StatusPill $variant="pendente">Aguardando conferência</StatusPill>
-        <StatusPill $variant="primeira">Pronto para expedir</StatusPill>
-        <StatusPill $variant="concluido">Expedido</StatusPill>
-      </Legend>
-
-      {isAdmin(user) && showDeleted && (
-        <DeletedPanel>
-          <h4 style={{ margin: 0 }}>Registros de Exclusões</h4>
-          <div style={{ marginTop: 8 }}>
-            {deletedPedidos.length === 0 && (
-              <div style={{ opacity: 0.7 }}>Nenhum registro.</div>
+          <RightRow>
+            <SearchWrap title="Buscar por Nº pedido, NF, transportadora, usuário, cliente ou destino">
+              <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M13.477 12.307a6 6 0 11-1.172 1.172l3.327 3.327a.83.83 0 001.172-1.172l-3.327-3.327zM8.5 13a4.5 4.5 0 100-9 4.5 4.5 0 000 9z" />
+              </svg>
+              <SearchInput
+                placeholder="Nº, NF, transportadora, usuário, cliente ou destino..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+            </SearchWrap>
+            {user?.setor_ids !== 23 ||
+              (user?.setor_ids !== 25 && (
+                <>
+                  <Button color="secondary" onClick={() => setOpenCsv(true)}>
+                    Importar CSV
+                  </Button>
+                </>
+              ))}
+            {user?.setor_ids != 23 && (
+              <>
+                <Button
+                  color="success"
+                  disabled={
+                    !(canExpedir(user) || isAdmin(user)) ||
+                    candidatosExpedicao.length === 0
+                  }
+                  onClick={() => setOpenExpedidos(true)}
+                  title={
+                    canExpedir(user) || isAdmin(user)
+                      ? "Selecionar pedidos para expedir"
+                      : "Sem permissão para expedir"
+                  }
+                >
+                  Expedir Pedidos
+                </Button>
+              </>
             )}
-            {deletedPedidos.map((r, idx) => (
-              <div
-                key={`${r.nr_pedido}-${idx}`}
-                style={{
-                  fontSize: 13,
-                  padding: "6px 8px",
-                  border: "1px solid #eee",
-                  borderRadius: 8,
-                  marginBottom: 6,
-                  background: "#fafafa",
-                }}
+
+            {isAdmin(user) && (
+              <Button
+                color={showDeleted ? "danger" : "dark"}
+                onClick={() => setShowDeleted(!showDeleted)}
+                title="Registros de exclusões"
               >
-                <div>
-                  <strong>Pedido #{r.nr_pedido}</strong> — <em>{r.by}</em>{" "}
-                  <small>({new Date(r.at).toLocaleString("pt-BR")})</small>
+                Excluídos ({deletedPedidos.length})
+              </Button>
+            )}
+          </RightRow>
+        </TitleBarWrap>
+
+        <Indicators
+          pedidos={pedidos}
+          canExpedir={canExpedir(user)}
+          total={pedidos.length}
+          onSelectStatus={(st) => setStatusFiltro(st)}
+          selectedStatus={statusFiltro}
+        />
+
+        <Legend>
+          <StatusPill $variant="pendente">Ag. conferência</StatusPill>
+          <StatusPill $variant="primeira">Pronto p/ expedir</StatusPill>
+          <StatusPill $variant="concluido">Expedido</StatusPill>
+        </Legend>
+
+        {isAdmin(user) && showDeleted && (
+          <DeletedPanel>
+            <h4 style={{ margin: 0 }}>Registros de Exclusões</h4>
+            <div style={{ marginTop: 8 }}>
+              {deletedPedidos.length === 0 && (
+                <div style={{ opacity: 0.7 }}>Nenhum registro.</div>
+              )}
+              {deletedPedidos.map((r, idx) => (
+                <div
+                  key={`${r.nr_pedido}-${idx}`}
+                  style={{
+                    fontSize: 13,
+                    padding: "6px 8px",
+                    border: "1px solid #eee",
+                    borderRadius: 8,
+                    marginBottom: 6,
+                    background: "#fafafa",
+                  }}
+                >
+                  <div>
+                    <strong>Pedido #{r.nr_pedido}</strong> — <em>{r.by}</em>{" "}
+                    <small>({new Date(r.at).toLocaleString("pt-BR")})</small>
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <strong>Justificativa:</strong> {r.justificativa}
+                  </div>
                 </div>
-                <div style={{ marginTop: 4 }}>
-                  <strong>Justificativa:</strong> {r.justificativa}
-                </div>
-              </div>
+              ))}
+            </div>
+          </DeletedPanel>
+        )}
+
+        <CardsWrap>
+          <CardGrid>
+            {pedidosFiltrados.map((p) => (
+              <PedidoCard
+                key={p.nr_pedido}
+                pedido={p}
+                currentUser={user}
+                onUpdate={onUpdatePedido}
+                onDelete={(nr, payload) =>
+                  onDeletePedido(nr, {
+                    ...(payload || {}),
+                    user: user?.email || "usuário",
+                  })
+                }
+                onOpen={() => openInfoWithFetch(p)}
+                onExpedir={onExpedirPedido}
+                canExpedir={canExpedir(user)}
+                onOpenConferencia={() => openConferencia(p)}
+                refreshPedido={refreshPedido}
+              />
             ))}
-          </div>
-        </DeletedPanel>
-      )}
+          </CardGrid>
 
-      <CardGrid>
-        {pedidosFiltrados.map((p) => (
-          <PedidoCard
-            key={p.nr_pedido}
-            pedido={p}
-            currentUser={user}
-            onUpdate={onUpdatePedido}
-            onDelete={(nr, payload) =>
-              onDeletePedido(nr, {
-                ...(payload || {}),
-                user: user?.email || "usuário",
-              })
-            }
-            onOpen={() => openInfoWithFetch(p)}
-            onExpedir={onExpedirPedido}
-            canExpedir={canExpedir(user)}
-            onOpenConferencia={() => openConferencia(p)}
-            refreshPedido={refreshPedido}
-          />
-        ))}
-      </CardGrid>
+          {!loading.any() && pedidosFiltrados.length === 0 && (
+            <div style={{ opacity: 0.7, padding: "8px 0" }}>
+              Nenhum pedido encontrado.
+            </div>
+          )}
+        </CardsWrap>
 
-      {!loading.any() && pedidosFiltrados.length === 0 && (
-        <div style={{ opacity: 0.7 }}>Nenhum pedido encontrado.</div>
-      )}
+        <UploadCsvModal
+          isOpen={openCsv}
+          onClose={() => setOpenCsv(false)}
+          onImported={onImportedCsv}
+        />
+        <PedidoFormModal
+          isOpen={openManual}
+          onClose={() => setOpenManual(false)}
+          onSubmit={onCreatedManual}
+        />
 
-      <UploadCsvModal
-        isOpen={openCsv}
-        onClose={() => setOpenCsv(false)}
-        onImported={onImportedCsv}
-      />
-      <PedidoFormModal
-        isOpen={openManual}
-        onClose={() => setOpenManual(false)}
-        onSubmit={onCreatedManual}
-      />
-
-      <ModalInfo
-        isOpen={openInfo}
-        onClose={() => setOpenInfo(false)}
-        pedido={activePedido}
-        onUpdate={onUpdatePedido}
-        onOpenConferencia={() => {
-          if (activePedido) openConferencia(activePedido);
-        }}
-        onDeleted={(nr, payload) =>
-          onDeletePedido(nr, {
-            ...(payload || {}),
-            user: user?.email || "usuário",
-          })
-        }
-      />
-
-      <ConferenciaModal
-        isOpen={openConf}
-        onClose={() => {
-          setOpenConf(false);
-          setConfPedido(null);
-        }}
-        pedido={confPedido}
-        onConfirm={handleConfirmConferencia}
-        onOccurrence={handleOccurrence}
-      />
-
-      <FakeLabelsModal isOpen={openFake} onClose={() => setOpenFake(false)} />
-
-      <ModalExpedidos
-        isOpen={openExpedidos}
-        onClose={() => setOpenExpedidos(false)}
-        pedidos={candidatosExpedicao}
-        onConfirm={async (selecionados) => {
-          for (let i = 0; i < selecionados.length; i++) {
-            const s = selecionados[i];
-            await onExpedirPedido(s.nr_pedido, s.nota);
+        <ModalInfo
+          isOpen={openInfo}
+          onClose={() => setOpenInfo(false)}
+          pedido={activePedido}
+          onUpdate={onUpdatePedido}
+          onOpenConferencia={() => {
+            if (activePedido) openConferencia(activePedido);
+          }}
+          onDeleted={(nr, payload) =>
+            onDeletePedido(nr, {
+              ...(payload || {}),
+              user: user?.email || "usuário",
+            })
           }
-          setOpenExpedidos(false);
-        }}
-        canExpedir={canExpedir(user)}
-      />
+        />
+
+        <ConferenciaModal
+          isOpen={openConf}
+          onClose={() => {
+            setOpenConf(false);
+            setConfPedido(null);
+          }}
+          pedido={confPedido}
+          onConfirm={handleConfirmConferencia}
+          onOccurrence={handleOccurrence}
+        />
+
+        <FakeLabelsModal isOpen={openFake} onClose={() => setOpenFake(false)} />
+
+        <ModalExpedidos
+          isOpen={openExpedidos}
+          onClose={() => setOpenExpedidos(false)}
+          pedidos={candidatosExpedicao}
+          onConfirm={async (selecionados) => {
+            for (let i = 0; i < selecionados.length; i++) {
+              const s = selecionados[i];
+              await onExpedirPedido(s.nr_pedido, s.nota);
+            }
+            setOpenExpedidos(false);
+          }}
+          canExpedir={canExpedir(user)}
+        />
+      </Content>
     </Page>
   );
 }
 
+/* ====== estilos locais responsivos ====== */
+const Content = styled.div`
+  /* padding geral do conteúdo */
+  padding: 16px;
+
+  /* desktop: cria recuo lateral p/ sidebar fixa */
+  @media (min-width: 769px) {
+    /* padding-left: calc(${NAV_SIDEBAR_W}px + 16px); */
+    padding-top: 16px;
+    padding-right: 16px;
+  }
+
+  /* mobile: recuo em cima p/ topbar; sem margem lateral */
+  @media (max-width: 768px) {
+    padding: 12px 12px 16px;
+    /* padding-top: calc(${NAV_TOPBAR_H}px + 12px); */
+  }
+`;
+
+const TitleBarWrap = styled(TitleBar)`
+  /* garante boa distância do topo em mobile */
+  @media (max-width: 768px) {
+    margin-top: 4px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+  @media (min-width: 769px) {
+    padding-left: 0;
+    padding-right: 0;
+  }
+`;
+
+/* Linha de ações à direita do título, quebra no mobile */
 const RightRow = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+
+  /* em mobile, faz os botões ocuparem linha abaixo da busca se precisar */
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-content: flex-start;
+
+    /* Search ocupa o máximo possível */
+    ${SearchWrap} {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+  }
 `;
 
 const Legend = styled.div`
@@ -675,6 +797,11 @@ const Legend = styled.div`
   align-items: center;
   gap: 8px;
   margin: 12px 0;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    margin-top: 8px;
+  }
 `;
 
 const DeletedPanel = styled.div`
@@ -683,4 +810,20 @@ const DeletedPanel = styled.div`
   padding: 10px;
   margin: 8px 0 16px 0;
   background: #fff;
+
+  @media (max-width: 768px) {
+    padding: 10px;
+    margin: 8px 0 12px 0;
+  }
+`;
+
+/* envelopa o grid pra controlar padding lateral em mobile */
+const CardsWrap = styled.div`
+  @media (max-width: 768px) {
+    /* evita overflow lateral */
+    margin-left: -2px;
+    margin-right: -2px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
 `;

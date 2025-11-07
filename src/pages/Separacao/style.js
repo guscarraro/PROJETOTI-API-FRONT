@@ -30,6 +30,21 @@ export const Row = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
+
+  /* quebra elegante no mobile */
+  @media (max-width: 768px) {
+    flex-wrap: wrap;
+  }
+
+  /* texto longo não estoura o card */
+  .truncate {
+    display: inline-block;
+    max-width: 100%;
+    vertical-align: bottom;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 `;
 
 export const Col = styled.div`

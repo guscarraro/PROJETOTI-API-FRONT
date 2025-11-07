@@ -32,6 +32,7 @@ export default function NavBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [confOpen, setConfOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false;
     return (localStorage.getItem("theme") || "") === "dark";
@@ -39,6 +40,7 @@ export default function NavBar() {
 
   useEffect(() => {
     setConfOpen(false);
+    setMobileOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -60,8 +62,6 @@ export default function NavBar() {
       return null;
     }
   });
-
-  // ✅ evita piscar abas incorretas antes de saber quem é o usuário
 
   useEffect(() => {
     (async () => {
@@ -109,14 +109,6 @@ export default function NavBar() {
       userSectorNames.some((n) => n?.toLowerCase() === "admin")
     );
   }, [user?.tipo, userSectorNames]);
-
-  const lowerSetores = Array.isArray(user?.setores)
-    ? user.setores.map((s) => String(s).toLowerCase())
-    : [];
-  const isRestrictedUser =
-    user?.id === 23 ||
-    lowerSetores.includes("fersa_cliente") ||
-    userSectorNames.some((n) => n?.toLowerCase() === "fersa_cliente");
 
   const items = useMemo(() => {
     const base = [
@@ -186,13 +178,38 @@ export default function NavBar() {
 
   const isSetor23 = setorIds.includes(23);
   const isSetor6 = setorIds.includes(6);
-  const isSetor9 = setorIds.includes(9)
+  const isSetor9 = setorIds.includes(9);
+  const isSetor25 = setorIds.includes(25);
+  const lowerSetores = Array.isArray(user?.setores)
+    ? user.setores.map((s) => String(s).toLowerCase())
+    : [];
 
+  const isRestrictedUser =
+    isSetor23 ||
+    isSetor25 ||
+    lowerSetores.includes("fersa_cliente") ||
+    lowerSetores.includes("coletores") ||
+    userSectorNames.some((n) => {
+      const nome = String(n || "").toLowerCase();
+      return nome === "fersa_cliente" || nome === "coletores";
+    });
   if (isRestrictedUser) {
     return (
-      <NavWrap>
+      <NavWrap ref={navWrapRef} data-open={mobileOpen}>
+        {/* Botão Hamburguer (mobile) */}
+        <button
+          className="nav-hamburger"
+          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMobileOpen((v) => !v);
+          }}
+        >
+          <span className="line" />
+        </button>
+
         <NavInner>
-          {(isSetor6 || isSetor9 || isSetor23) && (
+          {(isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
             <div style={{ position: "relative" }}>
               <NavItem
                 key="conferencia"
@@ -239,6 +256,7 @@ export default function NavBar() {
                     $active={pathname === "/conferencia"}
                     onClick={() => {
                       setConfOpen(false);
+                      setMobileOpen(false);
                       navigate("/conferencia");
                     }}
                     title="Pedidos"
@@ -288,7 +306,14 @@ export default function NavBar() {
             </NavItem>
           )}
 
-          <NavItem role="button" onClick={handleLogout} title="Sair">
+          <NavItem
+            role="button"
+            onClick={() => {
+              setMobileOpen(false);
+              handleLogout();
+            }}
+            title="Sair"
+          >
             <NavIcon>
               <FiLogOut />
             </NavIcon>
@@ -297,7 +322,10 @@ export default function NavBar() {
 
           <NavItem
             role="button"
-            onClick={() => setDark((v) => !v)}
+            onClick={() => {
+              setMobileOpen(false);
+              setDark((v) => !v);
+            }}
             title={dark ? "Desativar Dark Mode" : "Ativar Dark Mode"}
           >
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
@@ -307,22 +335,40 @@ export default function NavBar() {
       </NavWrap>
     );
   }
+
   if (!user) return null;
+
   return (
-    <NavWrap ref={navWrapRef}>
+    <NavWrap ref={navWrapRef} data-open={mobileOpen}>
+      {/* Botão Hamburguer (mobile) */}
+      <button
+        className="nav-hamburger"
+        aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+        onClick={(e) => {
+          e.stopPropagation();
+          setMobileOpen((v) => !v);
+        }}
+      >
+        <span className="line" />
+      </button>
+
       <NavInner>
         {items.map((it) => (
           <NavItem
             key={it.key}
             $active={pathname.toLowerCase() === it.to.toLowerCase()}
-            onClick={() => navigate(it.to)}
+            onClick={() => {
+              setMobileOpen(false);
+              navigate(it.to);
+            }}
             title={it.label}
           >
             <NavIcon>{it.icon}</NavIcon>
             <NavLabel>{it.label}</NavLabel>
           </NavItem>
         ))}
-        {(isSetor6 || isSetor9 || isSetor23) && (
+
+        {(isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"
@@ -369,6 +415,7 @@ export default function NavBar() {
                   $active={pathname === "/conferencia"}
                   onClick={() => {
                     setConfOpen(false);
+                    setMobileOpen(false);
                     navigate("/conferencia");
                   }}
                   title="Pedidos"
@@ -379,11 +426,12 @@ export default function NavBar() {
                   </NavIcon>
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
-                {!isSetor23 && (
+                {!isSetor23 && !isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/integrantes"}
                     onClick={() => {
                       setConfOpen(false);
+                      setMobileOpen(false);
                       navigate("/conferencia/integrantes");
                     }}
                     title="Integrantes"
@@ -399,6 +447,7 @@ export default function NavBar() {
             )}
           </div>
         )}
+
         <NavSpacer />
 
         {user && (
@@ -414,6 +463,7 @@ export default function NavBar() {
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
         )}
+
         {user && (
           <NavItem
             role="button"
@@ -465,7 +515,14 @@ export default function NavBar() {
           </NavItem>
         )}
 
-        <NavItem role="button" onClick={handleLogout} title="Sair">
+        <NavItem
+          role="button"
+          onClick={() => {
+            setMobileOpen(false);
+            handleLogout();
+          }}
+          title="Sair"
+        >
           <NavIcon>
             <FiLogOut />
           </NavIcon>
@@ -474,7 +531,10 @@ export default function NavBar() {
 
         <NavItem
           role="button"
-          onClick={() => setDark((v) => !v)}
+          onClick={() => {
+            setMobileOpen(false);
+            setDark((v) => !v);
+          }}
           title={dark ? "Desativar Dark Mode" : "Ativar Dark Mode"}
         >
           <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>

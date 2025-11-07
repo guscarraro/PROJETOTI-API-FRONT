@@ -1,12 +1,14 @@
 import styled from "styled-components";
 
-/**
- * Notas de tema:
- * - Tudo herda `color` do card. No light: #0f172a; no dark: #fff.
- * - Variáveis CSS por card:
- *   --card-bg: fundo do card (usada no “furo” da pizza)
- *   --pie-bg: tom leve do anel de fundo da pizza
- */
+export const DesktopOnly = styled.div`
+  display: block;
+  @media (max-width: 768px) { display: none; }
+`;
+
+export const MobileOnly = styled.div`
+  display: none;
+  @media (max-width: 768px) { display: block; }
+`;
 
 export const Wrap = styled.section`
   display: flex;
@@ -15,10 +17,7 @@ export const Wrap = styled.section`
   gap: 12px;
   margin: 8px 0 14px;
   flex-wrap: nowrap;
-
-  @media (max-width: 1100px) {
-    flex-wrap: wrap;
-  }
+  @media (max-width: 1100px) { flex-wrap: wrap; }
 `;
 
 export const CardsRow = styled.div`
@@ -26,19 +25,11 @@ export const CardsRow = styled.div`
   align-items: stretch;
   gap: 12px;
   flex: 0 0 auto;
-
-  & > div {
-    min-width: 200px;
-    max-width: 200px;
-  }
-
+  & > div { min-width: 200px; max-width: 200px; }
   @media (max-width: 1100px) {
     flex: 1 1 100%;
     flex-wrap: wrap;
-    & > div {
-      flex: 1 1 220px;
-      max-width: 100%;
-    }
+    & > div { flex: 1 1 220px; max-width: 100%; }
   }
 `;
 
@@ -51,7 +42,6 @@ export const StatCard = styled.div`
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
-
   [data-theme="dark"] & {
     --card-bg: #0f172a;
     color: #fff;
@@ -59,7 +49,6 @@ export const StatCard = styled.div`
     border-color: rgba(255, 255, 255, 0.11);
     box-shadow: 0 8px 24px rgba(2, 6, 23, 0.5);
   }
-
   &::before {
     content: "";
     display: block;
@@ -95,19 +84,15 @@ export const PieCard = styled.div`
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
   border: 1px solid rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
-
   [data-theme="dark"] & {
-    --card-bg: #0b1222; /* ligeiramente diferente para destacar a pizza */
+    --card-bg: #0b1222;
     --pie-bg: rgba(255, 255, 255, 0.08);
     color: #fff;
     background: var(--card-bg);
     border-color: rgba(255, 255, 255, 0.11);
     box-shadow: 0 8px 24px rgba(2, 6, 23, 0.5);
   }
-
-  @media (max-width: 1100px) {
-    flex: 1 1 100%;
-  }
+  @media (max-width: 1100px) { flex: 1 1 100%; }
 `;
 
 export const PieWrap = styled.div`
@@ -137,8 +122,104 @@ export const Dot = styled.span`
   border-radius: 999px;
   background: ${(p) => p.$c || "#999"};
   border: 1px solid rgba(0, 0, 0, 0.15);
+  [data-theme="dark"] & { border-color: rgba(255, 255, 255, 0.3); }
+`;
 
+/* ====== MOBILE (mantém o card único existente) ====== */
+export const MobileCard = styled.div`
+  --card-bg: #fff;
+  --pie-bg-m: rgba(0, 0, 0, 0.08);
+  color: #0f172a;
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--card-bg);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   [data-theme="dark"] & {
-    border-color: rgba(255, 255, 255, 0.3);
+    --card-bg: #0f172a;
+    --pie-bg-m: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.11);
+    box-shadow: 0 8px 24px rgba(2, 6, 23, 0.5);
+  }
+`;
+
+export const MobileHeader = styled.div`
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  strong { font-size: 16px; }
+`;
+
+export const MobileTotal = styled.div`
+  font-size: 13px;
+  opacity: 0.9;
+  b { font-size: 16px; }
+`;
+
+export const MobileHint = styled.span`
+  display: inline-block;
+  font-size: 12px;
+  opacity: 0.8;
+  margin-left: 6px;
+`;
+
+export const MiniPieGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+`;
+export const MiniPieBtn = styled.button`
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 8px 6px;
+  cursor: pointer;
+  &:hover {
+    background: rgba(0, 0, 0, 0.03);
+  }
+  ${(p) =>
+    p.$active &&
+    `box-shadow: 0 0 0 2px rgba(96,165,250,.35) inset; border-color: rgba(96,165,250,.6);`}
+  [data-theme="dark"] & {
+    border-color: rgba(255, 255, 255, 0.12);
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+  }
+`;
+
+export const MiniPieSvg = styled.svg`
+  width: 64px;
+  height: 64px;
+  .bg {
+    fill: none;
+    stroke: var(--pie-bg-m);
+  }
+  .ring {
+    fill: none;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+`;
+
+export const MiniPieCenter = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  .n {
+    font-weight: 900;
+    font-size: 18px;
+    line-height: 1;
   }
 `;

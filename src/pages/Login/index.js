@@ -65,14 +65,19 @@ export default function Login() {
 
       // 🔹 Se for cliente Fersa (id 23 ou setor Fersa_Cliente), vai pra /conferencia
       const userData = JSON.parse(localStorage.getItem("user") || "{}");
-      
+
       if (
-        userData?.setor_ids == 23 ||
-        userData?.setores?.some?.((s) => s.toLowerCase() === "fersa_cliente")
+        (Array.isArray(userData?.setor_ids) &&
+          (userData.setor_ids.includes(23) ||
+            userData.setor_ids.includes(25))) ||
+        userData?.setores?.some?.((s) => {
+          const nome = s.toLowerCase();
+          return nome === "fersa_cliente" || nome === "coletores";
+        })
       ) {
         navigate("/conferencia");
       } else {
-        navigate("/Projetos");
+        navigate("/projetos");
       }
     } catch (err) {
       const msg =

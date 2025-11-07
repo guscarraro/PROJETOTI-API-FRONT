@@ -407,7 +407,6 @@ const handleApplyFilters = () => {
   };
   fetchDashboardData(filters);
 };
-console.log(todasOcorrencias)
 
 return (
   <Row

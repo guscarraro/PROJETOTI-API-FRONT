@@ -31,7 +31,8 @@ const SECTORS = {
   OPERACAO: 5,
   TI: 2,
   GERENTE_OPERACAO: 16,
-  FERSA_CLIENTE: 23
+  FERSA_CLIENTE: 23,
+  COLETORES: 25
 };
 
 const App = () => {
@@ -211,7 +212,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<Separacao />}
-             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN, SECTORS.FERSA_CLIENTE]}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN, SECTORS.FERSA_CLIENTE, SECTORS.COLETORES]}
            />
          }
        />

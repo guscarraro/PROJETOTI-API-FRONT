@@ -7,29 +7,29 @@ const beepErr = new Audio(beperr);
 
 /**
  * Props:
- * - expectedBars: string[] (EANs esperados, usado só para beep “ok/erro”)
+ * - expectedBars: string[]
  * - onScanEan: (ean:string) => void
- * - onScanLoteQuantidade: ({ lote:string, quantidade:number }) => void
+ * - onScanLoteQuantidade: ({ lote:string, ean:string, quantidade:number }) => boolean|Promise<boolean>
  */
 export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQuantidade }) {
-  const eanRef = useRef(null);
+  const eanUnitRef = useRef(null);
   const loteRef = useRef(null);
+  const eanLoteRef = useRef(null);
   const qtdRef = useRef(null);
 
-  const [bufEAN, setBufEAN] = useState("");
+  const [bufEANUnit, setBufEANUnit] = useState("");
   const [bufLote, setBufLote] = useState("");
+  const [bufEANLote, setBufEANLote] = useState("");
   const [bufQTD, setBufQTD] = useState("");
 
-  // helper: foco
   useEffect(() => {
     setTimeout(() => {
-      try { eanRef.current?.focus({ preventScroll: true }); } catch {}
+      try { eanUnitRef.current?.focus({ preventScroll: true }); } catch {}
     }, 0);
   }, []);
 
-  // USB-like buffer por campo: EAN
   useEffect(() => {
-    const el = eanRef.current;
+    const el = eanUnitRef.current;
     if (!el) return;
 
     let buf = "";
@@ -37,7 +37,9 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     function flush() {
       const code = buf.trim();
       buf = "";
-      if (code) handleEAN(code);
+      if (!code) return;
+      if (bufLote) return; // com lote ativo, ignora EAN unitário
+      handleEANUnit(code);
     }
     function onKey(e) {
       if (tm) clearTimeout(tm);
@@ -49,9 +51,8 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     }
     el.addEventListener("keydown", onKey);
     return () => el.removeEventListener("keydown", onKey);
-  }, []);
+  }, [bufLote, expectedBars]);
 
-  // USB-like buffer por campo: LOTE
   useEffect(() => {
     const el = loteRef.current;
     if (!el) return;
@@ -61,10 +62,11 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     function flush() {
       const code = buf.trim();
       buf = "";
-      if (code) {
-        setBufLote(code);
-        setTimeout(() => { try { qtdRef.current?.focus({ preventScroll: true }); } catch {} }, 0);
-      }
+      if (!code) return;
+      setBufLote(code);
+      setBufEANLote("");
+      setBufQTD("");
+      setTimeout(() => { try { eanLoteRef.current?.focus({ preventScroll: true }); } catch {} }, 0);
     }
     function onKey(e) {
       if (tm) clearTimeout(tm);
@@ -78,9 +80,8 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     return () => el.removeEventListener("keydown", onKey);
   }, []);
 
-  // USB-like buffer por campo: QTD
   useEffect(() => {
-    const el = qtdRef.current;
+    const el = eanLoteRef.current;
     if (!el) return;
 
     let buf = "";
@@ -88,10 +89,9 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     function flush() {
       const code = buf.trim();
       buf = "";
-      if (code) {
-        setBufQTD(code);
-        handleLoteQtd(bufLote || "", code);
-      }
+      if (!code) return;
+      setBufEANLote(code);
+      setTimeout(() => { try { qtdRef.current?.focus({ preventScroll: true }); } catch {} }, 0);
     }
     function onKey(e) {
       if (tm) clearTimeout(tm);
@@ -105,95 +105,111 @@ export default function ItemScanner({ expectedBars = [], onScanEan, onScanLoteQu
     return () => el.removeEventListener("keydown", onKey);
   }, [bufLote]);
 
-  // Handlers explícitos (permite digitar/manual também)
-  function handleEAN(code) {
-    const val = String(code || bufEAN || "").trim();
-    if (!val) return;
-    let exists = false;
-    for (let i = 0; i < expectedBars.length; i++) {
-      if (String(expectedBars[i]).trim() === val) { exists = true; break; }
+  useEffect(() => {
+    const el = qtdRef.current;
+    if (!el) return;
+
+    let buf = "";
+    let tm = null;
+    function flush() {
+      const code = buf.trim();
+      buf = "";
+      if (!code) return;
+      handleLoteFinalize(bufLote, bufEANLote, code);
     }
-    try {
-      if (exists) { beepOk.currentTime = 0; beepOk.play(); }
-      else { beepErr.currentTime = 0; beepErr.play(); }
-    } catch {}
-    setBufEAN("");
+    function onKey(e) {
+      if (tm) clearTimeout(tm);
+      if (e.key === "Enter") flush();
+      else if (e.key.length === 1) {
+        buf += e.key;
+        tm = setTimeout(flush, 120);
+      }
+    }
+    el.addEventListener("keydown", onKey);
+    return () => el.removeEventListener("keydown", onKey);
+  }, [bufLote, bufEANLote]);
+
+  function play(audio) {
+    try { audio.currentTime = 0; audio.play(); } catch {}
+  }
+
+  function handleEANUnit(code) {
+    const val = String(code || bufEANUnit || "").trim();
+    if (!val) return;
+    const exists = expectedBars.some(b => String(b).trim() === val);
+    play(exists ? beepOk : beepErr);
+    setBufEANUnit("");
     if (onScanEan) onScanEan(val);
   }
 
-// dentro de ItemScanner (filho)
-async function handleLoteQtd(lote, qtdStr) {
-  const loteVal = String(lote || bufLote || "").trim();
-  const qtdVal = String(qtdStr || bufQTD || "").trim();
-  const qn = parseInt(qtdVal, 10);
+  async function handleLoteFinalize(lote, ean, qtdStr) {
+    const loteVal = String(lote || "").trim();
+    const eanVal = String(ean || "").trim();
+    const qtdVal = String(qtdStr || bufQTD || "").trim();
+    const qn = parseInt(qtdVal, 10);
 
-  // entradas inválidas: não chama o pai e não toca beep "ok"
-  if (!loteVal) {
-    try { beepErr.currentTime = 0; beepErr.play(); } catch {}
-    return;
-  }
-  if (!qn || isNaN(qn) || qn <= 0) {
-    try { beepErr.currentTime = 0; beepErr.play(); } catch {}
-    return;
-  }
+    if (!loteVal || !eanVal || !qn || isNaN(qn) || qn <= 0) { play(beepErr); return; }
 
-  // limpa buffers apenas quando inputs são válidos
-  setBufLote("");
-  setBufQTD("");
+    setBufLote("");
+    setBufEANLote("");
+    setBufQTD("");
 
-  // chama o pai e usa o retorno (true/false) para decidir o beep
-  let ok = false;
-  if (onScanLoteQuantidade) {
-    try {
-      ok = await Promise.resolve(
-        onScanLoteQuantidade({ lote: loteVal, quantidade: qn })
-      );
-    } catch {
-      ok = false;
+    let ok = false;
+    if (onScanLoteQuantidade) {
+      try {
+        ok = await Promise.resolve(onScanLoteQuantidade({ lote: loteVal, ean: eanVal, quantidade: qn }));
+      } catch {
+        ok = false;
+      }
     }
+    play(ok ? beepOk : beepErr);
+
+    setTimeout(() => {
+      try { loteRef.current?.focus({ preventScroll: true }); } catch {}
+    }, 0);
   }
-
-  try {
-    const audio = ok ? beepOk : beepErr;
-    audio.currentTime = 0;
-    audio.play();
-  } catch {}
-
-  // volta o foco para o campo de LOTE
-  setTimeout(() => {
-    try { loteRef.current?.focus({ preventScroll: true }); } catch {}
-  }, 0);
-}
-
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <div style={{ display: "grid", gap: 10 }}>
       <div style={{ display: "grid", gap: 6 }}>
         <SmallLabel>Leitura por EAN (unitária)</SmallLabel>
         <input
-          ref={eanRef}
-          value={bufEAN}
-          onChange={(e) => setBufEAN(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") handleEAN(); }}
-          placeholder="Aponte o leitor aqui para EAN..."
+          ref={eanUnitRef}
+          value={bufEANUnit}
+          onChange={(e) => setBufEANUnit(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter" && !bufLote) handleEANUnit(); }}
+          placeholder={bufLote ? "Desabilitado: finalize o fluxo de LOTE" : "Aponte o leitor aqui para EAN..."}
+          disabled={!!bufLote}
           style={{
-            width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
+            width: "100%", padding: 12, borderRadius: 10,
+            border: `1px dashed ${bufLote ? "#cbd5e1" : "#94a3b8"}`,
+            background: bufLote ? "#f1f5f9" : "#fff",
             fontWeight: 600
           }}
         />
         <div style={{ fontSize: 12, opacity: .7 }}>
-          Cada leitura de EAN abate <strong>1 unidade</strong>.
+          EAN isolado abate <strong>1</strong>. Com LOTE ativo, este campo fica desabilitado até finalizar LOTE → EAN → QTD.
         </div>
       </div>
 
-      <div style={{ display: "grid", gap: 6, marginTop: 8 }}>
+      <div style={{ display: "grid", gap: 6 }}>
         <SmallLabel>Leitura por LOTE (caixa fechada)</SmallLabel>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 140px", gap: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: 8 }}>
           <input
             ref={loteRef}
             value={bufLote}
-            onChange={(e) => setBufLote(e.target.value)}
+            onChange={(e) => { setBufLote(e.target.value); setBufEANLote(""); setBufQTD(""); }}
             placeholder="Bipe o LOTE aqui..."
+            style={{
+              width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
+              fontWeight: 600
+            }}
+          />
+          <input
+            ref={eanLoteRef}
+            value={bufEANLote}
+            onChange={(e) => setBufEANLote(e.target.value)}
+            placeholder="Agora bipe o EAN do lote..."
             style={{
               width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
               fontWeight: 600
@@ -205,15 +221,15 @@ async function handleLoteQtd(lote, qtdStr) {
             onChange={(e) => setBufQTD(e.target.value)}
             placeholder="QTD"
             inputMode="numeric"
+            onKeyDown={(e) => { if (e.key === "Enter") handleLoteFinalize(bufLote, bufEANLote, bufQTD); }}
             style={{
               width: "100%", padding: 12, borderRadius: 10, border: "1px dashed #94a3b8",
               fontWeight: 700, textAlign: "center"
             }}
-            onKeyDown={(e) => { if (e.key === "Enter") handleLoteQtd(); }}
           />
         </div>
         <div style={{ fontSize: 12, opacity: .7 }}>
-          1) Bipe o <strong>LOTE</strong> • 2) Bipe a <strong>QUANTIDADE</strong> (código numérico). O sistema abate a quantidade.
+          Fluxo: 1) <strong>LOTE</strong> → 2) <strong>EAN do lote</strong> → 3) <strong>QTD</strong>. Só após a QTD o sistema abate ou aponta divergência.
         </div>
       </div>
     </div>
