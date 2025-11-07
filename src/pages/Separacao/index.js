@@ -566,14 +566,12 @@ export default function SeparacaoPage() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </SearchWrap>
-            {user?.setor_ids !== 23 ||
-              (user?.setor_ids !== 25 && (
-                <>
-                  <Button color="secondary" onClick={() => setOpenCsv(true)}>
-                    Importar CSV
-                  </Button>
-                </>
-              ))}
+{user?.setor_ids != 23 && user?.setor_ids != 25 && (
+  <Button color="secondary" onClick={() => setOpenCsv(true)}>
+    Importar CSV
+  </Button>
+)}
+
             {user?.setor_ids != 23 && (
               <>
                 <Button
