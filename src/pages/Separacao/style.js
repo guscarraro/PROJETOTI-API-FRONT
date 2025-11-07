@@ -30,7 +30,7 @@ export const Row = styled.div`
   display: flex;
   align-items: center;
   gap: 8px;
-
+  min-width: 0;
   /* quebra elegante no mobile */
   @media (max-width: 768px) {
     flex-wrap: wrap;
@@ -38,9 +38,9 @@ export const Row = styled.div`
 
   /* texto longo não estoura o card */
   .truncate {
-    display: inline-block;
-    max-width: 100%;
-    vertical-align: bottom;
+display: block;
+    flex: 1;        /* ocupa o espaço restante */
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

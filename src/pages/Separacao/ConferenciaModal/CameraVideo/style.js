@@ -2,9 +2,9 @@ import styled from "styled-components";
 
 export const VideoBox = styled.div`
   position: relative;
-  width: 80%;
-  max-width: 860px;
-  aspect-ratio: 16/9;
+  width: 100%;
+  
+  aspect-ratio: 18/12;
   background: #111;
   border-radius: 12px;
   overflow: hidden;
@@ -14,7 +14,7 @@ export const VideoEl = styled.video`
   position: absolute;
   inset: 0;
   width: 100%;
-  max-width: 860px;
+  aspect-ratio: 18/12;
   height: 100%;
   object-fit: cover;
   z-index: 0;

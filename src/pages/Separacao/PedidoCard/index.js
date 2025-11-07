@@ -248,14 +248,18 @@ const EventsBox = styled.div`
   margin-top: 6px;
   display: grid;
   gap: 6px;
+  min-width: 0;
+
 `;
 
 const EventLine = styled.div`
-  display: grid;
-  grid-template-columns: 10px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
+display: grid;
+grid-template-columns: 10px 1fr;
+grid-template-rows: auto auto;   /* 2 linhas: texto em cima, meta embaixo */
+align-items: center;
+gap: 6px 8px;
+font-size: 12px;
+min-width: 0; 
 
   .dot {
     width: 6px; height: 6px; border-radius: 999px;
@@ -271,22 +275,20 @@ const EventLine = styled.div`
   }
 
   .meta {
-    display: inline-flex;
-    gap: 4px;
-    white-space: nowrap;
+   display: flex;
+   gap: 4px;
+   white-space: normal;   /* deixa quebrar */
+   flex-wrap: wrap;       /* quebra usuário/data se precisar */
+   min-width: 0;
+   grid-column: 2 / -1;   /* fica abaixo do texto principal */
+   justify-self: start;
     color: #6b7280;
     [data-theme="dark"] & { color: #94a3b8; }
   }
 
-  @media (max-width: 768px) {
-    grid-template-columns: 10px 1fr; /* meta quebra embaixo */
-    grid-template-rows: auto auto;
-    .meta {
-      grid-column: 2 / -1;
-      font-size: 11px;
-      opacity: .9;
-    }
-  }
+ @media (max-width: 768px) {
+   .meta { font-size: 11px; opacity: .9; }
+ }
 `;
 
 const MoreHint = styled.div`
@@ -325,9 +327,8 @@ const MetaGrid = styled.div`
   }
 
   .truncate {
-    display: inline-block;
-    max-width: 100%;
-    vertical-align: bottom;
+display: block;
+    min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
