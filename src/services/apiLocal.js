@@ -386,6 +386,18 @@ const apiLocal = {
         return usp.toString();
       },
     }),
+    // ========================
+// DASHBOARD (Conferência/Expedição)
+// ========================
+dashboardOverview: (params = {}) => api.get("/dashboard/", { params }),
+dashboardSummary: (params = {}) => api.get("/dashboard/summary", { params }),
+dashboardDailyConferencias: (params = {}) =>
+  api.get("/dashboard/daily-conferencias", { params }),
+dashboardRankings: (params = {}) => api.get("/dashboard/rankings", { params }),
+dashboardTopTransportadoras: (params = {}) =>
+  api.get("/dashboard/top-transportadoras", { params }),
+dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }),
+
 
   // ========================
   // PEDIDOS

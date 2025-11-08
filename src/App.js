@@ -11,12 +11,14 @@ import CargaLucrativa from './pages/CargaLucrativa';
 import Projetos from './pages/Projetos';
 import Integrantes from './pages/Projetos/Integrantes';
 import ProjetoDetalhe from './pages/Projetos/ProjetoDetalhe';
+
 import GestaoAcessos from './pages/Projetos/GestaoAcessos';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import OperacaoFechamento from './pages/OperacaoFechamento';
 import EstoqueTi from './pages/EstoqueTi';
 import Separacao from './pages/Separacao';
+import DashboardConferencia from './pages/Separacao/DashboardConferencia';
 // import Projecao from './pages/Projecao';
 
 import apiLocal from './services/apiLocal';
@@ -222,6 +224,15 @@ const App = () => {
            <PrivateRoute
              element={<Integrantes />}
              allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
+           />
+         }
+       />
+                 <Route
+         path="/conferencia/dashboard"
+         element={
+           <PrivateRoute
+             element={<DashboardConferencia />}
+             allowedSectors={[SECTORS.ADMIN]}
            />
          }
        />
