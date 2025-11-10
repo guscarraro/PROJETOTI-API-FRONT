@@ -1,5 +1,3 @@
-// src/pages/Separacao/print.js
-
 // Gera e imprime etiquetas 100mm x 70mm (Argox) usando um iframe invisível.
 // opts: { caixas: [{ tipo, peso }], conferente }
 export function printPedidoLabels(pedido, opts = {}) {
@@ -11,7 +9,6 @@ export function printPedidoLabels(pedido, opts = {}) {
   const conferente = String(opts.conferente || "-");
   const impressaoAt = new Date();
 
-  // Helpers de truncagem dura (segurança extra)
   const cut = (s, max) => {
     const v = String(s ?? "");
     return v.length > max ? v.slice(0, max - 1) + "…" : v;
@@ -26,7 +23,6 @@ export function printPedidoLabels(pedido, opts = {}) {
   const title = `Etiquetas - Pedido ${pedidoNr}`;
   const formatDate = (d) => (d ? d.toLocaleString("pt-BR") : "—");
 
-  // HTML/CSS para 100x70mm, 1 etiqueta por página (layout anti-quebra)
   const html = `
 <!doctype html>
 <html lang="pt-br">
@@ -35,32 +31,23 @@ export function printPedidoLabels(pedido, opts = {}) {
 <title>${title}</title>
 <style>
   :root { --ink:#111; --muted:#555; --line:#111; }
-
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-
   @page { size: 100mm 70mm; margin: 0; }
-
   body {
     width: 100mm; height: 70mm; margin: 0; padding: 0;
     color: var(--ink);
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
   }
-
   .label {
     width: 100mm; height: 70mm; padding: 5.5mm 5.5mm 4.5mm 5.5mm;
     display: grid;
-    grid-template-rows: 12mm 34mm 14mm; /* alturas fechadas */
+    grid-template-rows: 12mm 34mm 14mm;
     gap: 2mm;
     page-break-after: always;
-    overflow: hidden; /* CLIPA qualquer excesso – não “empurra” a próxima etiqueta */
+    overflow: hidden;
   }
-
-  @media screen {
-    .label { border: 1px dashed var(--line); border-radius: 3mm; }
-  }
-
-  /* ====== HEADER ====== */
+  @media screen { .label { border: 1px dashed var(--line); border-radius: 3mm; } }
   .header {
     display: flex; align-items: center; justify-content: space-between; gap: 3mm;
     min-height: 12mm; max-height: 12mm; overflow: hidden;
@@ -73,29 +60,22 @@ export function printPedidoLabels(pedido, opts = {}) {
   .headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; }
   .timestamp { font-size: 8pt; color: var(--muted); line-height: 1; white-space: nowrap; }
   .pedidoNo { font-size: 11.5pt; font-weight: 800; white-space: nowrap; }
-
-  /* ====== BLOCO DE CAMPOS ====== */
   .fields {
     display: grid; grid-template-rows: repeat(5, 1fr); gap: 1.2mm;
     min-height: 34mm; max-height: 34mm; overflow: hidden;
   }
   .row { display: flex; align-items: center; gap: 2mm; white-space: nowrap; }
   .hr  { height: 0.3mm; background: #000; opacity: .18; }
-
   .k   { width: 24mm; flex: 0 0 24mm; color: var(--muted); font-size: 8.8pt; }
   .vwrap { flex: 1 1 auto; min-width: 0; }
   .big  { font-size: 14.5pt; font-weight: 900; letter-spacing: .2px; }
   .mid  { font-size: 11pt; font-weight: 800; }
   .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; }
-
-  /* truncagem segura nas values */
   .big, .mid, .mono, .v { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .muted { color: var(--muted); font-size: 8.8pt; }
-
-  /* ====== CHIPS ====== */
   .chips {
     display: flex; align-items: center; gap: 2mm;
-    white-space: nowrap; overflow: hidden; /* uma linha só */
+    white-space: nowrap; overflow: hidden;
     min-height: 14mm; max-height: 14mm;
   }
   .chip {
@@ -105,8 +85,6 @@ export function printPedidoLabels(pedido, opts = {}) {
   }
   .chip .mono { max-width: 20mm; }
   .confName { font-size: 8pt; max-width: 26mm; overflow: hidden; text-overflow: ellipsis; }
-
-  /* print fidelity */
   @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
@@ -119,10 +97,8 @@ export function printPedidoLabels(pedido, opts = {}) {
       const tipo = String(caixas[i]?.tipo || "-").toUpperCase();
       const pesoN = Number(caixas[i]?.peso || 0);
       const pesoFmt = isNaN(pesoN) ? "-" : (pesoN.toFixed(2) + " kg");
-
       out += `
       <section class="label">
-        <!-- HEADER com timestamp e pedido -->
         <div class="header">
           <div class="pill">EMBALAGEM ${seq}/${total}</div>
           <div class="headRight">
@@ -130,33 +106,25 @@ export function printPedidoLabels(pedido, opts = {}) {
             <div class="pedidoNo">Pedido #${pedidoNr}</div>
           </div>
         </div>
-
-        <!-- CAMPOS (alturas fechadas + truncagem) -->
         <div class="fields">
           <div class="row">
             <span class="k">Destinatário:</span>
             <span class="vwrap"><span class="big">${destinatario}</span></span>
           </div>
-
           <div class="row">
             <span class="k">Transportadora:</span>
             <span class="vwrap"><span class="mid">${transportadora}</span></span>
           </div>
-
           <div class="hr"></div>
-
           <div class="row">
             <span class="k">Nota Fiscal:</span>
             <span class="vwrap"><span class="mono">${nf}</span></span>
           </div>
-
           <div class="row">
             <span class="k">Cliente:</span>
             <span class="vwrap"><span class="mid">${cliente}</span></span>
           </div>
         </div>
-
-        <!-- CHIPS em linha única -->
         <div class="chips">
           <div class="chip"><span class="muted">Tipo</span><span class="mono">${tipo}</span></div>
           <div class="chip"><span class="muted">Peso</span><span class="mono">${pesoFmt}</span></div>
@@ -166,13 +134,18 @@ export function printPedidoLabels(pedido, opts = {}) {
     }
     return out;
   })()}
-  <script>window.onload = () => setTimeout(() => { window.focus(); window.print(); }, 150);</script>
 </body>
 </html>
-  `.trim();
+`.trim();
 
-  // Cria iframe oculto para imprimir
+  // Remove qualquer iframe antigo de impressão (garante exclusividade)
+  const OLD_ID = "__print_iframe_labels__";
+  const old = document.getElementById(OLD_ID);
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+
+  // Cria iframe oculto dedicado
   const iframe = document.createElement("iframe");
+  iframe.id = OLD_ID;
   iframe.style.position = "fixed";
   iframe.style.right = "0";
   iframe.style.bottom = "0";
@@ -180,20 +153,52 @@ export function printPedidoLabels(pedido, opts = {}) {
   iframe.style.height = "0";
   iframe.style.border = "0";
   iframe.style.visibility = "hidden";
+  iframe.setAttribute("aria-hidden", "true");
+  iframe.setAttribute("tabindex", "-1");
   document.body.appendChild(iframe);
 
-  const doc = iframe.contentWindow || iframe.contentDocument;
-  const ddoc = doc.document || doc;
-  ddoc.open();
-  ddoc.write(html);
-  ddoc.close();
-
-  // Cleanup pós-impressão
   const cleanup = () => {
+    // Fallback de limpeza e remoção do listener
+    try {
+      const cw = iframe.contentWindow;
+      if (cw) cw.onafterprint = null;
+    } catch {}
     setTimeout(() => {
       if (iframe && iframe.parentNode) iframe.parentNode.removeChild(iframe);
-    }, 400);
+    }, 300);
   };
-  if (doc.addEventListener) doc.addEventListener("afterprint", cleanup);
-  setTimeout(cleanup, 3000);
+
+  // Quando o iframe terminar de carregar, foca e imprime SOMENTE o conteúdo dele
+  iframe.onload = () => {
+    try {
+      const cw = iframe.contentWindow;
+      if (!cw) return cleanup();
+      cw.focus();                // foca o frame da etiqueta
+      // Safari/Android às vezes precisam de tick extra
+      setTimeout(() => {
+        try {
+          cw.onafterprint = cleanup; // limpa após a impressão
+          cw.print();                // imprime o iframe (não a tela do app)
+        } catch { cleanup(); }
+      }, 50);
+    } catch {
+      cleanup();
+    }
+  };
+
+  // Alimenta o iframe (sem script de print embutido!)
+  try {
+    // srcdoc é bem suportado e dispara onload corretamente
+    iframe.srcdoc = html;
+  } catch {
+    // fallback para ambientes sem srcdoc
+    const doc = iframe.contentWindow || iframe.contentDocument;
+    const ddoc = doc.document || doc;
+    ddoc.open();
+    ddoc.write(html);
+    ddoc.close();
+  }
+
+  // Fallback de segurança (se onafterprint não disparar)
+  setTimeout(cleanup, 10000);
 }

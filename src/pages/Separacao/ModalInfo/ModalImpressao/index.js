@@ -43,7 +43,8 @@ export default function ModalImpressao({ isOpen, onClose, onConfirm }) {
       const n = Number(String(c.peso || "").replace(",", "."));
       out.push({ tipo, peso: isNaN(n) ? 0 : n });
     }
-    onConfirm({ caixas: out }); // quem chama injeta conferente
+    onClose();                 // fecha modal antes de imprimir (evita overlay “printado”)
+    onConfirm({ caixas: out }); // quem chama injeta conferente e dispara a impressão
   }
 
   return (
