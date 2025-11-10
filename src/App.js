@@ -4,7 +4,6 @@ import { Routes, Route } from 'react-router-dom';
 import PrivateRoute from './components/PrivateRoute';
 import AdminNavbar from './components/AdminNavbar';
 import Dashboard from './pages/Dashboard';
-import ProjetoFrota from './pages/ProjetoFrota';
 import Cotacao from './pages/Cotacao';
 import Frete from './pages/Frete';
 import CargaLucrativa from './pages/CargaLucrativa';
@@ -185,10 +184,7 @@ const App = () => {
         />
 
         {/* Projeto Frota / Cotação */}
-        <Route
-          path="/ProjetoFrota"
-          element={<PrivateRoute element={<ProjetoFrota />} allowedSectors={[SECTORS.ADMIN]} />}
-        />
+
         <Route
           path="/Cotacao"
           element={<PrivateRoute element={<Cotacao />} allowedSectors={[SECTORS.ADMIN]} />}

@@ -25,7 +25,6 @@ import FakeLabelsModal from "./FakeLabelsModal";
 import ModalExpedidos from "./ModalExpedidos";
 import apiLocal from "../../services/apiLocal";
 
-const CAN_EXPEDIR_EMAILS = ["expedicao@empresa.com.br"];
 const ADM_EMAILS = ["admin@empresa.com.br"];
 
 /* medidas da navbar (mantidas em sincronia com a NavBar) */
@@ -378,7 +377,7 @@ export default function SeparacaoPage() {
         item_cod: o.itemCod || o.item_cod || null,
         bar: o.bar || null,
         lote: o.lote || null,
-        quantidade: o.quantidade != null ? o.quantidade : null,
+        quantidade: o.quantidade !== null ? o.quantidade : null,
         status: o.status || "aberta",
       });
     }
@@ -416,7 +415,7 @@ export default function SeparacaoPage() {
         item_cod: o.itemCod || o.item_cod || null,
         bar: o.bar || null,
         lote: o.lote || null,
-        quantidade: o.quantidade != null ? o.quantidade : null,
+        quantidade: o.quantidade !== null ? o.quantidade : null,
         status: o.status || "aberta",
       });
     }
@@ -502,7 +501,7 @@ export default function SeparacaoPage() {
       out.push(p);
     }
     return out;
-  }, [pedidos, query, normalize, statusFiltro]);
+  }, [pedidos, query, normalize, statusFiltro, buildSearchStrings]);
 
   const candidatosExpedicao = useMemo(() => {
     const res = [];
@@ -566,11 +565,12 @@ export default function SeparacaoPage() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </SearchWrap>
-{user?.setor_ids != 23 && user?.setor_ids != 25 && (
+{Number(user?.setor_ids) !== 23 && Number(user?.setor_ids) !== 25 && (
   <Button color="secondary" onClick={() => setOpenCsv(true)}>
     Importar CSV
   </Button>
 )}
+
             {/* <Button
               color="dark"
               onClick={() => setOpenFake(true)}
@@ -579,7 +579,7 @@ export default function SeparacaoPage() {
               Etiquetas (fake)
             </Button> */}
 
-            {user?.setor_ids != 23 && (
+            {Number(user?.setor_ids) !== 23 && (
               <>
                 <Button
                   color="success"
