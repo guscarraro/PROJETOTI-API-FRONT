@@ -338,17 +338,18 @@ export const H1 = styled.h1`
 /* Grid de cards (lista de pedidos) */
 export const CardGrid = styled.div`
   display: grid;
+  max-width:100%;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
 
   @media (max-width: 768px) {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+   display: flex;
+       flex-direction: column;
+    flex-wrap: wrap;
     gap: 12px;
   }
 
-  @media (max-width: 420px) {
-    grid-template-columns: 1fr; /* 1 coluna em telefones bem estreitos */
-  }
+
 `;
 
 export const Card = styled.div`
@@ -377,6 +378,7 @@ export const Card = styled.div`
   @media (max-width: 768px) {
     padding: 14px;
     border-radius: 14px;
+    max-width: 100%;
   }
 `;
 
