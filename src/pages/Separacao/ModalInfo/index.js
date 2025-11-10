@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState,useCallback  } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Table } from "reactstrap";
 import {
   ModalResponsiveStyles,
@@ -154,18 +154,20 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
     })();
   }, [isOpen]);
 
-  const isValidName = (name) => {
-    const v = String(name || "").trim();
-    if (!v) return false;
-    for (let i = 0; i < integrantesList.length; i++) {
-      const it = integrantesList[i];
-      const nomeCompleto = `${it?.nome || ""} ${it?.sobrenome || ""}`.trim();
-      if (nomeCompleto === v) return true;
-    }
-    return false;
-  };
-  const isValidConf = useMemo(() => isValidName(tmpConf), [tmpConf, integrantesList]);
-  const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep, integrantesList]);
+const isValidName = useCallback((name) => {
+  const v = String(name || "").trim();
+  if (!v) return false;
+  for (let i = 0; i < integrantesList.length; i++) {
+    const it = integrantesList[i];
+    const nomeCompleto = `${it?.nome || ""} ${it?.sobrenome || ""}`.trim();
+    if (nomeCompleto === v) return true;
+  }
+  return false;
+}, [integrantesList]);
+
+const isValidConf = useMemo(() => isValidName(tmpConf), [tmpConf, isValidName]);
+const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
+
 
   // recarrega após alterações
   async function refreshDetail() {
