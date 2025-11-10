@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import styled from "styled-components";
 import NavBar from "../../Projetos/components/NavBar";
 import {
   Page,
-  TitleBar,
   H1,
 } from "../../Projetos/style";
 import useLoading from "../../../hooks/useLoading";
