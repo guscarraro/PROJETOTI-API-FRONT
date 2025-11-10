@@ -230,3 +230,4 @@ export const OccurrenceBadge = styled.span`
     color: #fbbf24;
   }
 `;
+ 
