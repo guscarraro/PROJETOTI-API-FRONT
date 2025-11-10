@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
-import { Field, TextArea, SmallMuted, TinyBtn } from "../style";
+import { Field, SmallMuted, TinyBtn } from "../style";
 import { STATUS_PEDIDO } from "../constants";
 
 export default function PedidoFormModal({ isOpen, onClose, onSubmit }) {

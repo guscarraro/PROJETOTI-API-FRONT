@@ -34,8 +34,9 @@ export default function ModalInfo({
     try { return JSON.parse(localStorage.getItem("user") || "null"); }
     catch { return null; }
   });
-  const isRestrictedUser = user?.setor_ids == 23; // mantém mesma regra do seu código
-  const isRestrictedColetorUser = user?.setor_ids == 25; // mantém mesma regra do seu código
+const isRestrictedUser = Number(user?.setor_ids) === 23;
+const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
+ // mantém mesma regra do seu código
 
   // ------- NF -------
   const [nota, setNota] = useState(pedido?.nota || "");
