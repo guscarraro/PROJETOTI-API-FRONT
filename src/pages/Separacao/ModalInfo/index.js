@@ -35,6 +35,7 @@ export default function ModalInfo({
     catch { return null; }
   });
   const isRestrictedUser = user?.setor_ids == 23; // mantém mesma regra do seu código
+  const isRestrictedColetorUser = user?.setor_ids == 25; // mantém mesma regra do seu código
 
   // ------- NF -------
   const [nota, setNota] = useState(pedido?.nota || "");
@@ -614,7 +615,7 @@ export default function ModalInfo({
             <InfoOcorren conferencia={ultimaConf} ocorrencias={ocorrRows} />
           </div>
 
-          {!isRestrictedUser && (
+          {(!isRestrictedUser && !isRestrictedColetorUser) &&(
             <>
               <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6, marginBottom: 6 }}>
                 <Button
