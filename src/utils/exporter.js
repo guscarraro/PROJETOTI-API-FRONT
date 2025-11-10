@@ -1,59 +1,5 @@
-import * as XLSX from 'xlsx';
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import { groupByStatus } from '../utils/dataUtils';
-import { parse } from "date-fns";
-
-// export const exportarParaExcelPorCliente = (dados) => {
-//   const agrupadoPorRemetente = {};
-
-//   dados.forEach((item) => {
-//     const remetente = item.remetente || "Desconhecido";
-//     if (!agrupadoPorRemetente[remetente]) {
-//       agrupadoPorRemetente[remetente] = [];
-//     }
-
-//     agrupadoPorRemetente[remetente].push({
-//       CTE: item.cte,
-//       Nota: item.nf,
-//       Remetente: item.remetente,
-//       Destinatário: item.destinatario,
-//       Previsão: item.prevE,
-//       Responsável: item.tom,
-//       Status: item.status,
-//       "Data do CTE": item.dtCTE,
-//     });
-//   });
-
-//   Object.entries(agrupadoPorRemetente).forEach(([cliente, linhas]) => {
-//     const ws = XLSX.utils.json_to_sheet(linhas);
-//     const wb = XLSX.utils.book_new();
-//     XLSX.utils.book_append_sheet(wb, ws, "Notas");
-
-//     XLSX.writeFile(wb, `Notas_${cliente}.xlsx`);
-//   });
-// };
-
-// export const exportarTudoSemClientes = (dados) => {
-//   const linhas = dados.map((item) => ({
-//     CTE: item.cte,
-//     Nota: item.nf,
-//     Remetente: item.remetente,
-//     Destinatário: item.destinatario,
-//     Previsão: item.prevE,
-//     Responsável: item.tom,
-//     Status: item.status,
-//     "Data do CTE": item.dtCTE,
-//   }));
-
-//   const ws = XLSX.utils.json_to_sheet(linhas);
-//   const wb = XLSX.utils.book_new();
-//   XLSX.utils.book_append_sheet(wb, ws, "Notas");
-
-//   XLSX.writeFile(wb, "TodasNotas.xlsx");
-// };
-// utils/exporter.js
-
 
 const fluxosPorTpVg = {
   ETPF: [
@@ -65,7 +11,7 @@ const fluxosPorTpVg = {
     "EM ROTA",
     "CHEGADA NO LOCAL",
     "INICIO DE DESCARGA",
-    "FIM DE DESCARGA",
+    "FIM DE DESCARGA"
   ],
   TRFBAS: [
     "ENTRADA DE XML NO SISTEMA",
@@ -78,7 +24,7 @@ const fluxosPorTpVg = {
     "EM ROTA",
     "CHEGADA NO LOCAL",
     "INICIO DE DESCARGA",
-    "FIM DE DESCARGA",
+    "FIM DE DESCARGA"
   ],
   TRFFIL: [
     "ENTRADA DE XML NO SISTEMA",
@@ -92,7 +38,7 @@ const fluxosPorTpVg = {
     "EM ROTA",
     "CHEGADA NO LOCAL",
     "INICIO DE DESCARGA",
-    "FIM DE DESCARGA",
+    "FIM DE DESCARGA"
   ],
   FRA: [
     "ENTRADA DE XML NO SISTEMA",
@@ -100,8 +46,8 @@ const fluxosPorTpVg = {
     "MERCADORIA SEPARADA/CONFERIDA",
     "AGUARDANDO ROTERIZACAO",
     "VIAGEM CRIADA",
-    "EM ROTA",
-  ],
+    "EM ROTA"
+  ]
 };
 
 function parseDate(dateString) {
@@ -117,16 +63,6 @@ function diasEntreHoje(dataString) {
   return Math.floor((hoje - data) / (1000 * 60 * 60 * 24));
 }
 
-
-
-// Função auxiliar para formatar data
-const formatDateExcel = (dateString) => {
-  if (!dateString) return "";
-  const [day, month, year] = dateString.split("/");
-  return new Date(`${year}-${month}-${day}`).toLocaleDateString("pt-BR");
-};
-
-// Função auxiliar para calcular dias de atraso
 const calcularDiasAtraso = (dataEntrega) => {
   if (!dataEntrega) return "";
   const hoje = new Date();
@@ -135,9 +71,7 @@ const calcularDiasAtraso = (dataEntrega) => {
   return diff > 0 ? diff : "";
 };
 
-// Estilos comuns
 const applyCommonStyles = (worksheet, rowCount, colCount) => {
-  // Aplicar bordas a todas as células
   for (let i = 1; i <= rowCount; i++) {
     const row = worksheet.getRow(i);
     for (let j = 1; j <= colCount; j++) {
@@ -146,25 +80,33 @@ const applyCommonStyles = (worksheet, rowCount, colCount) => {
         top: { style: "thin" },
         left: { style: "thin" },
         bottom: { style: "thin" },
-        right: { style: "thin" },
+        right: { style: "thin" }
       };
     }
   }
-
-  // Congelar primeira linha (cabeçalho)
   worksheet.views = [{ state: "frozen", ySplit: 1 }];
 };
-// Função auxiliar para unificar info da nota (índice + ocorrência)
-const unificarNotaInfo = (notaNF, remetente, filteredData, ocorrenciasPorNota) => {
-  const itemIndice = filteredData.find(d =>
-    String(d.NF).split(",").map(nf => nf.trim()).includes(notaNF) &&
-    d.remetente === remetente
-  );
 
-  const itemOcorrencia = ocorrenciasPorNota.find(o =>
-    String(o.NF).split(",").map(nf => nf.trim()).includes(notaNF) &&
-    o.tom === remetente
-  );
+const unificarNotaInfo = (notaNF, remetente, filteredData, ocorrenciasPorNota) => {
+  let itemIndice = null;
+  for (let i = 0; i < filteredData.length; i++) {
+    const d = filteredData[i];
+    const arr = String(d.NF).split(",").map((nf) => nf.trim());
+    if (arr.includes(notaNF) && d.remetente === remetente) {
+      itemIndice = d;
+      break;
+    }
+  }
+
+  let itemOcorrencia = null;
+  for (let i = 0; i < ocorrenciasPorNota.length; i++) {
+    const o = ocorrenciasPorNota[i];
+    const arr = String(o.NF).split(",").map((nf) => nf.trim());
+    if (arr.includes(notaNF) && o.tom === remetente) {
+      itemOcorrencia = o;
+      break;
+    }
+  }
 
   if (!itemIndice && !itemOcorrencia) return null;
 
@@ -172,16 +114,14 @@ const unificarNotaInfo = (notaNF, remetente, filteredData, ocorrenciasPorNota) =
     ...itemIndice,
     ...itemOcorrencia,
     NF: notaNF,
-    Ocorren: itemOcorrencia?.Ocorren ?? itemIndice?.Ocorren ?? [],
-    TpVg: itemIndice?.TpVg ?? itemOcorrencia?.TpVg ?? "ETPF",
-    cte: itemIndice?.cte ?? itemOcorrencia?.cte,
-    prevE: itemIndice?.previsao_entrega ?? itemOcorrencia?.prevE,
-    destinatario: itemIndice?.destinatario ?? itemOcorrencia?.destinatario,
-    praca_destino: itemIndice?.praca_destino ?? itemOcorrencia?.praca_destino,
+    Ocorren: Array.isArray(itemOcorrencia?.Ocorren) ? itemOcorrencia.Ocorren : (Array.isArray(itemIndice?.Ocorren) ? itemIndice.Ocorren : []),
+    TpVg: itemIndice?.TpVg || itemOcorrencia?.TpVg || "ETPF",
+    cte: itemIndice?.cte || itemOcorrencia?.cte,
+    prevE: itemIndice?.previsao_entrega || itemOcorrencia?.prevE,
+    destinatario: itemIndice?.destinatario || itemOcorrencia?.destinatario,
+    praca_destino: itemIndice?.praca_destino || itemOcorrencia?.praca_destino
   };
 };
-
-// Exportar para Excel por cliente com abas detalhadas
 
 const etapasPadrao = [
   "ENTRADA DE XML NO SISTEMA",
@@ -212,12 +152,13 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
   const nfsEmAgendamento = new Set();
   const nfsJaExportadas = new Set();
 
-  for (const o of ocorrenciasPorNota) {
-    const isAgendamento = o.Ocorren?.some(oc => oc.tipo === "AGUARDANDO AGENDAMENTO DO CLIENTE");
-    const isEntregue = o.Ocorren?.some(oc => oc.tipo === "ENTREGA AGENDADA");
+  for (let i = 0; i < ocorrenciasPorNota.length; i++) {
+    const o = ocorrenciasPorNota[i];
+    const isAgendamento = Array.isArray(o.Ocorren) ? o.Ocorren.some((oc) => oc.tipo === "AGUARDANDO AGENDAMENTO DO CLIENTE") : false;
+    const isEntregue = Array.isArray(o.Ocorren) ? o.Ocorren.some((oc) => oc.tipo === "ENTREGA AGENDADA") : false;
     if (isAgendamento && !isEntregue) {
-      const nfs = String(o.NF || "").split(",").map(nf => nf.trim());
-      nfs.forEach(nf => nfsEmAgendamento.add(nf));
+      const nfs = String(o.NF || "").split(",").map((nf) => nf.trim());
+      for (let j = 0; j < nfs.length; j++) nfsEmAgendamento.add(nfs[j]);
     }
   }
 
@@ -238,21 +179,24 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
 
     const statusData = groupedDataByStatus[statusKey] || [];
 
-    for (const group of statusData) {
+    for (let g = 0; g < statusData.length; g++) {
+      const group = statusData[g];
       const remetente = group?.remetente ?? "Desconhecido";
       const itens = Array.isArray(group)
         ? group
         : Array.isArray(group?.notas)
-          ? group.notas.map(nf => ({ NF: nf }))
+          ? group.notas.map((nf) => ({ NF: nf }))
           : [group];
 
-      for (const item of itens) {
+      for (let it = 0; it < itens.length; it++) {
+        const item = itens[it];
         const nfString = item?.NF ?? item?.nf;
         const nfs = typeof nfString === "string"
-          ? nfString.split(",").map(nf => nf.trim())
+          ? nfString.split(",").map((nf) => nf.trim())
           : [String(nfString)];
 
-        for (const nf of nfs) {
+        for (let n = 0; n < nfs.length; n++) {
+          const nf = nfs[n];
           if (nfsEmAgendamento.has(nf) || nfsJaExportadas.has(`${statusKey}:${nf}`)) continue;
 
           const notaInfo = unificarNotaInfo(nf, remetente, filteredData, ocorrenciasPorNota);
@@ -261,15 +205,15 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
           const tipoViagem = notaInfo.TpVg || "ETPF";
           const etapasComStatus = getEtapasComStatus(notaInfo, tipoViagem);
 
-          const isAgendadaPorNome = notaInfo.destinatario?.toUpperCase()?.includes("(AGENDADO)");
-          const isAgendadaPorOcorrencia = notaInfo.Ocorren?.some(oc => oc.tipo === "ENTREGA AGENDADA");
+          const isAgendadaPorNome = String(notaInfo.destinatario || "").toUpperCase().includes("(AGENDADO)");
+          const isAgendadaPorOcorrencia = Array.isArray(notaInfo.Ocorren) ? notaInfo.Ocorren.some((oc) => oc.tipo === "ENTREGA AGENDADA") : false;
           const isAgendada = isAgendadaPorNome || isAgendadaPorOcorrencia;
-          const ehForaSJP = notaInfo.praca_destino?.toUpperCase() !== "SJP";
+          const ehForaSJP = String(notaInfo.praca_destino || "").toUpperCase() !== "SJP";
 
           const statusViagem =
             isAgendada && ehForaSJP ? "VIAGEM + AGENDADO" :
-              isAgendada ? "AGENDADO" :
-                ehForaSJP ? "VIAGEM" : "NORMAL";
+            isAgendada ? "AGENDADO" :
+            ehForaSJP ? "VIAGEM" : "NORMAL";
 
           const row = [
             remetente,
@@ -277,8 +221,9 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
             notaInfo.cte || ""
           ];
 
-          for (const etapaNome of etapasPadrao) {
-            const etapa = etapasComStatus.find(e => e.nome === etapaNome);
+          for (let e = 0; e < etapasPadrao.length; e++) {
+            const etapaNome = etapasPadrao[e];
+            const etapa = etapasComStatus.find((x) => x.nome === etapaNome);
             if (!etapa) {
               row.push("-");
             } else if (etapa.foiExecutada) {
@@ -297,29 +242,30 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
           const newRow = worksheet.addRow(row);
 
           if (statusViagem === "VIAGEM + AGENDADO") {
-            newRow.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E6FA" } });
+            newRow.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E6FA" } }));
           } else if (statusViagem === "AGENDADO") {
-            newRow.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFADD8E6" } });
+            newRow.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFADD8E6" } }));
           } else if (statusViagem === "VIAGEM") {
-            newRow.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFA07A" } });
+            newRow.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFA07A" } }));
           }
 
-          etapasPadrao.forEach((etapaNome, idx) => {
-            const etapa = etapasComStatus.find(e => e.nome === etapaNome);
-            const cell = newRow.getCell(4 + idx);
+          for (let e = 0; e < etapasPadrao.length; e++) {
+            const etapaNome = etapasPadrao[e];
+            const etapa = etapasComStatus.find((x) => x.nome === etapaNome);
+            const cell = newRow.getCell(4 + e);
             if (!etapa) {
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDDDDDD" } }; // cinza
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDDDDDD" } };
             } else if (etapa.foiExecutada) {
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } }; // verde
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } };
             }
-          });
+          }
 
           nfsJaExportadas.add(`${statusKey}:${nf}`);
         }
       }
     }
 
-    worksheet.columns.forEach(column => {
+    worksheet.columns.forEach((column) => {
       const header = typeof column.header === "string" ? column.header : "";
       column.width = header.length < 12 ? 12 : header.length + 5;
     });
@@ -334,19 +280,19 @@ export const exportarParaExcelPorCliente = async (groupedDataByStatus, filteredD
   saveAs(blob, `Relatorio_Entregas_Detalhado_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
 };
 
-
-
-
-
-// Função auxiliar para obter etapas com status (similar ao componente EtapaNota)
 export const getEtapasComStatus = (notaInfo, tipoViagem) => {
   const etapas = fluxosPorTpVg[tipoViagem] || [];
-  const ocorrenciasMap = (notaInfo.Ocorren || []).reduce((map, o) => {
-    map[o.tipo.toUpperCase()] = o.data;
-    return map;
-  }, {});
+  const ocorrenciasMap = {};
+  const arr = Array.isArray(notaInfo.Ocorren) ? notaInfo.Ocorren : [];
+  for (let i = 0; i < arr.length; i++) {
+    const o = arr[i];
+    const key = String(o.tipo || "").toUpperCase();
+    ocorrenciasMap[key] = o.data;
+  }
 
-  const etapasRenderizadas = etapas.map((etapa, idx) => {
+  const etapasRenderizadas = [];
+  for (let i = 0; i < etapas.length; i++) {
+    const etapa = etapas[i];
     const tipo = etapa.toUpperCase();
     let foiExecutada = false;
     let detalhe = null;
@@ -356,48 +302,44 @@ export const getEtapasComStatus = (notaInfo, tipoViagem) => {
       detalhe = ocorrenciasMap[tipo];
     } else if (tipo === "DOCUMENTO EMITIDO" && notaInfo.cte) {
       foiExecutada = true;
-      detalhe = `${notaInfo.cte} - ${notaInfo.dtCTE}`;
+      detalhe = `${notaInfo.cte} - ${notaInfo.dtCTE || ""}`;
     } else if (tipo === "VIAGEM CRIADA" && notaInfo.Vg && notaInfo.Vg !== 0) {
       foiExecutada = true;
-      detalhe = `${notaInfo.Vg} - ${notaInfo.TpVg}`;
+      detalhe = `${notaInfo.Vg} - ${notaInfo.TpVg || ""}`;
     } else if (ocorrenciasMap[tipo]) {
       foiExecutada = true;
       detalhe = ocorrenciasMap[tipo];
     }
 
-    return {
-      nome: etapa,
-      foiExecutada,
-      detalhe,
-      index: idx,
-    };
-  });
+    etapasRenderizadas.push({ nome: etapa, foiExecutada, detalhe, index: i });
+  }
 
-  const ultimaExecutadaIndex = etapasRenderizadas.reduce(
-    (max, etapa) => (etapa.foiExecutada ? etapa.index : max),
-    -1
-  );
+  let ultimaExecutadaIndex = -1;
+  for (let i = 0; i < etapasRenderizadas.length; i++) {
+    if (etapasRenderizadas[i].foiExecutada && etapasRenderizadas[i].index > ultimaExecutadaIndex) {
+      ultimaExecutadaIndex = etapasRenderizadas[i].index;
+    }
+  }
 
-  return etapasRenderizadas.map((etapa, idx) => {
+  const saida = [];
+  for (let i = 0; i < etapasRenderizadas.length; i++) {
+    const etapa = etapasRenderizadas[i];
     let status = "branca";
     if (etapa.foiExecutada) {
       status = "verde";
-    } else if (idx < ultimaExecutadaIndex) {
+    } else if (i < ultimaExecutadaIndex) {
       status = "vermelha";
     }
-    return {
-      ...etapa,
-      status,
-    };
-  });
+    saida.push({ ...etapa, status });
+  }
+  return saida;
 };
 
-// Exportar tudo em uma única aba
 export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData, ocorrenciasPorNota) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Todas Notas");
 
-  const etapasPadrao = [
+  const etapasPadraoLocal = [
     "ENTRADA DE XML NO SISTEMA",
     "DOCUMENTO EMITIDO",
     "MERCADORIA SEPARADA/CONFERIDA",
@@ -419,7 +361,7 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
     "CT-e",
     "Destino",
     "Praça Destino",
-    ...etapasPadrao,
+    ...etapasPadraoLocal,
     "Previsão Entrega",
     "Dias Atraso",
     "Dias Referência",
@@ -432,7 +374,7 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
     cell.alignment = { vertical: "middle", horizontal: "center" };
   });
 
-  for (const [statusKey, statusLabel] of Object.entries({
+  const mapaStatus = {
     aguardandoAgendamento: "Aguardando Agendamento",
     semPrevisao: "Sem Previsão",
     inThreeDays: "Entregas em 3 Dias",
@@ -440,34 +382,39 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
     tomorrow: "Entregas em 1 Dia",
     today: "Entregas Hoje",
     overdue: "Atrasadas"
-  })) {
+  };
+
+  for (const [statusKey, statusLabel] of Object.entries(mapaStatus)) {
     const statusData = groupedDataByStatus[statusKey] || [];
 
-    for (const group of statusData) {
+    for (let g = 0; g < statusData.length; g++) {
+      const group = statusData[g];
       const remetente = group?.remetente || group?.tom || "Desconhecido";
       const notas = Array.isArray(group?.notas) ? group.notas : [group];
 
-      for (const item of notas) {
+      for (let it = 0; it < notas.length; it++) {
+        const item = notas[it];
         const nfs = typeof item.NF === "string"
-          ? item.NF.split(",").map(nf => nf.trim())
+          ? item.NF.split(",").map((nf) => nf.trim())
           : item.nf
             ? [String(item.nf).trim()]
             : [];
 
-        for (const nf of nfs) {
+        for (let n = 0; n < nfs.length; n++) {
+          const nf = nfs[n];
           const notaInfo = unificarNotaInfo(nf, remetente, filteredData, ocorrenciasPorNota);
           if (!notaInfo) continue;
 
           const tipoViagem = notaInfo.TpVg || "ETPF";
           const etapasComStatus = getEtapasComStatus(notaInfo, tipoViagem);
 
-          const isAgendada = notaInfo.destinatario?.includes("(AGENDADO)") ||
-            (notaInfo.Ocorren || []).some(oc => oc.tipo === "ENTREGA AGENDADA");
-          const ehForaSJP = notaInfo.praca_destino?.toUpperCase() !== "SJP";
+          const isAgendada = String(notaInfo.destinatario || "").includes("(AGENDADO)") ||
+            (Array.isArray(notaInfo.Ocorren) ? notaInfo.Ocorren.some((oc) => oc.tipo === "ENTREGA AGENDADA") : false);
+          const ehForaSJP = String(notaInfo.praca_destino || "").toUpperCase() !== "SJP";
           const statusViagem =
             isAgendada && ehForaSJP ? "VIAGEM + AGENDADO" :
-              isAgendada ? "AGENDADO" :
-                ehForaSJP ? "VIAGEM" : "NORMAL";
+            isAgendada ? "AGENDADO" :
+            ehForaSJP ? "VIAGEM" : "NORMAL";
 
           const row = [
             statusLabel,
@@ -478,14 +425,15 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
             notaInfo.praca_destino || ""
           ];
 
-          for (const etapaNome of etapasPadrao) {
-            const etapa = etapasComStatus.find(e => e.nome === etapaNome);
+          for (let e = 0; e < etapasPadraoLocal.length; e++) {
+            const etapaNome = etapasPadraoLocal[e];
+            const etapa = etapasComStatus.find((x) => x.nome === etapaNome);
             if (!etapa) {
-              row.push("-"); // inexistente
+              row.push("-");
             } else if (etapa.foiExecutada) {
               row.push(etapa?.detalhe || "Concluído");
             } else {
-              row.push(""); // existente, mas não concluída
+              row.push("");
             }
           }
 
@@ -499,32 +447,33 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
           const rowObj = worksheet.addRow(row);
 
           if (statusKey === "overdue") {
-            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFCCCB" } });
+            rowObj.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFCCCB" } }));
           } else if (statusKey === "today") {
-            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFE0" } });
+            rowObj.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFFFE0" } }));
           } else if (statusViagem === "VIAGEM + AGENDADO") {
-            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E6FA" } });
+            rowObj.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFE6E6FA" } }));
           } else if (statusViagem === "AGENDADO") {
-            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFADD8E6" } });
+            rowObj.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFADD8E6" } }));
           } else if (statusViagem === "VIAGEM") {
-            rowObj.eachCell(cell => cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFA07A" } });
+            rowObj.eachCell((cell) => (cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFA07A" } }));
           }
 
-          etapasPadrao.forEach((etapaNome, idx) => {
-            const etapa = etapasComStatus.find(e => e.nome === etapaNome);
-            const cell = rowObj.getCell(7 + idx); // começa na 7ª col (Destino), então + idx
+          for (let e = 0; e < etapasPadraoLocal.length; e++) {
+            const etapaNome = etapasPadraoLocal[e];
+            const etapa = etapasComStatus.find((x) => x.nome === etapaNome);
+            const cell = rowObj.getCell(7 + e);
             if (!etapa) {
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDDDDDD" } }; // cinza
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFDDDDDD" } };
             } else if (etapa.foiExecutada) {
-              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } }; // verde
+              cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } };
             }
-          });
+          }
         }
       }
     }
   }
 
-  worksheet.columns.forEach(column => {
+  worksheet.columns.forEach((column) => {
     const header = typeof column.header === "string" ? column.header : "";
     column.width = header.length < 12 ? 12 : header.length + 5;
   });
@@ -538,13 +487,10 @@ export const exportarTudoSemClientes = async (groupedDataByStatus, filteredData,
   saveAs(blob, `Relatorio_Entregas_GERAL_${new Date().toLocaleDateString("pt-BR")}.xlsx`);
 };
 
-
-// Adicione esta função no exporter.js
 export const exportarExcelDetalhadoPorStatus = async (groupedDataByStatus, filteredData, ocorrenciasPorNota) => {
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet("Detalhado por Status");
 
-  // Cabeçalho
   worksheet.addRow([
     "Status",
     "Remetente/Tomador",
@@ -557,19 +503,13 @@ export const exportarExcelDetalhadoPorStatus = async (groupedDataByStatus, filte
     "Status Viagem"
   ]);
 
-  // Estilizar cabeçalho
   worksheet.getRow(1).eachCell((cell) => {
-    cell.fill = {
-      type: "pattern",
-      pattern: "solid",
-      fgColor: { argb: "FFCCE5FF" },
-    };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFCCE5FF" } };
     cell.font = { bold: true };
     cell.alignment = { vertical: "middle", horizontal: "center" };
   });
 
-  // Preencher dados
-  for (const [statusKey, statusLabel] of Object.entries({
+  const mapaStatus = {
     aguardandoAgendamento: "Aguardando Agendamento",
     semPrevisao: "Sem Previsão",
     inThreeDays: "Entrega em 3 Dias",
@@ -577,43 +517,33 @@ export const exportarExcelDetalhadoPorStatus = async (groupedDataByStatus, filte
     tomorrow: "Entrega em 1 Dia",
     today: "Entregas Hoje",
     overdue: "Atrasadas"
-  })) {
-    // Verifica se existe dados para este status
-    if (!groupedDataByStatus[statusKey]) continue;
+  };
 
+  for (const [statusKey, statusLabel] of Object.entries(mapaStatus)) {
     const statusData = groupedDataByStatus[statusKey];
-
-    // Verifica se statusData é um array e tem itens
     if (!Array.isArray(statusData)) continue;
 
-    for (const group of statusData) {
-      // Verifica se group tem a propriedade itens ou ocorrencias
+    for (let g = 0; g < statusData.length; g++) {
+      const group = statusData[g];
       const itens = group?.notas ?? group?.itens ?? group?.ocorrencias ?? [];
-
-
-
-      // Verifica se itens é um array
       if (!Array.isArray(itens)) continue;
 
-      for (const item of itens) {
-        // Verifica se item tem NF e é uma string válida
-        const nfs = (item.NF && typeof item.NF === 'string') ?
-          item.NF.split(",").map(nf => nf.trim()) : [];
+      for (let it = 0; it < itens.length; it++) {
+        const item = itens[it];
+        const nfs = (item.NF && typeof item.NF === "string") ? item.NF.split(",").map((nf) => nf.trim()) : [];
 
-        for (const nf of nfs) {
-          const notaInfo = ocorrenciasPorNota.find(o =>
-            o.NF && String(o.NF).split(",").map(x => x.trim()).includes(nf)) || item;
-
-          // Verifica se notaInfo existe
+        for (let n = 0; n < nfs.length; n++) {
+          const nf = nfs[n];
+          const notaInfo = ocorrenciasPorNota.find((o) => o.NF && String(o.NF).split(",").map((x) => x.trim()).includes(nf)) || item;
           if (!notaInfo) continue;
 
-          const isAgendada = notaInfo.destinatario?.includes("(AGENDADO)") ||
-            (notaInfo.Ocorren || []).some(oc => oc.tipo === "ENTREGA AGENDADA");
-          const ehForaSJP = notaInfo.praca_destino?.toUpperCase() !== "SJP";
+          const isAgendada = String(notaInfo.destinatario || "").includes("(AGENDADO)") ||
+            (Array.isArray(notaInfo.Ocorren) ? notaInfo.Ocorren.some((oc) => oc.tipo === "ENTREGA AGENDADA") : false);
+          const ehForaSJP = String(notaInfo.praca_destino || "").toUpperCase() !== "SJP";
           const statusViagem =
             isAgendada && ehForaSJP ? "VIAGEM + AGENDADO" :
-              isAgendada ? "AGENDADO" :
-                ehForaSJP ? "VIAGEM" : "NORMAL";
+            isAgendada ? "AGENDADO" :
+            ehForaSJP ? "VIAGEM" : "NORMAL";
 
           worksheet.addRow([
             statusLabel,
@@ -631,13 +561,11 @@ export const exportarExcelDetalhadoPorStatus = async (groupedDataByStatus, filte
     }
   }
 
-  // Ajustar largura das colunas
-  worksheet.columns.forEach(column => {
+  worksheet.columns.forEach((column) => {
     const header = typeof column.header === "string" ? column.header : "";
     column.width = header.length < 12 ? 12 : header.length + 5;
   });
 
-  // Aplicar bordas a todas as células
   for (let i = 1; i <= worksheet.rowCount; i++) {
     const row = worksheet.getRow(i);
     for (let j = 1; j <= worksheet.columnCount; j++) {
@@ -646,12 +574,11 @@ export const exportarExcelDetalhadoPorStatus = async (groupedDataByStatus, filte
         top: { style: "thin" },
         left: { style: "thin" },
         bottom: { style: "thin" },
-        right: { style: "thin" },
+        right: { style: "thin" }
       };
     }
   }
 
-  // Gerar arquivo
   const buffer = await workbook.xlsx.writeBuffer();
   const blob = new Blob([buffer], {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
