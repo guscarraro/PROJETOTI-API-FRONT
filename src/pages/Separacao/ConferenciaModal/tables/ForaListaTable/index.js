@@ -1,12 +1,18 @@
 import React from "react";
 import { Table, Button } from "reactstrap";
 import { TableWrap } from "../../tableStyles";
+import { FiCornerUpLeft, FiAlertTriangle } from "react-icons/fi";
 
 const RED_BG = "rgba(239,68,68,.10)";
 const RED_BORDER = "rgba(239,68,68,.45)";
 const ROW_BG = "rgba(239,68,68,.06)";
 
-export default function ForaListaTable({ foraLista, onDevolvido, styles }) {
+export default function ForaListaTable({
+  foraLista,
+  onDevolvido,
+  onErroBipagemBar, // novo
+  styles,
+}) {
   const tdBg = (base = {}) => ({ ...base, background: ROW_BG });
 
   return (
@@ -29,15 +35,20 @@ export default function ForaListaTable({ foraLista, onDevolvido, styles }) {
               <tr>
                 <th style={styles.th}>EAN</th>
                 <th style={styles.th}>Lidos</th>
-                <th style={styles.th}>Ação</th>
+                <th style={styles.th}>Ações</th>
               </tr>
             </thead>
             <tbody>
               {foraLista.map((r, i) => (
                 <tr key={i}>
-                  <td style={tdBg({ fontFamily: "ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace" })}>
+                  <td
+                    style={tdBg({
+                      fontFamily:
+                        "ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                    })}
+                  >
                     {r.bar}
-                    <span className="mobile-row-actions">
+                    <span className="mobile-row-actions" style={{ marginLeft: 8, display: "inline-flex", gap: 6 }}>
                       <Button
                         size="sm"
                         color="secondary"
@@ -45,28 +56,61 @@ export default function ForaListaTable({ foraLista, onDevolvido, styles }) {
                         title="Devolver material ao local de origem"
                         style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                       >
-                        Devolvido
+                        <FiCornerUpLeft size={14} />
+                        <span className="btn-label-hide-sm">Devolvido</span>
                       </Button>
+
+                      {typeof onErroBipagemBar === "function" && (
+                        <Button
+                          size="sm"
+                          color="warning"
+                          onClick={() => onErroBipagemBar(r.bar)}
+                          title="Marcar leitura como erro de bipagem (remove 1 e some se zerar)"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                        >
+                          <FiAlertTriangle size={14} />
+                          <span className="btn-label-hide-sm">Erro de bipagem</span>
+                        </Button>
+                      )}
                     </span>
                   </td>
+
                   <td style={tdBg()}>{Number(r.count || 0)}</td>
+
                   <td style={tdBg()}>
-                    <div className="mobile-row-actions">
+                    <div className="mobile-row-actions" style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <Button
                         size="sm"
                         color="secondary"
                         onClick={() => onDevolvido(r.bar)}
                         title="Devolver material ao local de origem"
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
                       >
-                        Devolvido ao local
+                        <FiCornerUpLeft size={14} />
+                        <span className="btn-label-hide-sm">Devolvido ao local</span>
                       </Button>
+
+                      {typeof onErroBipagemBar === "function" && (
+                        <Button
+                          size="sm"
+                          color="warning"
+                          onClick={() => onErroBipagemBar(r.bar)}
+                          title="Marcar leitura como erro de bipagem (remove 1 e some se zerar)"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+                        >
+                          <FiAlertTriangle size={14} />
+                          <span className="btn-label-hide-sm">Erro de bipagem</span>
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>
               ))}
               {foraLista.length === 0 && (
                 <tr>
-                  <td colSpan={3} style={tdBg({ opacity:.7 })}>Nenhum item fora da lista.</td>
+                  <td colSpan={3} style={tdBg({ opacity: .7 })}>
+                    Nenhum item fora da lista.
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -75,7 +119,7 @@ export default function ForaListaTable({ foraLista, onDevolvido, styles }) {
       </TableWrap>
 
       <div style={{ fontSize: 12, marginTop: 6, color: "#9a3412" }}>
-        Produto divergente. Devolver material e registrar ocorrência.
+        Produto divergente. Devolver material ou marcar erro de bipagem.
       </div>
     </div>
   );

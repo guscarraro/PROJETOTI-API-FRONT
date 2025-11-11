@@ -39,7 +39,11 @@ export default function ConferenciaModal({
   const [toasts, setToasts] = useState([]);
   const [savingSubmit, setSavingSubmit] = useState(false);
 
-  // === mata a câmera da etapa de fotos ao avançar ===
+  function newOccId() {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+  const SKIP_BENCH_PHOTOS = false;
+
   const benchAreaRef = useRef(null);
   function stopMediaStreamsIn(rootEl) {
     if (!rootEl) return;
@@ -54,13 +58,11 @@ export default function ConferenciaModal({
     }
   }
   function goToScan() {
-    // desliga a câmera da etapa de fotos para liberar o leitor HID/DataWedge
     stopMediaStreamsIn(benchAreaRef.current);
     setPhase("scan");
     setTimeout(() => keepFocus(true), 0);
   }
 
-  // === Input-sink para coletor (HID / DataWedge) — sem roubar foco de inputs ===
   const sinkRef = useRef(null);
   const bufferRef = useRef("");
 
@@ -88,12 +90,12 @@ export default function ConferenciaModal({
 
   useEffect(() => {
     if (!isOpen) return;
-    // foca ao abrir
-    setTimeout(() => keepFocus(true), 0);
+    if (SKIP_BENCH_PHOTOS) {
+      setPhase("scan");
+    }
   }, [isOpen]);
 
   useEffect(() => {
-    // ao entrar na fase de scan, garante que nenhuma câmera antiga ficou ligada
     if (phase === "scan") {
       stopMediaStreamsIn(benchAreaRef.current);
       setTimeout(() => keepFocus(true), 0);
@@ -101,7 +103,6 @@ export default function ConferenciaModal({
   }, [phase]);
 
   function onSinkKeyDown(e) {
-    // agrega caracteres do leitor quando o foco estiver no sink
     if (e.key === "Enter" || e.key === "Tab") {
       const code = bufferRef.current.trim();
       bufferRef.current = "";
@@ -113,13 +114,81 @@ export default function ConferenciaModal({
       bufferRef.current += e.key;
     }
   }
-  // === FIM input-sink ===
 
   function toast(text, tone = "info") {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setToasts((t) => [...t, { id, text, tone }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
   }
+
+  // >>>>>>>>>>>>>>>>>>>> RECONCILIAÇÃO CENTRAL <<<<<<<<<<<<<<<<<<<<<
+  // Sincroniza ocorrências de "produto_divergente" com a lista agregada por EAN.
+  // modo: 'erro' (remove a ocorrência) | 'devolvido' (fecha ocorrência)
+  function ajustarDivergentePorBar(bar, modo) {
+    const barStr = String(bar || "");
+    if (!barStr) return;
+
+    setOcorrencias((oc) => {
+      let alterou = false;
+      const novo = [];
+      let usouUma = false;
+
+      for (let i = 0; i < oc.length; i++) {
+        const o = oc[i];
+        const isAberta = (o.status || "aberta").toLowerCase() === "aberta";
+        const isPD =
+          o.tipo === "produto_divergente" && String(o.bar || "") === barStr;
+
+        if (!usouUma && isPD && isAberta) {
+          usouUma = true;
+          alterou = true;
+
+          if (modo === "erro") {
+            // remove do array (não contabiliza)
+            continue;
+          } else {
+            // devolvido: fecha com detalhe
+            novo.push({
+              ...o,
+              status: "fechada",
+              detalhe:
+                (o.detalhe || "") + " • Devolvido ao local de origem.",
+            });
+          }
+        } else {
+          novo.push(o);
+        }
+      }
+
+      if (alterou) {
+        // espelha na foraLista no MESMO tick
+        setForaLista((curr) => {
+          const out = [];
+          for (let i = 0; i < curr.length; i++) {
+            const it = curr[i];
+            if (String(it.bar) === barStr) {
+              const next = Math.max(0, Number(it.count || 0) - 1);
+              if (next > 0) out.push({ ...it, count: next });
+              // se zera, some da tabela
+            } else {
+              out.push(it);
+            }
+          }
+          return out;
+        });
+      }
+
+      return novo;
+    });
+
+    toast(
+      modo === "erro"
+        ? "Marcado como erro de bipagem."
+        : "Material devolvido ao local.",
+      "info"
+    );
+  }
+  // >>>>>>>>>>>>>>>>>>>> FIM RECONCILIAÇÃO <<<<<<<<<<<<<<<<<<<<<<<<<
 
   const linhasInicial = useMemo(() => {
     const arr = [];
@@ -246,6 +315,14 @@ export default function ConferenciaModal({
     return linhas.length > 0;
   }, [linhas]);
 
+  const temOcorrenciaAberta = useMemo(() => {
+    for (let i = 0; i < ocorrencias.length; i++) {
+      const st = (ocorrencias[i].status || "aberta").toLowerCase();
+      if (st !== "fechada") return true;
+    }
+    return false;
+  }, [ocorrencias]);
+
   function fmtTime(s) {
     const mm = String(Math.floor(s / 60)).padStart(2, "0");
     const ss = String(s % 60).padStart(2, "0");
@@ -265,6 +342,7 @@ export default function ConferenciaModal({
     setBenchShots((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  // === Leitura por EAN ===
   function handleScanEAN(code) {
     const barcode = String(code || "").trim();
     if (!barcode) return;
@@ -286,13 +364,17 @@ export default function ConferenciaModal({
       setOcorrencias((oc) => [
         ...oc,
         {
+          id: newOccId(),
           tipo: "produto_divergente",
           detalhe: "Leitura de EAN que não pertence ao pedido.",
           bar: barcode,
           status: "aberta",
         },
       ]);
-      toast("Produto fora da lista! Devolver material.", "error");
+      toast(
+        "Produto fora da lista! Devolver material ou marcar erro de bipagem.",
+        "error"
+      );
       return;
     }
     setLinhas((prev) => {
@@ -302,6 +384,17 @@ export default function ConferenciaModal({
       const atual = Number(r.scanned || 0);
       if (atual + 1 > qtdSolic) {
         r.warns = [...(r.warns || []), "Excedente lido. Devolver material."];
+        setOcorrencias((oc) => [
+          ...oc,
+          {
+            id: newOccId(),
+            tipo: "excedente_lote",
+            detalhe: "Excedente via EAN unitário (não abatido).",
+            itemCod: r.cod,
+            bar: r.bar,
+            status: "aberta",
+          },
+        ]);
         toast(`Excedente no item ${r.cod}. Não contabilizado.`, "warn");
       } else {
         r.scanned = atual + 1;
@@ -311,6 +404,7 @@ export default function ConferenciaModal({
     });
   }
 
+  // === Leitura por Lote+Quantidade ===
   function handleScanLoteQuantidade({ lote, quantidade, ean }) {
     const loteStr = String(lote || "").trim().toUpperCase();
     const qtdN = Number(quantidade || 0);
@@ -328,6 +422,7 @@ export default function ConferenciaModal({
         setOcorrencias((oc) => [
           ...oc,
           {
+            id: newOccId(),
             tipo: "produto_divergente",
             detalhe: "EAN informado no fluxo de lote não pertence ao pedido.",
             bar: eanStr,
@@ -343,6 +438,7 @@ export default function ConferenciaModal({
         setOcorrencias((oc) => [
           ...oc,
           {
+            id: newOccId(),
             tipo: "lote_errado",
             detalhe: `EAN não compatível com o lote ${loteStr}.`,
             itemCod: linhas[idx]?.cod,
@@ -368,6 +464,7 @@ export default function ConferenciaModal({
         setOcorrencias((oc) => [
           ...oc,
           {
+            id: newOccId(),
             tipo: "lote_ambiguidade",
             detalhe: `Lote ${loteStr} pertence a vários itens. É necessário informar EAN.`,
             lote: loteStr,
@@ -393,6 +490,7 @@ export default function ConferenciaModal({
         setOcorrencias((oc) => [
           ...oc,
           {
+            id: newOccId(),
             tipo: "excedente_lote",
             detalhe: `Excedente via lote "${loteStr}" (não abatido).`,
             itemCod: r.cod,
@@ -420,6 +518,7 @@ export default function ConferenciaModal({
           setOcorrencias((oc) => [
             ...oc,
             {
+              id: newOccId(),
               tipo: "excedente_lote",
               detalhe: `Excedeu em ${qtdN - disponivel} un. via lote "${loteStr}".`,
               itemCod: r.cod,
@@ -440,40 +539,9 @@ export default function ConferenciaModal({
     return abateu;
   }
 
+  // ===== AÇÕES SINCRONIZADAS =====
   function marcarDevolvidoForaLista(barcode) {
-    setForaLista((curr) =>
-      curr.filter((x) => String(x.bar || "") !== String(barcode))
-    );
-    setOcorrencias((oc) => {
-      const out = [];
-      let fechou = false;
-      for (let i = 0; i < oc.length; i++) {
-        const o = oc[i];
-        if (
-          o.tipo === "produto_divergente" &&
-          String(o.bar || "") === String(barcode) &&
-          o.status === "aberta" &&
-          !fechou
-        ) {
-          out.push({
-            ...o,
-            detalhe: (o.detalhe || "") + " • Devolvido ao local de origem.",
-            status: "fechada",
-          });
-          fechou = true;
-        } else out.push(o);
-      }
-      if (!fechou) {
-        out.push({
-          tipo: "produto_divergente",
-          detalhe: "Devolvido ao local de origem.",
-          bar: barcode,
-          status: "fechada",
-        });
-      }
-      return out;
-    });
-    toast("Material devolvido ao local de origem.", "info");
+    ajustarDivergentePorBar(barcode, "devolvido");
   }
 
   function marcarDevolvidoExcedente(cod) {
@@ -493,10 +561,10 @@ export default function ConferenciaModal({
       for (let i = 0; i < oc.length; i++) {
         const o = oc[i];
         if (
+          !fechou &&
           o.tipo === "excedente_lote" &&
           String(o.itemCod) === String(cod) &&
-          o.status === "aberta" &&
-          !fechou
+          (o.status || "aberta").toLowerCase() !== "fechada"
         ) {
           out.push({
             ...o,
@@ -506,17 +574,55 @@ export default function ConferenciaModal({
           fechou = true;
         } else out.push(o);
       }
-      if (!fechou) {
-        out.push({
-          tipo: "excedente_lote",
-          itemCod: cod,
-          detalhe: "Material devolvido ao local.",
-          status: "fechada",
-        });
-      }
       return out;
     });
     toast("Excedente devolvido ao local de origem.", "info");
+  }
+
+  function resolverOcorrenciaById(occId, labelDetalhe) {
+    let alvo = null;
+    setOcorrencias((oc) => {
+      alvo = oc.find((o) => o.id === occId);
+      return oc;
+    });
+    if (alvo?.tipo === "produto_divergente" && alvo?.bar) {
+      ajustarDivergentePorBar(alvo.bar, "devolvido");
+      return;
+    }
+    // demais tipos: fecha normalmente
+    setOcorrencias((oc) => {
+      const out = [];
+      for (let i = 0; i < oc.length; i++) {
+        const o = oc[i];
+        if (
+          o.id === occId &&
+          (o.status || "aberta").toLowerCase() !== "fechada"
+        ) {
+          out.push({
+            ...o,
+            status: "fechada",
+            detalhe: (o.detalhe || "") + ` • ${labelDetalhe}`,
+          });
+        } else {
+          out.push(o);
+        }
+      }
+      return out;
+    });
+  }
+
+  function erroNaBipagem(occId) {
+    let bar = null;
+    setOcorrencias((oc) => {
+      const f = oc.find((o) => o.id === occId);
+      bar = f?.bar ? String(f.bar) : null;
+      return oc;
+    });
+    if (bar) ajustarDivergentePorBar(bar, "erro");
+  }
+
+  function erroNaBipagemPorBar(barcode) {
+    ajustarDivergentePorBar(barcode, "erro");
   }
 
   const [abrirDiv, setAbrirDiv] = useState(false);
@@ -526,6 +632,7 @@ export default function ConferenciaModal({
 
   function submitDivergencia() {
     const registro = {
+      id: newOccId(),
       tipo: divTipo,
       detalhe: divDetalhe || "-",
       itemCod: divItemCod || null,
@@ -538,12 +645,14 @@ export default function ConferenciaModal({
     setDivTipo("falta");
   }
 
-  const podeIrParaScan = conferente.trim().length > 0 && benchShots.length > 0;
+  const podeIrParaScan =
+    conferente.trim().length > 0 && (SKIP_BENCH_PHOTOS || benchShots.length > 0);
+
   const podeSalvar100 =
     conferente.trim().length > 0 && allOk && foraLista.length === 0;
 
   async function salvarConferencia() {
-    if (!podeSalvar100 || savingSubmit) return;
+    if (!podeSalvar100 || savingSubmit || temOcorrenciaAberta) return;
     setSavingSubmit(true);
     try {
       const scans = {};
@@ -554,25 +663,29 @@ export default function ConferenciaModal({
       const loteScansOut = {};
       for (let i = 0; i < linhas.length; i++) {
         const r = linhas[i];
-        const key = r.cod || r.bar;
+        const key = r.bar || r.cod;
         loteScansOut[key] = r.loteScans || {};
       }
-      const ocorrenciasOut = ocorrencias.map((o) => ({
-        tipo: o.tipo,
-        detalhe: o.detalhe || "-",
-        item_cod: o.itemCod || o.item_cod || null,
-        bar: o.bar || null,
-        lote: o.lote || null,
-        quantidade: o.quantidade != null ? o.quantidade : null,
-        status: o.status || "aberta",
-      }));
+      const ocorrenciasOut = [];
+      for (let i = 0; i < ocorrencias.length; i++) {
+        const o = ocorrencias[i];
+        ocorrenciasOut.push({
+          tipo: o.tipo,
+          detalhe: o.detalhe || "-",
+          item_cod: o.itemCod || o.item_cod || null,
+          bar: o.bar || null,
+          lote: o.lote || null,
+          quantidade: o.quantidade != null ? o.quantidade : null,
+          status: o.status || "aberta",
+        });
+      }
       await onConfirm({
         conferente: conferente.trim(),
         elapsedSeconds: elapsed,
         evidences: benchShots.slice(0, 7),
         scans,
         loteScans: loteScansOut,
-        foraLista: [],
+        foraLista,
         ocorrencias: ocorrenciasOut,
       });
     } finally {
@@ -591,7 +704,6 @@ export default function ConferenciaModal({
       <ModalHeader toggle={onClose}>
         Conferência — Pedido #{pedido?.nr_pedido}
       </ModalHeader>
-      {/* Clique em áreas vazias recaptura foco pro sink; se estiver num input, não recaptura */}
       <ModalBody onClick={() => keepFocus(false)}>
         <BodyScroll>
           <Wrap>
@@ -639,8 +751,7 @@ export default function ConferenciaModal({
               <div style={{ display: "grid", gap: 12 }}>
                 <div>
                   <SmallMuted>
-                    Conferente{" "}
-                    <span style={{ color: "#ef4444" }}>* obrigatório</span>
+                    Conferente <span style={{ color: "#ef4444" }}>* obrigatório</span>
                   </SmallMuted>
                   <Row style={{ marginTop: 6 }}>
                     <Field
@@ -652,58 +763,53 @@ export default function ConferenciaModal({
                     />
                   </Row>
                 </div>
-
-                <div ref={benchAreaRef}>
-                  <SmallMuted>
-                    Fotos da bancada (mín. 1 e máx. 7){" "}
-                    <span style={{ color: "#ef4444" }}>* obrigatório</span>
-                  </SmallMuted>
-                  <div style={{ marginTop: 8 }}>
-                    <BenchPhoto
-                      onCapture={handleBenchCapture}
-                      facing="environment"
-                    />
-                  </div>
-
-                  {benchShots.length === 0 && (
-                    <div
-                      style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}
-                    >
-                      Adicione pelo menos <strong>1 foto</strong> para
-                      prosseguir.
+                {!SKIP_BENCH_PHOTOS && (
+                  <div ref={benchAreaRef}>
+                    <SmallMuted>
+                      Fotos da bancada (mín. 1 e máx. 7){" "}
+                      <span style={{ color: "#ef4444" }}>* obrigatório</span>
+                    </SmallMuted>
+                    <div style={{ marginTop: 8 }}>
+                      <BenchPhoto onCapture={handleBenchCapture} facing="environment" />
                     </div>
-                  )}
 
-                  {benchShots.length > 0 && (
-                    <Controls style={{ marginTop: 8 }}>
-                      <Shots>
-                        {benchShots.map((img, idx) => (
-                          <ShotThumb key={idx}>
-                            <img src={img} alt={`bancada ${idx + 1}`} />
-                            <Tag>#{idx + 1}</Tag>
-                            <button
-                              onClick={() => removeBenchShot(idx)}
-                              style={{
-                                position: "absolute",
-                                right: 8,
-                                top: 8,
-                                background: "rgba(0,0,0,.6)",
-                                color: "#fff",
-                                border: 0,
-                                borderRadius: 8,
-                                padding: "2px 8px",
-                                cursor: "pointer",
-                              }}
-                              title="Remover foto"
-                            >
-                              Remover
-                            </button>
-                          </ShotThumb>
-                        ))}
-                      </Shots>
-                    </Controls>
-                  )}
-                </div>
+                    {benchShots.length === 0 && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}>
+                        Adicione pelo menos <strong>1 foto</strong> para prosseguir.
+                      </div>
+                    )}
+
+                    {benchShots.length > 0 && (
+                      <Controls style={{ marginTop: 8 }}>
+                        <Shots>
+                          {benchShots.map((img, idx) => (
+                            <ShotThumb key={idx}>
+                              <img src={img} alt={`bancada ${idx + 1}`} />
+                              <Tag>#{idx + 1}</Tag>
+                              <button
+                                onClick={() => removeBenchShot(idx)}
+                                style={{
+                                  position: "absolute",
+                                  right: 8,
+                                  top: 8,
+                                  background: "rgba(0,0,0,.6)",
+                                  color: "#fff",
+                                  border: 0,
+                                  borderRadius: 8,
+                                  padding: "2px 8px",
+                                  cursor: "pointer",
+                                }}
+                                title="Remover foto"
+                              >
+                                Remover
+                              </button>
+                            </ShotThumb>
+                          ))}
+                        </Shots>
+                      </Controls>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -742,7 +848,6 @@ export default function ConferenciaModal({
                   </div>
                 </HeadRow>
 
-                {/* INPUT-SINK: agora com tabIndex -1 e sem forçar foco quando há input ativo */}
                 <input
                   ref={sinkRef}
                   onKeyDown={onSinkKeyDown}
@@ -784,6 +889,7 @@ export default function ConferenciaModal({
                   <ForaListaTable
                     foraLista={foraLista}
                     onDevolvido={marcarDevolvidoForaLista}
+                    onErroBipagemBar={erroNaBipagemPorBar}
                     styles={modernTableStyles}
                   />
                 )}
@@ -791,6 +897,10 @@ export default function ConferenciaModal({
                 <OcorrenciasTable
                   ocorrencias={ocorrencias}
                   styles={occTableStyles}
+                  onResolverOcorrencia={(occId) =>
+                    resolverOcorrenciaById(occId, "Resolvido manualmente")
+                  }
+                  onErroBipagem={erroNaBipagem}
                   onDevolvidoExcedente={marcarDevolvidoExcedente}
                   onDevolvidoProduto={marcarDevolvidoForaLista}
                 />
@@ -804,7 +914,6 @@ export default function ConferenciaModal({
         <Button
           color="secondary"
           onClick={() => {
-            // ao fechar, garante que qualquer câmera aberta seja encerrada
             stopMediaStreamsIn(benchAreaRef.current);
             onClose();
           }}
@@ -832,12 +941,14 @@ export default function ConferenciaModal({
             </Button>
             <Button
               color="success"
-              disabled={!podeSalvar100 || savingSubmit}
+              disabled={!podeSalvar100 || savingSubmit || temOcorrenciaAberta}
               onClick={salvarConferencia}
               title={
-                podeSalvar100
-                  ? "Salvar conferência (100%)"
-                  : "Pendências ainda abertas"
+                !podeSalvar100
+                  ? "Pendências ainda abertas"
+                  : temOcorrenciaAberta
+                  ? "Feche as ocorrências para concluir 100%"
+                  : "Salvar conferência (100%)"
               }
             >
               {savingSubmit ? "Lançando..." : "Salvar conferência (100%)"}

@@ -155,6 +155,41 @@ export default function SeparacaoPage() {
     return out;
   };
 
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // HELPER: substituir pedido na lista e sincronizar active/conf (SEM reduce)
+  function replacePedidoNaLista(nr_pedido, patch) {
+    if (!nr_pedido || !patch) return;
+
+    // atualiza lista
+    setPedidos((prev) => {
+      const next = [];
+      let found = false;
+      for (let i = 0; i < prev.length; i++) {
+        const p = prev[i];
+        if (String(p.nr_pedido) === String(nr_pedido)) {
+          next.push({ ...p, ...patch });
+          found = true;
+        } else {
+          next.push(p);
+        }
+      }
+      if (!found) {
+        // se não estava na lista por algum motivo, adiciona no topo
+        next.unshift(patch);
+      }
+      return next;
+    });
+
+    // sincroniza modais abertos
+    if (activePedido && String(activePedido.nr_pedido) === String(nr_pedido)) {
+      setActivePedido({ ...activePedido, ...patch });
+    }
+    if (confPedido && String(confPedido.nr_pedido) === String(nr_pedido)) {
+      setConfPedido({ ...confPedido, ...patch });
+    }
+  }
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+
   // ---------- IMPORTAÇÃO CSV ----------
   const onImportedCsv = async (novosPedidos) => {
     setLoadingLabel("Importando pedidos...");
@@ -363,6 +398,8 @@ export default function SeparacaoPage() {
     setOpenConf(true);
   };
 
+  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  // FINALIZAR CONFERÊNCIA: usa retorno do back e mescla imediatamente
   const handleConfirmConferencia = async (payload) => {
     const name = String(payload?.conferente || "").trim();
     if (!name || !confPedido) return;
@@ -383,7 +420,7 @@ export default function SeparacaoPage() {
     }
 
     try {
-      await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
+      const resp = await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
         conferente: name,
         elapsedSeconds: payload?.elapsedSeconds || 0,
         evidences: payload?.evidences || [],
@@ -393,6 +430,14 @@ export default function SeparacaoPage() {
         ocorrencias: ocorrenciasOut,
       });
 
+      // <- AQUI: atualiza estado local com o retorno do back
+      const pedidoDoBack =
+        (resp && resp.data && resp.data.pedido) ? resp.data.pedido : null;
+      if (pedidoDoBack) {
+        replacePedidoNaLista(confPedido.nr_pedido, pedidoDoBack);
+      }
+
+      // opcional: reforça a leitura do detalhe (cache bust)
       await refreshPedido(confPedido.nr_pedido);
     } catch (e) {
       console.error("Falha ao finalizar conferência no back:", e);
@@ -401,6 +446,7 @@ export default function SeparacaoPage() {
     setOpenConf(false);
     setConfPedido(null);
   };
+  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   const handleOccurrence = async ({ ocorrencias }) => {
     if (!confPedido) return;
@@ -430,6 +476,7 @@ export default function SeparacaoPage() {
     setOpenConf(false);
     setConfPedido(null);
   };
+
   // monta a lista de campos pesquisáveis (normalizados)
   const buildSearchStrings = useCallback(
     (p) => {
