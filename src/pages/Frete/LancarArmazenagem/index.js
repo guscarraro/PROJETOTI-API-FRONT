@@ -196,7 +196,8 @@ const LancarArmazenagem = ({ onActionComplete }) => {
         nf_ref: String(nfNumeros || ""),
         cliente_id: detalhe.tomador,
         destino_id: detalhe.destino,
-        documento_transporte: String(detalhe.docTransporte || prev.documento_transporte),
+        documento_transporte: String(detalhe.docTransporte || prev.documento_transporte || "").trim(),
+
         dt_inicio: emissaoInput, // emissão do CTE
         verificado: "PENDENTE",
         nr_cobranca: "", // deixa vazio; cobrado depois
@@ -274,24 +275,27 @@ const LancarArmazenagem = ({ onActionComplete }) => {
         destinoID = destinoExistente.id;
       }
 
-      const payload = {
-        ...armazenagem,
-        documento_transporte: String(armazenagem.documento_transporte || ""),
-        nf_ref: String(armazenagem.nf_ref || ""),
-        cliente_id: clienteID,
-        destino_id: destinoID,
-        valor:
-          armazenagem.valor === "" || armazenagem.valor == null
-            ? null
-            : parseFloat(armazenagem.valor),
-        dt_inicio: convertToSaoPauloISOString(armazenagem.dt_inicio),
-        dt_final: convertToSaoPauloISOString(armazenagem.dt_final),
-        qtde_dias:
-          armazenagem.qtde_dias === "" || armazenagem.qtde_dias == null
-            ? null
-            : parseInt(armazenagem.qtde_dias, 10),
-        verificado: "PENDENTE",
-      };
+const docTransp = (armazenagem.documento_transporte ?? "").toString().trim();
+
+const payload = {
+  ...armazenagem,
+  documento_transporte: docTransp === "" ? null : docTransp, // <- evita "" duplicado
+  nf_ref: String(armazenagem.nf_ref || ""),
+  cliente_id: clienteID,
+  destino_id: destinoID,
+  valor:
+    armazenagem.valor === "" || armazenagem.valor == null
+      ? null
+      : parseFloat(armazenagem.valor),
+  dt_inicio: convertToSaoPauloISOString(armazenagem.dt_inicio),
+  dt_final: convertToSaoPauloISOString(armazenagem.dt_final),
+  qtde_dias:
+    armazenagem.qtde_dias === "" || armazenagem.qtde_dias == null
+      ? null
+      : parseInt(armazenagem.qtde_dias, 10),
+  verificado: "PENDENTE",
+};
+
 
       const response = await apiLocal.createOrUpdateArmazenagem(payload);
 
