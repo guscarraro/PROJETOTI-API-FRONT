@@ -35,7 +35,7 @@ function canExpedir(user) {
   const email = String(user?.email || "").toLowerCase();
   const tipo = String(user?.tipo || "").toLowerCase();
   if (tipo === "adm") return true; // libera admins
-  return ["expedicao@empresa.com.br", "admin@carraro.com"].includes(email);
+  return ["kathy@carraro.com", "admin@carraro.com"].includes(email);
 }
 
 function isAdmin(user) {
