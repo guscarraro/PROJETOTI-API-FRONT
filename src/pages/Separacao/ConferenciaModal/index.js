@@ -151,8 +151,7 @@ export default function ConferenciaModal({
             novo.push({
               ...o,
               status: "fechada",
-              detalhe:
-                (o.detalhe || "") + " • Devolvido ao local de origem.",
+              detalhe: (o.detalhe || "") + " • Devolvido ao local de origem.",
             });
           }
         } else {
@@ -219,7 +218,10 @@ export default function ConferenciaModal({
     const map = new Map();
     for (let i = 0; i < linhas.length; i++) {
       const bar = String(linhas[i].bar || "").trim();
-      if (bar && !map.has(bar)) map.set(bar, i);
+      if (!bar) continue;
+      const arr = map.get(bar) || [];
+      arr.push(i);
+      map.set(bar, arr);
     }
     return map;
   }, [linhas]);
@@ -229,7 +231,9 @@ export default function ConferenciaModal({
     for (let i = 0; i < linhas.length; i++) {
       const lotes = Array.isArray(linhas[i].lotes) ? linhas[i].lotes : [];
       for (let j = 0; j < lotes.length; j++) {
-        const l = String(lotes[j] || "").trim().toUpperCase();
+        const l = String(lotes[j] || "")
+          .trim()
+          .toUpperCase();
         if (!l) continue;
         const arr = map.get(l) || [];
         arr.push(i);
@@ -342,12 +346,14 @@ export default function ConferenciaModal({
     setBenchShots((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  // === Leitura por EAN ===
   function handleScanEAN(code) {
     const barcode = String(code || "").trim();
     if (!barcode) return;
-    const idx = indexByBar.get(barcode);
-    if (idx == null) {
+
+    const idxList = indexByBar.get(barcode);
+
+    // Fora da lista (mantém teu fluxo atual)
+    if (!idxList || idxList.length === 0) {
       setForaLista((curr) => {
         const out = [];
         let inc = false;
@@ -377,36 +383,57 @@ export default function ConferenciaModal({
       );
       return;
     }
+
+    // Escolhe a primeira linha desse EAN que ainda não atingiu a qtd
     setLinhas((prev) => {
       const next = prev.slice();
-      const r = next[idx];
-      const qtdSolic = Number(r.qtd || 0);
-      const atual = Number(r.scanned || 0);
-      if (atual + 1 > qtdSolic) {
-        r.warns = [...(r.warns || []), "Excedente lido. Devolver material."];
+
+      let targetIdx = null;
+      for (let k = 0; k < idxList.length; k++) {
+        const i = idxList[k];
+        const r = next[i];
+        const qtdSolic = Number(r.qtd || 0);
+        const atual = Number(r.scanned || 0);
+        if (atual < qtdSolic) {
+          targetIdx = i;
+          break;
+        }
+      }
+
+      // Se todas as linhas desse EAN já estão completas → excedente
+      if (targetIdx == null) {
+        const i0 = idxList[0];
+        const r0 = next[i0];
+        r0.warns = [...(r0.warns || []), "Excedente lido. Devolver material."];
         setOcorrencias((oc) => [
           ...oc,
           {
             id: newOccId(),
             tipo: "excedente_lote",
             detalhe: "Excedente via EAN unitário (não abatido).",
-            itemCod: r.cod,
-            bar: r.bar,
+            itemCod: r0.cod,
+            bar: r0.bar,
             status: "aberta",
           },
         ]);
-        toast(`Excedente no item ${r.cod}. Não contabilizado.`, "warn");
-      } else {
-        r.scanned = atual + 1;
+        toast(`Excedente no item ${r0.cod}. Não contabilizado.`, "warn");
+        next[i0] = r0;
+        return next;
       }
-      next[idx] = r;
+
+      // Abate 1 na linha escolhida
+      const r = next[targetIdx];
+      r.scanned = Number(r.scanned || 0) + 1;
+      next[targetIdx] = r;
       return next;
     });
   }
 
   // === Leitura por Lote+Quantidade ===
   function handleScanLoteQuantidade({ lote, quantidade, ean }) {
-    const loteStr = String(lote || "").trim().toUpperCase();
+    const loteStr = String(lote || "")
+      .trim()
+      .toUpperCase();
     const qtdN = Number(quantidade || 0);
     const eanStr = String(ean || "").trim();
     if (!loteStr || !qtdN || isNaN(qtdN) || qtdN <= 0) {
@@ -434,7 +461,10 @@ export default function ConferenciaModal({
         return false;
       }
       if (candidatos.length > 0 && !candidatos.includes(idx)) {
-        toast(`EAN não faz parte do lote ${loteStr} para este pedido.`, "error");
+        toast(
+          `EAN não faz parte do lote ${loteStr} para este pedido.`,
+          "error"
+        );
         setOcorrencias((oc) => [
           ...oc,
           {
@@ -520,7 +550,9 @@ export default function ConferenciaModal({
             {
               id: newOccId(),
               tipo: "excedente_lote",
-              detalhe: `Excedeu em ${qtdN - disponivel} un. via lote "${loteStr}".`,
+              detalhe: `Excedeu em ${
+                qtdN - disponivel
+              } un. via lote "${loteStr}".`,
               itemCod: r.cod,
               lote: loteStr,
               quantidade: qtdN,
@@ -646,7 +678,8 @@ export default function ConferenciaModal({
   }
 
   const podeIrParaScan =
-    conferente.trim().length > 0 && (SKIP_BENCH_PHOTOS || benchShots.length > 0);
+    conferente.trim().length > 0 &&
+    (SKIP_BENCH_PHOTOS || benchShots.length > 0);
 
   const podeSalvar100 =
     conferente.trim().length > 0 && allOk && foraLista.length === 0;
@@ -656,16 +689,18 @@ export default function ConferenciaModal({
     setSavingSubmit(true);
     try {
       const scans = {};
-      for (let i = 0; i < linhas.length; i++) {
-        const k = linhas[i].bar || linhas[i].cod;
-        scans[k] = Number(linhas[i].scanned || 0);
-      }
       const loteScansOut = {};
+
       for (let i = 0; i < linhas.length; i++) {
         const r = linhas[i];
-        const key = r.bar || r.cod;
-        loteScansOut[key] = r.loteScans || {};
+        const uniqueKey = `${String(r.cod)}|${String(r.bar)}|${
+          Array.isArray(r.lotes) ? r.lotes.join(",") : "-"
+        }|${i}`;
+
+        scans[uniqueKey] = Number(r.scanned || 0);
+        loteScansOut[uniqueKey] = r.loteScans || {};
       }
+
       const ocorrenciasOut = [];
       for (let i = 0; i < ocorrencias.length; i++) {
         const o = ocorrencias[i];
@@ -679,6 +714,7 @@ export default function ConferenciaModal({
           status: o.status || "aberta",
         });
       }
+
       await onConfirm({
         conferente: conferente.trim(),
         elapsedSeconds: elapsed,
@@ -751,7 +787,8 @@ export default function ConferenciaModal({
               <div style={{ display: "grid", gap: 12 }}>
                 <div>
                   <SmallMuted>
-                    Conferente <span style={{ color: "#ef4444" }}>* obrigatório</span>
+                    Conferente{" "}
+                    <span style={{ color: "#ef4444" }}>* obrigatório</span>
                   </SmallMuted>
                   <Row style={{ marginTop: 6 }}>
                     <Field
@@ -770,12 +807,18 @@ export default function ConferenciaModal({
                       <span style={{ color: "#ef4444" }}>* obrigatório</span>
                     </SmallMuted>
                     <div style={{ marginTop: 8 }}>
-                      <BenchPhoto onCapture={handleBenchCapture} facing="environment" />
+                      <BenchPhoto
+                        onCapture={handleBenchCapture}
+                        facing="environment"
+                      />
                     </div>
 
                     {benchShots.length === 0 && (
-                      <div style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}>
-                        Adicione pelo menos <strong>1 foto</strong> para prosseguir.
+                      <div
+                        style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}
+                      >
+                        Adicione pelo menos <strong>1 foto</strong> para
+                        prosseguir.
                       </div>
                     )}
 
