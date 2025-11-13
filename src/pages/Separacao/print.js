@@ -39,7 +39,7 @@ export function printPedidoLabels(pedido, opts = {}) {
     width: 100mm; height: 70mm; margin: 0; padding: 0;
     color: var(--ink);
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-    font-size: 6pt; /* tudo base 6pt */
+    font-size: 7pt; /* base geral um pouco maior */
   }
   .label {
     width: 100mm; height: 70mm; padding: 5.5mm 5.5mm 4.5mm 5.5mm;
@@ -57,13 +57,20 @@ export function printPedidoLabels(pedido, opts = {}) {
   }
   .pill {
     display: inline-block; padding: 1mm 4mm; border: 0.3mm solid #000; border-radius: 12mm;
-    font-weight: 900; font-size: 6pt; line-height: 1; white-space: nowrap; max-width: 46mm;
+    font-weight: 900; font-size: 7pt; line-height: 1; white-space: nowrap; max-width: 46mm;
     overflow: hidden; text-overflow: ellipsis;
   }
   .headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; }
-  .timestamp { font-size: 6pt; color: var(--muted); line-height: 1; white-space: nowrap; }
-  .pedidoNo { font-size: 6pt; font-weight: 800; white-space: nowrap; }
-  .ovLine { font-size: 6pt; color: var(--muted); line-height: 1; white-space: nowrap; }
+  .timestamp { font-size: 7pt; color: var(--muted); line-height: 1; white-space: nowrap; }
+
+  /* Remessa maior */
+  .pedidoNo {
+    font-size: 10pt;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+
+  .ovLine { font-size: 7pt; color: var(--muted); line-height: 1; white-space: nowrap; }
 
   .fields {
     display: grid;
@@ -89,18 +96,30 @@ export function printPedidoLabels(pedido, opts = {}) {
     width: 24mm;
     flex: 0 0 24mm;
     color: var(--muted);
-    font-size: 6pt;
+    font-size: 7pt;
   }
   .vwrap {
     flex: 1 1 auto;
     min-width: 0;
   }
 
-  .big  { font-size: 6pt; font-weight: 700; letter-spacing: 0; }
-  .mid  { font-size: 6pt; font-weight: 700; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size: 6pt; }
+  /* Destinatário / Cliente maiores */
+  .big  { font-size: 9pt; font-weight: 700; letter-spacing: 0; }
+  .mid  { font-size: 8pt; font-weight: 700; }
 
-  .big, .mid, .mono, .v {
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+    font-size: 7pt;
+  }
+
+  /* Nota Fiscal bem grande */
+  .nf {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+    font-size: 12pt;
+    font-weight: 900;
+  }
+
+  .big, .mid, .mono, .v, .nf {
     display: inline-block;
     max-width: 100%;
     overflow: hidden;
@@ -108,10 +127,11 @@ export function printPedidoLabels(pedido, opts = {}) {
     white-space: nowrap;
   }
 
-  .muted { color: var(--muted); font-size: 6pt; }
+  .muted { color: var(--muted); font-size: 7pt; }
 
+  /* Endereço menor, como pedido */
   .addr {
-    font-size: 6pt;
+    font-size: 6pt; /* mantém menor */
     color: var(--muted);
     line-height: 1.1;
     white-space: normal;      /* quebra se precisar */
@@ -127,10 +147,10 @@ export function printPedidoLabels(pedido, opts = {}) {
   .chip {
     display: inline-flex; gap: 1.2mm; align-items: center;
     padding: 0.8mm 2.6mm; border: 0.3mm solid #000; border-radius: 2.5mm;
-    font-size: 6pt; font-weight: 700; max-width: 32mm; overflow: hidden; text-overflow: ellipsis;
+    font-size: 7pt; font-weight: 700; max-width: 32mm; overflow: hidden; text-overflow: ellipsis;
   }
   .chip .mono { max-width: 20mm; }
-  .confName { font-size: 6pt; max-width: 26mm; overflow: hidden; text-overflow: ellipsis; }
+  .confName { font-size: 7pt; max-width: 26mm; overflow: hidden; text-overflow: ellipsis; }
 
   @media print {
     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -173,10 +193,10 @@ export function printPedidoLabels(pedido, opts = {}) {
             <span class="vwrap"><span class="mid">${transportadora}</span></span>
           </div>
           <div class="hr"></div>
-          <!-- linha 4: NF -->
+          <!-- linha 4: NF (MAIOR) -->
           <div class="row">
             <span class="k">Nota Fiscal:</span>
-            <span class="vwrap"><span class="mono">${nf}</span></span>
+            <span class="vwrap"><span class="nf">${nf}</span></span>
           </div>
           <!-- linha 5: Cliente -->
           <div class="row">
