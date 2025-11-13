@@ -88,12 +88,13 @@ export default function PedidoCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedido.nr_pedido]);
 
-  const variant =
-    pedido.status === STATUS_PEDIDO.CONCLUIDO
-      ? "concluido"
-      : pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO
-      ? "primeira"
-      : "pendente";
+const variant =
+  pedido.status === STATUS_PEDIDO.EXPEDIDO
+    ? "concluido"
+    : pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO
+    ? "primeira"
+    : "pendente";
+
 
   // ---- Eventos: exibir apenas os 2 mais recentes, otimizando espaço
   function getLastTwoEvents() {
@@ -192,6 +193,7 @@ export default function PedidoCard({
           </StatusPill>
         </div>
       </FlexRow>
+        <Muted style={{ fontSize: 11, marginTop: 2 }}>OV: {pedido.ov || "—"}</Muted>
 
       <div style={{ marginTop: 8 }}>
         <Row>

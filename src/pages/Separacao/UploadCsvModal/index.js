@@ -7,7 +7,7 @@ import * as XLSX from "xlsx";
 
 /**
  * Aceita CSV, TSV ou XLSX com cabeçalho (ordem livre):
- * Cliente, nr_pedido, destino, cod_prod, lote, ean, qtde, um_med, transportador
+ * Cliente, nr_pedido, destino, cod_prod, lote, ean, qtde, um_med, transportador, ov, endereco
  *
  * Observações:
  * - Pode subir .csv, .tsv ou .xlsx
@@ -50,12 +50,14 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
     if (s === "qtde" || s === "quantidade" || s === "qtd") return "qtde";
     if (s === "um_med" || s === "um") return "um_med";
     if (s === "transportador" || s === "transportadora") return "transportador";
+    if (s === "ov" || s === "ordem_venda" || s === "ordem de venda") return "ov";
+    if (s === "endereco" || s === "endereço" || s === "rua" || s === "logradouro") return "endereco";
     return s;
   }
 
   function parseCsvOrTsv(raw) {
     const lines = String(raw || "").split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (!lines.length) return { header: [], rows: [] };
+       if (!lines.length) return { header: [], rows: [] };
     const sep = detectSep(lines[0]);
     const header = lines[0].split(sep).map(normKey);
     const rows = [];
@@ -105,6 +107,7 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
   function validateRows(rows) {
     const errs = [];
     const okRows = [];
+    // ov e endereco são opcionais, então não entram aqui
     const required = ["cliente", "nr_pedido", "destino", "cod_prod", "lote", "ean", "qtde", "um_med"];
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i] || {};
@@ -128,6 +131,8 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
           cliente: r.cliente || "",
           destino: r.destino || "",
           transportador: r.transportador || "",
+          ov: r.ov || "",
+          endereco: r.endereco || "",
           itens: [],
           status: STATUS_PEDIDO.PENDENTE,
           logs: [],
@@ -176,10 +181,10 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
 
   const downloadModelo = () => {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Cliente","nr_pedido","destino","cod_prod","lote","ean","qtde","um_med","transportador"],
-      ["FERSA","11321","CONDOR","321","L001","7891234567890",5,"cx","TRANSLOVATO"],
-      ["FERSA","11321","CONDOR","322","L002","7899876543210",2,"cx","TRANSLOVATO"],
-      ["ACME","55555","CURITIBA","ABC123","LX77","7890001112223",10,"un","CORREIOS"],
+      ["Cliente","nr_pedido","destino","cod_prod","lote","ean","qtde","um_med","transportador","ov","endereco"],
+      ["FERSA","11321","CONDOR","321","L001","7891234567890",5,"cx","TRANSLOVATO","10001","RD-02"],
+      ["FERSA","11321","CONDOR","322","L002","7899876543210",2,"cx","TRANSLOVATO","10001","RD-02"],
+      ["ACME","55555","CURITIBA","ABC123","LX77","7890001112223",10,"un","CORREIOS","20002","RU-05"],
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Modelo");
@@ -191,7 +196,9 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
     try {
       setBusy(true);
       const { header, rows } = await readAndParseFile(file);
-      const needed = ["cliente","nr_pedido","destino","cod_prod","lote","ean","qtde","um_med","transportador"];
+      const needed = [
+        "cliente","nr_pedido","destino","cod_prod","lote","ean","qtde","um_med","transportador","ov","endereco"
+      ];
       const headerSet = new Set(header);
       const missingHeader = needed.filter((k) => !headerSet.has(k));
       if (missingHeader.length) {
@@ -277,10 +284,10 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
           <div style={{ background: "#f8fafc", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
             <SmallMuted>Modelo de cabeçalho aceito</SmallMuted>
             <div style={{ fontFamily: "monospace", fontSize: 12, marginTop: 6 }}>
-              Cliente,nr_pedido,destino,cod_prod,lote,ean,qtde,um_med,transportador
+              Cliente,nr_pedido,destino,cod_prod,lote,ean,qtde,um_med,transportador,ov,endereco
             </div>
             <div style={{ fontFamily: "monospace", fontSize: 12, marginTop: 6, opacity: 0.85 }}>
-              FERSA,11321,CONDOR,321,L001,7891234567890,5,cx,TRANSLOVATO
+              FERSA,11321,CONDOR,321,L001,7891234567890,5,cx,TRANSLOVATO,10001,RD-02
             </div>
             <div style={{ fontSize: 12, marginTop: 6, opacity: 0.75 }}>
               Também aceita planilha Excel com essas mesmas colunas.
@@ -333,14 +340,22 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
                   <Table responsive hover borderless className="mb-0">
                     <thead style={{ background: "#f8fafc", borderBottom: "1px solid #e5e7eb" }}>
                       <tr>
-                        <th>Cliente</th><th>nr_pedido</th><th>destino</th>
-                        <th>cod_prod</th><th>lote</th><th>ean</th>
-                        <th>qtde</th><th>um_med</th><th>transportador</th>
+                        <th>Cliente</th>
+                        <th>nr_pedido</th>
+                        <th>destino</th>
+                        <th>cod_prod</th>
+                        <th>lote</th>
+                        <th>ean</th>
+                        <th>qtde</th>
+                        <th>um_med</th>
+                        <th>transportador</th>
+                        <th>OV</th>
+                        <th>Endereço</th>
                       </tr>
                     </thead>
                     <tbody>
                       {preview.length === 0 && (
-                        <tr><td colSpan={9} style={{ opacity: .7 }}>Sem dados para prévia.</td></tr>
+                        <tr><td colSpan={11} style={{ opacity: .7 }}>Sem dados para prévia.</td></tr>
                       )}
                       {preview.map((r, idx) => (
                         <tr key={idx} style={{ borderTop: "1px solid #f1f5f9" }}>
@@ -353,6 +368,8 @@ export default function UploadCsvModal({ isOpen, onClose, onImported }) {
                           <td style={{ fontWeight: 700 }}>{r.qtde || "0"}</td>
                           <td>{r.um_med || "—"}</td>
                           <td>{r.transportador || "—"}</td>
+                          <td>{r.ov || "—"}</td>
+                          <td>{r.endereco || "—"}</td>
                         </tr>
                       ))}
                     </tbody>

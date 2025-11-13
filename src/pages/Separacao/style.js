@@ -31,6 +31,7 @@ export const Row = styled.div`
   align-items: center;
   gap: 8px;
   min-width: 0;
+
   /* quebra elegante no mobile */
   @media (max-width: 768px) {
     flex-wrap: wrap;
@@ -38,12 +39,18 @@ export const Row = styled.div`
 
   /* texto longo não estoura o card */
   .truncate {
-display: block;
-    flex: 1;        /* ocupa o espaço restante */
+    display: block;
+    flex: 1; /* ocupa o espaço restante */
     min-width: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* linha de OV mais discreta */
+  .ovLine {
+    font-size: 10px;
+    opacity: 0.7;
   }
 `;
 
@@ -112,20 +119,26 @@ export const TinyBtn = styled.button`
   padding: 6px 10px;
   font-size: 12px;
   cursor: pointer;
-  &:hover { background: #f9fafb; }
+  &:hover {
+    background: #f9fafb;
+  }
 
   [data-theme="dark"] & {
     background: #0f172a;
     color: #e5e7eb;
-    border-color: rgba(255,255,255,.08);
-    &:hover { background: #0b1220; }
+    border-color: rgba(255, 255, 255, 0.08);
+    &:hover {
+      background: #0b1220;
+    }
   }
 `;
 
 export const DangerBtn = styled(TinyBtn)`
   color: #b91c1c;
   border-color: rgba(239, 68, 68, 0.35);
-  &:hover { background: rgba(239, 68, 68, 0.08); }
+  &:hover {
+    background: rgba(239, 68, 68, 0.08);
+  }
 `;
 
 /** Botão icon-only (etiqueta, info, etc) */
@@ -140,12 +153,16 @@ export const IconBtn = styled.button`
   align-items: center;
   justify-content: center;
 
-  &:hover { background: #f9fafb; }
+  &:hover {
+    background: #f9fafb;
+  }
 
   [data-theme="dark"] & {
     background: #0f172a;
     color: #e5e7eb;
-    border-color: rgba(255,255,255,.08);
-    &:hover { background: #0b1220; }
+    border-color: rgba(255, 255, 255, 0.08);
+    &:hover {
+      background: #0b1220;
+    }
   }
 `;

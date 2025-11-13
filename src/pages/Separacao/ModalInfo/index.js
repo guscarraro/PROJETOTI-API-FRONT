@@ -20,6 +20,7 @@ import { printPedidoLabels } from "../print";
 import ModalImpressao from "./ModalImpressao";
 import apiLocal from "../../../services/apiLocal";
 import InfoOcorren from "./InfoOcorren";
+import { Muted } from "../../Projetos/style";
 
 export default function ModalInfo({
   isOpen,
@@ -384,6 +385,8 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
         <ModalHeader toggle={onClose}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span>Detalhes do Pedido #{pedido.nr_pedido}</span>
+            <Muted style={{ fontSize: 11, marginTop: 2 }}>OV: {pedido.ov || "—"}</Muted>
+
             {hasOcorrenciaConferencia && (
               <OccurrenceBadge title="Ocorrência registrada na conferência">
                 Ocorrência na conferência
@@ -590,6 +593,7 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                     <th>Qtde</th>
                     <th style={{ whiteSpace: "nowrap" }}>UM</th>
                     <th>Barcode</th>
+                    <th>Endereço</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -600,6 +604,8 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                       <td style={{ fontWeight: 700 }}>{Number(it.qtde || 0)}</td>
                       <td>{it.um_med || "—"}</td>
                       <td style={{ fontFamily: "monospace" }}>{it.bar_code || "—"}</td>
+                                            <td>{pedido.endereco || "—"}</td>
+
                     </tr>
                   ))}
                   {(pedido.itens || []).length === 0 && (

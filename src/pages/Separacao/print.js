@@ -60,6 +60,14 @@ export function printPedidoLabels(pedido, opts = {}) {
   .headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; }
   .timestamp { font-size: 8pt; color: var(--muted); line-height: 1; white-space: nowrap; }
   .pedidoNo { font-size: 11.5pt; font-weight: 800; white-space: nowrap; }
+
+  .ovLine {
+    font-size: 7pt;
+    color: var(--muted);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
   .fields {
     display: grid; grid-template-rows: repeat(5, 1fr); gap: 1.2mm;
     min-height: 34mm; max-height: 34mm; overflow: hidden;
@@ -103,7 +111,8 @@ export function printPedidoLabels(pedido, opts = {}) {
           <div class="pill">EMBALAGEM ${seq}/${total}</div>
           <div class="headRight">
             <div class="timestamp mono">${formatDate(impressaoAt)}</div>
-            <div class="pedidoNo">Pedido #${pedidoNr}</div>
+            <div class="pedidoNo">Rem #${pedidoNr}</div>
+            <div class="ovLine">OV: ${pedido.ov || "—"}</div>
           </div>
         </div>
         <div class="fields">
@@ -173,13 +182,14 @@ export function printPedidoLabels(pedido, opts = {}) {
     try {
       const cw = iframe.contentWindow;
       if (!cw) return cleanup();
-      cw.focus();                // foca o frame da etiqueta
-      // Safari/Android às vezes precisam de tick extra
+      cw.focus();
       setTimeout(() => {
         try {
-          cw.onafterprint = cleanup; // limpa após a impressão
-          cw.print();                // imprime o iframe (não a tela do app)
-        } catch { cleanup(); }
+          cw.onafterprint = cleanup;
+          cw.print();
+        } catch {
+          cleanup();
+        }
       }, 50);
     } catch {
       cleanup();
@@ -188,10 +198,8 @@ export function printPedidoLabels(pedido, opts = {}) {
 
   // Alimenta o iframe (sem script de print embutido!)
   try {
-    // srcdoc é bem suportado e dispara onload corretamente
     iframe.srcdoc = html;
   } catch {
-    // fallback para ambientes sem srcdoc
     const doc = iframe.contentWindow || iframe.contentDocument;
     const ddoc = doc.document || doc;
     ddoc.open();
