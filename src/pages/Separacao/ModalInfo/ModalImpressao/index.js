@@ -3,11 +3,11 @@ import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
 import { SmallMuted, Field, TinyBtn } from "../../style";
 
 export default function ModalImpressao({ isOpen, onClose, onConfirm }) {
-  const [caixas, setCaixas] = useState([{ tipo: "PEQUENA", peso: "" }]);
+  const [caixas, setCaixas] = useState([{ tipo: "CAIXA01", peso: "" }]);
 
   function addCaixa() {
     const next = caixas.slice();
-    next.push({ tipo: "PEQUENA", peso: "" });
+    next.push({ tipo: "CAIXA01", peso: "" });
     setCaixas(next);
   }
   function removeCaixa(idx) {
@@ -39,7 +39,7 @@ export default function ModalImpressao({ isOpen, onClose, onConfirm }) {
     const out = [];
     for (let i = 0; i < caixas.length; i++) {
       const c = caixas[i] || {};
-      const tipo = String(c.tipo || "PEQUENA").toUpperCase();
+      const tipo = String(c.tipo || "CAIXA01").toUpperCase();
       const n = Number(String(c.peso || "").replace(",", "."));
       out.push({ tipo, peso: isNaN(n) ? 0 : n });
     }
@@ -75,10 +75,10 @@ export default function ModalImpressao({ isOpen, onClose, onConfirm }) {
                     onChange={(e) => update(idx, "tipo", e.target.value)}
                     style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
                   >
-                    <option value="PEQUENA">Pequena</option>
-                    <option value="MEDIA">Média</option>
-                    <option value="GRANDE">Grande</option>
-                    <option value="GIGANTE">Gigante</option>
+                    <option value="CAIXA01">CAIXA 01</option>
+                    <option value="CAIXA02">CAIXA 02</option>
+                    <option value="CAIXA-MADEIRA">CAIXA MADEIRA</option>
+                    <option value="CAIXA03">CAIXA 04</option>
                   </select>
                 </div>
 

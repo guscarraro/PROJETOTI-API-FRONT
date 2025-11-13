@@ -52,6 +52,10 @@ export const Row = styled.div`
     font-size: 10px;
     opacity: 0.7;
   }
+  .adress{
+    font-size:7px;
+    opacity: 0.7;
+  }
 `;
 
 export const Col = styled.div`

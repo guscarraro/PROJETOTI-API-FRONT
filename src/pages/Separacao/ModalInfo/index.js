@@ -583,7 +583,7 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
           </div>
 
           <div style={{ marginTop: 14 }}>
-            <SmallMuted>Itens do Pedido</SmallMuted>
+            <SmallMuted>Itens do Remessa</SmallMuted>
             <ScrollTableWrap>
               <Table responsive hover borderless className="mb-0">
                 <thead>

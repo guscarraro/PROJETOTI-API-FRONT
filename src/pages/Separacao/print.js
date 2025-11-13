@@ -17,6 +17,7 @@ export function printPedidoLabels(pedido, opts = {}) {
   const nf = pedido.nota ? String(pedido.nota) : "—";
   const cliente = cut(pedido.cliente || "—", 34);
   const destinatario = cut(pedido.destino || "—", 38);
+  const endereco = String(pedido.endereco || "—"); // endereço completo
   const transportadora = cut(pedido.transportador || "—", 32);
   const pedidoNr = pedido.nr_pedido;
 
@@ -38,6 +39,7 @@ export function printPedidoLabels(pedido, opts = {}) {
     width: 100mm; height: 70mm; margin: 0; padding: 0;
     color: var(--ink);
     font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 6pt; /* tudo base 6pt */
   }
   .label {
     width: 100mm; height: 70mm; padding: 5.5mm 5.5mm 4.5mm 5.5mm;
@@ -48,39 +50,75 @@ export function printPedidoLabels(pedido, opts = {}) {
     overflow: hidden;
   }
   @media screen { .label { border: 1px dashed var(--line); border-radius: 3mm; } }
+
   .header {
     display: flex; align-items: center; justify-content: space-between; gap: 3mm;
     min-height: 12mm; max-height: 12mm; overflow: hidden;
   }
   .pill {
     display: inline-block; padding: 1mm 4mm; border: 0.3mm solid #000; border-radius: 12mm;
-    font-weight: 900; font-size: 10.5pt; line-height: 1; white-space: nowrap; max-width: 46mm;
+    font-weight: 900; font-size: 6pt; line-height: 1; white-space: nowrap; max-width: 46mm;
     overflow: hidden; text-overflow: ellipsis;
   }
   .headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; }
-  .timestamp { font-size: 8pt; color: var(--muted); line-height: 1; white-space: nowrap; }
-  .pedidoNo { font-size: 11.5pt; font-weight: 800; white-space: nowrap; }
+  .timestamp { font-size: 6pt; color: var(--muted); line-height: 1; white-space: nowrap; }
+  .pedidoNo { font-size: 6pt; font-weight: 800; white-space: nowrap; }
+  .ovLine { font-size: 6pt; color: var(--muted); line-height: 1; white-space: nowrap; }
 
-  .ovLine {
-    font-size: 7pt;
+  .fields {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr); /* mais uma linha por causa do End: */
+    gap: 1mm;
+    min-height: 34mm; max-height: 34mm; overflow: hidden;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+    white-space: nowrap;
+  }
+  .rowAddr {
+    align-items: flex-start;
+    white-space: normal; /* permite quebra no endereço */
+  }
+
+  .hr  { height: 0.3mm; background: #000; opacity: .18; }
+
+  .k {
+    width: 24mm;
+    flex: 0 0 24mm;
     color: var(--muted);
-    line-height: 1;
+    font-size: 6pt;
+  }
+  .vwrap {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .big  { font-size: 6pt; font-weight: 700; letter-spacing: 0; }
+  .mid  { font-size: 6pt; font-weight: 700; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; font-size: 6pt; }
+
+  .big, .mid, .mono, .v {
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .fields {
-    display: grid; grid-template-rows: repeat(5, 1fr); gap: 1.2mm;
-    min-height: 34mm; max-height: 34mm; overflow: hidden;
+  .muted { color: var(--muted); font-size: 6pt; }
+
+  .addr {
+    font-size: 6pt;
+    color: var(--muted);
+    line-height: 1.1;
+    white-space: normal;      /* quebra se precisar */
+    word-break: break-word;   /* quebra palavra grande */
+    display: block;
   }
-  .row { display: flex; align-items: center; gap: 2mm; white-space: nowrap; }
-  .hr  { height: 0.3mm; background: #000; opacity: .18; }
-  .k   { width: 24mm; flex: 0 0 24mm; color: var(--muted); font-size: 8.8pt; }
-  .vwrap { flex: 1 1 auto; min-width: 0; }
-  .big  { font-size: 14.5pt; font-weight: 900; letter-spacing: .2px; }
-  .mid  { font-size: 11pt; font-weight: 800; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace; }
-  .big, .mid, .mono, .v { display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .muted { color: var(--muted); font-size: 8.8pt; }
+
   .chips {
     display: flex; align-items: center; gap: 2mm;
     white-space: nowrap; overflow: hidden;
@@ -89,11 +127,14 @@ export function printPedidoLabels(pedido, opts = {}) {
   .chip {
     display: inline-flex; gap: 1.2mm; align-items: center;
     padding: 0.8mm 2.6mm; border: 0.3mm solid #000; border-radius: 2.5mm;
-    font-size: 8.6pt; font-weight: 700; max-width: 32mm; overflow: hidden; text-overflow: ellipsis;
+    font-size: 6pt; font-weight: 700; max-width: 32mm; overflow: hidden; text-overflow: ellipsis;
   }
   .chip .mono { max-width: 20mm; }
-  .confName { font-size: 8pt; max-width: 26mm; overflow: hidden; text-overflow: ellipsis; }
-  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  .confName { font-size: 6pt; max-width: 26mm; overflow: hidden; text-overflow: ellipsis; }
+
+  @media print {
+    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
@@ -104,31 +145,40 @@ export function printPedidoLabels(pedido, opts = {}) {
       const seq = i + 1;
       const tipo = String(caixas[i]?.tipo || "-").toUpperCase();
       const pesoN = Number(caixas[i]?.peso || 0);
-      const pesoFmt = isNaN(pesoN) ? "-" : (pesoN.toFixed(2) + " kg");
+      const pesoFmt = isNaN(pesoN) ? "-" : pesoN.toFixed(2) + " kg";
       out += `
       <section class="label">
         <div class="header">
           <div class="pill">EMBALAGEM ${seq}/${total}</div>
           <div class="headRight">
             <div class="timestamp mono">${formatDate(impressaoAt)}</div>
-            <div class="pedidoNo">Rem #${pedidoNr}</div>
+            <div class="pedidoNo">Remessa #${pedidoNr}</div>
             <div class="ovLine">OV: ${pedido.ov || "—"}</div>
           </div>
         </div>
         <div class="fields">
+          <!-- linha 1: Destinatário -->
           <div class="row">
             <span class="k">Destinatário:</span>
             <span class="vwrap"><span class="big">${destinatario}</span></span>
           </div>
+          <!-- linha 2: End: logo abaixo de Destinatário: -->
+          <div class="row rowAddr">
+            <span class="k">Endereço:</span>
+            <span class="vwrap"><span class="addr">${endereco}</span></span>
+          </div>
+          <!-- linha 3: Transportadora -->
           <div class="row">
             <span class="k">Transportadora:</span>
             <span class="vwrap"><span class="mid">${transportadora}</span></span>
           </div>
           <div class="hr"></div>
+          <!-- linha 4: NF -->
           <div class="row">
             <span class="k">Nota Fiscal:</span>
             <span class="vwrap"><span class="mono">${nf}</span></span>
           </div>
+          <!-- linha 5: Cliente -->
           <div class="row">
             <span class="k">Cliente:</span>
             <span class="vwrap"><span class="mid">${cliente}</span></span>
@@ -147,12 +197,10 @@ export function printPedidoLabels(pedido, opts = {}) {
 </html>
 `.trim();
 
-  // Remove qualquer iframe antigo de impressão (garante exclusividade)
   const OLD_ID = "__print_iframe_labels__";
   const old = document.getElementById(OLD_ID);
   if (old && old.parentNode) old.parentNode.removeChild(old);
 
-  // Cria iframe oculto dedicado
   const iframe = document.createElement("iframe");
   iframe.id = OLD_ID;
   iframe.style.position = "fixed";
@@ -167,7 +215,6 @@ export function printPedidoLabels(pedido, opts = {}) {
   document.body.appendChild(iframe);
 
   const cleanup = () => {
-    // Fallback de limpeza e remoção do listener
     try {
       const cw = iframe.contentWindow;
       if (cw) cw.onafterprint = null;
@@ -177,7 +224,6 @@ export function printPedidoLabels(pedido, opts = {}) {
     }, 300);
   };
 
-  // Quando o iframe terminar de carregar, foca e imprime SOMENTE o conteúdo dele
   iframe.onload = () => {
     try {
       const cw = iframe.contentWindow;
@@ -196,7 +242,6 @@ export function printPedidoLabels(pedido, opts = {}) {
     }
   };
 
-  // Alimenta o iframe (sem script de print embutido!)
   try {
     iframe.srcdoc = html;
   } catch {
@@ -207,6 +252,5 @@ export function printPedidoLabels(pedido, opts = {}) {
     ddoc.close();
   }
 
-  // Fallback de segurança (se onafterprint não disparar)
   setTimeout(cleanup, 10000);
 }
