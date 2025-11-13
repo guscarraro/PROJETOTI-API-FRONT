@@ -372,7 +372,7 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
   }
 
   const conferenciaConcluida =
-    pedido?.status === STATUS_PEDIDO.PRIMEIRA_CONF ||
+    pedido?.status === STATUS_PEDIDO.PRONTO_EXPEDICAO ||
     !!(pedido?.conferente || pedido?.primeiraConferencia?.colaborador);
 
   // ------- UI -------
@@ -420,7 +420,7 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
               <SmallMuted>Status</SmallMuted>
               <div>
                 {pedido.status === STATUS_PEDIDO.PENDENTE && "Aguardando conferência"}
-                {pedido.status === STATUS_PEDIDO.PRIMEIRA_CONF && "Pronto para expedir"}
+                {pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO && "Pronto para expedir"}
                 {pedido.status === STATUS_PEDIDO.CONCLUIDO && "Expedido"}
               </div>
             </div>

@@ -555,7 +555,7 @@ export default function SeparacaoPage() {
     for (let i = 0; i < pedidos.length; i++) {
       const p = pedidos[i];
       if (
-        p.status === STATUS_PEDIDO.PRIMEIRA_CONF &&
+        p.status === STATUS_PEDIDO.PRONTO_EXPEDICAO &&
         (!p.expedido || p.expedido === false)
       ) {
         res.push(p);

@@ -66,7 +66,7 @@ export default function Indicators({
         aguardConf++;
         const temSep = !!String(p?.separador || "").trim();
         if (!temSep) semSeparador++;
-      } else if (st === STATUS_PEDIDO.PRIMEIRA_CONF) {
+      } else if (st === STATUS_PEDIDO.PRONTO_EXPEDICAO) {
         prontoExpedir++;
       } else if (st === STATUS_PEDIDO.CONCLUIDO || p?.expedido) {
         expedidos++;
@@ -79,7 +79,7 @@ export default function Indicators({
   const pizzaData = useMemo(() => {
     return [
       { key: STATUS_PEDIDO.PENDENTE, value: stats.aguardConf, color: COLORS.pendente, label: "Aguard. conf." },
-      { key: STATUS_PEDIDO.PRIMEIRA_CONF, value: stats.prontoExpedir, color: COLORS.primeira, label: "Pronto p/ expedir" },
+      { key: STATUS_PEDIDO.PRONTO_EXPEDICAO, value: stats.prontoExpedir, color: COLORS.primeira, label: "Pronto p/ expedir" },
       { key: STATUS_PEDIDO.CONCLUIDO, value: stats.expedidos, color: COLORS.concluido, label: "Expedidos" },
     ];
   }, [stats]);
@@ -158,7 +158,7 @@ export default function Indicators({
   const totalShown =
     selectedStatus === STATUS_PEDIDO.PENDENTE
       ? stats.aguardConf
-      : selectedStatus === STATUS_PEDIDO.PRIMEIRA_CONF
+      : selectedStatus === STATUS_PEDIDO.PRONTO_EXPEDICAO
       ? stats.prontoExpedir
       : selectedStatus === STATUS_PEDIDO.CONCLUIDO
       ? stats.expedidos
@@ -169,7 +169,7 @@ export default function Indicators({
   const mobileBlocks = useMemo(
     () => [
       { key: STATUS_PEDIDO.PENDENTE, label: "Aguard.", color: COLORS.pendente, value: stats.aguardConf, title: "Filtrar Aguardando conferência" },
-      { key: STATUS_PEDIDO.PRIMEIRA_CONF, label: "Pronto", color: COLORS.primeira, value: stats.prontoExpedir, title: "Filtrar Pronto para expedir" },
+      { key: STATUS_PEDIDO.PRONTO_EXPEDICAO, label: "Pronto", color: COLORS.primeira, value: stats.prontoExpedir, title: "Filtrar Pronto para expedir" },
       { key: STATUS_PEDIDO.CONCLUIDO, label: "Expedido", color: COLORS.concluido, value: stats.expedidos, title: "Filtrar Expedidos" },
     ],
     [stats]
@@ -222,7 +222,7 @@ export default function Indicators({
                   Filtro ativo:{" "}
                   <strong>
                     {selectedStatus === STATUS_PEDIDO.PENDENTE && "Aguard. conf."}
-                    {selectedStatus === STATUS_PEDIDO.PRIMEIRA_CONF && "Pronto p/ expedir"}
+                    {selectedStatus === STATUS_PEDIDO.PRONTO_EXPEDICAO && "Pronto p/ expedir"}
                     {selectedStatus === STATUS_PEDIDO.CONCLUIDO && "Expedidos"}
                   </strong>
                 </StatValue>
@@ -307,8 +307,8 @@ export default function Indicators({
                   </LegendItem>
 
                   <LegendItem
-                    onClick={() => legendClick(STATUS_PEDIDO.PRIMEIRA_CONF)}
-                    style={{ cursor: "pointer", opacity: selectedStatus && selectedStatus !== STATUS_PEDIDO.PRIMEIRA_CONF ? 0.5 : 1 }}
+                    onClick={() => legendClick(STATUS_PEDIDO.PRONTO_EXPEDICAO)}
+                    style={{ cursor: "pointer", opacity: selectedStatus && selectedStatus !== STATUS_PEDIDO.PRONTO_EXPEDICAO ? 0.5 : 1 }}
                     title="Filtrar por Pronto para expedir"
                   >
                     <Dot $c={COLORS.primeira} />
@@ -339,7 +339,7 @@ export default function Indicators({
                 <MobileHint>
                   Filtro:{" "}
                   {selectedStatus === STATUS_PEDIDO.PENDENTE && "Aguard."}
-                  {selectedStatus === STATUS_PEDIDO.PRIMEIRA_CONF && "Pronto"}
+                  {selectedStatus === STATUS_PEDIDO.PRONTO_EXPEDICAO && "Pronto"}
                   {selectedStatus === STATUS_PEDIDO.CONCLUIDO && "Expedido"}
                 </MobileHint>
               )}

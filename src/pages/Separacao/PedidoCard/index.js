@@ -91,7 +91,7 @@ export default function PedidoCard({
   const variant =
     pedido.status === STATUS_PEDIDO.CONCLUIDO
       ? "concluido"
-      : pedido.status === STATUS_PEDIDO.PRIMEIRA_CONF
+      : pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO
       ? "primeira"
       : "pendente";
 
