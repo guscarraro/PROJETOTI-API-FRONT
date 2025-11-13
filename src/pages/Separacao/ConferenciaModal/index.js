@@ -122,6 +122,8 @@ export default function ConferenciaModal({
   }
 
   // >>>>>>>>>>>>>>>>>>>> RECONCILIAÇÃO CENTRAL <<<<<<<<<<<<<<<<<<<<<
+  // Sincroniza ocorrências de "produto_divergente" com a lista agregada por EAN.
+  // modo: 'erro' (remove a ocorrência) | 'devolvido' (fecha ocorrência)
   function ajustarDivergentePorBar(bar, modo) {
     const barStr = String(bar || "");
     if (!barStr) return;
@@ -142,8 +144,10 @@ export default function ConferenciaModal({
           alterou = true;
 
           if (modo === "erro") {
+            // remove do array (não contabiliza)
             continue;
           } else {
+            // devolvido: fecha com detalhe
             novo.push({
               ...o,
               status: "fechada",
@@ -156,6 +160,7 @@ export default function ConferenciaModal({
       }
 
       if (alterou) {
+        // espelha na foraLista no MESMO tick
         setForaLista((curr) => {
           const out = [];
           for (let i = 0; i < curr.length; i++) {
@@ -163,6 +168,7 @@ export default function ConferenciaModal({
             if (String(it.bar) === barStr) {
               const next = Math.max(0, Number(it.count || 0) - 1);
               if (next > 0) out.push({ ...it, count: next });
+              // se zera, some da tabela
             } else {
               out.push(it);
             }
@@ -208,6 +214,7 @@ export default function ConferenciaModal({
     return arr;
   }, [pedido]);
 
+  // >>> MAPEIA BAR → [indices] (suporta EAN em múltiplas linhas)
   const indexByBar = useMemo(() => {
     const map = new Map();
     for (let i = 0; i < linhas.length; i++) {
@@ -345,6 +352,7 @@ export default function ConferenciaModal({
 
     const idxList = indexByBar.get(barcode);
 
+    // Fora da lista
     if (!idxList || idxList.length === 0) {
       setForaLista((curr) => {
         const out = [];
@@ -376,6 +384,7 @@ export default function ConferenciaModal({
       return;
     }
 
+    // Escolhe a primeira linha desse EAN que ainda não atingiu a qtd
     setLinhas((prev) => {
       const next = prev.slice();
 
@@ -391,6 +400,7 @@ export default function ConferenciaModal({
         }
       }
 
+      // Se todas as linhas desse EAN já estão completas → excedente
       if (targetIdx == null) {
         const i0 = idxList[0];
         const r0 = next[i0];
@@ -411,6 +421,7 @@ export default function ConferenciaModal({
         return next;
       }
 
+      // Abate 1 na linha escolhida
       const r = next[targetIdx];
       r.scanned = Number(r.scanned || 0) + 1;
       next[targetIdx] = r;
@@ -628,6 +639,7 @@ export default function ConferenciaModal({
       ajustarDivergentePorBar(alvo.bar, "devolvido");
       return;
     }
+    // demais tipos: fecha normalmente
     setOcorrencias((oc) => {
       const out = [];
       for (let i = 0; i < oc.length; i++) {
@@ -700,11 +712,11 @@ export default function ConferenciaModal({
       for (let i = 0; i < linhas.length; i++) {
         const r = linhas[i];
         const k = String(r.bar || r.cod || "").trim();
-        const lidos = Number(r.scanned || 0);
         if (!k) continue;
 
+        // SOMAR (não sobrescrever)
         const prev = Number(scans[k] || 0);
-        scans[k] = prev + lidos;
+        scans[k] = prev + Number(r.scanned || 0);
 
         const srcLotes = r.loteScans || {};
         const dstLotes = loteScansOut[k] || {};
