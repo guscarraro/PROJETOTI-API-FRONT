@@ -458,7 +458,7 @@ export default function NavBar() {
             onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2.3" />
+              <Notas version="1.2.4" />
             </NavIcon>
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
@@ -543,7 +543,7 @@ export default function NavBar() {
                 
           <>
 
-            <NavLabel>Versão 1.2.3</NavLabel>
+            <NavLabel>Versão 1.2.4</NavLabel>
           </>
        
       </NavInner>

@@ -122,8 +122,6 @@ export default function ConferenciaModal({
   }
 
   // >>>>>>>>>>>>>>>>>>>> RECONCILIAÇÃO CENTRAL <<<<<<<<<<<<<<<<<<<<<
-  // Sincroniza ocorrências de "produto_divergente" com a lista agregada por EAN.
-  // modo: 'erro' (remove a ocorrência) | 'devolvido' (fecha ocorrência)
   function ajustarDivergentePorBar(bar, modo) {
     const barStr = String(bar || "");
     if (!barStr) return;
@@ -144,10 +142,8 @@ export default function ConferenciaModal({
           alterou = true;
 
           if (modo === "erro") {
-            // remove do array (não contabiliza)
             continue;
           } else {
-            // devolvido: fecha com detalhe
             novo.push({
               ...o,
               status: "fechada",
@@ -160,7 +156,6 @@ export default function ConferenciaModal({
       }
 
       if (alterou) {
-        // espelha na foraLista no MESMO tick
         setForaLista((curr) => {
           const out = [];
           for (let i = 0; i < curr.length; i++) {
@@ -168,7 +163,6 @@ export default function ConferenciaModal({
             if (String(it.bar) === barStr) {
               const next = Math.max(0, Number(it.count || 0) - 1);
               if (next > 0) out.push({ ...it, count: next });
-              // se zera, some da tabela
             } else {
               out.push(it);
             }
@@ -231,9 +225,7 @@ export default function ConferenciaModal({
     for (let i = 0; i < linhas.length; i++) {
       const lotes = Array.isArray(linhas[i].lotes) ? linhas[i].lotes : [];
       for (let j = 0; j < lotes.length; j++) {
-        const l = String(lotes[j] || "")
-          .trim()
-          .toUpperCase();
+        const l = String(lotes[j] || "").trim().toUpperCase();
         if (!l) continue;
         const arr = map.get(l) || [];
         arr.push(i);
@@ -346,13 +338,13 @@ export default function ConferenciaModal({
     setBenchShots((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  // === Leitura por EAN (unitário) ===
   function handleScanEAN(code) {
     const barcode = String(code || "").trim();
     if (!barcode) return;
 
     const idxList = indexByBar.get(barcode);
 
-    // Fora da lista (mantém teu fluxo atual)
     if (!idxList || idxList.length === 0) {
       setForaLista((curr) => {
         const out = [];
@@ -384,7 +376,6 @@ export default function ConferenciaModal({
       return;
     }
 
-    // Escolhe a primeira linha desse EAN que ainda não atingiu a qtd
     setLinhas((prev) => {
       const next = prev.slice();
 
@@ -400,7 +391,6 @@ export default function ConferenciaModal({
         }
       }
 
-      // Se todas as linhas desse EAN já estão completas → excedente
       if (targetIdx == null) {
         const i0 = idxList[0];
         const r0 = next[i0];
@@ -421,7 +411,6 @@ export default function ConferenciaModal({
         return next;
       }
 
-      // Abate 1 na linha escolhida
       const r = next[targetIdx];
       r.scanned = Number(r.scanned || 0) + 1;
       next[targetIdx] = r;
@@ -431,9 +420,7 @@ export default function ConferenciaModal({
 
   // === Leitura por Lote+Quantidade ===
   function handleScanLoteQuantidade({ lote, quantidade, ean }) {
-    const loteStr = String(lote || "")
-      .trim()
-      .toUpperCase();
+    const loteStr = String(lote || "").trim().toUpperCase();
     const qtdN = Number(quantidade || 0);
     const eanStr = String(ean || "").trim();
     if (!loteStr || !qtdN || isNaN(qtdN) || qtdN <= 0) {
@@ -442,9 +429,10 @@ export default function ConferenciaModal({
     }
     const candidatos = indexesByLote.get(loteStr) || [];
     let targetIdx = null;
+
     if (eanStr) {
-      const idx = indexByBar.get(eanStr);
-      if (idx == null) {
+      const idxList = indexByBar.get(eanStr) || [];
+      if (idxList.length === 0) {
         toast(`EAN ${eanStr} não pertence ao pedido.`, "error");
         setOcorrencias((oc) => [
           ...oc,
@@ -460,27 +448,47 @@ export default function ConferenciaModal({
         ]);
         return false;
       }
-      if (candidatos.length > 0 && !candidatos.includes(idx)) {
-        toast(
-          `EAN não faz parte do lote ${loteStr} para este pedido.`,
-          "error"
-        );
-        setOcorrencias((oc) => [
-          ...oc,
-          {
-            id: newOccId(),
-            tipo: "lote_errado",
-            detalhe: `EAN não compatível com o lote ${loteStr}.`,
-            itemCod: linhas[idx]?.cod,
-            lote: loteStr,
-            quantidade: qtdN,
-            bar: eanStr,
-            status: "aberta",
-          },
-        ]);
-        return false;
+
+      let candidatosValidos = idxList;
+      if (candidatos.length > 0) {
+        const setCand = new Set(candidatos);
+        const inter = [];
+        for (let i = 0; i < idxList.length; i++) {
+          if (setCand.has(idxList[i])) inter.push(idxList[i]);
+        }
+        candidatosValidos = inter;
+        if (candidatosValidos.length === 0) {
+          toast(`EAN não faz parte do lote ${loteStr} para este pedido.`, "error");
+          setOcorrencias((oc) => [
+            ...oc,
+            {
+              id: newOccId(),
+              tipo: "lote_errado",
+              detalhe: `EAN não compatível com o lote ${loteStr}.`,
+              itemCod: null,
+              lote: loteStr,
+              quantidade: qtdN,
+              bar: eanStr,
+              status: "aberta",
+            },
+          ]);
+          return false;
+        }
       }
-      targetIdx = idx;
+
+      for (let k = 0; k < candidatosValidos.length; k++) {
+        const i = candidatosValidos[k];
+        const r = linhas[i];
+        const qtdSolic = Number(r.qtd || 0);
+        const atual = Number(r.scanned || 0);
+        if (atual < qtdSolic) {
+          targetIdx = i;
+          break;
+        }
+      }
+      if (targetIdx == null) {
+        targetIdx = candidatosValidos[0];
+      }
     } else {
       if (candidatos.length === 0) {
         toast(`Lote ${loteStr} não encontrado nos itens.`, "error");
@@ -506,6 +514,7 @@ export default function ConferenciaModal({
       }
       targetIdx = candidatos[0];
     }
+
     let abateu = false;
     setLinhas((prev) => {
       const next = prev.slice();
@@ -550,9 +559,7 @@ export default function ConferenciaModal({
             {
               id: newOccId(),
               tipo: "excedente_lote",
-              detalhe: `Excedeu em ${
-                qtdN - disponivel
-              } un. via lote "${loteStr}".`,
+              detalhe: `Excedeu em ${qtdN - disponivel} un. via lote "${loteStr}".`,
               itemCod: r.cod,
               lote: loteStr,
               quantidade: qtdN,
@@ -621,7 +628,6 @@ export default function ConferenciaModal({
       ajustarDivergentePorBar(alvo.bar, "devolvido");
       return;
     }
-    // demais tipos: fecha normalmente
     setOcorrencias((oc) => {
       const out = [];
       for (let i = 0; i < oc.length; i++) {
@@ -678,8 +684,7 @@ export default function ConferenciaModal({
   }
 
   const podeIrParaScan =
-    conferente.trim().length > 0 &&
-    (SKIP_BENCH_PHOTOS || benchShots.length > 0);
+    conferente.trim().length > 0 && (SKIP_BENCH_PHOTOS || benchShots.length > 0);
 
   const podeSalvar100 =
     conferente.trim().length > 0 && allOk && foraLista.length === 0;
@@ -688,17 +693,27 @@ export default function ConferenciaModal({
     if (!podeSalvar100 || savingSubmit || temOcorrenciaAberta) return;
     setSavingSubmit(true);
     try {
+      // AGREGA por chave compatível com o back: (bar || cod)
       const scans = {};
       const loteScansOut = {};
 
       for (let i = 0; i < linhas.length; i++) {
         const r = linhas[i];
-        const uniqueKey = `${String(r.cod)}|${String(r.bar)}|${
-          Array.isArray(r.lotes) ? r.lotes.join(",") : "-"
-        }|${i}`;
+        const k = String(r.bar || r.cod || "").trim();
+        const lidos = Number(r.scanned || 0);
+        if (!k) continue;
 
-        scans[uniqueKey] = Number(r.scanned || 0);
-        loteScansOut[uniqueKey] = r.loteScans || {};
+        const prev = Number(scans[k] || 0);
+        scans[k] = prev + lidos;
+
+        const srcLotes = r.loteScans || {};
+        const dstLotes = loteScansOut[k] || {};
+        for (const lote in srcLotes) {
+          const v = Number(srcLotes[lote] || 0);
+          const cur = Number(dstLotes[lote] || 0);
+          dstLotes[lote] = cur + v;
+        }
+        loteScansOut[k] = dstLotes;
       }
 
       const ocorrenciasOut = [];
@@ -787,8 +802,7 @@ export default function ConferenciaModal({
               <div style={{ display: "grid", gap: 12 }}>
                 <div>
                   <SmallMuted>
-                    Conferente{" "}
-                    <span style={{ color: "#ef4444" }}>* obrigatório</span>
+                    Conferente <span style={{ color: "#ef4444" }}>* obrigatório</span>
                   </SmallMuted>
                   <Row style={{ marginTop: 6 }}>
                     <Field
@@ -807,18 +821,12 @@ export default function ConferenciaModal({
                       <span style={{ color: "#ef4444" }}>* obrigatório</span>
                     </SmallMuted>
                     <div style={{ marginTop: 8 }}>
-                      <BenchPhoto
-                        onCapture={handleBenchCapture}
-                        facing="environment"
-                      />
+                      <BenchPhoto onCapture={handleBenchCapture} facing="environment" />
                     </div>
 
                     {benchShots.length === 0 && (
-                      <div
-                        style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}
-                      >
-                        Adicione pelo menos <strong>1 foto</strong> para
-                        prosseguir.
+                      <div style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}>
+                        Adicione pelo menos <strong>1 foto</strong> para prosseguir.
                       </div>
                     )}
 
