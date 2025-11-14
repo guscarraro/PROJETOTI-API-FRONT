@@ -150,7 +150,7 @@ export default function NavBar() {
 
   const handleLogout = async () => {
     try {
-      await apiLocal.logout?.();
+      await apiLocal.authLogout?.();
     } catch {}
     const theme = localStorage.getItem("theme");
     localStorage.clear();
@@ -173,27 +173,42 @@ export default function NavBar() {
       window.removeEventListener("resize", update);
     };
   }, []);
+
   const setorIds = (Array.isArray(user?.setor_ids) ? user.setor_ids : []).map(
     Number
   );
 
-  const isSetor23 = setorIds.includes(23);
+  const isSetor23 = setorIds.includes(23); // Fersa
   const isSetor6 = setorIds.includes(6);
   const isSetor9 = setorIds.includes(9);
-  const isSetor25 = setorIds.includes(25);
+  const isSetor25 = setorIds.includes(25); // Coletores
+
   const lowerSetores = Array.isArray(user?.setores)
     ? user.setores.map((s) => String(s).toLowerCase())
     : [];
 
-  const isRestrictedUser =
+  // Flags semânticas
+  const isFersa =
     isSetor23 ||
-    isSetor25 ||
     lowerSetores.includes("fersa_cliente") ||
+    userSectorNames.some(
+      (n) => String(n || "").toLowerCase() === "fersa_cliente"
+    );
+
+  const isColetores =
+    isSetor25 ||
     lowerSetores.includes("coletores") ||
-    userSectorNames.some((n) => {
-      const nome = String(n || "").toLowerCase();
-      return nome === "fersa_cliente" || nome === "coletores";
-    });
+    userSectorNames.some(
+      (n) => String(n || "").toLowerCase() === "coletores"
+    );
+
+  // Restrição do MENU PRINCIPAL: Fersa e Coletores só Conferência
+  const isRestrictedUser = isFersa || isColetores;
+
+  // Se não tiver user ainda, não renderiza nada
+  if (!user) return null;
+
+  // ===== MENU RESTRITO (FERSA / COLETORES) =====
   if (isRestrictedUser) {
     return (
       <NavWrap ref={navWrapRef} data-open={mobileOpen}>
@@ -210,68 +225,88 @@ export default function NavBar() {
         </button>
 
         <NavInner>
-          {(isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
-            <div style={{ position: "relative" }}>
-              <NavItem
-                key="conferencia"
-                $active={pathname.toLowerCase().startsWith("/conferencia")}
-                onClick={() => setConfOpen((v) => !v)}
-                title="Conferência"
+          {/* Conferência sempre visível pra restritos */}
+          <div style={{ position: "relative" }}>
+            <NavItem
+              key="conferencia"
+              $active={pathname.toLowerCase().startsWith("/conferencia")}
+              onClick={() => setConfOpen((v) => !v)}
+              title="Conferência"
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-around",
+              }}
+            >
+              <NavIcon>
+                <FiPackage />
+              </NavIcon>
+              <NavLabel>Conferência</NavLabel>
+              <NavIcon
                 style={{
-                  width: "100%",
-                  display: "flex",
-                  justifyContent: "space-around",
+                  transition: "transform 0.2s ease",
+                  transform: confOpen ? "rotate(180deg)" : "rotate(0deg)",
                 }}
               >
-                <NavIcon>
-                  <FiPackage />
-                </NavIcon>
-                <NavLabel>Conferência</NavLabel>
-                <NavIcon
-                  style={{
-                    transition: "transform 0.2s ease",
-                    transform: confOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                >
-                  <FiChevronDown />
-                </NavIcon>
-              </NavItem>
+                <FiChevronDown />
+              </NavIcon>
+            </NavItem>
 
-              {confOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "100%",
-                    left: 0,
-                    background: "var(--nav-bg, #0f172a)",
-                    border: "1px solid rgba(255,255,255,.08)",
-                    borderRadius: 10,
-                    padding: 6,
-                    marginTop: 6,
-                    minWidth: "100%",
-                    boxShadow: "0 10px 20px rgba(0,0,0,.3)",
-                    zIndex: 10,
+            {confOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  background: "var(--nav-bg, #0f172a)",
+                  border: "1px solid rgba(255,255,255,.08)",
+                  borderRadius: 10,
+                  padding: 6,
+                  marginTop: 6,
+                  minWidth: "100%",
+                  boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+                  zIndex: 10,
+                }}
+              >
+                {/* Pedidos – todos restritos enxergam */}
+                <NavItem
+                  $active={pathname === "/conferencia"}
+                  onClick={() => {
+                    setConfOpen(false);
+                    setMobileOpen(false);
+                    navigate("/conferencia");
                   }}
+                  title="Pedidos"
+                  style={{ width: "100%" }}
                 >
+                  <NavIcon>
+                    <FiClipboard />
+                  </NavIcon>
+                  <NavLabel>Pedidos</NavLabel>
+                </NavItem>
+
+                {/* Relatório – liberado para Fersa (não coletores) */}
+                {!isColetores && (
                   <NavItem
-                    $active={pathname === "/conferencia"}
+                    $active={pathname === "/conferencia/relatorio"}
                     onClick={() => {
                       setConfOpen(false);
                       setMobileOpen(false);
-                      navigate("/conferencia");
+                      navigate("/conferencia/relatorio");
                     }}
-                    title="Pedidos"
+                    title="Relatório"
                     style={{ width: "100%" }}
                   >
                     <NavIcon>
-                      <FiClipboard />
+                      <FaFileArchive />
                     </NavIcon>
-                    <NavLabel>Pedidos</NavLabel>
+                    <NavLabel>Relatório</NavLabel>
                   </NavItem>
-                </div>
-              )}
-            </div>
-          )}
+                )}
+              </div>
+            )}
+          </div>
+
           <NavSpacer />
 
           {user && (
@@ -337,8 +372,7 @@ export default function NavBar() {
     );
   }
 
-  if (!user) return null;
-
+  // ===== MENU NORMAL (não restrito) =====
   return (
     <NavWrap ref={navWrapRef} data-open={mobileOpen}>
       {/* Botão Hamburguer (mobile) */}
@@ -427,6 +461,7 @@ export default function NavBar() {
                   </NavIcon>
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
+
                 {!isSetor23 && !isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/integrantes"}
@@ -444,7 +479,8 @@ export default function NavBar() {
                     <NavLabel>Integrantes</NavLabel>
                   </NavItem>
                 )}
-                {!isSetor23 && !isSetor25 && (
+
+                {!isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/relatorio"}
                     onClick={() => {
@@ -476,7 +512,7 @@ export default function NavBar() {
             onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2.5" />
+              <Notas version="1.2.6" />
             </NavIcon>
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
@@ -558,12 +594,8 @@ export default function NavBar() {
           <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
           <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
         </NavItem>
-                
-          
 
-            <NavLabel>Versão 1.2.5</NavLabel>
-          
-       
+        <NavLabel>Versão 1.2.6</NavLabel>
       </NavInner>
     </NavWrap>
   );

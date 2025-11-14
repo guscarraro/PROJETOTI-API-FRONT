@@ -183,15 +183,15 @@ export default function Indicators({
             <StatCard $color={COLORS.pendente}>
               <StatLabel>Ag. conferência</StatLabel>
               <StatValue>{stats.aguardConf}</StatValue>
-              <div style={{ fontSize: 18, opacity: 0.85, marginTop: 4 }}>
+              {/* <div style={{ fontSize: 18, opacity: 0.85, marginTop: 4 }}>
                 Sem separador: <strong>{stats.semSeparador}</strong>
-              </div>
+              </div> */}
             </StatCard>
 
             <StatCard $color={COLORS.primeira}>
               <StatLabel>Pronto para expedir</StatLabel>
               <StatValue>{stats.prontoExpedir}</StatValue>
-              <div
+              {/* <div
                 style={{
                   fontSize: 18,
                   opacity: 0.85,
@@ -203,15 +203,15 @@ export default function Indicators({
               >
                 {canExpedir ? <FiTruck /> : null}
                 Ação disponível {canExpedir ? "✔" : "—"}
-              </div>
+              </div> */}
             </StatCard>
 
             <StatCard $color={COLORS.concluido}>
               <StatLabel>Expedidos</StatLabel>
               <StatValue>{stats.expedidos}</StatValue>
-              <div style={{ fontSize: 18, opacity: 0.85, marginTop: 4 }}>
+              {/* <div style={{ fontSize: 18, opacity: 0.85, marginTop: 4 }}>
                 Com NF: <strong>{stats.comNF}</strong>
-              </div>
+              </div> */}
             </StatCard>
 
             <StatCard style={{ padding: "12px 14px", borderRadius: 12, height: "100%", border: "1px solid rgba(0,0,0,.08)" }}>
