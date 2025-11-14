@@ -15,6 +15,23 @@ const api = axios.create({
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
+// 🔐 Interceptor de REQUEST: injeta Authorization: Bearer <token> se existir no localStorage
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("authToken");
+      if (token) {
+        config.headers = config.headers || {};
+        if (!config.headers.Authorization) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // 🔐 401 handler
 let isRedirecting401 = false;
 api.interceptors.response.use(
@@ -29,6 +46,7 @@ api.interceptors.response.use(
       if (!isRedirecting401 && typeof window !== "undefined") {
         isRedirecting401 = true;
         localStorage.removeItem("user");
+        localStorage.removeItem("authToken"); // ⬅️ limpa também o token Bearer
         if (window.location.pathname !== "/") {
           window.location.replace("/");
         }
@@ -386,18 +404,18 @@ const apiLocal = {
         return usp.toString();
       },
     }),
-    // ========================
-// DASHBOARD (Conferência/Expedição)
-// ========================
-dashboardOverview: (params = {}) => api.get("/dashboard/", { params }),
-dashboardSummary: (params = {}) => api.get("/dashboard/summary", { params }),
-dashboardDailyConferencias: (params = {}) =>
-  api.get("/dashboard/daily-conferencias", { params }),
-dashboardRankings: (params = {}) => api.get("/dashboard/rankings", { params }),
-dashboardTopTransportadoras: (params = {}) =>
-  api.get("/dashboard/top-transportadoras", { params }),
-dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }),
 
+  // ========================
+  // DASHBOARD (Conferência/Expedição)
+  // ========================
+  dashboardOverview: (params = {}) => api.get("/dashboard/", { params }),
+  dashboardSummary: (params = {}) => api.get("/dashboard/summary", { params }),
+  dashboardDailyConferencias: (params = {}) =>
+    api.get("/dashboard/daily-conferencias", { params }),
+  dashboardRankings: (params = {}) => api.get("/dashboard/rankings", { params }),
+  dashboardTopTransportadoras: (params = {}) =>
+    api.get("/dashboard/top-transportadoras", { params }),
+  dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }),
 
   // ========================
   // PEDIDOS
@@ -414,13 +432,14 @@ dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }
     api.put(`/pedidos/${nr_pedido}/basics`, data),
   updatePedidoNF: (nr_pedido, { nota, by }) =>
     api.put(`/pedidos/${nr_pedido}/nf`, { nota, by }),
-// ========================
-// INTEGRANTES
-// ========================
-getIntegrantes: () => api.get("/integrantes/"),
-createIntegrante: (data) => api.post("/integrantes/", data),
-updateIntegrante: (id, data) => api.put(`/integrantes/${id}`, data),
-deleteIntegrante: (id) => api.delete(`/integrantes/${id}`),
+
+  // ========================
+  // INTEGRANTES
+  // ========================
+  getIntegrantes: () => api.get("/integrantes/"),
+  createIntegrante: (data) => api.post("/integrantes/", data),
+  updateIntegrante: (id, data) => api.put(`/integrantes/${id}`, data),
+  deleteIntegrante: (id) => api.delete(`/integrantes/${id}`),
 
   // ========================
   // CONFERÊNCIAS
@@ -429,23 +448,24 @@ deleteIntegrante: (id) => api.delete(`/integrantes/${id}`),
     api.post(`/conferencias/${nr_pedido}/iniciar`, data),
   salvarConferencia: (nr_pedido, data) =>
     api.post(`/conferencias/${nr_pedido}/salvar`, data),
-// lista ocorrências da última conferência
-getOcorrenciasConferencia: (nr_pedido) =>
-  api.get(`/conferencias/${nr_pedido}/ocorrencias`),
 
-// CONFERÊNCIAS
-getUltimaConferencia: (nr_pedido) =>
-  api.get(`/conferencias/${nr_pedido}/ultima`),
+  // lista ocorrências da última conferência
+  getOcorrenciasConferencia: (nr_pedido) =>
+    api.get(`/conferencias/${nr_pedido}/ocorrencias`),
 
-finalizarConferencia: (nr_pedido, data) =>
-  api.post(`/conferencias/${nr_pedido}/finalizar`, data),
+  // CONFERÊNCIAS
+  getUltimaConferencia: (nr_pedido) =>
+    api.get(`/conferencias/${nr_pedido}/ultima`),
 
-// envia ARRAY de ocorrências
-registrarOcorrenciaConferencia: (nr_pedido, ocorrenciasArray) =>
-  api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
+  finalizarConferencia: (nr_pedido, data) =>
+    api.post(`/conferencias/${nr_pedido}/finalizar`, data),
 
-getPedidosRelatorio: (params = {}) =>
-  api.get("/pedidos/relatorio-pedidos", { params }),
+  // envia ARRAY de ocorrências
+  registrarOcorrenciaConferencia: (nr_pedido, ocorrenciasArray) =>
+    api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
+
+  getPedidosRelatorio: (params = {}) =>
+    api.get("/pedidos/relatorio-pedidos", { params }),
 
   // ========================
   // EXPEDIÇÃO

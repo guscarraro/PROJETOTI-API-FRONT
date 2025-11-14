@@ -46,9 +46,15 @@ export default function Login() {
     }
     setBusy(true);
     try {
-      // 1) cria sessão + cookie HttpOnly
+      // 1) cria sessão (cookie + token Bearer)
       const { data } = await apiLocal.authLogin(email, password);
-      // 2) opcional: confirma estado “oficial” via /auth/me (garante cookie aplicado)
+
+      // 1.1) guarda o token de fallback (Bearer) para browsers que bloqueiam cookie
+      if (data?.token) {
+        localStorage.setItem("authToken", data.token);
+      }
+
+      // 2) opcional: confirma estado “oficial” via /auth/me (garante sessão válida)
       try {
         const me = await apiLocal.authMe();
         if (me?.data) {
@@ -61,9 +67,10 @@ export default function Login() {
           localStorage.setItem("user", JSON.stringify(data.user));
         }
       }
+
       toast.success("Login realizado com sucesso!");
 
-      // 🔹 Se for cliente Fersa (id 23 ou setor Fersa_Cliente), vai pra /conferencia
+      // 🔹 Se for cliente Fersa (id 23 ou setor Fersa_Cliente/Coletores), vai pra /conferencia
       const userData = JSON.parse(localStorage.getItem("user") || "{}");
 
       if (
@@ -71,7 +78,7 @@ export default function Login() {
           (userData.setor_ids.includes(23) ||
             userData.setor_ids.includes(25))) ||
         userData?.setores?.some?.((s) => {
-          const nome = s.toLowerCase();
+          const nome = String(s || "").toLowerCase();
           return nome === "fersa_cliente" || nome === "coletores";
         })
       ) {
