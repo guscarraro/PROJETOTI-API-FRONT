@@ -444,6 +444,9 @@ finalizarConferencia: (nr_pedido, data) =>
 registrarOcorrenciaConferencia: (nr_pedido, ocorrenciasArray) =>
   api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
 
+getPedidosRelatorio: (params = {}) =>
+  api.get("/pedidos/relatorio-pedidos", { params }),
+
   // ========================
   // EXPEDIÇÃO
   // ========================

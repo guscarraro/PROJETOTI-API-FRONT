@@ -18,6 +18,7 @@ import OperacaoFechamento from './pages/OperacaoFechamento';
 import EstoqueTi from './pages/EstoqueTi';
 import Separacao from './pages/Separacao';
 import DashboardConferencia from './pages/Separacao/DashboardConferencia';
+import RelatorioConferencia from './pages/Projetos/RelatorioConferencia';
 // import Projecao from './pages/Projecao';
 
 import apiLocal from './services/apiLocal';
@@ -229,6 +230,15 @@ const App = () => {
            <PrivateRoute
              element={<DashboardConferencia />}
              allowedSectors={[SECTORS.ADMIN]}
+           />
+         }
+       />
+                 <Route
+         path="/conferencia/relatorio"
+         element={
+           <PrivateRoute
+             element={<RelatorioConferencia />}
+             allowedSectors={[SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.SAC]}
            />
          }
        />

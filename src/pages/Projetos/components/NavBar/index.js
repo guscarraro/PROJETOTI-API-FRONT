@@ -25,6 +25,7 @@ import {
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
 import Notas from "./Notas";
+import { FaFileArchive } from "react-icons/fa";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -441,6 +442,23 @@ export default function NavBar() {
                       <FiUsers />
                     </NavIcon>
                     <NavLabel>Integrantes</NavLabel>
+                  </NavItem>
+                )}
+                {!isSetor23 && !isSetor25 && (
+                  <NavItem
+                    $active={pathname === "/conferencia/relatorio"}
+                    onClick={() => {
+                      setConfOpen(false);
+                      setMobileOpen(false);
+                      navigate("/conferencia/relatorio");
+                    }}
+                    title="Relatorio"
+                    style={{ width: "100%" }}
+                  >
+                    <NavIcon>
+                      <FaFileArchive />
+                    </NavIcon>
+                    <NavLabel>Relatório</NavLabel>
                   </NavItem>
                 )}
               </div>
