@@ -34,7 +34,8 @@ const SECTORS = {
   TI: 2,
   GERENTE_OPERACAO: 16,
   FERSA_CLIENTE: 23,
-  COLETORES: 25
+  COLETORES: 25,
+  ARMAZENAGEM: 9
 };
 
 const App = () => {
@@ -211,7 +212,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<Separacao />}
-             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN, SECTORS.FERSA_CLIENTE, SECTORS.COLETORES]}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE, SECTORS.COLETORES]}
            />
          }
        />
@@ -220,7 +221,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<Integrantes />}
-             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO,SECTORS.ARMAZENAGEM, SECTORS.ADMIN]}
            />
          }
        />
@@ -238,7 +239,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<RelatorioConferencia />}
-             allowedSectors={[SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.SAC]}
+             allowedSectors={[SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.SAC,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE]}
            />
          }
        />
