@@ -367,6 +367,7 @@ export default function NavBar() {
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
+           <NavLabel>Versão 1.2.6</NavLabel>
         </NavInner>
       </NavWrap>
     );
