@@ -89,11 +89,12 @@ export default function PedidoCard({
   }, [pedido.nr_pedido]);
 
 const variant =
-  pedido.status === STATUS_PEDIDO.EXPEDIDO
+  pedido.status === STATUS_PEDIDO.CONCLUIDO
     ? "concluido"
     : pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO
     ? "primeira"
     : "pendente";
+
 
 
   // ---- Eventos: exibir apenas os 2 mais recentes, otimizando espaço
@@ -183,7 +184,7 @@ const variant =
   return (
     <Card role="group" onClick={onOpen} style={{ cursor: "pointer" }}>
       <FlexRow style={{ gap: 8, alignItems: "center" }}>
-        <h3 style={{ margin: 0, fontSize: 18 }}>Pedido #{pedido.nr_pedido}</h3>
+        <h3 style={{ margin: 0, fontSize: 18 }}>Remessa #{pedido.nr_pedido}</h3>
 
         <div style={{ display: "inline-flex", alignItems: "center", gap: 6, marginLeft: "auto" }}>
           <StatusPill $variant={variant}>

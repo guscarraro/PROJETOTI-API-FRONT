@@ -65,7 +65,7 @@ export function printPedidoLabels(pedido, opts = {}) {
 
   /* Remessa maior */
   .pedidoNo {
-    font-size: 10pt;
+    font-size: 12pt;
     font-weight: 900;
     white-space: nowrap;
   }
@@ -172,7 +172,7 @@ export function printPedidoLabels(pedido, opts = {}) {
           <div class="pill">EMBALAGEM ${seq}/${total}</div>
           <div class="headRight">
             <div class="timestamp mono">${formatDate(impressaoAt)}</div>
-            <div class="pedidoNo">Remessa #${pedidoNr}</div>
+            <div class="pedidoNo">Rem: #${pedidoNr}</div>
             <div class="ovLine">OV: ${pedido.ov || "—"}</div>
           </div>
         </div>
