@@ -27,11 +27,12 @@ import { useInactivityLogout } from './hooks/useInactivityLogout';
 const ADMIN_UUID = 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c';
 
 const SECTORS = {
-  ADMIN: 6,
+  TI: 2,
   SAC: 3,
   FRETE: 4,
   OPERACAO: 5,
-  TI: 2,
+  ADMIN: 6,
+  QUALIDADE: 7,
   GERENTE_OPERACAO: 16,
   FERSA_CLIENTE: 23,
   COLETORES: 25,
@@ -111,7 +112,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<Dashboard />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.SAC, SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.SAC, SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN, SECTORS.QUALIDADE]}
             />
           }
         />
@@ -122,7 +123,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<Frete />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.SAC, SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.SAC, SECTORS.OPERACAO, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN, SECTORS.QUALIDADE]}
             />
           }
         />
@@ -142,7 +143,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.QUALIDADE]}
             />
           }
         />
@@ -151,7 +152,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.QUALIDADE]}
             />
           }
         />
@@ -169,7 +170,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<CargaLucrativa />}
-              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
+              allowedSectors={[SECTORS.FRETE, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.QUALIDADE]}
             />
           }
         />
@@ -180,7 +181,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<OperacaoFechamento />}
-              allowedSectors={[SECTORS.OPERACAO, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO]}
+              allowedSectors={[SECTORS.OPERACAO, SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.QUALIDADE]}
             />
           }
         />
@@ -195,7 +196,7 @@ const App = () => {
         {/* TI */}
         <Route
           path="/ti"
-          element={<PrivateRoute element={<EstoqueTi />} allowedSectors={[SECTORS.TI, SECTORS.ADMIN]} />}
+          element={<PrivateRoute element={<EstoqueTi />} allowedSectors={[SECTORS.TI, SECTORS.ADMIN, SECTORS.QUALIDADE]} />}
         />
 
         {/* Projetos */}
@@ -212,7 +213,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<Separacao />}
-             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE, SECTORS.COLETORES]}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE, SECTORS.COLETORES, SECTORS.QUALIDADE]}
            />
          }
        />
@@ -221,7 +222,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<Integrantes />}
-             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO,SECTORS.ARMAZENAGEM, SECTORS.ADMIN]}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO,SECTORS.ARMAZENAGEM, SECTORS.ADMIN, SECTORS.QUALIDADE]}
            />
          }
        />
@@ -230,7 +231,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<DashboardConferencia />}
-             allowedSectors={[SECTORS.ADMIN]}
+             allowedSectors={[SECTORS.ADMIN, SECTORS.QUALIDADE]}
            />
          }
        />
@@ -239,7 +240,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<RelatorioConferencia />}
-             allowedSectors={[SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.SAC,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE]}
+             allowedSectors={[SECTORS.ADMIN, SECTORS.GERENTE_OPERACAO, SECTORS.SAC,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE, SECTORS.QUALIDADE]}
            />
          }
        />

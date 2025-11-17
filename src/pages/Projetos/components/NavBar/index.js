@@ -181,6 +181,7 @@ export default function NavBar() {
   const isSetor23 = setorIds.includes(23); // Fersa
   const isSetor6 = setorIds.includes(6);
   const isSetor9 = setorIds.includes(9);
+  const isSetor7 = setorIds.includes(7);
   const isSetor25 = setorIds.includes(25); // Coletores
 
   const lowerSetores = Array.isArray(user?.setores)
@@ -404,7 +405,7 @@ export default function NavBar() {
           </NavItem>
         ))}
 
-        {(isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
+        {(isSetor7 || isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"
