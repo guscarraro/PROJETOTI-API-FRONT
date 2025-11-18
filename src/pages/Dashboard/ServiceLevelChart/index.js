@@ -21,11 +21,15 @@ const ServiceLevelChart = ({ data }) => {
   });
   const [serviceLevelByPraça, setServiceLevelByPraça] = useState([]);
 
+  // Praças/filiais que NÃO entram em nada
+  const EXCLUDED_PRACAS = ["SC", "SP", "MG", "RJ", "SKYI"];
+
   const parseDate = (dateString) => {
     if (!dateString) return null;
     const [day, month, year] = dateString.split("/");
     return new Date(`${year}-${month}-${day}T00:00:00`);
   };
+
   const calculateGeneralServiceLevel = (filteredData) => {
     let totalOnTime = 0;
     let totalLate = 0;
@@ -70,11 +74,15 @@ const ServiceLevelChart = ({ data }) => {
 
     // Nome da praça, se for gráfico por praça
     const praça = chartType === "praça" ? selectedPraça : null;
-
     const titlePrefix = praça ? `${praça} - ` : "";
 
+    // Base SEM as praças excluídas
+    const baseData = data.filter(
+      (item) => !EXCLUDED_PRACAS.includes(item.praca_destino)
+    );
+
     if (entry.name.includes("No Prazo")) {
-      filteredData = data.filter((item) => {
+      filteredData = baseData.filter((item) => {
         const entrega = parseDate(item.entregue_em);
         const previsao = parseDate(item.previsao_entrega);
 
@@ -91,7 +99,7 @@ const ServiceLevelChart = ({ data }) => {
 
       setModalTitle(`${titlePrefix}CTEs Entregues no Prazo`);
     } else {
-      filteredData = data.filter((item) => {
+      filteredData = baseData.filter((item) => {
         const entrega = parseDate(item.entregue_em);
         const previsao = parseDate(item.previsao_entrega);
 
@@ -170,8 +178,13 @@ const ServiceLevelChart = ({ data }) => {
 
   useEffect(() => {
     if (data.length > 0) {
-      calculateGeneralServiceLevel(data);
-      calculateServiceLevelByPraça(data);
+      // Filtra as praças excluídas ANTES de calcular
+      const filtered = data.filter(
+        (item) => !EXCLUDED_PRACAS.includes(item.praca_destino)
+      );
+
+      calculateGeneralServiceLevel(filtered);
+      calculateServiceLevelByPraça(filtered);
     }
   }, [data]);
 
@@ -214,7 +227,7 @@ const ServiceLevelChart = ({ data }) => {
           <Legend verticalAlign="bottom" height={36} />
         </PieChart>
       </ResponsiveContainer>
-      {/* <h5>Nível de Serviço por Praça</h5> */}
+
       <div
         style={{
           display: "flex",
@@ -223,7 +236,7 @@ const ServiceLevelChart = ({ data }) => {
         }}
       >
         {serviceLevelByPraça
-          .filter((item) => item.praça !== "SC") // <<< AQUI, exatamente aqui!
+          .filter((item) => !EXCLUDED_PRACAS.includes(item.praça))
           .map((praçaData, index) => (
             <div
               key={index}
@@ -283,6 +296,7 @@ const ServiceLevelChart = ({ data }) => {
             </div>
           ))}
       </div>
+
       <ModalInfo
         isOpen={modalIsOpen}
         toggle={() => setModalIsOpen(!modalIsOpen)}
