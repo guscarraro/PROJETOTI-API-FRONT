@@ -231,7 +231,7 @@ const App = () => {
          element={
            <PrivateRoute
              element={<DashboardConferencia />}
-             allowedSectors={[SECTORS.ADMIN, SECTORS.QUALIDADE]}
+             allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO,SECTORS.ARMAZENAGEM, SECTORS.ADMIN, SECTORS.QUALIDADE]}
            />
          }
        />

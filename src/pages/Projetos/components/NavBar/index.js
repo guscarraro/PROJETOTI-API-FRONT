@@ -21,6 +21,7 @@ import {
   FiChevronDown,
   FiClipboard,
   FiUsers,
+  FiActivity,
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
@@ -199,9 +200,7 @@ export default function NavBar() {
   const isColetores =
     isSetor25 ||
     lowerSetores.includes("coletores") ||
-    userSectorNames.some(
-      (n) => String(n || "").toLowerCase() === "coletores"
-    );
+    userSectorNames.some((n) => String(n || "").toLowerCase() === "coletores");
 
   // Restrição do MENU PRINCIPAL: Fersa e Coletores só Conferência
   const isRestrictedUser = isFersa || isColetores;
@@ -270,6 +269,24 @@ export default function NavBar() {
                 }}
               >
                 {/* Pedidos – todos restritos enxergam */}
+                {!isSetor23 && !isSetor25 && (
+                  <NavItem
+                    $active={pathname === "/conferencia/dashboard"}
+                    onClick={() => {
+                      setConfOpen(false);
+                      setMobileOpen(false);
+                      navigate("/conferencia/dashboard");
+                    }}
+                    title="Dashboard"
+                    style={{ width: "100%" }}
+                  >
+                    <NavIcon>
+                      <FiActivity />
+                    </NavIcon>
+                    <NavLabel>Dashboard</NavLabel>
+                  </NavItem>
+                )}
+
                 <NavItem
                   $active={pathname === "/conferencia"}
                   onClick={() => {
@@ -368,7 +385,7 @@ export default function NavBar() {
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
-           <NavLabel>Versão 1.2.6</NavLabel>
+          <NavLabel>Versão 1.2.6</NavLabel>
         </NavInner>
       </NavWrap>
     );
@@ -448,6 +465,23 @@ export default function NavBar() {
                   zIndex: 10,
                 }}
               >
+                {!isSetor23 && !isSetor25 && (
+                  <NavItem
+                    $active={pathname === "/conferencia/dashboard"}
+                    onClick={() => {
+                      setConfOpen(false);
+                      setMobileOpen(false);
+                      navigate("/conferencia/dashboard");
+                    }}
+                    title="Dashboard"
+                    style={{ width: "100%" }}
+                  >
+                    <NavIcon>
+                      <FiActivity />
+                    </NavIcon>
+                    <NavLabel>Dashboard</NavLabel>
+                  </NavItem>
+                )}
                 <NavItem
                   $active={pathname === "/conferencia"}
                   onClick={() => {

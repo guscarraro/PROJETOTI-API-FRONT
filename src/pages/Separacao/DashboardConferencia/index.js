@@ -1,9 +1,6 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import NavBar from "../../Projetos/components/NavBar";
-import {
-  Page,
-  H1,
-} from "../../Projetos/style";
+import { Page, H1 } from "../../Projetos/style";
 import useLoading from "../../../hooks/useLoading";
 import apiLocal from "../../../services/apiLocal";
 import {
@@ -29,44 +26,69 @@ import {
   LeadTimeItem,
   RankingsRow,
 } from "./style";
-
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
   PieChart,
   Pie,
   Cell,
+  Bar,
+  BarChart,
 } from "recharts";
 
-/* Cores para pizza */
-const PIE_COLORS = ["#60a5fa", "#34d399", "#f59e0b", "#ef4444", "#a78bfa", "#f472b6", "#22d3ee", "#fb7185"];
+/* Cores para pizza (um pouco mais vivas, mas sem virar carnaval) */
+const PIE_COLORS = [
+  "#22d3ee", // cyan
+  "#a3e635", // lime
+  "#f97316", // orange
+  "#fb7185", // rose
+  "#38bdf8", // sky
+  "#c4b5fd", // violet
+  "#facc15", // amber
+  "#f472b6", // pink
+];
+
+/* Cores das 3 barras (leve vibe neon/dark) */
+const LINE_COLORS = {
+  pedidos: "#22d3ee", // cyan
+  conferencias: "#a3e635", // lime
+  expedicoes: "#f97316", // orange
+};
+
+// pega primeiro e último dia do mês atual em YYYY-MM-DD
 
 export default function DashboardConferencia() {
   const loading = useLoading();
+  const [loadingDash, setLoadingDash] = useState(false);
 
   // filtros
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth(); // 0-11
+
+  const monthStartISO = new Date(year, month, 1).toISOString().slice(0, 10);
+  const monthEndISO = new Date(year, month + 1, 0).toISOString().slice(0, 10);
+
   const [integrante, setIntegrante] = useState("");
   const [role, setRole] = useState("any"); // any|separador|conferente
-  const todayISO = new Date().toISOString().slice(0, 10);
-  const [start, setStart] = useState(todayISO);
-  const [end, setEnd] = useState(todayISO);
+  const [start, setStart] = useState(monthStartISO);
+  const [end, setEnd] = useState(monthEndISO);
 
-  // dados
+  // dados gerais
   const [summary, setSummary] = useState(null);
-  const [daily, setDaily] = useState([]);
   const [sepRank, setSepRank] = useState([]);
   const [confRank, setConfRank] = useState([]);
   const [tops, setTops] = useState([]);
   const [leads, setLeads] = useState({});
 
-  const timerRef = useRef(null);
+  // série diária com 3 métricas (do back, já pronta)
+  const [dailySeries, setDailySeries] = useState([]);
 
+  // carga principal
   async function loadAll() {
+    setLoadingDash(true);
     loading.start("dash");
     try {
       const params = {
@@ -75,44 +97,58 @@ export default function DashboardConferencia() {
         ...(integrante ? { integrante } : {}),
         role,
       };
+
       const resp = await apiLocal.dashboardOverview(params);
       const data = resp?.data || {};
 
       setSummary(data.summary || null);
-      setDaily(Array.isArray(data.daily_conferencias) ? data.daily_conferencias : []);
-      setSepRank(Array.isArray(data.ranking_separadores) ? data.ranking_separadores : []);
-      setConfRank(Array.isArray(data.ranking_conferentes) ? data.ranking_conferentes : []);
-      setTops(Array.isArray(data.top_transportadoras) ? data.top_transportadoras : []);
+      setSepRank(
+        Array.isArray(data.ranking_separadores) ? data.ranking_separadores : []
+      );
+      setConfRank(
+        Array.isArray(data.ranking_conferentes) ? data.ranking_conferentes : []
+      );
+      setTops(
+        Array.isArray(data.top_transportadoras) ? data.top_transportadoras : []
+      );
       setLeads(data.lead_times || {});
+      setDailySeries(Array.isArray(data.daily_series) ? data.daily_series : []);
     } finally {
       loading.stop("dash");
+      setLoadingDash(false);
     }
   }
 
+  // carrega inicial só 1 vez
   useEffect(() => {
     loadAll();
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(loadAll, 20000);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start, end, integrante, role]);
+  }, []);
 
+  // adapta o formato da série diária para o BarChart
   const lineData = useMemo(() => {
+    if (!dailySeries) return [];
     const out = [];
-    for (let i = 0; i < daily.length; i++) {
-      const d = daily[i];
-      out.push({ name: d.date, qty: d.count });
+    for (let i = 0; i < dailySeries.length; i++) {
+      const d = dailySeries[i] || {};
+      out.push({
+        name: d.date, // YYYY-MM-DD
+        pedidosCriados: d.pedidos_criados ?? 0,
+        conferencias: d.conferencias ?? 0,
+        expedicoes: d.expedicoes ?? 0,
+      });
     }
     return out;
-  }, [daily]);
+  }, [dailySeries]);
 
   const pieData = useMemo(() => {
     const out = [];
     for (let i = 0; i < tops.length; i++) {
       const t = tops[i];
-      out.push({ name: t.transportador || "-", value: Number(t.pedidos_expedidos || 0) });
+      out.push({
+        name: t.transportador || "-",
+        value: Number(t.pedidos_expedidos || 0),
+      });
     }
     return out;
   }, [tops]);
@@ -127,16 +163,25 @@ export default function DashboardConferencia() {
     return h > 0 ? `${pad(h)}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`;
   }
 
+  // formata eixo X: de "YYYY-MM-DD" -> "DD/MM"
+  function formatXAxisDate(value) {
+    if (!value) return "";
+    const parts = String(value).split("-");
+    if (parts.length !== 3) return value;
+    const [, month, day] = parts;
+    return `${day}/${month}`;
+  }
+
   return (
     <Page>
       <NavBar />
       <Content>
         <TitleBarWrap>
-          <H1 $accent="#0ea5e9">Dashboard • Conferência & Expedição</H1>
+          <H1 $accent="#22d3ee">Dashboard • Conferência &amp; Expedição</H1>
 
           <RightRow>
             <FiltersRow>
-              <div>
+              {/* <div>
                 <TinyLabel>Integrante</TinyLabel>
                 <Field
                   placeholder="Nome do separador/conferente..."
@@ -147,31 +192,92 @@ export default function DashboardConferencia() {
 
               <div>
                 <TinyLabel>Função</TinyLabel>
-                <Select value={role} onChange={(e) => setRole(e.target.value)}>
+                <Select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                >
                   <option value="any">Qualquer</option>
                   <option value="separador">Separador</option>
                   <option value="conferente">Conferente</option>
                 </Select>
-              </div>
+              </div> */}
 
               <div>
                 <TinyLabel>Início</TinyLabel>
-                <Field type="date" value={start} onChange={(e) => setStart(e.target.value)} />
+                <Field
+                  type="date"
+                  value={start}
+                  onChange={(e) => setStart(e.target.value)}
+                />
               </div>
 
               <div>
                 <TinyLabel>Fim</TinyLabel>
-                <Field type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
+                <Field
+                  type="date"
+                  value={end}
+                  onChange={(e) => setEnd(e.target.value)}
+                />
+              </div>
+
+              {/* Botão de buscar para evitar loop de requisições */}
+              <div style={{ alignSelf: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={loadAll}
+                  disabled={loadingDash}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: 999,
+                    border: "none",
+                    background: "#22d3ee",
+                    color: "#0b1120",
+                    fontWeight: 600,
+                    cursor: loadingDash ? "default" : "pointer",
+                    opacity: loadingDash ? 0.6 : 1,
+                    marginLeft: 8,
+                  }}
+                >
+                  {loadingDash ? "Carregando..." : "Buscar"}
+                </button>
               </div>
             </FiltersRow>
           </RightRow>
         </TitleBarWrap>
 
+        {/* overlay simples de carregamento */}
+        {loadingDash && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15,23,42,0.45)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 50,
+            }}
+          >
+            <div
+              style={{
+                padding: "16px 24px",
+                borderRadius: 999,
+                background: "#020617",
+                color: "#e5e7eb",
+                fontWeight: 600,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.7)",
+              }}
+            >
+              Atualizando dashboard...
+            </div>
+          </div>
+        )}
+
         {/* KPIs */}
         <CardGrid>
           <KPI>
             <KPIValue>{summary?.total_pedidos ?? 0}</KPIValue>
-            <KPILabel>Total de Pedidos</KPILabel>
+            <KPILabel>Total de Pedidos (janela)</KPILabel>
           </KPI>
           <KPI>
             <KPIValue>{summary?.aguardando_conferencia ?? 0}</KPIValue>
@@ -183,26 +289,75 @@ export default function DashboardConferencia() {
           </KPI>
           <KPI>
             <KPIValue>{summary?.expedido ?? 0}</KPIValue>
-            <KPILabel>Expedido</KPILabel>
+            <KPILabel>Expedido (status)</KPILabel>
           </KPI>
+
+          {/* novos contadores do período */}
+
           <KPI>
-            <KPIValue>{summary?.etiquetas_impressas ?? 0}</KPIValue>
-            <KPILabel>Etiquetas Impressas</KPILabel>
+            <KPIValue>{summary?.conferencias_periodo ?? 0}</KPIValue>
+            <KPILabel>Conferências no Período</KPILabel>
           </KPI>
         </CardGrid>
 
-        {/* Conferências por dia */}
+        {/* Gráfico diário em colunas com 3 séries */}
         <ChartCard>
-          <ChartTitle>Conferências por dia (janela filtrada)</ChartTitle>
+          <ChartTitle>Pedidos / Conferências / Expedições por dia</ChartTitle>
           <div style={{ width: "100%", height: 280 }}>
             <ResponsiveContainer>
-              <LineChart data={lineData} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Line type="stepAfter" dataKey="qty" stroke="#0ea5e9" strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
+              <BarChart
+                data={lineData}
+                margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+                barCategoryGap={8} // menos espaço entre dias
+                barGap={2} // menos espaço entre as 3 barras
+                barSize={16} // <<< AQUI deixa cada barra mais larga
+              >
+                {/* Sem grid pra ficar mais clean no dark mode */}
+                <XAxis
+                  dataKey="name"
+                  tickFormatter={formatXAxisDate}
+                  tick={{
+                    fontSize: 10,
+                    fill: "grey",
+                  }}
+                  tickMargin={8}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{
+                    fontSize: 10,
+                    fill: "#9ca3af",
+                  }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "#020617",
+                    border: "1px solid #1f2937",
+                    borderRadius: 8,
+                    color: "#e5e7eb",
+                    fontSize: 12,
+                  }}
+                />
+
+                <Bar
+                  dataKey="pedidosCriados"
+                  name="Pedidos criados"
+                  fill={LINE_COLORS.pedidos}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="conferencias"
+                  name="Conferências"
+                  fill={LINE_COLORS.conferencias}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="expedicoes"
+                  name="Expedições"
+                  fill={LINE_COLORS.expedicoes}
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
@@ -282,12 +437,32 @@ export default function DashboardConferencia() {
           <div style={{ width: "100%", height: 260 }}>
             <ResponsiveContainer>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label isAnimationActive={false}>
+                <Pie
+                  data={pieData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={90}
+                  label
+                  isAnimationActive={false}
+                >
                   {pieData.map((entry, index) => (
-                    <Cell key={`c-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    <Cell
+                      key={`c-${index}`}
+                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+                    />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip
+                  contentStyle={{
+                    background: "grey",
+                    border: "1px solid #1f2937",
+                    borderRadius: 8,
+                    color: "#e5e7eb",
+                    fontSize: 12,
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -297,12 +472,16 @@ export default function DashboardConferencia() {
         <LeadTimeGrid>
           <LeadTimeItem>
             <h4>⏱️ Criação → Pronto p/ Conferência</h4>
-            <div className="value">{formatSecs(leads?.avg_criacao_ate_pronto_conf_seg)}</div>
+            <div className="value">
+              {formatSecs(leads?.avg_criacao_ate_pronto_conf_seg)}
+            </div>
             <div className="hint">Média no período</div>
           </LeadTimeItem>
           <LeadTimeItem>
             <h4>🚚 Pronto p/ Expedir → Expedido</h4>
-            <div className="value">{formatSecs(leads?.avg_pronto_exp_ate_expedido_seg)}</div>
+            <div className="value">
+              {formatSecs(leads?.avg_pronto_exp_ate_expedido_seg)}
+            </div>
             <div className="hint">Média no período</div>
           </LeadTimeItem>
         </LeadTimeGrid>
