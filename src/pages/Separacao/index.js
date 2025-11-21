@@ -1,23 +1,19 @@
 import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "reactstrap";
-import styled from "styled-components";
 import NavBar from "../Projetos/components/NavBar";
 import {
   Page,
-  TitleBar,
   H1,
   CardGrid,
   SearchWrap,
   SearchInput,
 } from "../Projetos/style";
-// import { PageLoader } from "../Projetos/components/Loader";
 import useLoading from "../../hooks/useLoading";
 import UploadCsvModal from "./UploadCsvModal";
 import PedidoFormModal from "./PedidoFormModal";
 import PedidoCard from "./PedidoCard";
 import ModalInfo from "./ModalInfo";
-import { StatusPill } from "./style";
 import { STATUS_PEDIDO } from "./constants";
 import Indicators from "./Indicators";
 import ConferenciaModal from "./ConferenciaModal";
@@ -25,17 +21,41 @@ import FakeLabelsModal from "./FakeLabelsModal";
 import ModalExpedidos from "./ModalExpedidos";
 import apiLocal from "../../services/apiLocal";
 
-const ADM_EMAILS = ["admin@empresa.com.br"];
+import {
+  StatusPill,
+  Content,
+  TitleBarWrap,
+  RightRow,
+  FiltersCard,
+  FiltersRow,
+  FiltersLeft,
+  FiltersRight,
+  FilterGroup,
+  FilterLabel,
+  FilterInput,
+  FilterSelect,
+  FilterButton,
+  ClearButton,
+  Legend,
+  DeletedPanel,
+  CardsWrap,
+} from "./style";
 
-/* medidas da navbar (mantidas em sincronia com a NavBar) */
-const NAV_SIDEBAR_W = 64; // largura base da sidebar (desktop, colapsada)
-const NAV_TOPBAR_H = 56; // altura da topbar (mobile)
+const ADM_EMAILS = ["admin@carraro.com"];
 
+/* helpers de permissão */
 function canExpedir(user) {
   const email = String(user?.email || "").toLowerCase();
   const tipo = String(user?.tipo || "").toLowerCase();
-  if (tipo === "adm") return true; // libera admins
-return ["kathy@carraro.com","jeferson@carraro.com", "admin@carraro.com", "vinicius.ferreira@carraro.com", "felipe.lopes@carraro.com","luiz.machado@carraro.com"].includes(email);
+  if (tipo === "adm") return true;
+  return [
+    "kathy@carraro.com",
+    "jeferson@carraro.com",
+    "admin@carraro.com",
+    "vinicius.ferreira@carraro.com",
+    "felipe.lopes@carraro.com",
+    "luiz.machado@carraro.com",
+  ].includes(email);
 }
 
 function isAdmin(user) {
@@ -46,6 +66,64 @@ function isAdmin(user) {
   if (String(user?.tipo || "").toLowerCase() === "adm") return true;
   return false;
 }
+
+function formatDate(date) {
+  const d = new Date(date.getTime());
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getPresetRange(presetKey) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (presetKey === "HOJE") {
+    return { start: today, end: today };
+  }
+
+  if (presetKey === "ONTEM") {
+    const d = new Date(today.getTime());
+    d.setDate(d.getDate() - 1);
+    return { start: d, end: d };
+  }
+
+  if (presetKey === "SEMANA_ATUAL") {
+    let day = today.getDay(); // 0 domingo, 1 segunda...
+    if (day === 0) day = 7;
+    const start = new Date(today.getTime());
+    start.setDate(today.getDate() - (day - 1)); // segunda
+    const end = new Date(start.getTime());
+    end.setDate(start.getDate() + 6); // domingo
+    return { start, end };
+  }
+
+  if (presetKey === "MES_ATUAL") {
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const start = new Date(year, month, 1);
+    const end = new Date(year, month + 1, 0);
+    return { start, end };
+  }
+
+  if (presetKey === "MES_PASSADO") {
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const prevMonth = month === 0 ? 11 : month - 1;
+    const prevYear = month === 0 ? year - 1 : year;
+    const start = new Date(prevYear, prevMonth, 1);
+    const end = new Date(prevYear, prevMonth + 1, 0);
+    return { start, end };
+  }
+
+  return null;
+}
+
+// range padrão = mês atual
+const defaultRange = getPresetRange("MES_ATUAL");
+const defaultDtInicio = defaultRange ? formatDate(defaultRange.start) : "";
+const defaultDtFim = defaultRange ? formatDate(defaultRange.end) : "";
 
 /** Overlay global via portal (sempre acima do modal do Bootstrap) */
 function GlobalLoader({ active, text }) {
@@ -115,7 +193,14 @@ export default function SeparacaoPage() {
 
   const [deletedPedidos, setDeletedPedidos] = useState([]);
   const [showDeleted, setShowDeleted] = useState(false);
-  const [statusFiltro, setStatusFiltro] = useState(null); // STATUS_PEDIDO.* | null
+  const [statusFiltro, setStatusFiltro] = useState(null);
+
+  // filtros (card)
+  const [filters, setFilters] = useState({
+    dt_inicio: defaultDtInicio,
+    dt_fim: defaultDtFim,
+    periodo: "MES_ATUAL",
+  });
 
   const normalize = useCallback(
     (s) =>
@@ -127,17 +212,65 @@ export default function SeparacaoPage() {
     []
   );
 
-  // ---------- carga inicial ----------
+  const handleFilterChange = useCallback((field, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  const handlePeriodoChange = useCallback((value) => {
+    if (!value) {
+      setFilters((prev) => ({ ...prev, periodo: "" }));
+      return;
+    }
+    const range = getPresetRange(value);
+    if (!range) {
+      setFilters((prev) => ({ ...prev, periodo: value }));
+      return;
+    }
+    setFilters((prev) => ({
+      ...prev,
+      periodo: value,
+      dt_inicio: formatDate(range.start),
+      dt_fim: formatDate(range.end),
+    }));
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilters({
+      dt_inicio: "",
+      dt_fim: "",
+      periodo: "",
+    });
+  }, []);
+
+  // fetch com base nos filtros (chamado no submit e na carga inicial)
+  const fetchFromFilters = async (f) => {
+    const params = { events_preview: 5 };
+    if (f.dt_inicio) params.dt_inicio = f.dt_inicio;
+    if (f.dt_fim) params.dt_fim = f.dt_fim;
+
+    setLoadingLabel("Carregando...");
+    const res = await loading.wrap("pedidos-list", async () =>
+      apiLocal.getPedidos(params)
+    );
+    const arr = Array.isArray(res?.data) ? res.data : [];
+    setPedidos(arr);
+    setLoadingLabel("Carregando...");
+  };
+
+  // carga inicial: usando o range padrão (mês atual)
   useEffect(() => {
     (async () => {
-      setLoadingLabel("Carregando...");
-      loading.start("fetch");
       try {
-        const resp = await apiLocal.getPedidos({ events_preview: 5 });
-        const arr = Array.isArray(resp.data) ? resp.data : [];
-        setPedidos(arr);
-      } finally {
-        loading.stop("fetch");
+        await fetchFromFilters({
+          dt_inicio: defaultDtInicio,
+          dt_fim: defaultDtFim,
+          periodo: "MES_ATUAL",
+        });
+      } catch (err) {
+        console.error(err);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,12 +288,10 @@ export default function SeparacaoPage() {
     return out;
   };
 
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  // HELPER: substituir pedido na lista e sincronizar active/conf (SEM reduce)
+  // substituir pedido na lista e sincronizar modais
   function replacePedidoNaLista(nr_pedido, patch) {
     if (!nr_pedido || !patch) return;
 
-    // atualiza lista
     setPedidos((prev) => {
       const next = [];
       let found = false;
@@ -174,13 +305,11 @@ export default function SeparacaoPage() {
         }
       }
       if (!found) {
-        // se não estava na lista por algum motivo, adiciona no topo
         next.unshift(patch);
       }
       return next;
     });
 
-    // sincroniza modais abertos
     if (activePedido && String(activePedido.nr_pedido) === String(nr_pedido)) {
       setActivePedido({ ...activePedido, ...patch });
     }
@@ -188,7 +317,6 @@ export default function SeparacaoPage() {
       setConfPedido({ ...confPedido, ...patch });
     }
   }
-  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   // ---------- IMPORTAÇÃO CSV ----------
   const onImportedCsv = async (novosPedidos) => {
@@ -206,7 +334,11 @@ export default function SeparacaoPage() {
         }
       }
 
-      const listResp = await apiLocal.getPedidos({ events_preview: 5 });
+      const listResp = await apiLocal.getPedidos({
+        events_preview: 5,
+        dt_inicio: filters.dt_inicio || undefined,
+        dt_fim: filters.dt_fim || undefined,
+      });
       const lista = Array.isArray(listResp?.data) ? listResp.data : [];
 
       const detalhesMap = new Map();
@@ -250,7 +382,11 @@ export default function SeparacaoPage() {
       setLoadingLabel("Criando pedido...");
       loading.start("create");
       await apiLocal.createPedido(pedido);
-      const listResp = await apiLocal.getPedidos({ events_preview: 5 });
+      const listResp = await apiLocal.getPedidos({
+        events_preview: 5,
+        dt_inicio: filters.dt_inicio || undefined,
+        dt_fim: filters.dt_fim || undefined,
+      });
       const lista = Array.isArray(listResp?.data) ? listResp.data : [];
       setPedidos(lista);
     } finally {
@@ -306,7 +442,7 @@ export default function SeparacaoPage() {
     [pedidos, activePedido, confPedido]
   );
 
-  // ---------- atualização local opcional ----------
+  // ---------- atualização local ----------
   const onUpdatePedido = async (nr_pedido, patch) => {
     try {
       await apiLocal.updatePedido(nr_pedido, patch);
@@ -398,8 +534,7 @@ export default function SeparacaoPage() {
     setOpenConf(true);
   };
 
-  // >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  // FINALIZAR CONFERÊNCIA: usa retorno do back e mescla imediatamente
+  // FINALIZAR CONFERÊNCIA
   const handleConfirmConferencia = async (payload) => {
     const name = String(payload?.conferente || "").trim();
     if (!name || !confPedido) return;
@@ -430,14 +565,12 @@ export default function SeparacaoPage() {
         ocorrencias: ocorrenciasOut,
       });
 
-      // <- AQUI: atualiza estado local com o retorno do back
       const pedidoDoBack =
-        (resp && resp.data && resp.data.pedido) ? resp.data.pedido : null;
+        resp && resp.data && resp.data.pedido ? resp.data.pedido : null;
       if (pedidoDoBack) {
         replacePedidoNaLista(confPedido.nr_pedido, pedidoDoBack);
       }
 
-      // opcional: reforça a leitura do detalhe (cache bust)
       await refreshPedido(confPedido.nr_pedido);
     } catch (e) {
       console.error("Falha ao finalizar conferência no back:", e);
@@ -446,7 +579,6 @@ export default function SeparacaoPage() {
     setOpenConf(false);
     setConfPedido(null);
   };
-  // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
   const handleOccurrence = async ({ ocorrencias }) => {
     if (!confPedido) return;
@@ -477,31 +609,27 @@ export default function SeparacaoPage() {
     setConfPedido(null);
   };
 
-  // monta a lista de campos pesquisáveis (normalizados)
+  // campos pesquisáveis
   const buildSearchStrings = useCallback(
     (p) => {
       const out = [];
 
-      // básicos
-      out.push(normalize(p.nr_pedido)); // Nº do pedido
-      out.push(normalize(p.nota)); // Nota (NF)
+      out.push(normalize(p.nr_pedido));
+      out.push(normalize(p.nota));
       out.push(normalize(p.cliente));
       out.push(normalize(p.destino));
 
-      // transportadora (alguns objetos usam "transportador" outros "transportadora")
       out.push(normalize(p.transportador));
       out.push(normalize(p.transportadora));
 
-      // usuários envolvidos
       out.push(normalize(p.separador));
       out.push(normalize(p.conferente));
       out.push(normalize(p?.primeiraConferencia?.colaborador));
-      out.push(normalize(p.usuario)); // caso seu back envie "usuario"
-      out.push(normalize(p.user)); // variações comuns
+      out.push(normalize(p.usuario));
+      out.push(normalize(p.user));
       out.push(normalize(p.criado_por));
       out.push(normalize(p.created_by));
 
-      // se quiser que a busca pegue texto/usuário dos eventos mostrados no card:
       if (Array.isArray(p.eventos_preview)) {
         for (let i = 0; i < p.eventos_preview.length; i++) {
           const ev = p.eventos_preview[i] || {};
@@ -564,7 +692,7 @@ export default function SeparacaoPage() {
     return res;
   }, [pedidos]);
 
-  // ---------- abrir modal de info com detalhe ----------
+  // ---------- abrir modal de info ----------
   async function openInfoWithFetch(p) {
     if (!p) return;
     setLoadingLabel("Carregando detalhes...");
@@ -591,12 +719,10 @@ export default function SeparacaoPage() {
 
   return (
     <Page>
-      {/* Overlay global por portal */}
       <GlobalLoader active={loading.any()} text={loadingLabel} />
 
       <NavBar />
 
-      {/* Conteúdo com recuos responsáveis pela navbar */}
       <Content>
         <TitleBarWrap>
           <H1 $accent="#0ea5e9">Conferência</H1>
@@ -612,19 +738,12 @@ export default function SeparacaoPage() {
                 onChange={(e) => setQuery(e.target.value)}
               />
             </SearchWrap>
-{Number(user?.setor_ids) !== 23 && Number(user?.setor_ids) !== 25 && (
-  <Button color="secondary" onClick={() => setOpenCsv(true)}>
-    Importar CSV
-  </Button>
-)}
-
-            {/* <Button
-              color="dark"
-              onClick={() => setOpenFake(true)}
-              title="Gerar etiquetas (fake)"
-            >
-              Etiquetas (fake)
-            </Button> */}
+            {Number(user?.setor_ids) !== 23 &&
+              Number(user?.setor_ids) !== 25 && (
+                <Button color="secondary" onClick={() => setOpenCsv(true)}>
+                  Importar CSV
+                </Button>
+              )}
 
             {Number(user?.setor_ids) !== 23 && (
               <>
@@ -646,7 +765,7 @@ export default function SeparacaoPage() {
               </>
             )}
 
-            {isAdmin(user) && (
+            {/* {isAdmin(user) && (
               <Button
                 color={showDeleted ? "danger" : "dark"}
                 onClick={() => setShowDeleted(!showDeleted)}
@@ -654,9 +773,81 @@ export default function SeparacaoPage() {
               >
                 Excluídos ({deletedPedidos.length})
               </Button>
-            )}
+            )} */}
           </RightRow>
         </TitleBarWrap>
+
+        {/* CARD de filtros de data */}
+        <FiltersCard>
+          <FiltersRow
+            as="form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              await fetchFromFilters(filters);
+            }}
+          >
+            <FiltersLeft>
+              <FilterGroup>
+                <FilterLabel>Data inicial</FilterLabel>
+                <FilterInput
+                  type="date"
+                  value={filters.dt_inicio}
+                  onChange={(e) => {
+                    handleFilterChange("dt_inicio", e.target.value);
+                    handleFilterChange("periodo", "");
+                  }}
+                />
+              </FilterGroup>
+
+              <FilterGroup>
+                <FilterLabel>Data final</FilterLabel>
+                <FilterInput
+                  type="date"
+                  value={filters.dt_fim}
+                  onChange={(e) => {
+                    handleFilterChange("dt_fim", e.target.value);
+                    handleFilterChange("periodo", "");
+                  }}
+                />
+              </FilterGroup>
+
+              <FilterGroup>
+                <FilterLabel>Período rápido</FilterLabel>
+                <FilterSelect
+                  value={filters.periodo}
+                  onChange={(e) => handlePeriodoChange(e.target.value || "")}
+                >
+                  <option value="">Personalizado</option>
+                  <option value="HOJE">Hoje</option>
+                  <option value="ONTEM">Ontem</option>
+                  <option value="SEMANA_ATUAL">Semana atual</option>
+                  <option value="MES_ATUAL">Mês atual</option>
+                  <option value="MES_PASSADO">Mês passado</option>
+                </FilterSelect>
+              </FilterGroup>
+            </FiltersLeft>
+
+            <FiltersRight>
+              <FilterButton type="submit" disabled={loading.any()}>
+                Buscar
+              </FilterButton>
+              <ClearButton
+                type="button"
+                disabled={loading.any()}
+                onClick={async () => {
+                  clearFilters();
+                  await fetchFromFilters({
+                    dt_inicio: "",
+                    dt_fim: "",
+                    periodo: "",
+                  });
+                }}
+              >
+                Limpar
+              </ClearButton>
+            </FiltersRight>
+          </FiltersRow>
+        </FiltersCard>
 
         <Indicators
           pedidos={pedidos}
@@ -791,91 +982,3 @@ export default function SeparacaoPage() {
     </Page>
   );
 }
-
-/* ====== estilos locais responsivos ====== */
-const Content = styled.div`
-  /* padding geral do conteúdo */
-  padding: 16px;
-
-  /* desktop: cria recuo lateral p/ sidebar fixa */
-  @media (min-width: 769px) {
-    /* padding-left: calc(${NAV_SIDEBAR_W}px + 16px); */
-    padding-top: 16px;
-    padding-right: 16px;
-  }
-
-  /* mobile: recuo em cima p/ topbar; sem margem lateral */
-  @media (max-width: 768px) {
-    padding: 12px 12px 16px;
-    /* padding-top: calc(${NAV_TOPBAR_H}px + 12px); */
-  }
-`;
-
-const TitleBarWrap = styled(TitleBar)`
-  /* garante boa distância do topo em mobile */
-  @media (max-width: 768px) {
-    margin-top: 4px;
-    padding-left: 0;
-    padding-right: 0;
-  }
-  @media (min-width: 769px) {
-    padding-left: 0;
-    padding-right: 0;
-  }
-`;
-
-/* Linha de ações à direita do título, quebra no mobile */
-const RightRow = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-
-  /* em mobile, faz os botões ocuparem linha abaixo da busca se precisar */
-  @media (max-width: 768px) {
-    width: 100%;
-    justify-content: flex-start;
-
-    /* Search ocupa o máximo possível */
-    ${SearchWrap} {
-      flex: 1 1 220px;
-      min-width: 0;
-    }
-  }
-`;
-
-const Legend = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0;
-  flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    margin-top: 8px;
-  }
-`;
-
-const DeletedPanel = styled.div`
-  border: 1px dashed #bbb;
-  border-radius: 12px;
-  padding: 10px;
-  margin: 8px 0 16px 0;
-  background: #fff;
-
-  @media (max-width: 768px) {
-    padding: 10px;
-    margin: 8px 0 12px 0;
-  }
-`;
-
-/* envelopa o grid pra controlar padding lateral em mobile */
-const CardsWrap = styled.div`
-  @media (max-width: 768px) {
-    /* evita overflow lateral */
-    margin-left: -2px;
-    margin-right: -2px;
-    padding-left: 2px;
-    padding-right: 2px;
-  }
-`;

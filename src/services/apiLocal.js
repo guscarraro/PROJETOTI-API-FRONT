@@ -420,10 +420,20 @@ const apiLocal = {
   // ========================
   // PEDIDOS
   // ========================
-  getPedidos: (params = {}) =>
-    api.get("/pedidos/", {
-      params: { events_preview: 5, ...params }, // <- preview na lista
-    }),
+getPedidos: (params = {}) => {
+  const base = { events_preview: 5, ...params };
+
+  // limpa null/undefined pra não sujar a querystring
+  const clean = {};
+  for (const key in base) {
+    if (base[key] !== null && base[key] !== undefined && base[key] !== "") {
+      clean[key] = base[key];
+    }
+  }
+
+  return api.get("/pedidos/", { params: clean });
+},
+
   getPedidoByNr: (nr_pedido) => api.get(`/pedidos/${nr_pedido}`), // detalhe completo
   createPedido: (data) => api.post("/pedidos/", data),
   updatePedido: (nr_pedido, data) => api.put(`/pedidos/${nr_pedido}`, data),
