@@ -37,7 +37,80 @@ function formatDateTime(value) {
   }
 }
 
-// helper pra montar params a partir dos filtros
+function formatDuration(sec) {
+  if (sec === null || sec === undefined) return "—";
+  const v = Number(sec);
+  if (Number.isNaN(v)) return "—";
+  const total = Math.max(0, Math.floor(v));
+  const horas = Math.floor(total / 3600);
+  const minutos = Math.floor((total % 3600) / 60);
+  const segundos = total % 60;
+
+  if (horas > 0) return `${horas}h ${String(minutos).padStart(2, "0")}m`;
+  return `${minutos}m ${String(segundos).padStart(2, "0")}s`;
+}
+
+// Chip de duração: tudo em azul (dark-friendly), com lógica antiga comentada
+function getDurationChipStyle(sec) {
+  const baseStyle = {
+    borderRadius: 9999,
+    padding: "2px 8px",
+    fontSize: 11,
+    display: "inline-block",
+    whiteSpace: "nowrap",
+  };
+
+  if (sec === null || sec === undefined) {
+    return {
+      ...baseStyle,
+      background: "#374151", // cinza dark
+      color: "#e5e7eb",
+      fontWeight: 500,
+    };
+  }
+
+  const v = Number(sec);
+  if (Number.isNaN(v)) {
+    return {
+      ...baseStyle,
+      background: "#374151",
+      color: "#e5e7eb",
+      fontWeight: 500,
+    };
+  }
+
+  // ================================
+  // LÓGICA ORIGINAL DE CORES POR TEMPO (EM SEGUNDOS)
+  // Mantida aqui comentada para possível reativação futura
+  //
+  // let bg = "#bbf7d0"; // verde (rápido)
+  // let fg = "#166534";
+  //
+  // if (v > 7200) {          // > 7200 s = 120 min = 2h -> vermelho
+  //   bg = "#fee2e2";
+  //   fg = "#991b1b";
+  // } else if (v > 1800) {   // > 1800 s = 30 min -> amarelo
+  //   bg = "#fef9c3";
+  //   fg = "#854d0e";
+  // }
+  //
+  // return {
+  //   ...baseStyle,
+  //   background: bg,
+  //   color: fg,
+  //   fontWeight: 600,
+  // };
+  // ================================
+
+  // Versão atual: sem semáforo, tudo azul mais escuro (melhor para dark mode)
+  return {
+    ...baseStyle,
+    background: "#1e40af", // azul 800
+    color: "#e0f2fe",      // azul 100
+    fontWeight: 600,
+  };
+}
+
 function buildParamsFromFilters(f) {
   const params = {};
   if (f.dt_inicio) params.dt_inicio = f.dt_inicio;
@@ -50,7 +123,6 @@ function buildParamsFromFilters(f) {
 
 export default function RelatorioConferenciaPage() {
   const loading = useLoading();
-
   const [rows, setRows] = useState([]);
 
   const [filters, setFilters] = useState({
@@ -75,56 +147,62 @@ export default function RelatorioConferenciaPage() {
     });
   }, []);
 
-  // função normal, SEM useCallback (não entra em deps de effect)
   const fetchFromFilters = async (f) => {
     const params = buildParamsFromFilters(f);
-
     const res = await loading.wrap("relatorio-pedidos", async () =>
       apiLocal.getPedidosRelatorio(params)
     );
-
     setRows(res.data || []);
   };
 
-  // carga inicial: roda UMA vez só
   useEffect(() => {
     (async () => {
-      try {
-        await fetchFromFilters({
-          dt_inicio: "",
-          dt_fim: "",
-          status: "",
-          nr_pedido: "",
-          nota: "",
-        });
-      } catch (err) {
-        console.error(err);
-      }
+      await fetchFromFilters({
+        dt_inicio: "",
+        dt_fim: "",
+        status: "",
+        nr_pedido: "",
+        nota: "",
+      });
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // <– deps vazias, não depende mais do fetch/filters
+    // eslint-disable-next-line
+  }, []);
 
   const total = useMemo(() => rows.length, [rows]);
+
   function mapStatusForDisplay(status) {
     const s = (status || "").toUpperCase();
     if (s === "CONCLUIDO") return "EXPEDIDO";
     return s;
   }
+
   const handleExportExcel = () => {
-    if (!rows || rows.length === 0) return;
+    if (!rows.length) return;
 
     const data = rows.map((p) => ({
       "Criado em": formatDateTime(p.created_at),
-      Remessa: p.nr_pedido || "",
+      Remessa: p.nr_pedido,
       NF: p.nota || "",
       Cliente: p.cliente || "",
       Destino: p.destino || "",
-      Status: mapStatusForDisplay(p.status) || "",
-      Itens:
-        typeof p.total_itens === "number" ? p.total_itens : p.total_itens || 0,
+      Status: mapStatusForDisplay(p.status),
+      Itens: p.total_itens,
       Separador: p.separador || "",
       Conferente: p.conferente || "",
       Transportador: p.transportador || "",
+      "Teve ocorrência":
+        p.has_ocorrencia ? `SIM (${p.qtd_ocorrencias_conferencia})` : "NÃO",
+      "Conf. finalizada": formatDateTime(p.conferencia_finalizada_em),
+      "Δ criação → conf (s)": p.tempo_criacao_ate_conf_seg ?? "",
+      "Δ criação → conf (fmt)": formatDuration(p.tempo_criacao_ate_conf_seg),
+      "Expedido em": formatDateTime(p.expedido_em),
+      "Δ conf → expedição (s)": p.tempo_pronto_ate_expedido_seg ?? "",
+      "Δ conf → expedição (fmt)": formatDuration(
+        p.tempo_pronto_ate_expedido_seg
+      ),
+      "Total scan unitário": p.total_scan_unitario,
+      "Total scan lote (qtde)": p.total_scan_lote_qtde,
+      "Total scan lote (eventos)": p.total_scan_lote_eventos,
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -144,7 +222,7 @@ export default function RelatorioConferenciaPage() {
           <FilterButton
             type="button"
             onClick={handleExportExcel}
-            disabled={loading.any() || rows.length === 0}
+            disabled={loading.any() || !rows.length}
             style={{ marginRight: 8 }}
           >
             Exportar Excel
@@ -194,10 +272,9 @@ export default function RelatorioConferenciaPage() {
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Remessa (nr_pedido)</FilterLabel>
+              <FilterLabel>Remessa</FilterLabel>
               <FilterInput
                 type="text"
-                placeholder="Ex: 12345"
                 value={filters.nr_pedido}
                 onChange={(e) => handleChange("nr_pedido", e.target.value)}
               />
@@ -207,7 +284,6 @@ export default function RelatorioConferenciaPage() {
               <FilterLabel>Nota Fiscal</FilterLabel>
               <FilterInput
                 type="text"
-                placeholder="NF"
                 value={filters.nota}
                 onChange={(e) => handleChange("nota", e.target.value)}
               />
@@ -218,6 +294,7 @@ export default function RelatorioConferenciaPage() {
             <FilterButton type="submit" disabled={loading.any()}>
               Buscar
             </FilterButton>
+
             <ClearButton
               type="button"
               disabled={loading.any()}
@@ -239,59 +316,172 @@ export default function RelatorioConferenciaPage() {
       </Section>
 
       <Section style={{ marginTop: 16 }}>
-        <TableWrap>
+        <TableWrap
+          style={{
+            maxHeight: "70vh",
+            overflowY: "auto",
+            overflowX: "auto",
+          }}
+        >
           <Table>
             <thead>
               <tr>
-                <Th style={{ minWidth: 150 }}>Criado em</Th>
-                <Th style={{ minWidth: 110 }}>Remessa</Th>
-                <Th style={{ minWidth: 110 }}>NF</Th>
-                <Th style={{ minWidth: 180 }}>Cliente</Th>
-                <Th style={{ minWidth: 180 }}>Destino</Th>
-                <Th style={{ minWidth: 120 }}>Status</Th>
-                <Th style={{ minWidth: 80, textAlign: "right" }}>Itens</Th>
-                <Th style={{ minWidth: 130 }}>Separador</Th>
-                <Th style={{ minWidth: 130 }}>Conferente</Th>
-                <Th style={{ minWidth: 160 }}>Transportador</Th>
+                {[
+                  "Criado em",
+                  "Remessa",
+                  "NF",
+                  "Cliente",
+                  "Destino",
+                  "Status",
+                  "Itens",
+                  "Separador",
+                  "Conferente",
+                  "Transportador",
+                  "Ocorrência",
+                  "Conf. Finalizada",
+                  "Δ Criação → Conf",
+                  "Expedido em",
+                  "Δ Conf → Expedição",
+                  "Bipagens",
+                ].map((h, i) => (
+                  <Th
+                    key={i}
+                    style={{
+                      padding: "4px 6px",
+                      whiteSpace: "nowrap",
+                      lineHeight: 1,
+                      minWidth: 120,
+                    }}
+                  >
+                    {h}
+                  </Th>
+                ))}
               </tr>
             </thead>
+
             <tbody>
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <Td>{formatDateTime(p.created_at)}</Td>
-                  <Td>
-                    <strong>{p.nr_pedido || "—"}</strong>
+                  {/* Criado em */}
+                  <Td style={tdCompact}>{formatDateTime(p.created_at)}</Td>
+
+                  {/* Remessa */}
+                  <Td style={tdCompact}>
+                    <strong>{p.nr_pedido}</strong>
                   </Td>
-                  <Td>{p.nota || "—"}</Td>
-                  <Td>
-                    <div>{p.cliente || "—"}</div>
-                    <MutedText>{p.ov ? `OV: ${p.ov}` : ""}</MutedText>
+
+                  {/* NF */}
+                  <Td style={tdCompact}>{p.nota || "—"}</Td>
+
+                  {/* Cliente */}
+                  <Td style={tdCompact}>
+                    <div>{p.cliente}</div>
+                    <MutedText style={{ whiteSpace: "nowrap" }}>
+                      {p.ov ? `OV: ${p.ov}` : ""}
+                    </MutedText>
                   </Td>
-                  <Td>{p.destino || "—"}</Td>
-                  <Td>
+
+                  {/* Destino */}
+                  <Td style={tdCompact}>{p.destino || "—"}</Td>
+
+                  {/* Status */}
+                  <Td style={tdCompact}>
                     <StatusBadge $status={mapStatusForDisplay(p.status)}>
-                      {mapStatusForDisplay(p.status) || "—"}
+                      {mapStatusForDisplay(p.status)}
                     </StatusBadge>
                   </Td>
 
-                  <Td style={{ textAlign: "right" }}>
-                    {typeof p.total_itens === "number"
-                      ? p.total_itens
-                      : p.total_itens || 0}
+                  {/* Itens */}
+                  <Td style={{ ...tdCompact, textAlign: "right" }}>
+                    {p.total_itens}
                   </Td>
-                  <Td>{p.separador || "—"}</Td>
-                  <Td>{p.conferente || "—"}</Td>
-                  <Td>{p.transportador || "—"}</Td>
+
+                  <Td style={tdCompact}>{p.separador || "—"}</Td>
+                  <Td style={tdCompact}>{p.conferente || "—"}</Td>
+                  <Td style={tdCompact}>{p.transportador || "—"}</Td>
+
+                  {/* Ocorrência */}
+                  <Td style={tdCompact}>
+                    {p.has_ocorrencia ? (
+                      <span style={occBadge}>
+                        ⚠ Ocorrência ({p.qtd_ocorrencias_conferencia})
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 11, opacity: 0.6 }}>
+                        Sem ocorrência
+                      </span>
+                    )}
+                  </Td>
+
+                  {/* Conf. finalizada */}
+                  <Td style={tdCompact}>
+                    {formatDateTime(p.conferencia_finalizada_em)}
+                  </Td>
+
+                  {/* Δ criação → Conf */}
+                  <Td style={tdCompact}>
+                    <span
+                      style={getDurationChipStyle(
+                        p.tempo_criacao_ate_conf_seg
+                      )}
+                    >
+                      {formatDuration(p.tempo_criacao_ate_conf_seg)}
+                    </span>
+                  </Td>
+
+                  {/* Expedido */}
+                  <Td style={tdCompact}>{formatDateTime(p.expedido_em)}</Td>
+
+                  {/* Δ Conf → Expedição */}
+                  <Td style={tdCompact}>
+                    <span
+                      style={getDurationChipStyle(
+                        p.tempo_pronto_ate_expedido_seg
+                      )}
+                    >
+                      {formatDuration(p.tempo_pronto_ate_expedido_seg)}
+                    </span>
+                  </Td>
+
+                  {/* Bipagens */}
+                  <Td style={tdCompact}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 3,
+                      }}
+                    >
+                      <div style={unitBox}>
+                        <span>Unitário</span>
+                        <strong>{p.total_scan_unitario ?? "—"}</strong>
+                      </div>
+
+                      <div style={loteBox}>
+                        <div>
+                          <span>Lote abatido:</span>{" "}
+                          <strong>{p.total_scan_lote_qtde ?? "—"}</strong>
+                        </div>
+                        <div style={{ fontSize: 10, opacity: 0.7 }}>
+                          Leituras: {p.total_scan_lote_eventos ?? "—"}
+                        </div>
+                      </div>
+                    </div>
+                  </Td>
                 </tr>
               ))}
 
-              {rows.length === 0 && !loading.any() && (
+              {!rows.length && !loading.any() && (
                 <tr>
                   <Td
-                    colSpan={10}
-                    style={{ textAlign: "center", opacity: 0.7 }}
+                    colSpan={16}
+                    style={{
+                      textAlign: "center",
+                      opacity: 0.7,
+                      padding: "6px",
+                    }}
                   >
-                    Nenhum pedido encontrado com esses filtros.
+                    Nenhum pedido encontrado.
                   </Td>
                 </tr>
               )}
@@ -302,3 +492,46 @@ export default function RelatorioConferenciaPage() {
     </Page>
   );
 }
+
+/* ===== estilos inline compactos ===== */
+
+const tdCompact = {
+  padding: "4px 6px",
+  whiteSpace: "nowrap",
+  lineHeight: 1,
+  verticalAlign: "middle",
+};
+
+const occBadge = {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "2px 6px",
+  borderRadius: 9999,
+  background: "#fed7aa",
+  color: "#7c2d12",
+  fontSize: 11,
+  fontWeight: 600,
+  whiteSpace: "nowrap",
+};
+
+const unitBox = {
+  display: "flex",
+  justifyContent: "space-between",
+  background: "#eff6ff",
+  color: "#1d4ed8",
+  padding: "3px 6px",
+  borderRadius: 6,
+  fontSize: 11,
+  fontWeight: 600,
+};
+
+const loteBox = {
+  display: "flex",
+  flexDirection: "column",
+  background: "#ecfdf5",
+  color: "#047857",
+  padding: "3px 6px",
+  borderRadius: 6,
+  fontSize: 11,
+  fontWeight: 600,
+};

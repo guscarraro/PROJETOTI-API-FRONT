@@ -270,7 +270,7 @@ export default function NavBar() {
                 }}
               >
                 {/* Pedidos – todos restritos enxergam */}
-                {!isSetor23 && !isSetor25 && (
+                {!isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/dashboard"}
                     onClick={() => {
@@ -386,7 +386,7 @@ export default function NavBar() {
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
-          <NavLabel>Versão 1.2.6</NavLabel>
+          <NavLabel>Versão 1.2.7</NavLabel>
         </NavInner>
       </NavWrap>
     );
@@ -466,7 +466,7 @@ export default function NavBar() {
                   zIndex: 10,
                 }}
               >
-                {!isSetor23 && !isSetor25 && (
+                { !isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/dashboard"}
                     onClick={() => {
@@ -549,7 +549,7 @@ export default function NavBar() {
             onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2.6" />
+              <Notas version="1.2.7" />
             </NavIcon>
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
@@ -632,7 +632,7 @@ export default function NavBar() {
           <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
         </NavItem>
 
-        <NavLabel>Versão 1.2.6</NavLabel>
+        <NavLabel>Versão 1.2.7</NavLabel>
       </NavInner>
     </NavWrap>
   );
