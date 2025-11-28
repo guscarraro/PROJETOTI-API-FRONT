@@ -19,7 +19,7 @@ import EstoqueTi from './pages/EstoqueTi';
 import Separacao from './pages/Separacao';
 import DashboardConferencia from './pages/Separacao/DashboardConferencia';
 import RelatorioConferencia from './pages/Projetos/RelatorioConferencia';
-// import Projecao from './pages/Projecao';
+import Projecao from './pages/Projecao';
 
 import apiLocal from './services/apiLocal';
 import { useInactivityLogout } from './hooks/useInactivityLogout';
@@ -244,7 +244,7 @@ const App = () => {
            />
          }
        />
-          {/* <Route
+          <Route
          path="/projecao"
          element={
            <PrivateRoute
@@ -252,7 +252,7 @@ const App = () => {
              allowedSectors={[SECTORS.ADMIN]}
            />
          }
-       /> */}
+       />
       </Routes>
     </>
   );

@@ -1,760 +1,63 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React from "react";
 import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
-import {
-  Wrap,
-  BodyScroll,
-  Controls,
-  Shots,
-  ShotThumb,
-  Tag,
-  HeadRow,
-  ScannerWrap,
-} from "./style";
-import { Row, Field, SmallMuted } from "../style";
-import BenchPhoto from "./BenchPhoto";
-import ItemScanner from "./ItemScanner";
-import ItemsTable from "./tables/ItemsTable";
-import ForaListaTable from "./tables/ForaListaTable";
-import OcorrenciasTable from "./tables/OcorrenciasTable";
-import {
-  modernTableStyles,
-  occTableStyles,
-  loteChipStyles,
-} from "./tableStyles";
+import { Wrap, BodyScroll } from "./style";
+import { useConferenciaCore } from "./hook//useConferenciaCore";
+import Toasts from "./components/Toasts";
+import SetupPhase from "./components/SetupPhase";
+import ScanPhase from "./components/ScanPhase";
+import DivergenciaModal from "./components/DivergenciaModal";
 
-export default function ConferenciaModal({
-  isOpen,
-  onClose,
-  pedido,
-  onConfirm,
-}) {
-  const [phase, setPhase] = useState("setup");
-  const [conferente, setConferente] = useState("");
-  const [benchShots, setBenchShots] = useState([]);
-  const [elapsed, setElapsed] = useState(0);
-  const timerRef = useRef(null);
-  const [linhas, setLinhas] = useState([]);
-  const [foraLista, setForaLista] = useState([]);
-  const [ocorrencias, setOcorrencias] = useState([]);
-  const [toasts, setToasts] = useState([]);
-  const [savingSubmit, setSavingSubmit] = useState(false);
-
-  function newOccId() {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
-  const SKIP_BENCH_PHOTOS = false;
-
-  const benchAreaRef = useRef(null);
-  function stopMediaStreamsIn(rootEl) {
-    if (!rootEl) return;
-    const videos = rootEl.querySelectorAll("video");
-    for (let i = 0; i < videos.length; i++) {
-      const v = videos[i];
-      try {
-        const s = v.srcObject;
-        if (s && s.getTracks) s.getTracks().forEach((t) => t.stop());
-        v.srcObject = null;
-      } catch {}
-    }
-  }
-  function goToScan() {
-    stopMediaStreamsIn(benchAreaRef.current);
-    setPhase("scan");
-    setTimeout(() => keepFocus(true), 0);
-  }
-
-  const sinkRef = useRef(null);
-  const bufferRef = useRef("");
-
-  function isInteractive(el) {
-    if (!el) return false;
-    const t = (el.tagName || "").toLowerCase();
-    return (
-      t === "input" ||
-      t === "textarea" ||
-      t === "select" ||
-      el.isContentEditable === true
-    );
-  }
-
-  function keepFocus(force = false) {
-    if (phase !== "scan") return;
-    const ae = document.activeElement;
-    if (!force && isInteractive(ae)) return;
-    if (sinkRef.current) {
-      try {
-        sinkRef.current.focus({ preventScroll: true });
-      } catch {}
-    }
-  }
-
-  useEffect(() => {
-    if (!isOpen) return;
-    if (SKIP_BENCH_PHOTOS) {
-      setPhase("scan");
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (phase === "scan") {
-      stopMediaStreamsIn(benchAreaRef.current);
-      setTimeout(() => keepFocus(true), 0);
-    }
-  }, [phase]);
-
-  function onSinkKeyDown(e) {
-    if (e.key === "Enter" || e.key === "Tab") {
-      const code = bufferRef.current.trim();
-      bufferRef.current = "";
-      if (code) handleScanEAN(code);
-      e.preventDefault();
-      return;
-    }
-    if (e.key && e.key.length === 1) {
-      bufferRef.current += e.key;
-    }
-  }
-
-  function toast(text, tone = "info") {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setToasts((t) => [...t, { id, text, tone }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3500);
-  }
-
-  // >>>>>>>>>>>>>>>>>>>> RECONCILIAÇÃO CENTRAL <<<<<<<<<<<<<<<<<<<<<
-  // Sincroniza ocorrências de "produto_divergente" com a lista agregada por EAN.
-  // modo: 'erro' (remove a ocorrência) | 'devolvido' (fecha ocorrência)
-  function ajustarDivergentePorBar(bar, modo) {
-    const barStr = String(bar || "");
-    if (!barStr) return;
-
-    setOcorrencias((oc) => {
-      let alterou = false;
-      const novo = [];
-      let usouUma = false;
-
-      for (let i = 0; i < oc.length; i++) {
-        const o = oc[i];
-        const isAberta = (o.status || "aberta").toLowerCase() === "aberta";
-        const isPD =
-          o.tipo === "produto_divergente" && String(o.bar || "") === barStr;
-
-        if (!usouUma && isPD && isAberta) {
-          usouUma = true;
-          alterou = true;
-
-          if (modo === "erro") {
-            // remove do array (não contabiliza)
-            continue;
-          } else {
-            // devolvido: fecha com detalhe
-            novo.push({
-              ...o,
-              status: "fechada",
-              detalhe: (o.detalhe || "") + " • Devolvido ao local de origem.",
-            });
-          }
-        } else {
-          novo.push(o);
-        }
-      }
-
-      if (alterou) {
-        // espelha na foraLista no MESMO tick
-        setForaLista((curr) => {
-          const out = [];
-          for (let i = 0; i < curr.length; i++) {
-            const it = curr[i];
-            if (String(it.bar) === barStr) {
-              const next = Math.max(0, Number(it.count || 0) - 1);
-              if (next > 0) out.push({ ...it, count: next });
-              // se zera, some da tabela
-            } else {
-              out.push(it);
-            }
-          }
-          return out;
-        });
-      }
-
-      return novo;
-    });
-
-    toast(
-      modo === "erro"
-        ? "Marcado como erro de bipagem."
-        : "Material devolvido ao local.",
-      "info"
-    );
-  }
-  // >>>>>>>>>>>>>>>>>>>> FIM RECONCILIAÇÃO <<<<<<<<<<<<<<<<<<<<<<<<<
-
-  const linhasInicial = useMemo(() => {
-    const arr = [];
-    const itens = Array.isArray(pedido?.itens) ? pedido.itens : [];
-    for (let i = 0; i < itens.length; i++) {
-      const it = itens[i] || {};
-      const bc = String(it.bar_code || it.cod_prod || "").trim();
-      const lotesArr = Array.isArray(it.lotes)
-        ? it.lotes.map((x) => String(x || "").trim()).filter(Boolean)
-        : it.lote
-        ? [String(it.lote).trim()]
-        : [];
-      arr.push({
-        cod: String(it.cod_prod || "").trim(),
-        bar: bc,
-        um: it.um_med || "",
-        qtd: Number(it.qtde || 0),
-        scanned: 0,
-        lotes: lotesArr,
-        loteScans: {},
-        warns: [],
-      });
-    }
-    return arr;
-  }, [pedido]);
-
-  // >>> MAPEIA BAR → [indices] (suporta EAN em múltiplas linhas)
-  const indexByBar = useMemo(() => {
-    const map = new Map();
-    for (let i = 0; i < linhas.length; i++) {
-      const bar = String(linhas[i].bar || "").trim();
-      if (!bar) continue;
-      const arr = map.get(bar) || [];
-      arr.push(i);
-      map.set(bar, arr);
-    }
-    return map;
-  }, [linhas]);
-
-  const indexesByLote = useMemo(() => {
-    const map = new Map();
-    for (let i = 0; i < linhas.length; i++) {
-      const lotes = Array.isArray(linhas[i].lotes) ? linhas[i].lotes : [];
-      for (let j = 0; j < lotes.length; j++) {
-        const l = String(lotes[j] || "").trim().toUpperCase();
-        if (!l) continue;
-        const arr = map.get(l) || [];
-        arr.push(i);
-        map.set(l, arr);
-      }
-    }
-    return map;
-  }, [linhas]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setPhase("setup");
-    const confInicial = String(
-      pedido?.conferente || pedido?.primeiraConferencia?.colaborador || ""
-    ).trim();
-    setConferente(confInicial);
-    setBenchShots([]);
-    setLinhas(linhasInicial);
-    setForaLista([]);
-    setOcorrencias([]);
-    setToasts([]);
-    setElapsed(0);
-    if (timerRef.current) clearInterval(timerRef.current);
-  }, [isOpen, linhasInicial, pedido]);
-
-  useEffect(() => {
-    if (phase === "scan") {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
-    } else {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    }
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
-    };
-  }, [phase]);
-
-  const expectedBars = useMemo(() => {
-    const set = new Set();
-    for (let i = 0; i < linhas.length; i++) {
-      const bar = String(linhas[i].bar || "").trim();
-      if (bar) set.add(bar);
-    }
-    return Array.from(set);
-  }, [linhas]);
-
-  const totalSolic = useMemo(() => {
-    let t = 0;
-    for (let i = 0; i < linhas.length; i++) t += Number(linhas[i].qtd || 0);
-    return t;
-  }, [linhas]);
-
-  const totalLidos = useMemo(() => {
-    let t = 0;
-    for (let i = 0; i < linhas.length; i++) t += Number(linhas[i].scanned || 0);
-    return t;
-  }, [linhas]);
-
-  const concluidos = useMemo(() => {
-    let c = 0;
-    for (let i = 0; i < linhas.length; i++) {
-      if (Number(linhas[i].scanned || 0) >= Number(linhas[i].qtd || 0)) c++;
-    }
-    return c;
-  }, [linhas]);
-
-  const pendentes = useMemo(
-    () => Math.max(0, linhas.length - concluidos),
-    [linhas, concluidos]
-  );
-
-  const allOk = useMemo(() => {
-    for (let i = 0; i < linhas.length; i++) {
-      if (Number(linhas[i].scanned || 0) < Number(linhas[i].qtd || 0))
-        return false;
-    }
-    return linhas.length > 0;
-  }, [linhas]);
-
-  const temOcorrenciaAberta = useMemo(() => {
-    for (let i = 0; i < ocorrencias.length; i++) {
-      const st = (ocorrencias[i].status || "aberta").toLowerCase();
-      if (st !== "fechada") return true;
-    }
-    return false;
-  }, [ocorrencias]);
-
-  function fmtTime(s) {
-    const mm = String(Math.floor(s / 60)).padStart(2, "0");
-    const ss = String(s % 60).padStart(2, "0");
-    return `${mm}:${ss}`;
-  }
-
-  function handleBenchCapture(imgDataUrl) {
-    if (!imgDataUrl) return;
-    if (benchShots.length >= 7) {
-      toast("Limite de 7 fotos atingido.", "warn");
-      return;
-    }
-    setBenchShots((prev) => [...prev, imgDataUrl]);
-  }
-
-  function removeBenchShot(idx) {
-    setBenchShots((prev) => prev.filter((_, i) => i !== idx));
-  }
-
-  // === Leitura por EAN (unitário) ===
-  function handleScanEAN(code) {
-    const barcode = String(code || "").trim();
-    if (!barcode) return;
-
-    const idxList = indexByBar.get(barcode);
-
-    // Fora da lista
-    if (!idxList || idxList.length === 0) {
-      setForaLista((curr) => {
-        const out = [];
-        let inc = false;
-        for (let i = 0; i < curr.length; i++) {
-          const it = curr[i];
-          if (String(it.bar || "").trim() === barcode) {
-            out.push({ bar: it.bar, count: Number(it.count || 0) + 1 });
-            inc = true;
-          } else out.push(it);
-        }
-        if (!inc) out.push({ bar: barcode, count: 1 });
-        return out;
-      });
-      setOcorrencias((oc) => [
-        ...oc,
-        {
-          id: newOccId(),
-          tipo: "produto_divergente",
-          detalhe: "Leitura de EAN que não pertence ao pedido.",
-          bar: barcode,
-          status: "aberta",
-        },
-      ]);
-      toast(
-        "Produto fora da lista! Devolver material ou marcar erro de bipagem.",
-        "error"
-      );
-      return;
-    }
-
-    // Escolhe a primeira linha desse EAN que ainda não atingiu a qtd
-    setLinhas((prev) => {
-      const next = prev.slice();
-
-      let targetIdx = null;
-      for (let k = 0; k < idxList.length; k++) {
-        const i = idxList[k];
-        const r = next[i];
-        const qtdSolic = Number(r.qtd || 0);
-        const atual = Number(r.scanned || 0);
-        if (atual < qtdSolic) {
-          targetIdx = i;
-          break;
-        }
-      }
-
-      // Se todas as linhas desse EAN já estão completas → excedente
-      if (targetIdx == null) {
-        const i0 = idxList[0];
-        const r0 = next[i0];
-        r0.warns = [...(r0.warns || []), "Excedente lido. Devolver material."];
-        setOcorrencias((oc) => [
-          ...oc,
-          {
-            id: newOccId(),
-            tipo: "excedente_lote",
-            detalhe: "Excedente via EAN unitário (não abatido).",
-            itemCod: r0.cod,
-            bar: r0.bar,
-            status: "aberta",
-          },
-        ]);
-        toast(`Excedente no item ${r0.cod}. Não contabilizado.`, "warn");
-        next[i0] = r0;
-        return next;
-      }
-
-      // Abate 1 na linha escolhida
-      const r = next[targetIdx];
-      r.scanned = Number(r.scanned || 0) + 1;
-      next[targetIdx] = r;
-      return next;
-    });
-  }
-
-  // === Leitura por Lote+Quantidade ===
-  function handleScanLoteQuantidade({ lote, quantidade, ean }) {
-    const loteStr = String(lote || "").trim().toUpperCase();
-    const qtdN = Number(quantidade || 0);
-    const eanStr = String(ean || "").trim();
-    if (!loteStr || !qtdN || isNaN(qtdN) || qtdN <= 0) {
-      toast("Lote/quantidade inválidos.", "error");
-      return false;
-    }
-    const candidatos = indexesByLote.get(loteStr) || [];
-    let targetIdx = null;
-
-    if (eanStr) {
-      const idxList = indexByBar.get(eanStr) || [];
-      if (idxList.length === 0) {
-        toast(`EAN ${eanStr} não pertence ao pedido.`, "error");
-        setOcorrencias((oc) => [
-          ...oc,
-          {
-            id: newOccId(),
-            tipo: "produto_divergente",
-            detalhe: "EAN informado no fluxo de lote não pertence ao pedido.",
-            bar: eanStr,
-            lote: loteStr,
-            quantidade: qtdN,
-            status: "aberta",
-          },
-        ]);
-        return false;
-      }
-
-      let candidatosValidos = idxList;
-      if (candidatos.length > 0) {
-        const setCand = new Set(candidatos);
-        const inter = [];
-        for (let i = 0; i < idxList.length; i++) {
-          if (setCand.has(idxList[i])) inter.push(idxList[i]);
-        }
-        candidatosValidos = inter;
-        if (candidatosValidos.length === 0) {
-          toast(`EAN não faz parte do lote ${loteStr} para este pedido.`, "error");
-          setOcorrencias((oc) => [
-            ...oc,
-            {
-              id: newOccId(),
-              tipo: "lote_errado",
-              detalhe: `EAN não compatível com o lote ${loteStr}.`,
-              itemCod: null,
-              lote: loteStr,
-              quantidade: qtdN,
-              bar: eanStr,
-              status: "aberta",
-            },
-          ]);
-          return false;
-        }
-      }
-
-      for (let k = 0; k < candidatosValidos.length; k++) {
-        const i = candidatosValidos[k];
-        const r = linhas[i];
-        const qtdSolic = Number(r.qtd || 0);
-        const atual = Number(r.scanned || 0);
-        if (atual < qtdSolic) {
-          targetIdx = i;
-          break;
-        }
-      }
-      if (targetIdx == null) {
-        targetIdx = candidatosValidos[0];
-      }
-    } else {
-      if (candidatos.length === 0) {
-        toast(`Lote ${loteStr} não encontrado nos itens.`, "error");
-        return false;
-      }
-      if (candidatos.length > 1) {
-        toast(
-          `Lote ${loteStr} é usado por múltiplos itens. Bipe o EAN para desambiguar.`,
-          "warn"
-        );
-        setOcorrencias((oc) => [
-          ...oc,
-          {
-            id: newOccId(),
-            tipo: "lote_ambiguidade",
-            detalhe: `Lote ${loteStr} pertence a vários itens. É necessário informar EAN.`,
-            lote: loteStr,
-            quantidade: qtdN,
-            status: "aberta",
-          },
-        ]);
-        return false;
-      }
-      targetIdx = candidatos[0];
-    }
-
-    let abateu = false;
-    setLinhas((prev) => {
-      const next = prev.slice();
-      const r = { ...(next[targetIdx] || {}) };
-      const qtdSolic = Number(r.qtd || 0);
-      const atual = Number(r.scanned || 0);
-      if (atual >= qtdSolic) {
-        r.warns = [
-          ...(r.warns || []),
-          "Tentativa de excedente via lote. Devolver material.",
-        ];
-        setOcorrencias((oc) => [
-          ...oc,
-          {
-            id: newOccId(),
-            tipo: "excedente_lote",
-            detalhe: `Excedente via lote "${loteStr}" (não abatido).`,
-            itemCod: r.cod,
-            lote: loteStr,
-            quantidade: qtdN,
-            status: "aberta",
-          },
-        ]);
-        toast(`Item ${r.cod} já completo. Excedente ignorado.`, "warn");
-      } else {
-        const disponivel = Math.max(0, qtdSolic - atual);
-        const abatido = Math.min(disponivel, qtdN);
-        if (abatido > 0) abateu = true;
-        const novoLotes = { ...(r.loteScans || {}) };
-        const key = loteStr || `lote_${Object.keys(novoLotes).length + 1}`;
-        const prevVal = Number(novoLotes[key] || 0);
-        novoLotes[key] = prevVal + abatido;
-        r.scanned = atual + abatido;
-        r.loteScans = novoLotes;
-        if (qtdN > disponivel) {
-          r.warns = [
-            ...(r.warns || []),
-            "Excedente no lote. Devolver material.",
-          ];
-          setOcorrencias((oc) => [
-            ...oc,
-            {
-              id: newOccId(),
-              tipo: "excedente_lote",
-              detalhe: `Excedeu em ${qtdN - disponivel} un. via lote "${loteStr}".`,
-              itemCod: r.cod,
-              lote: loteStr,
-              quantidade: qtdN,
-              status: "aberta",
-            },
-          ]);
-          toast(
-            `Excedente no item ${r.cod}. Só ${abatido} contabilizados.`,
-            "warn"
-          );
-        }
-      }
-      next[targetIdx] = r;
-      return next;
-    });
-    return abateu;
-  }
-
-  // ===== AÇÕES SINCRONIZADAS =====
-  function marcarDevolvidoForaLista(barcode) {
-    ajustarDivergentePorBar(barcode, "devolvido");
-  }
-
-  function marcarDevolvidoExcedente(cod) {
-    setLinhas((prev) =>
-      prev.map((r) =>
-        String(r.cod) === String(cod)
-          ? {
-              ...r,
-              warns: (r.warns || []).filter((w) => !/excedente/i.test(w)),
-            }
-          : r
-      )
-    );
-    setOcorrencias((oc) => {
-      const out = [];
-      let fechou = false;
-      for (let i = 0; i < oc.length; i++) {
-        const o = oc[i];
-        if (
-          !fechou &&
-          o.tipo === "excedente_lote" &&
-          String(o.itemCod) === String(cod) &&
-          (o.status || "aberta").toLowerCase() !== "fechada"
-        ) {
-          out.push({
-            ...o,
-            detalhe: (o.detalhe || "") + " • Material devolvido ao local.",
-            status: "fechada",
-          });
-          fechou = true;
-        } else out.push(o);
-      }
-      return out;
-    });
-    toast("Excedente devolvido ao local de origem.", "info");
-  }
-
-  function resolverOcorrenciaById(occId, labelDetalhe) {
-    let alvo = null;
-    setOcorrencias((oc) => {
-      alvo = oc.find((o) => o.id === occId);
-      return oc;
-    });
-    if (alvo?.tipo === "produto_divergente" && alvo?.bar) {
-      ajustarDivergentePorBar(alvo.bar, "devolvido");
-      return;
-    }
-    // demais tipos: fecha normalmente
-    setOcorrencias((oc) => {
-      const out = [];
-      for (let i = 0; i < oc.length; i++) {
-        const o = oc[i];
-        if (
-          o.id === occId &&
-          (o.status || "aberta").toLowerCase() !== "fechada"
-        ) {
-          out.push({
-            ...o,
-            status: "fechada",
-            detalhe: (o.detalhe || "") + ` • ${labelDetalhe}`,
-          });
-        } else {
-          out.push(o);
-        }
-      }
-      return out;
-    });
-  }
-
-  function erroNaBipagem(occId) {
-    let bar = null;
-    setOcorrencias((oc) => {
-      const f = oc.find((o) => o.id === occId);
-      bar = f?.bar ? String(f.bar) : null;
-      return oc;
-    });
-    if (bar) ajustarDivergentePorBar(bar, "erro");
-  }
-
-  function erroNaBipagemPorBar(barcode) {
-    ajustarDivergentePorBar(barcode, "erro");
-  }
-
-  const [abrirDiv, setAbrirDiv] = useState(false);
-  const [divTipo, setDivTipo] = useState("falta");
-  const [divItemCod, setDivItemCod] = useState("");
-  const [divDetalhe, setDivDetalhe] = useState("");
-
-  function submitDivergencia() {
-    const registro = {
-      id: newOccId(),
-      tipo: divTipo,
-      detalhe: divDetalhe || "-",
-      itemCod: divItemCod || null,
-      status: "aberta",
-    };
-    setOcorrencias((x) => [...x, registro]);
-    setAbrirDiv(false);
-    setDivDetalhe("");
-    setDivItemCod("");
-    setDivTipo("falta");
-  }
-
-  const podeIrParaScan =
-    conferente.trim().length > 0 && (SKIP_BENCH_PHOTOS || benchShots.length > 0);
-
-  const podeSalvar100 =
-    conferente.trim().length > 0 && allOk && foraLista.length === 0;
-
-  async function salvarConferencia() {
-    if (!podeSalvar100 || savingSubmit || temOcorrenciaAberta) return;
-    setSavingSubmit(true);
-    try {
-      // AGREGA por chave compatível com o back: (bar || cod)
-      const scans = {};
-      const loteScansOut = {};
-
-      for (let i = 0; i < linhas.length; i++) {
-        const r = linhas[i];
-        const k = String(r.bar || r.cod || "").trim();
-        if (!k) continue;
-
-        // SOMAR (não sobrescrever)
-        const prev = Number(scans[k] || 0);
-        scans[k] = prev + Number(r.scanned || 0);
-
-        const srcLotes = r.loteScans || {};
-        const dstLotes = loteScansOut[k] || {};
-        for (const lote in srcLotes) {
-          const v = Number(srcLotes[lote] || 0);
-          const cur = Number(dstLotes[lote] || 0);
-          dstLotes[lote] = cur + v;
-        }
-        loteScansOut[k] = dstLotes;
-      }
-
-      const ocorrenciasOut = [];
-      for (let i = 0; i < ocorrencias.length; i++) {
-        const o = ocorrencias[i];
-        ocorrenciasOut.push({
-          tipo: o.tipo,
-          detalhe: o.detalhe || "-",
-          item_cod: o.itemCod || o.item_cod || null,
-          bar: o.bar || null,
-          lote: o.lote || null,
-          quantidade: o.quantidade != null ? o.quantidade : null,
-          status: o.status || "aberta",
-        });
-      }
-
-      await onConfirm({
-        conferente: conferente.trim(),
-        elapsedSeconds: elapsed,
-        evidences: benchShots.slice(0, 7),
-        scans,
-        loteScans: loteScansOut,
-        foraLista,
-        ocorrencias: ocorrenciasOut,
-      });
-    } finally {
-      setSavingSubmit(false);
-    }
-  }
+export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm }) {
+  const {
+    phase,
+    setPhase,
+    conferente,
+    benchShots,
+    elapsed,
+    fmtTime,
+    linhas,
+    foraLista,
+    ocorrencias,
+    toasts,
+    podeIrParaScan,
+    podeSalvar100,
+    temOcorrenciaAberta,
+    savingSubmit,
+    expectedBars,
+    totalSolic,
+    totalLidos,
+    concluidos,
+    pendentes,
+    sinkRef,
+    onSinkKeyDown,
+    keepFocus,
+    benchAreaRef,
+    goToScan,
+    marcarDevolvidoForaLista,
+    marcarDevolvidoExcedente,
+    erroNaBipagem,
+    erroNaBipagemPorBar,
+    resolverOcorrenciaById,
+    handleBenchCapture,
+    removeBenchShot,
+    handleScanEAN,
+    handleScanLoteQuantidade,
+    abrirDiv,
+    setAbrirDiv,
+    divTipo,
+    setDivTipo,
+    divItemCod,
+    setDivItemCod,
+    divDetalhe,
+    setDivDetalhe,
+    submitDivergencia,
+    salvarConferencia,
+    stopMediaStreamsIn,
+    SKIP_BENCH_PHOTOS,
+    setConferente,
+      totalScanUnitario,
+  totalScanLote,
+  } = useConferenciaCore({ pedido, isOpen, onConfirm });
 
   return (
     <Modal
@@ -767,207 +70,53 @@ export default function ConferenciaModal({
       <ModalHeader toggle={onClose}>
         Conferência — Pedido #{pedido?.nr_pedido}
       </ModalHeader>
+
       <ModalBody onClick={() => keepFocus(false)}>
         <BodyScroll>
           <Wrap>
-            {/* TOASTS */}
-            <div
-              style={{
-                position: "fixed",
-                right: 16,
-                bottom: 16,
-                zIndex: 2000,
-                display: "grid",
-                gap: 8,
-              }}
-            >
-              {toasts.map((t) => (
-                <div
-                  key={t.id}
-                  style={{
-                    background:
-                      t.tone === "error"
-                        ? "#fee2e2"
-                        : t.tone === "warn"
-                        ? "#fef9c3"
-                        : "#e0f2fe",
-                    color: "#111827",
-                    border: "1px solid rgba(0,0,0,.08)",
-                    borderLeft: `4px solid ${
-                      t.tone === "error"
-                        ? "#ef4444"
-                        : t.tone === "warn"
-                        ? "#f59e0b"
-                        : "#38bdf8"
-                    }`,
-                    padding: "8px 10px",
-                    borderRadius: 10,
-                    boxShadow: "0 6px 20px rgba(0,0,0,.12)",
-                  }}
-                >
-                  {t.text}
-                </div>
-              ))}
-            </div>
+            <Toasts toasts={toasts} />
 
             {phase === "setup" && (
-              <div style={{ display: "grid", gap: 12 }}>
-                <div>
-                  <SmallMuted>
-                    Conferente <span style={{ color: "#ef4444" }}>* obrigatório</span>
-                  </SmallMuted>
-                  <Row style={{ marginTop: 6 }}>
-                    <Field
-                      style={{ minWidth: 220, maxWidth: 320 }}
-                      placeholder="Confirme o nome do conferente"
-                      value={conferente}
-                      onChange={(e) => setConferente(e.target.value)}
-                      disabled
-                    />
-                  </Row>
-                </div>
-                {!SKIP_BENCH_PHOTOS && (
-                  <div ref={benchAreaRef}>
-                    <SmallMuted>
-                      Fotos da bancada (mín. 1 e máx. 7){" "}
-                      <span style={{ color: "#ef4444" }}>* obrigatório</span>
-                    </SmallMuted>
-                    <div style={{ marginTop: 8 }}>
-                      <BenchPhoto onCapture={handleBenchCapture} facing="environment" />
-                    </div>
-
-                    {benchShots.length === 0 && (
-                      <div style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}>
-                        Adicione pelo menos <strong>1 foto</strong> para prosseguir.
-                      </div>
-                    )}
-
-                    {benchShots.length > 0 && (
-                      <Controls style={{ marginTop: 8 }}>
-                        <Shots>
-                          {benchShots.map((img, idx) => (
-                            <ShotThumb key={idx}>
-                              <img src={img} alt={`bancada ${idx + 1}`} />
-                              <Tag>#{idx + 1}</Tag>
-                              <button
-                                onClick={() => removeBenchShot(idx)}
-                                style={{
-                                  position: "absolute",
-                                  right: 8,
-                                  top: 8,
-                                  background: "rgba(0,0,0,.6)",
-                                  color: "#fff",
-                                  border: 0,
-                                  borderRadius: 8,
-                                  padding: "2px 8px",
-                                  cursor: "pointer",
-                                }}
-                                title="Remover foto"
-                              >
-                                Remover
-                              </button>
-                            </ShotThumb>
-                          ))}
-                        </Shots>
-                      </Controls>
-                    )}
-                  </div>
-                )}
-              </div>
+              <SetupPhase
+                conferente={conferente}
+                setConferente={setConferente}
+                benchShots={benchShots}
+                onBenchCapture={handleBenchCapture}
+                onRemoveBenchShot={removeBenchShot}
+                benchAreaRef={benchAreaRef}
+                SKIP_BENCH_PHOTOS={SKIP_BENCH_PHOTOS}
+              />
             )}
 
             {phase === "scan" && (
-              <div style={{ display: "grid", gap: 12 }}>
-                <HeadRow>
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      flexWrap: "wrap",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ display: "grid", gap: 6 }}>
-                      <SmallMuted>Conferente</SmallMuted>
-                      <Field
-                        style={{ minWidth: 220, maxWidth: 320 }}
-                        value={conferente}
-                        onChange={(e) => setConferente(e.target.value)}
-                        placeholder="Informe o nome do conferente"
-                        disabled
-                      />
-                    </div>
-                    <span style={{ fontSize: 12, opacity: 0.8 }}>
-                      ⏱ {fmtTime(elapsed)}
-                    </span>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <BadgeSoft title="Itens concluídos">{concluidos}</BadgeSoft>
-                    <BadgeSoft title="Itens pendentes">{pendentes}</BadgeSoft>
-                    <BadgeSoft title="Peças lidas / solicitadas">
-                      {totalLidos} / {totalSolic}
-                    </BadgeSoft>
-                  </div>
-                </HeadRow>
-
-                <input
-                  ref={sinkRef}
-                  onKeyDown={onSinkKeyDown}
-                  inputMode="none"
-                  autoCapitalize="off"
-                  autoComplete="off"
-                  autoCorrect="off"
-                  tabIndex={-1}
-                  onBlur={() => setTimeout(() => keepFocus(false), 0)}
-                  aria-hidden="true"
-                  style={{
-                    position: "fixed",
-                    opacity: 0,
-                    width: 1,
-                    height: 1,
-                    left: -9999,
-                    top: -9999,
-                  }}
-                />
-
-                <ScannerWrap>
-                  <ItemScanner
-                    expectedBars={expectedBars}
-                    onScanEan={handleScanEAN}
-                    onScanLoteQuantidade={handleScanLoteQuantidade}
-                  />
-                </ScannerWrap>
-
-                <ItemsTable
-                  linhas={linhas}
-                  selectedCod={null}
-                  onSelectCod={() => {}}
-                  styles={modernTableStyles}
-                  loteChipStyles={loteChipStyles}
-                  onDevolvidoExcedente={marcarDevolvidoExcedente}
-                />
-
-                {foraLista.length > 0 && (
-                  <ForaListaTable
-                    foraLista={foraLista}
-                    onDevolvido={marcarDevolvidoForaLista}
-                    onErroBipagemBar={erroNaBipagemPorBar}
-                    styles={modernTableStyles}
-                  />
-                )}
-
-                <OcorrenciasTable
-                  ocorrencias={ocorrencias}
-                  styles={occTableStyles}
-                  onResolverOcorrencia={(occId) =>
-                    resolverOcorrenciaById(occId, "Resolvido manualmente")
-                  }
-                  onErroBipagem={erroNaBipagem}
-                  onDevolvidoExcedente={marcarDevolvidoExcedente}
-                  onDevolvidoProduto={marcarDevolvidoForaLista}
-                />
-              </div>
+              <ScanPhase
+                conferente={conferente}
+                setConferente={setConferente}
+                elapsed={elapsed}
+                fmtTime={fmtTime}
+                concluidos={concluidos}
+                pendentes={pendentes}
+                totalLidos={totalLidos}
+                totalSolic={totalSolic}
+                    totalScanUnitario={totalScanUnitario}
+    totalScanLote={totalScanLote}
+                sinkRef={sinkRef}
+                onSinkKeyDown={onSinkKeyDown}
+                keepFocus={keepFocus}
+                expectedBars={expectedBars}
+                linhas={linhas}
+                foraLista={foraLista}
+                ocorrencias={ocorrencias}
+                onScanEan={handleScanEAN}
+                onScanLoteQuantidade={handleScanLoteQuantidade}
+                onDevolvidoExcedente={marcarDevolvidoExcedente}
+                onDevolvidoForaLista={marcarDevolvidoForaLista}
+                onErroBipagem={erroNaBipagem}
+                onErroBipagemBar={erroNaBipagemPorBar}
+                onResolverOcorrencia={(occId) =>
+                  resolverOcorrenciaById(occId, "Resolvido manualmente")
+                }
+              />
             )}
           </Wrap>
         </BodyScroll>
@@ -983,6 +132,7 @@ export default function ConferenciaModal({
         >
           Cancelar
         </Button>
+
         {phase === "setup" && (
           <Button
             color="primary"
@@ -997,6 +147,7 @@ export default function ConferenciaModal({
             Seguir para próxima etapa
           </Button>
         )}
+
         {phase === "scan" && (
           <>
             <Button color="warning" onClick={() => setAbrirDiv(true)}>
@@ -1020,131 +171,19 @@ export default function ConferenciaModal({
         )}
       </ModalFooter>
 
-      {abrirDiv && (
-        <div
-          onClick={() => setAbrirDiv(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.45)",
-            display: "grid",
-            placeItems: "center",
-            zIndex: 1300,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "min(680px, 94vw)",
-              background: "var(--card-bg, #fff)",
-              borderRadius: 14,
-              padding: 14,
-              boxShadow: "0 10px 30px rgba(0,0,0,.25)",
-            }}
-          >
-            <h5 style={{ margin: 0 }}>Abrir divergência</h5>
-            <div style={{ display: "grid", gap: 8, marginTop: 8 }}>
-              <div>
-                <SmallMuted>Tipo</SmallMuted>
-                <select
-                  value={divTipo}
-                  onChange={(e) => setDivTipo(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: 10,
-                    borderRadius: 10,
-                    border: "1px solid #e5e7eb",
-                    background: "var(--input-bg, #fff)",
-                    color: "var(--input-fg, #111827)",
-                  }}
-                >
-                  <option value="falta">Falta</option>
-                  <option value="avaria">Avaria</option>
-                  <option value="lote_errado">Lote errado</option>
-                  <option value="item_errado">Item errado</option>
-                  <option value="produto_divergente">Produto divergente</option>
-                  <option value="excedente_lote">Excedente de lote</option>
-                  <option value="lote_ambiguidade">Lote ambíguo</option>
-                </select>
-              </div>
-
-              <div>
-                <SmallMuted>Item relacionado (opcional)</SmallMuted>
-                <select
-                  value={divItemCod}
-                  onChange={(e) => setDivItemCod(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: 10,
-                    borderRadius: 10,
-                    border: "1px solid #e5e7eb",
-                    background: "var(--input-bg, #fff)",
-                    color: "var(--input-fg, #111827)",
-                  }}
-                >
-                  <option value="">—</option>
-                  {linhas.map((r) => (
-                    <option key={r.cod} value={r.cod}>
-                      {r.cod} — {r.bar}
-                    </option>
-                  ))}
-                  {foraLista.map((f, i) => (
-                    <option key={`fora-${i}`} value={`fora:${f.bar}`}>
-                      FORA • {f.bar}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <SmallMuted>Detalhamento</SmallMuted>
-                <Field
-                  as="textarea"
-                  rows={3}
-                  value={divDetalhe}
-                  onChange={(e) => setDivDetalhe(e.target.value)}
-                  placeholder="Descreva a divergência"
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 8,
-                marginTop: 10,
-              }}
-            >
-              <Button color="secondary" onClick={() => setAbrirDiv(false)}>
-                Cancelar
-              </Button>
-              <Button color="warning" onClick={submitDivergencia}>
-                Registrar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DivergenciaModal
+        isOpen={abrirDiv}
+        onClose={() => setAbrirDiv(false)}
+        linhas={linhas}
+        foraLista={foraLista}
+        divTipo={divTipo}
+        setDivTipo={setDivTipo}
+        divItemCod={divItemCod}
+        setDivItemCod={setDivItemCod}
+        divDetalhe={divDetalhe}
+        setDivDetalhe={setDivDetalhe}
+        onSubmit={submitDivergencia}
+      />
     </Modal>
-  );
-}
-
-function BadgeSoft({ children, title }) {
-  return (
-    <div
-      title={title}
-      style={{
-        padding: "6px 10px",
-        borderRadius: 999,
-        fontSize: 12,
-        fontWeight: 700,
-        background: "rgba(148,163,184,.18)",
-        color: "var(--badge-fg,#0f172a)",
-        border: "1px solid rgba(148,163,184,.35)",
-      }}
-    >
-      {children}
-    </div>
   );
 }
