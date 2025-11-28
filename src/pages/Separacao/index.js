@@ -535,50 +535,59 @@ export default function SeparacaoPage() {
   };
 
   // FINALIZAR CONFERÊNCIA
-  const handleConfirmConferencia = async (payload) => {
-    const name = String(payload?.conferente || "").trim();
-    if (!name || !confPedido) return;
+const handleConfirmConferencia = async (payload) => {
+  const name = String(payload?.conferente || "").trim();
+  if (!name || !confPedido) return;
 
-    const ocorrenciasOut = [];
-    const list = Array.isArray(payload?.ocorrencias) ? payload.ocorrencias : [];
-    for (let i = 0; i < list.length; i++) {
-      const o = list[i] || {};
-      ocorrenciasOut.push({
-        tipo: o.tipo,
-        detalhe: o.detalhe || "-",
-        item_cod: o.itemCod || o.item_cod || null,
-        bar: o.bar || null,
-        lote: o.lote || null,
-        quantidade: o.quantidade !== null ? o.quantidade : null,
-        status: o.status || "aberta",
-      });
+  const ocorrenciasOut = [];
+  const list = Array.isArray(payload?.ocorrencias) ? payload.ocorrencias : [];
+  for (let i = 0; i < list.length; i++) {
+    const o = list[i] || {};
+    ocorrenciasOut.push({
+      tipo: o.tipo,
+      detalhe: o.detalhe || "-",
+      item_cod: o.itemCod || o.item_cod || null,
+      bar: o.bar || null,
+      lote: o.lote || null,
+      quantidade:
+        o.quantidade !== undefined && o.quantidade !== null
+          ? o.quantidade
+          : null,
+      status: o.status || "aberta",
+    });
+  }
+
+  try {
+    const resp = await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
+      conferente: name,
+      elapsedSeconds: payload?.elapsedSeconds || 0,
+      evidences: payload?.evidences || [],
+      scans: payload?.scans || {},
+      loteScans: payload?.loteScans || {},
+      foraLista: payload?.foraLista || [],
+      ocorrencias: ocorrenciasOut,
+
+      // 🔹 NOVOS CAMPOS ENVIADOS PARA O BACK
+      scanEvents: Array.isArray(payload?.scanEvents)
+        ? payload.scanEvents
+        : [],
+      resumoPorItem: payload?.resumoPorItem || {},
+    });
+
+    const pedidoDoBack =
+      resp && resp.data && resp.data.pedido ? resp.data.pedido : null;
+    if (pedidoDoBack) {
+      replacePedidoNaLista(confPedido.nr_pedido, pedidoDoBack);
     }
 
-    try {
-      const resp = await apiLocal.finalizarConferencia(confPedido.nr_pedido, {
-        conferente: name,
-        elapsedSeconds: payload?.elapsedSeconds || 0,
-        evidences: payload?.evidences || [],
-        scans: payload?.scans || {},
-        loteScans: payload?.loteScans || {},
-        foraLista: payload?.foraLista || [],
-        ocorrencias: ocorrenciasOut,
-      });
+    await refreshPedido(confPedido.nr_pedido);
+  } catch (e) {
+    console.error("Falha ao finalizar conferência no back:", e);
+  }
 
-      const pedidoDoBack =
-        resp && resp.data && resp.data.pedido ? resp.data.pedido : null;
-      if (pedidoDoBack) {
-        replacePedidoNaLista(confPedido.nr_pedido, pedidoDoBack);
-      }
-
-      await refreshPedido(confPedido.nr_pedido);
-    } catch (e) {
-      console.error("Falha ao finalizar conferência no back:", e);
-    }
-
-    setOpenConf(false);
-    setConfPedido(null);
-  };
+  setOpenConf(false);
+  setConfPedido(null);
+};
 
   const handleOccurrence = async ({ ocorrencias }) => {
     if (!confPedido) return;
