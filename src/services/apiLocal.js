@@ -89,7 +89,8 @@ const apiLocal = {
     api.post("/ocorrencias/filtrar", filters),
   updateCobrancaAdicional: (data) =>
     api.put("/ocorrencias/cobranca-adicional", data),
-  decodeBarcodes: (imageDataUrl) => api.post("/barcode/decode", { image: imageDataUrl }),
+  decodeBarcodes: (imageDataUrl) =>
+    api.post("/barcode/decode", { image: imageDataUrl }),
 
   getOcorrenciasSTH: () => api.get("/ocorren-sth/"),
   createOrUpdateOcorrenciaSTH: (data) => api.post("/ocorren-sth/", data),
@@ -396,7 +397,8 @@ const apiLocal = {
       paramsSerializer: (params) => {
         const usp = new URLSearchParams();
         if (params.status) usp.set("status", params.status);
-        if (params.visible_for_user) usp.set("visible_for_user", params.visible_for_user);
+        if (params.visible_for_user)
+          usp.set("visible_for_user", params.visible_for_user);
         if (params.visible_for)
           for (let i = 0; i < params.visible_for.length; i++) {
             usp.append("visible_for", String(params.visible_for[i]));
@@ -412,32 +414,39 @@ const apiLocal = {
   dashboardSummary: (params = {}) => api.get("/dashboard/summary", { params }),
   dashboardDailyConferencias: (params = {}) =>
     api.get("/dashboard/daily-conferencias", { params }),
-  dashboardRankings: (params = {}) => api.get("/dashboard/rankings", { params }),
+  dashboardRankings: (params = {}) =>
+    api.get("/dashboard/rankings", { params }),
   dashboardTopTransportadoras: (params = {}) =>
     api.get("/dashboard/top-transportadoras", { params }),
-  dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }),
+  dashboardLeadTimes: (params = {}) =>
+    api.get("/dashboard/lead-times", { params }),
 
   // ========================
   // PEDIDOS
   // ========================
-getPedidos: (params = {}) => {
-  const base = { events_preview: 5, ...params };
 
-  // limpa null/undefined pra não sujar a querystring
-  const clean = {};
-  for (const key in base) {
-    if (base[key] !== null && base[key] !== undefined && base[key] !== "") {
-      clean[key] = base[key];
+  getPedidos: (params = {}) => {
+    const base = { events_preview: 5, ...params };
+
+    // limpa null/undefined pra não sujar a querystring
+    const clean = {};
+    for (const key in base) {
+      if (base[key] !== null && base[key] !== undefined && base[key] !== "") {
+        clean[key] = base[key];
+      }
     }
-  }
 
-  return api.get("/pedidos/", { params: clean });
-},
+    return api.get("/pedidos/", { params: clean });
+  },
+
+  updatePedidoCaixas: (nr_pedido, data) =>
+    api.put(`/pedidos/${nr_pedido}/caixas`, data),
 
   getPedidoByNr: (nr_pedido) => api.get(`/pedidos/${nr_pedido}`), // detalhe completo
   createPedido: (data) => api.post("/pedidos/", data),
   updatePedido: (nr_pedido, data) => api.put(`/pedidos/${nr_pedido}`, data),
-  deletePedido: (id, payload) => api.delete(`/pedidos/${id}`, { data: payload }),
+  deletePedido: (id, payload) =>
+    api.delete(`/pedidos/${id}`, { data: payload }),
   updatePedidoBasics: (nr_pedido, data) =>
     api.put(`/pedidos/${nr_pedido}/basics`, data),
   updatePedidoNF: (nr_pedido, { nota, by }) =>

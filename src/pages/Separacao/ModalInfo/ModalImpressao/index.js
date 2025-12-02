@@ -1,112 +1,344 @@
-import React, { useMemo, useState } from "react";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button } from "reactstrap";
+// src/pages/Separacao/ModalImpressao/index.js
+import React, { useEffect, useMemo, useState } from "react";
+import { FiBox, FiSave, FiTag } from "react-icons/fi";
+import { toast } from "react-toastify";
 import { SmallMuted, Field, TinyBtn } from "../../style";
+import { printPedidoLabels } from "../../print";
+import {
+  CaixasCard,
+  CardWrapper,
+  BlurContent,
+  DisabledOverlay,
+  SavingOverlay,
+  HeaderRow,
+  HeaderLeft,
+  ResumoRow,
+  CaixasBoxRow,
+  CaixaSelect,
+  BoxActions,
+  FooterRow,
+  FooterRight,
+} from "./style";
 
-export default function ModalImpressao({ isOpen, onClose, onConfirm }) {
-  const [caixas, setCaixas] = useState([{ tipo: "CAIXA01", peso: "" }]);
+export default function ModalImpressao({
+  pedido, // pedido usado na etiqueta
+  conferente, // nome do conferente
+  caixasInicial,
+  onSave,
+  saving,
+  isRestrictedUser: isRestrictedUserProp, // opcional, se o pai já mandar
+  conferenciaConcluida,
+  canPrintLabels,
+  onPrint, // callback opcional pro pai
+}) {
+  // pega usuário do localStorage pra garantir regra do id 23
+  const [user] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  });
+
+  const isUserId23 = Number(user?.id) === 23;
+  // se o pai mandar isRestrictedUser true, respeita também
+  const isRestrictedUser = Boolean(isRestrictedUserProp) || isUserId23;
+
+  const [caixas, setCaixas] = useState(() => {
+    if (Array.isArray(caixasInicial) && caixasInicial.length > 0) {
+      const out = [];
+      for (let i = 0; i < caixasInicial.length; i++) {
+        const c = caixasInicial[i] || {};
+        out.push({
+          tipo: String(c.tipo || "CAIXA01"),
+          peso: String(c.peso || ""),
+        });
+      }
+      return out;
+    }
+    return [{ tipo: "CAIXA01", peso: "" }];
+  });
+
+  // Flag para saber se as caixas já foram salvas
+  const [hasSavedCaixas, setHasSavedCaixas] = useState(
+    Array.isArray(caixasInicial) && caixasInicial.length > 0
+  );
+
+  // sincroniza quando o pai mudar o estado inicial
+  useEffect(() => {
+    if (Array.isArray(caixasInicial) && caixasInicial.length > 0) {
+      const out = [];
+      for (let i = 0; i < caixasInicial.length; i++) {
+        const c = caixasInicial[i] || {};
+        out.push({
+          tipo: String(c.tipo || "CAIXA01"),
+          peso: String(c.peso || ""),
+        });
+      }
+      setCaixas(out);
+      setHasSavedCaixas(true); // já veio salvo do back
+    } else {
+      setCaixas([{ tipo: "CAIXA01", peso: "" }]);
+      setHasSavedCaixas(false);
+    }
+  }, [caixasInicial]);
 
   function addCaixa() {
-    const next = caixas.slice();
-    next.push({ tipo: "CAIXA01", peso: "" });
-    setCaixas(next);
-  }
-  function removeCaixa(idx) {
-    if (caixas.length === 1) return;
-    const next = [];
-    for (let i = 0; i < caixas.length; i++) {
-      if (i !== idx) next.push(caixas[i]);
-    }
-    setCaixas(next);
-  }
-  function update(idx, key, value) {
-    const next = caixas.slice();
-    next[idx] = { ...next[idx], [key]: value };
-    setCaixas(next);
+    if (isRestrictedUser) return; // id 23 só visualiza
+    setCaixas((prev) => {
+      const list = Array.isArray(prev) ? prev.slice() : [];
+      list.push({ tipo: "CAIXA01", peso: "" });
+      return list;
+    });
+    setHasSavedCaixas(false);
   }
 
-  const totalCaixas = caixas.length;
+  function removeCaixa(idx) {
+    if (isRestrictedUser) return;
+    setCaixas((prev) => {
+      const list = Array.isArray(prev) ? prev.slice() : [];
+      if (list.length <= 1) return list;
+      const next = [];
+      for (let i = 0; i < list.length; i++) {
+        if (i !== idx) next.push(list[i]);
+      }
+      if (next.length === 0) {
+        next.push({ tipo: "CAIXA01", peso: "" });
+      }
+      return next;
+    });
+    setHasSavedCaixas(false);
+  }
+
+  function updateCaixa(idx, key, value) {
+    if (isRestrictedUser) return;
+    setCaixas((prev) => {
+      const list = Array.isArray(prev) ? prev.slice() : [];
+      if (!list[idx]) return list;
+      list[idx] = { ...list[idx], [key]: value };
+      return list;
+    });
+    setHasSavedCaixas(false);
+  }
+
+  const totalCaixas = useMemo(() => {
+    if (!Array.isArray(caixas)) return 0;
+    return caixas.length;
+  }, [caixas]);
+
   const pesoTotal = useMemo(() => {
     let sum = 0;
-    for (let i = 0; i < caixas.length; i++) {
-      const n = Number(String(caixas[i]?.peso || "").replace(",", "."));
-      if (!isNaN(n)) sum += n;
+    if (Array.isArray(caixas)) {
+      for (let i = 0; i < caixas.length; i++) {
+        const c = caixas[i] || {};
+        const n = Number(String(c.peso || "").replace(",", "."));
+        if (!isNaN(n)) sum += n;
+      }
     }
     return sum;
   }, [caixas]);
 
-  function confirmar() {
-    // normaliza números (sem reduce)
+  function parseCaixasForPayload() {
     const out = [];
-    for (let i = 0; i < caixas.length; i++) {
-      const c = caixas[i] || {};
-      const tipo = String(c.tipo || "CAIXA01").toUpperCase();
-      const n = Number(String(c.peso || "").replace(",", "."));
-      out.push({ tipo, peso: isNaN(n) ? 0 : n });
+    if (Array.isArray(caixas)) {
+      for (let i = 0; i < caixas.length; i++) {
+        const c = caixas[i] || {};
+        const tipo = String(c.tipo || "CAIXA01").toUpperCase();
+        const n = Number(String(c.peso || "").replace(",", "."));
+        out.push({
+          tipo,
+          peso: isNaN(n) ? 0 : n,
+        });
+      }
     }
-    onClose();                 // fecha modal antes de imprimir (evita overlay “printado”)
-    onConfirm({ caixas: out }); // quem chama injeta conferente e dispara a impressão
+    return out;
   }
 
+  function handleSave() {
+    if (isRestrictedUser) return;
+    if (typeof onSave !== "function") return;
+    const out = parseCaixasForPayload();
+    onSave(out, pesoTotal);
+    setHasSavedCaixas(true);
+  }
+
+  function handlePrintClick() {
+    if (isRestrictedUser) return;
+
+    if (!conferenciaConcluida) {
+      toast.error("Finalize a conferência antes de imprimir as etiquetas.");
+      return;
+    }
+
+    if (!hasSavedCaixas) {
+      toast.error("Salve as caixas antes de imprimir as etiquetas.");
+      return;
+    }
+
+    if (!canPrintLabels) {
+      toast.error("Informe a Nota Fiscal e o Separador para imprimir as etiquetas.");
+      return;
+    }
+
+    if (!pedido) {
+      toast.error("Pedido não encontrado para impressão.");
+      return;
+    }
+
+    const parsedCaixas = parseCaixasForPayload();
+    if (!Array.isArray(parsedCaixas) || parsedCaixas.length === 0) {
+      toast.error("Nenhuma caixa válida para impressão.");
+      return;
+    }
+
+    printPedidoLabels(pedido, {
+      caixas: parsedCaixas,
+      conferente: conferente || pedido?.conferente || "-",
+    });
+
+    if (typeof onPrint === "function") {
+      onPrint({ caixas: parsedCaixas, pesoTotal });
+    }
+  }
+
+  const disabled = !conferenciaConcluida;
+
+  const canPrint =
+    !saving && canPrintLabels && hasSavedCaixas && conferenciaConcluida;
+
+  const printTitle = (() => {
+    if (!conferenciaConcluida) {
+      return "Finalize a conferência antes de imprimir as etiquetas.";
+    }
+    if (!hasSavedCaixas) {
+      return "Salve as caixas antes de imprimir as etiquetas.";
+    }
+    if (!canPrintLabels) {
+      return "Informe NF e Separador para imprimir etiquetas.";
+    }
+    return "Imprimir etiquetas usando as caixas salvas.";
+  })();
+
   return (
-    <Modal isOpen={isOpen} toggle={onClose} size="md" contentClassName="project-modal">
-      <ModalHeader toggle={onClose}>Imprimir Etiquetas</ModalHeader>
-      <ModalBody>
-        <div style={{ display: "grid", gap: 10 }}>
-          <div style={{ display: "flex", gap: 16, alignItems: "baseline", flexWrap: "wrap" }}>
-            <div><SmallMuted>Total de caixas</SmallMuted><div style={{ fontWeight: 800, fontSize: 18 }}>{totalCaixas}</div></div>
-            <div><SmallMuted>Peso total</SmallMuted><div style={{ fontWeight: 800 }}>{pesoTotal.toFixed(2)} kg</div></div>
-          </div>
+    <CaixasCard>
+      <CardWrapper>
+        <BlurContent $disabled={disabled}>
+          <HeaderRow>
+            <HeaderLeft>
+              <FiBox size={18} />
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 600 }}>
+                  Resumo de caixas
+                </div>
+                <div style={{ fontSize: 12, opacity: 0.8 }}>
+                  Informe aqui as caixas e pesos antes de imprimir as etiquetas.
+                </div>
+              </div>
+            </HeaderLeft>
+
+            <ResumoRow>
+              <div>
+                <SmallMuted>Total de caixas</SmallMuted>
+                <div style={{ fontWeight: 800, fontSize: 18 }}>
+                  {totalCaixas}
+                </div>
+              </div>
+              <div>
+                <SmallMuted>Peso total</SmallMuted>
+                <div style={{ fontWeight: 800 }}>
+                  {pesoTotal.toFixed(2)} kg
+                </div>
+              </div>
+            </ResumoRow>
+          </HeaderRow>
 
           <div style={{ display: "grid", gap: 8 }}>
             {caixas.map((cx, idx) => (
-              <div key={idx} style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 10,
-                padding: 10,
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr auto",
-                gap: 8,
-                alignItems: "center"
-              }}>
+              <CaixasBoxRow key={idx}>
                 <div>
                   <SmallMuted>Tipo da caixa</SmallMuted>
-                  <select
+                  <CaixaSelect
                     value={cx.tipo}
-                    onChange={(e) => update(idx, "tipo", e.target.value)}
-                    style={{ width: "100%", padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+                    onChange={(e) =>
+                      updateCaixa(idx, "tipo", e.target.value)
+                    }
+                    disabled={isRestrictedUser}
                   >
                     <option value="CAIXA01">CAIXA 01</option>
                     <option value="CAIXA02">CAIXA 02</option>
                     <option value="CAIXA-MADEIRA">CAIXA MADEIRA</option>
                     <option value="CAIXA04">CAIXA 04</option>
-                  </select>
+                  </CaixaSelect>
                 </div>
 
                 <div>
                   <SmallMuted>Peso (kg)</SmallMuted>
                   <Field
                     value={cx.peso}
-                    onChange={(e) => update(idx, "peso", e.target.value)}
+                    onChange={(e) =>
+                      updateCaixa(idx, "peso", e.target.value)
+                    }
                     placeholder="Ex.: 8.5"
+                    readOnly={isRestrictedUser}
+                    disabled={isRestrictedUser}
                   />
                 </div>
 
-                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                  <TinyBtn onClick={() => removeCaixa(idx)} disabled={caixas.length === 1}>Remover</TinyBtn>
-                </div>
-              </div>
+                {!isRestrictedUser && (
+                  <BoxActions>
+                    <TinyBtn
+                      onClick={() => removeCaixa(idx)}
+                      disabled={caixas.length === 1}
+                    >
+                      Remover
+                    </TinyBtn>
+                  </BoxActions>
+                )}
+              </CaixasBoxRow>
             ))}
           </div>
 
-          <div>
-            <TinyBtn onClick={addCaixa}>+ Adicionar caixa</TinyBtn>
-          </div>
-        </div>
-      </ModalBody>
-      <ModalFooter>
-        <Button color="secondary" onClick={onClose}>Cancelar</Button>
-        <Button color="primary" onClick={confirmar}>Gerar etiquetas</Button>
-      </ModalFooter>
-    </Modal>
+          <FooterRow>
+            {!isRestrictedUser && (
+              <TinyBtn onClick={addCaixa}>+ Adicionar caixa</TinyBtn>
+            )}
+
+            {!isRestrictedUser && (
+              <FooterRight>
+                <TinyBtn onClick={handleSave} disabled={saving}>
+                  <FiSave /> {saving ? "Salvando..." : "Salvar caixas"}
+                </TinyBtn>
+                <TinyBtn
+                  onClick={handlePrintClick}
+                  disabled={saving || !canPrint}
+                  title={printTitle}
+                >
+                  <FiTag /> Imprimir
+                </TinyBtn>
+              </FooterRight>
+            )}
+          </FooterRow>
+        </BlurContent>
+
+        {saving && (
+          <SavingOverlay>
+            <div className="loader-box">
+              <div
+                className="spinner-border spinner-border-sm"
+                role="status"
+              />
+              <span>Salvando caixas...</span>
+            </div>
+          </SavingOverlay>
+        )}
+
+        {disabled && (
+          <DisabledOverlay>
+Aguardando realizar conferência...
+
+          </DisabledOverlay>
+        )}
+      </CardWrapper>
+    </CaixasCard>
   );
 }

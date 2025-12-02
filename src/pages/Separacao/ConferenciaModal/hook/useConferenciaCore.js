@@ -267,10 +267,14 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
   }, [ocorrencias]);
 
   // >>> Contadores agregados de bipagem (por modo) <<<
+  // Só contam eventos com result === "ok"
   const totalScanUnitario = useMemo(() => {
     let c = 0;
     for (let i = 0; i < scanEvents.length; i++) {
-      if (scanEvents[i].mode === "ean") c++;
+      const ev = scanEvents[i];
+      if (ev.mode === "ean" && ev.result === "ok") {
+        c++;
+      }
     }
     return c;
   }, [scanEvents]);
@@ -278,7 +282,10 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
   const totalScanLote = useMemo(() => {
     let c = 0;
     for (let i = 0; i < scanEvents.length; i++) {
-      if (scanEvents[i].mode === "lote") c++;
+      const ev = scanEvents[i];
+      if (ev.mode === "lote" && ev.result === "ok") {
+        c++;
+      }
     }
     return c;
   }, [scanEvents]);
@@ -488,7 +495,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       lote: null,
       quantidade: 1,
       itemCod: item?.cod || null,
-      result: "ok",
+      result: "ok", // <--- esta é leitura válida
     });
   }
 
@@ -775,7 +782,9 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       lote: loteStr,
       quantidade: qtdN,
       itemCod: linhaAlvo.cod || null,
-      result: excedenteQtd > 0 ? "excedente_ignorado" : "ok",
+      // Só é "ok" a parte que realmente abateu, mas pro log geral
+      // classificamos como ok se houve abatimento > 0
+      result: abatido > 0 && excedenteQtd === 0 ? "ok" : "excedente_ignorado",
     });
 
     return abatido > 0;
@@ -958,11 +967,14 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
             entry.leitura_unit += Number(ev.quantidade || 0);
           }
         } else if (ev.mode === "lote") {
-          entry._loteList.push({
-            qtde: Number(ev.quantidade || 0),
-            lote: ev.lote || null,
-            result: ev.result,
-          });
+          // **AQUI**: só entra na lista se o resultado foi "ok"
+          if (ev.result === "ok") {
+            entry._loteList.push({
+              qtde: Number(ev.quantidade || 0),
+              lote: ev.lote || null,
+              result: ev.result,
+            });
+          }
         }
       }
 
@@ -999,7 +1011,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
         foraLista,
         ocorrencias: ocorrenciasOut,
         scanEvents, // log completo das bipagens
-        resumoPorItem, // novo resumo no formato que você quer consultar
+        resumoPorItem, // resumo já ignorando erros de bipagem nas contagens
       });
     } finally {
       setSavingSubmit(false);
@@ -1056,7 +1068,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
     // log bruto, se quiser usar em relatório ou debug
     scanEvents,
 
-    // contadores agregados para exibir na tela
+    // contadores agregados para exibir na tela (só "ok")
     totalScanUnitario,
     totalScanLote,
 

@@ -1,5 +1,12 @@
-import React, { useEffect, useMemo, useState,useCallback  } from "react";
-import { Modal, ModalHeader, ModalBody, ModalFooter, Button, Table } from "reactstrap";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  Button,
+  Table,
+} from "reactstrap";
 import {
   ModalResponsiveStyles,
   InfoGrid,
@@ -15,12 +22,12 @@ import {
   OccurrenceBadge,
 } from "./style";
 import { STATUS_PEDIDO } from "../constants";
-import { FiSave, FiCheckSquare, FiEdit2, FiX, FiTrash2, FiTag } from "react-icons/fi";
-import { printPedidoLabels } from "../print";
-import ModalImpressao from "./ModalImpressao";
+import { FiSave, FiCheckSquare, FiEdit2, FiX, FiTrash2 } from "react-icons/fi";
 import apiLocal from "../../../services/apiLocal";
 import InfoOcorren from "./InfoOcorren";
 import { Muted } from "../../Projetos/style";
+import ModalImpressao from "./ModalImpressao";
+import { toast } from "react-toastify";
 
 export default function ModalInfo({
   isOpen,
@@ -32,12 +39,14 @@ export default function ModalInfo({
 }) {
   // ------- user -------
   const [user] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("user") || "null"); }
-    catch { return null; }
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
   });
-const isRestrictedUser = Number(user?.setor_ids) === 23;
-const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
- // mantém mesma regra do seu código
+  const isRestrictedUser = Number(user?.setor_ids) === 23;
+  const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
 
   // ------- NF -------
   const [nota, setNota] = useState(pedido?.nota || "");
@@ -56,8 +65,24 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
   );
   const [savingConf, setSavingConf] = useState(false);
 
-  // ------- Impressão -------
-  const [showLabelModal, setShowLabelModal] = useState(false);
+  // ------- Caixas / Impressão -------
+  const [caixasSalvas, setCaixasSalvas] = useState(() => {
+    if (Array.isArray(pedido?.caixas) && pedido.caixas.length > 0) {
+      const out = [];
+      for (let i = 0; i < pedido.caixas.length; i++) {
+        const c = pedido.caixas[i] || {};
+        const tipo = String(c.tipo || "CAIXA01").toUpperCase();
+        const n = Number(c.peso);
+        out.push({
+          tipo,
+          peso: isNaN(n) ? 0 : n,
+        });
+      }
+      return out;
+    }
+    return [];
+  });
+  const [savingCaixas, setSavingCaixas] = useState(false);
 
   // ------- Exclusão -------
   const [askDelete, setAskDelete] = useState(false);
@@ -68,6 +93,9 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
   const [ocorrRows, setOcorrRows] = useState([]);
   const [ultimaConf, setUltimaConf] = useState(null);
 
+  const [loadingOcorrencias, setLoadingOcorrencias] = useState(false);
+  const [loadingConferencia, setLoadingConferencia] = useState(false);
+
   // ------- Integrantes (validação de nomes) -------
   const [integrantesList, setIntegrantesList] = useState([]);
   const [loadingIntegrantes, setLoadingIntegrantes] = useState(false);
@@ -77,14 +105,33 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
     setNota(pedido?.nota || "");
     setTmpSep(pedido?.separador || "");
     setTmpTransp(pedido?.transportador || "");
-    setTmpConf(pedido?.conferente || pedido?.primeiraConferencia?.colaborador || "");
+    setTmpConf(
+      pedido?.conferente || pedido?.primeiraConferencia?.colaborador || ""
+    );
+
+    if (Array.isArray(pedido?.caixas) && pedido.caixas.length > 0) {
+      const out = [];
+      for (let i = 0; i < pedido.caixas.length; i++) {
+        const c = pedido.caixas[i] || {};
+        const tipo = String(c.tipo || "CAIXA01").toUpperCase();
+        const n = Number(c.peso);
+        out.push({
+          tipo,
+          peso: isNaN(n) ? 0 : n,
+        });
+      }
+      setCaixasSalvas(out);
+    } else {
+      setCaixasSalvas([]);
+    }
   }, [
     pedido?.nr_pedido,
     pedido?.nota,
     pedido?.separador,
     pedido?.transportador,
     pedido?.conferente,
-    pedido?.primeiraConferencia?.colaborador
+    pedido?.primeiraConferencia?.colaborador,
+    pedido?.caixas,
   ]);
 
   // se abrir sem itens/eventos, buscar detalhe
@@ -99,9 +146,15 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
         const detail = resp?.data || {};
         const merged = {
           ...(detail.pedido || pedido),
-          itens: Array.isArray(detail.itens) ? detail.itens : (pedido.itens || []),
-          eventos: Array.isArray(detail.eventos) ? detail.eventos : (pedido.eventos || []),
-          eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : (pedido.eventos_preview || []),
+          itens: Array.isArray(detail.itens)
+            ? detail.itens
+            : pedido.itens || [],
+          eventos: Array.isArray(detail.eventos)
+            ? detail.eventos
+            : pedido.eventos || [],
+          eventos_preview: Array.isArray(detail.eventos)
+            ? detail.eventos.slice(0, 5)
+            : pedido.eventos_preview || [],
         };
         await onUpdate(pedido.nr_pedido, merged);
       } catch (e) {
@@ -111,40 +164,57 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // carregar ocorrências + última conferência para fotos/tempo
+  // carregar ocorrências + última conferência
+  // carregar ocorrências + última conferência (com loading)
   useEffect(() => {
     (async () => {
       if (!isOpen || !pedido?.nr_pedido) {
         setOcorrRows([]);
         setUltimaConf(null);
+        setLoadingOcorrencias(false);
+        setLoadingConferencia(false);
         return;
       }
+
+      // ocorrências
+      setLoadingOcorrencias(true);
       try {
         const r = await apiLocal.getOcorrenciasConferencia(pedido.nr_pedido);
-        const arr = Array.isArray(r?.data?.ocorrencias) ? r.data.ocorrencias : [];
+        const arr = Array.isArray(r?.data?.ocorrencias)
+          ? r.data.ocorrencias
+          : [];
         setOcorrRows(arr);
       } catch (e) {
         console.error("Falha ao carregar ocorrências da conferência:", e);
         setOcorrRows([]);
+      } finally {
+        setLoadingOcorrencias(false);
       }
+
+      // última conferência
+      setLoadingConferencia(true);
       try {
         const u = await apiLocal.getUltimaConferencia(pedido.nr_pedido);
         setUltimaConf(u?.data || null);
       } catch (e) {
         console.error("Falha ao carregar última conferência:", e);
         setUltimaConf(null);
+      } finally {
+        setLoadingConferencia(false);
       }
     })();
   }, [isOpen, pedido?.nr_pedido]);
 
-  // carregar integrantes (para validar nomes)
+  // carregar integrantes
   useEffect(() => {
     (async () => {
       if (!isOpen) return;
       try {
         setLoadingIntegrantes(true);
         const r = await apiLocal.getIntegrantes();
-        const items = Array.isArray(r?.data?.items) ? r.data.items : (r?.data || []);
+        const items = Array.isArray(r?.data?.items)
+          ? r.data.items
+          : r?.data || [];
         setIntegrantesList(items);
       } catch (e) {
         console.error("Falha ao carregar integrantes:", e);
@@ -155,22 +225,26 @@ const isRestrictedColetorUser = Number(user?.setor_ids) === 25;
     })();
   }, [isOpen]);
 
-const isValidName = useCallback((name) => {
-  const v = String(name || "").trim();
-  if (!v) return false;
-  for (let i = 0; i < integrantesList.length; i++) {
-    const it = integrantesList[i];
-    const nomeCompleto = `${it?.nome || ""} ${it?.sobrenome || ""}`.trim();
-    if (nomeCompleto === v) return true;
-  }
-  return false;
-}, [integrantesList]);
+  const isValidName = useCallback(
+    (name) => {
+      const v = String(name || "").trim();
+      if (!v) return false;
+      for (let i = 0; i < integrantesList.length; i++) {
+        const it = integrantesList[i];
+        const nomeCompleto = `${it?.nome || ""} ${it?.sobrenome || ""}`.trim();
+        if (nomeCompleto === v) return true;
+      }
+      return false;
+    },
+    [integrantesList]
+  );
 
-const isValidConf = useMemo(() => isValidName(tmpConf), [tmpConf, isValidName]);
-const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
+  const isValidConf = useMemo(
+    () => isValidName(tmpConf),
+    [tmpConf, isValidName]
+  );
+  const isValidSep = useMemo(() => isValidName(tmpSep), [tmpSep, isValidName]);
 
-
-  // recarrega após alterações
   async function refreshDetail() {
     if (!pedido) return;
     try {
@@ -178,9 +252,13 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
       const detail = resp?.data || {};
       const merged = {
         ...(detail.pedido || pedido),
-        itens: Array.isArray(detail.itens) ? detail.itens : (pedido.itens || []),
-        eventos: Array.isArray(detail.eventos) ? detail.eventos : (pedido.eventos || []),
-        eventos_preview: Array.isArray(detail.eventos) ? detail.eventos.slice(0, 5) : (pedido.eventos_preview || []),
+        itens: Array.isArray(detail.itens) ? detail.itens : pedido.itens || [],
+        eventos: Array.isArray(detail.eventos)
+          ? detail.eventos
+          : pedido.eventos || [],
+        eventos_preview: Array.isArray(detail.eventos)
+          ? detail.eventos.slice(0, 5)
+          : pedido.eventos_preview || [],
       };
       await onUpdate(pedido.nr_pedido, merged);
     } catch (e) {
@@ -198,6 +276,18 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
     }
     return t;
   }, [pedido]);
+
+  const pesoTotalSalvo = useMemo(() => {
+    let sum = 0;
+    if (Array.isArray(caixasSalvas)) {
+      for (let i = 0; i < caixasSalvas.length; i++) {
+        const c = caixasSalvas[i] || {};
+        const n = Number(c.peso);
+        if (!isNaN(n)) sum += n;
+      }
+    }
+    return sum;
+  }, [caixasSalvas]);
 
   // ------- dedupe eventos -------
   const eventosDedupe = useMemo(() => {
@@ -228,7 +318,13 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
         const ev = arr[i] || {};
         const tipo = String(ev.tipo || "").toLowerCase();
         const texto = String(ev.texto || "").toLowerCase();
-        if (tipo.includes("ocorr") || texto.includes("ocorr") || texto.includes("diverg") || texto.includes("falta") || texto.includes("avaria")) {
+        if (
+          tipo.includes("ocorr") ||
+          texto.includes("ocorr") ||
+          texto.includes("diverg") ||
+          texto.includes("falta") ||
+          texto.includes("avaria")
+        ) {
           return true;
         }
       }
@@ -243,16 +339,15 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
 
   // ------- helpers de regra -------
   const hasSeparador = !!(pedido?.separador && String(pedido.separador).trim());
-  const currentConferente = (pedido?.conferente && String(pedido.conferente).trim())
-    || (pedido?.primeiraConferencia?.colaborador && String(pedido.primeiraConferencia.colaborador).trim())
-    || "";
+  const currentConferente =
+    (pedido?.conferente && String(pedido.conferente).trim()) ||
+    (pedido?.primeiraConferencia?.colaborador &&
+      String(pedido.primeiraConferencia.colaborador).trim()) ||
+    "";
   const canStartConferencia = !!currentConferente;
   const canPrintLabels =
-    // !!currentConferente &&
     !!(pedido?.nota && String(pedido.nota).trim()) &&
     !!(pedido?.separador && String(pedido.separador).trim());
-    //  &&
-    // !!(pedido?.conferente && String(pedido.conferente).trim());
 
   // ------- ações -------
   async function saveNota() {
@@ -316,6 +411,12 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
     const nome = (tmpConf || "").trim();
     if (!nome) return;
 
+    const separadorAtual = String(pedido?.separador || "").trim();
+    if (separadorAtual && nome === separadorAtual) {
+      toast.error("Conferente não pode ser o mesmo que o separador.");
+      return;
+    }
+
     setSavingConf(true);
     try {
       await apiLocal.updatePedidoBasics(pedido.nr_pedido, {
@@ -331,15 +432,44 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
     }
   }
 
-  async function handlePrintLabels({ caixas }) {
-    setShowLabelModal(false);
+  async function handleSaveCaixas(caixasArray, pesoTotalArg) {
+    if (savingCaixas || !pedido?.nr_pedido) return;
+
+    setSavingCaixas(true);
+    try {
+      await apiLocal.updatePedidoCaixas(pedido.nr_pedido, {
+        caixas: caixasArray,
+        peso_total: pesoTotalArg,
+        by: user?.email || "usuario",
+      });
+
+      setCaixasSalvas(caixasArray);
+      await refreshDetail();
+    } catch (e) {
+      console.error("Falha ao salvar caixas no back:", e);
+    } finally {
+      setSavingCaixas(false);
+    }
+  }
+
+  // chamado pelo filho DEPOIS de imprimir
+  async function handlePrintLabels(infoFromChild) {
     const conferente = currentConferente || "-";
     if (!currentConferente) return;
 
-    printPedidoLabels(pedido, { caixas, conferente });
+    const caixasParaRegistrar = Array.isArray(infoFromChild?.caixas)
+      ? infoFromChild.caixas
+      : caixasSalvas;
+
+    const pesoTotalParaRegistrar =
+      typeof infoFromChild?.pesoTotal === "number"
+        ? infoFromChild.pesoTotal
+        : pesoTotalSalvo;
+
     try {
       await apiLocal.registrarImpressaoEtiquetas(pedido.nr_pedido, {
-        caixas,
+        caixas: caixasParaRegistrar,
+        peso_total: pesoTotalParaRegistrar,
         conferente,
         by: user?.email || "usuario",
       });
@@ -373,20 +503,42 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
     }
   }
 
-  const conferenciaConcluida =
-    pedido?.status === STATUS_PEDIDO.PRONTO_EXPEDICAO ||
-    !!(pedido?.conferente || pedido?.primeiraConferencia?.colaborador);
+  const conferenciaConcluida = pedido?.status !== STATUS_PEDIDO.PENDENTE;
 
-  // ------- UI -------
+  const caixasInicialParaCard =
+    Array.isArray(caixasSalvas) && caixasSalvas.length > 0
+      ? caixasSalvas.map((c) => ({
+          tipo: String(c.tipo || "CAIXA01"),
+          peso:
+            c.peso !== undefined && c.peso !== null
+              ? String(c.peso).replace(".", ",")
+              : "",
+        }))
+      : [{ tipo: "CAIXA01", peso: "" }];
+
   return (
     <>
       <ModalResponsiveStyles />
 
-      <Modal isOpen={isOpen} toggle={onClose} size="lg" contentClassName="project-modal">
+      <Modal
+        isOpen={isOpen}
+        toggle={onClose}
+        size="lg"
+        contentClassName="project-modal"
+      >
         <ModalHeader toggle={onClose}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
             <span>Detalhes do Pedido #{pedido.nr_pedido}</span>
-            <Muted style={{ fontSize: 11, marginTop: 2 }}>OV: {pedido.ov || "—"}</Muted>
+            <Muted style={{ fontSize: 11, marginTop: 2 }}>
+              OV: {pedido.ov || "—"}
+            </Muted>
 
             {hasOcorrenciaConferencia && (
               <OccurrenceBadge title="Ocorrência registrada na conferência">
@@ -417,14 +569,18 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
             <div>
               <SmallMuted>Data de criação</SmallMuted>
               <div>
-                {pedido.created_at ? new Date(pedido.created_at).toLocaleString("pt-BR") : "—"}
+                {pedido.created_at
+                  ? new Date(pedido.created_at).toLocaleString("pt-BR")
+                  : "—"}
               </div>
             </div>
             <div>
               <SmallMuted>Status</SmallMuted>
               <div>
-                {pedido.status === STATUS_PEDIDO.PENDENTE && "Aguardando conferência"}
-                {pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO && "Pronto para expedir"}
+                {pedido.status === STATUS_PEDIDO.PENDENTE &&
+                  "Aguardando conferência"}
+                {pedido.status === STATUS_PEDIDO.PRONTO_EXPEDICAO &&
+                  "Pronto para expedir"}
                 {pedido.status === STATUS_PEDIDO.CONCLUIDO && "Expedido"}
               </div>
             </div>
@@ -451,16 +607,25 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
             <SmallMuted>Separação / Transporte</SmallMuted>
             {!editBasics ? (
               <Row style={{ marginTop: 6, gap: 8, flexWrap: "wrap" }}>
-                <div><strong>Separador:</strong> {pedido.separador || <em>—</em>}</div>
-                <div><strong>Transportadora:</strong> {pedido.transportador || <em>—</em>}</div>
+                <div>
+                  <strong>Separador:</strong> {pedido.separador || <em>—</em>}
+                </div>
+                <div>
+                  <strong>Transportadora:</strong>{" "}
+                  {pedido.transportador || <em>—</em>}
+                </div>
                 {!isRestrictedUser && (
-                  <TinyBtn onClick={() => setEditBasics(true)} title="Editar separador e transportadora">
+                  <TinyBtn
+                    onClick={() => setEditBasics(true)}
+                    title="Editar separador e transportadora"
+                  >
                     <FiEdit2 /> Editar
                   </TinyBtn>
                 )}
               </Row>
             ) : (
-              !isRestrictedUser && editBasics && (
+              !isRestrictedUser &&
+              editBasics && (
                 <TwoColGrid>
                   <Col>
                     <label>Separador</label>
@@ -470,10 +635,14 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                       disabled={savingBasics || loadingIntegrantes}
                     >
                       <option value="">
-                        {loadingIntegrantes ? "Carregando..." : "Selecione o separador..."}
+                        {loadingIntegrantes
+                          ? "Carregando..."
+                          : "Selecione o separador..."}
                       </option>
                       {integrantesList.map((it) => {
-                        const nome = `${it?.nome || ""} ${it?.sobrenome || ""}`.trim();
+                        const nome = `${it?.nome || ""} ${
+                          it?.sobrenome || ""
+                        }`.trim();
                         return (
                           <option key={it.id} value={nome}>
                             {nome}
@@ -494,7 +663,10 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                   </Col>
 
                   <Row style={{ gap: 6, justifyContent: "flex-end" }}>
-                    <TinyBtn onClick={saveBasics} disabled={savingBasics || !isValidSep}>
+                    <TinyBtn
+                      onClick={saveBasics}
+                      disabled={savingBasics || !isValidSep}
+                    >
                       <FiSave /> {savingBasics ? "Salvando..." : "Salvar"}
                     </TinyBtn>
                     <TinyBtn
@@ -518,12 +690,20 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
 
             {!hasSeparador && (
               <div style={{ marginTop: 6, fontSize: 12, color: "#9a3412" }}>
-                Informe o <strong>Separador</strong> antes de definir o Conferente.
+                Informe o <strong>Separador</strong> antes de definir o
+                Conferente.
               </div>
             )}
 
             {!editConf ? (
-              <Row style={{ marginTop: 6, gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <Row
+                style={{
+                  marginTop: 6,
+                  gap: 8,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                }}
+              >
                 <div>
                   <strong>Conferente:</strong>{" "}
                   <span style={{ fontWeight: 700 }}>
@@ -533,7 +713,11 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                 {!isRestrictedUser && (
                   <TinyBtn
                     onClick={() => hasSeparador && setEditConf(true)}
-                    title={hasSeparador ? "Editar conferente" : "Defina um Separador primeiro"}
+                    title={
+                      hasSeparador
+                        ? "Editar conferente"
+                        : "Defina um Separador primeiro"
+                    }
                     disabled={!hasSeparador}
                   >
                     <FiEdit2 /> Editar
@@ -541,7 +725,8 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                 )}
               </Row>
             ) : (
-              !isRestrictedUser && editConf && (
+              !isRestrictedUser &&
+              editConf && (
                 <Row style={{ marginTop: 6, gap: 6, flexWrap: "wrap" }}>
                   <SelectField
                     value={tmpConf}
@@ -549,10 +734,14 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                     disabled={savingConf || !hasSeparador || loadingIntegrantes}
                   >
                     <option value="">
-                      {loadingIntegrantes ? "Carregando..." : "Selecione o conferente..."}
+                      {loadingIntegrantes
+                        ? "Carregando..."
+                        : "Selecione o conferente..."}
                     </option>
                     {integrantesList.map((it) => {
-                      const nome = `${it?.nome || ""} ${it?.sobrenome || ""}`.trim();
+                      const nome = `${it?.nome || ""} ${
+                        it?.sobrenome || ""
+                      }`.trim();
                       return (
                         <option key={it.id} value={nome}>
                           {nome}
@@ -561,13 +750,20 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                     })}
                   </SelectField>
 
-                  <TinyBtn onClick={saveConferente} disabled={savingConf || !hasSeparador || !isValidConf}>
+                  <TinyBtn
+                    onClick={saveConferente}
+                    disabled={savingConf || !hasSeparador || !isValidConf}
+                  >
                     <FiSave /> {savingConf ? "Salvando..." : "Salvar"}
                   </TinyBtn>
                   <TinyBtn
                     onClick={() => {
                       setEditConf(false);
-                      setTmpConf(pedido.conferente || pedido?.primeiraConferencia?.colaborador || "");
+                      setTmpConf(
+                        pedido.conferente ||
+                          pedido?.primeiraConferencia?.colaborador ||
+                          ""
+                      );
                     }}
                     disabled={savingConf}
                   >
@@ -579,11 +775,35 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
           </div>
 
           <div style={{ marginTop: 16 }}>
-            <SmallMuted>Total de volumes (embalagens)</SmallMuted>
+            <SmallMuted>Total de volumes</SmallMuted>
             <div style={{ fontWeight: 800, fontSize: 20 }}>{totalItens}</div>
           </div>
 
-          <div style={{ marginTop: 14 }}>
+          {/* CARD DE CAIXAS / PESO (filho) */}
+          <div style={{ marginTop: 16 }}>
+            <SmallMuted>Caixas / Etiquetas</SmallMuted>
+            <ModalImpressao
+              pedido={pedido}
+              conferente={currentConferente}
+              caixasInicial={caixasInicialParaCard}
+              onSave={handleSaveCaixas}
+              saving={savingCaixas}
+              isRestrictedUser={isRestrictedUser}
+              conferenciaConcluida={conferenciaConcluida}
+              canPrintLabels={canPrintLabels}
+              onPrint={handlePrintLabels}
+            />
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            <InfoOcorren
+              conferencia={ultimaConf}
+              ocorrencias={ocorrRows}
+              isLoading={loadingOcorrencias || loadingConferencia}
+              conferenciaConcluida={conferenciaConcluida}
+            />
+          </div>
+                    <div style={{ marginTop: 14 }}>
             <SmallMuted>Itens do Remessa</SmallMuted>
             <ScrollTableWrap>
               <Table responsive hover borderless className="mb-0">
@@ -602,16 +822,19 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                     <tr key={idx}>
                       <td>{it.cod_prod || "—"}</td>
                       <td>{it.lote || "—"}</td>
-                      <td style={{ fontWeight: 700 }}>{Number(it.qtde || 0)}</td>
+                      <td style={{ fontWeight: 700 }}>
+                        {Number(it.qtde || 0)}
+                      </td>
                       <td>{it.um_med || "—"}</td>
-                      <td style={{ fontFamily: "monospace" }}>{it.bar_code || "—"}</td>
-                                            <td>{pedido.endereco || "—"}</td>
-
+                      <td style={{ fontFamily: "monospace" }}>
+                        {it.bar_code || "—"}
+                      </td>
+                      <td>{pedido.endereco || "—"}</td>
                     </tr>
                   ))}
                   {(pedido.itens || []).length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ opacity: 0.7 }}>
+                      <td colSpan={6} style={{ opacity: 0.7 }}>
                         Sem itens.
                       </td>
                     </tr>
@@ -621,13 +844,16 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
             </ScrollTableWrap>
           </div>
 
-          <div style={{ marginTop: 16 }}>
-            <InfoOcorren conferencia={ultimaConf} ocorrencias={ocorrRows} />
-          </div>
-
-          {(!isRestrictedUser && !isRestrictedColetorUser) &&(
+          {!isRestrictedUser && !isRestrictedColetorUser && (
             <>
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 6, marginBottom: 6 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  marginTop: 6,
+                  marginBottom: 6,
+                }}
+              >
                 <Button
                   color={askDelete ? "danger" : "outline-danger"}
                   onClick={() => setAskDelete((v) => !v)}
@@ -653,24 +879,41 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                   </div>
 
                   <TwoColGrid style={{ gridTemplateColumns: "1fr" }}>
-                    <label style={{ fontSize: 12, color: "#374151" }}>Motivo da exclusão</label>
+                    <label style={{ fontSize: 12, color: "#374151" }}>
+                      Motivo da exclusão
+                    </label>
                     <SelectField
                       value={motivoDel}
                       onChange={(e) => setMotivoDel(e.target.value)}
                       disabled={deleting}
                     >
                       <option value="">Selecione um motivo...</option>
-                      <option value="Faltou item na listagem do Excel">Faltou item na listagem do Excel</option>
-                      <option value="Foi acrescentado item ao pedido">Foi acrescentado item ao pedido</option>
-                      <option value="Pedido criado por engano">Pedido criado por engano</option>
+                      <option value="Faltou item na listagem do Excel">
+                        Faltou item na listagem do Excel
+                      </option>
+                      <option value="Foi acrescentado item ao pedido">
+                        Foi acrescentado item ao pedido
+                      </option>
+                      <option value="Pedido criado por engano">
+                        Pedido criado por engano
+                      </option>
                     </SelectField>
 
                     <Row style={{ justifyContent: "flex-end", gap: 8 }}>
-                      <Button color="secondary" outline onClick={() => setAskDelete(false)} disabled={deleting}>
+                      <Button
+                        color="secondary"
+                        outline
+                        onClick={() => setAskDelete(false)}
+                        disabled={deleting}
+                      >
                         <FiX style={{ marginRight: 6 }} />
                         Cancelar
                       </Button>
-                      <Button color="danger" onClick={handleDelete} disabled={deleting || !motivoDel}>
+                      <Button
+                        color="danger"
+                        onClick={handleDelete}
+                        disabled={deleting || !motivoDel}
+                      >
                         <FiTrash2 style={{ marginRight: 6 }} />
                         {deleting ? "Excluindo..." : "Confirmar exclusão"}
                       </Button>
@@ -686,10 +929,16 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
             <div style={{ marginTop: 6 }}>
               {eventosDedupe.length > 0 ? (
                 eventosDedupe.map((ev, i) => {
-                  const when = ev.created_at ? new Date(ev.created_at).toLocaleString("pt-BR") : "";
+                  const when = ev.created_at
+                    ? new Date(ev.created_at).toLocaleString("pt-BR")
+                    : "";
                   return (
-                    <div key={ev.id || `${ev.tipo}-${i}`} style={{ fontSize: 12, opacity: 0.9 }}>
-                      • {ev.texto || ev.tipo} — <em>{ev.user_ref || "sistema"}</em>{" "}
+                    <div
+                      key={ev.id || `${ev.tipo}-${i}`}
+                      style={{ fontSize: 12, opacity: 0.9 }}
+                    >
+                      • {ev.texto || ev.tipo} —{" "}
+                      <em>{ev.user_ref || "sistema"}</em>{" "}
                       <SmallMuted>({when})</SmallMuted>
                     </div>
                   );
@@ -715,23 +964,17 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
                     onClick={onOpenConferencia}
                     title={
                       canStartConferencia
-                        ? (conferenciaConcluida ? "Realizar uma nova conferência" : "Iniciar conferência de itens")
+                        ? conferenciaConcluida
+                          ? "Realizar uma nova conferência"
+                          : "Iniciar conferência de itens"
                         : "Informe o Conferente para iniciar"
                     }
                     disabled={!canStartConferencia}
                   >
                     <FiCheckSquare style={{ marginRight: 6 }} />
-                    {conferenciaConcluida ? "Realizar uma nova conferência" : "Iniciar conferência de itens"}
-                  </Button>
-
-                  <Button
-                    color="primary"
-                    disabled={!canPrintLabels}
-                    onClick={() => setShowLabelModal(true)}
-                    title={canPrintLabels ? "Imprimir etiquetas" : "Informe o Conferente para imprimir etiquetas"}
-                  >
-                    <FiTag style={{ marginRight: 6 }} />
-                    Imprimir etiquetas
+                    {conferenciaConcluida
+                      ? "Realizar uma nova conferência"
+                      : "Iniciar conferência de itens"}
                   </Button>
                 </>
               )}
@@ -739,15 +982,6 @@ const isValidSep  = useMemo(() => isValidName(tmpSep),  [tmpSep,  isValidName]);
           </FooterActions>
         </ModalFooter>
       </Modal>
-
-      {showLabelModal && (
-        <ModalImpressao
-          isOpen={showLabelModal}
-          onClose={() => setShowLabelModal(false)}
-          onConfirm={handlePrintLabels}
-          pedido={pedido}
-        />
-      )}
     </>
   );
 }

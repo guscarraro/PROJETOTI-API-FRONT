@@ -386,7 +386,7 @@ export default function NavBar() {
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
-          <NavLabel>Versão 1.2.7</NavLabel>
+          <NavLabel>Versão 1.2.8</NavLabel>
         </NavInner>
       </NavWrap>
     );
@@ -549,7 +549,7 @@ export default function NavBar() {
             onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2.7" />
+              <Notas version="1.2.8" />
             </NavIcon>
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
@@ -632,7 +632,7 @@ export default function NavBar() {
           <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
         </NavItem>
 
-        <NavLabel>Versão 1.2.7</NavLabel>
+        <NavLabel>Versão 1.2.8</NavLabel>
       </NavInner>
     </NavWrap>
   );

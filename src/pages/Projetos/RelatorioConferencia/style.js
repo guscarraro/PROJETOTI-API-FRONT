@@ -188,6 +188,64 @@ export const Td = styled.td`
   }
 `;
 
+// versão compacta usada nas linhas do relatório
+export const TdCompact = styled(Td)`
+  padding: 4px 6px;
+  white-space: nowrap;
+  line-height: 1;
+  vertical-align: middle;
+`;
+
+// Peso total (caixas) – azul leve
+export const CaixaPesoTd = styled(TdCompact)`
+  background: rgba(59, 130, 246, 0.10);
+
+  [data-theme="dark"] & {
+    background: rgba(37, 99, 235, 0.25);
+    color: #e5e7eb;
+  }
+`;
+
+// Caixa01 – verde leve
+export const Caixa01Td = styled(TdCompact)`
+  background: rgba(16, 185, 129, 0.12);
+
+  [data-theme="dark"] & {
+    background: rgba(5, 150, 105, 0.30);
+    color: #e5e7eb;
+  }
+`;
+
+// Caixa02 – amarelo leve
+export const Caixa02Td = styled(TdCompact)`
+  background: rgba(234, 179, 8, 0.12);
+
+  [data-theme="dark"] & {
+    background: rgba(202, 138, 4, 0.30);
+    color: #e5e7eb;
+  }
+`;
+
+// Caixa Madeira – marrom claro
+export const CaixaMadeiraTd = styled(TdCompact)`
+  background: rgba(120, 53, 15, 0.12);
+
+  [data-theme="dark"] & {
+    background: rgba(180, 83, 9, 0.35);
+    color: #e5e7eb;
+  }
+`;
+
+// Caixa04 – roxo leve
+export const Caixa04Td = styled(TdCompact)`
+  background: rgba(139, 92, 246, 0.12);
+
+  [data-theme="dark"] & {
+    background: rgba(124, 58, 237, 0.30);
+    color: #e5e7eb;
+  }
+`;
+
 /* =========================
    STATUS / CONTADOR
    ========================= */
@@ -216,7 +274,6 @@ export const StatusBadge = styled(BaseBadge)`
     `}
 `;
 
-
 export const CountPill = styled.span`
   padding: 4px 10px;
   border-radius: 999px;
@@ -231,4 +288,44 @@ export const CountPill = styled.span`
     color: #e5e7eb;
     border-color: rgba(148, 163, 184, 0.4);
   }
+`;
+
+/* =========================
+   BADGES / BOXES ESPECÍFICOS
+   ========================= */
+
+export const OccBadge = styled.span`
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: #fed7aa;
+  color: #7c2d12;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+`;
+
+// box de bipagem unitária
+export const UnitBox = styled.div`
+  display: flex;
+  justify-content: space-between;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+`;
+
+// box de bipagem por lote/caixa master
+export const LoteBox = styled.div`
+  display: flex;
+  flex-direction: column;
+  background: #ecfdf5;
+  color: #047857;
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
 `;

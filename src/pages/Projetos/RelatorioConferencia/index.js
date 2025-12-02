@@ -22,11 +22,21 @@ import {
   Table,
   Th,
   Td,
+  TdCompact,
   StatusBadge,
   MutedText,
   CountPill,
+  OccBadge,
+  UnitBox,
+  LoteBox,
+  CaixaPesoTd,
+  Caixa01Td,
+  Caixa02Td,
+  CaixaMadeiraTd,
+  Caixa04Td,
 } from "./style";
 import * as XLSX from "xlsx";
+import ModalInfo from "../../Separacao/ModalInfo";
 
 function formatDateTime(value) {
   if (!value) return "—";
@@ -179,7 +189,8 @@ export default function RelatorioConferenciaPage() {
   const initialRange = getInitialWeekRange();
 
   const [rows, setRows] = useState([]);
-
+  const [activePedido, setActivePedido] = useState(null);
+  const [openInfo, setOpenInfo] = useState(false);
   const [filters, setFilters] = useState({
     dt_inicio: initialRange.dt_inicio,
     dt_fim: initialRange.dt_fim,
@@ -318,11 +329,17 @@ export default function RelatorioConferenciaPage() {
         Destino: p.destino || "",
         Status: mapStatusForDisplay(p.status),
         Itens: p.total_itens,
+        "Peso total (caixas)": p.peso_total_caixas ?? "",
+        Caixa01: p.caixas_caixa01 ?? 0,
+        Caixa02: p.caixas_caixa02 ?? 0,
+        "Caixa Madeira": p.caixas_caixa_madeira ?? 0,
+        Caixa04: p.caixas_caixa04 ?? 0,
         Separador: p.separador || "",
         Conferente: p.conferente || "",
         Transportador: p.transportador || "",
-        "Teve ocorrência":
-          p.has_ocorrencia ? `SIM (${p.qtd_ocorrencias_conferencia})` : "NÃO",
+        "Teve ocorrência": p.has_ocorrencia
+          ? `SIM (${p.qtd_ocorrencias_conferencia})`
+          : "NÃO",
         "Conf. finalizada": formatDateTime(p.conferencia_finalizada_em),
         "Δ criação → conf (s)": tempoCriacaoConfSeg ?? "",
         "Δ criação → conf (fmt)": formatDuration(tempoCriacaoConfSeg),
@@ -339,6 +356,31 @@ export default function RelatorioConferenciaPage() {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Relatório");
     XLSX.writeFile(wb, "relatorio-conferencia.xlsx");
+  };
+
+  const handleOpenInfo = async (row) => {
+    if (!row?.nr_pedido) return;
+
+    try {
+      const resp = await loading.wrap("relatorio-detalhe", () =>
+        apiLocal.getPedidoByNr(row.nr_pedido)
+      );
+
+      const detail = resp?.data || {};
+      const merged = {
+        ...(detail.pedido || row),
+        itens: Array.isArray(detail.itens) ? detail.itens : [],
+        eventos: Array.isArray(detail.eventos) ? detail.eventos : [],
+        eventos_preview: Array.isArray(detail.eventos)
+          ? detail.eventos.slice(0, 5)
+          : [],
+      };
+
+      setActivePedido(merged);
+      setOpenInfo(true);
+    } catch (e) {
+      console.error("Falha ao carregar detalhe do pedido:", e);
+    }
   };
 
   return (
@@ -411,9 +453,7 @@ export default function RelatorioConferenciaPage() {
               >
                 <option value="">Todos</option>
                 <option value="PENDENTE">Pendente</option>
-                <option value="PRONTO_EXPEDICAO">
-                  Pronto para expedir
-                </option>
+                <option value="PRONTO_EXPEDICAO">Pronto para expedir</option>
                 <option value="EXPEDIDO">Expedido</option>
               </FilterSelect>
             </FilterGroup>
@@ -479,9 +519,14 @@ export default function RelatorioConferenciaPage() {
                   "Remessa",
                   "NF",
                   "Cliente",
-                  "Destino",
                   "Status",
+                  "Destino",
                   "Itens",
+                  "Peso total (caixas)",
+                  "Caixa01",
+                  "Caixa02",
+                  "Caixa Madeira",
+                  "Caixa04",
                   "Separador",
                   "Conferente",
                   "Transportador",
@@ -512,85 +557,121 @@ export default function RelatorioConferenciaPage() {
                 const tempoCriacaoConfSeg = calcTempoCriacaoAteConfSeg(p);
                 const tempoConfExpSeg = calcTempoConfAteExpSeg(p);
 
+                const pesoTotalCaixas =
+                  p.peso_total_caixas != null
+                    ? Number(p.peso_total_caixas).toLocaleString("pt-BR", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })
+                    : "—";
+
                 return (
-                  <tr key={p.id}>
+                  <tr
+                    key={p.id}
+                    onClick={() => handleOpenInfo(p)}
+                    style={{ cursor: "pointer" }}
+                  >
                     {/* Criado em */}
-                    <Td style={tdCompact}>{formatDateTime(p.created_at)}</Td>
+                    <TdCompact>{formatDateTime(p.created_at)}</TdCompact>
 
                     {/* Remessa */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       <strong>{p.nr_pedido}</strong>
-                    </Td>
+                    </TdCompact>
 
                     {/* NF */}
-                    <Td style={tdCompact}>{p.nota || "—"}</Td>
+                    <TdCompact>{p.nota || "—"}</TdCompact>
 
                     {/* Cliente */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       <div>{p.cliente}</div>
                       <MutedText style={{ whiteSpace: "nowrap" }}>
                         {p.ov ? `OV: ${p.ov}` : ""}
                       </MutedText>
-                    </Td>
-
-                    {/* Destino */}
-                    <Td style={tdCompact}>{p.destino || "—"}</Td>
-
+                    </TdCompact>
                     {/* Status */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       <StatusBadge $status={mapStatusForDisplay(p.status)}>
                         {mapStatusForDisplay(p.status)}
                       </StatusBadge>
-                    </Td>
+                    </TdCompact>
+                    {/* Destino */}
+                    <TdCompact>{p.destino || "—"}</TdCompact>
+
+
 
                     {/* Itens */}
-                    <Td style={{ ...tdCompact, textAlign: "right" }}>
+                    <TdCompact style={{ textAlign: "right" }}>
                       {p.total_itens}
-                    </Td>
+                    </TdCompact>
 
-                    <Td style={tdCompact}>{p.separador || "—"}</Td>
-                    <Td style={tdCompact}>{p.conferente || "—"}</Td>
-                    <Td style={tdCompact}>{p.transportador || "—"}</Td>
+                    {/* Peso total (caixas) */}
+                    <CaixaPesoTd style={{ textAlign: "right" }}>
+                      {pesoTotalCaixas}
+                    </CaixaPesoTd>
+
+                    <Caixa01Td style={{ textAlign: "right" }}>
+                      {p.caixas_caixa01 ?? 0}
+                    </Caixa01Td>
+
+                    <Caixa02Td style={{ textAlign: "right" }}>
+                      {p.caixas_caixa02 ?? 0}
+                    </Caixa02Td>
+
+                    <CaixaMadeiraTd style={{ textAlign: "right" }}>
+                      {p.caixas_caixa_madeira ?? 0}
+                    </CaixaMadeiraTd>
+
+                    <Caixa04Td style={{ textAlign: "right" }}>
+                      {p.caixas_caixa04 ?? 0}
+                    </Caixa04Td>
+
+                    {/* Separador */}
+                    <TdCompact>{p.separador || "—"}</TdCompact>
+
+                    {/* Conferente */}
+                    <TdCompact>{p.conferente || "—"}</TdCompact>
+
+                    {/* Transportador */}
+                    <TdCompact>{p.transportador || "—"}</TdCompact>
 
                     {/* Ocorrência */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       {p.has_ocorrencia ? (
-                        <span style={occBadge}>
+                        <OccBadge>
                           ⚠ Ocorrência ({p.qtd_ocorrencias_conferencia})
-                        </span>
+                        </OccBadge>
                       ) : (
                         <span style={{ fontSize: 11, opacity: 0.6 }}>
                           Sem ocorrência
                         </span>
                       )}
-                    </Td>
+                    </TdCompact>
 
                     {/* Conf. finalizada */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       {formatDateTime(p.conferencia_finalizada_em)}
-                    </Td>
+                    </TdCompact>
 
                     {/* Δ criação → Conf */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       <span style={getDurationChipStyle(tempoCriacaoConfSeg)}>
                         {formatDuration(tempoCriacaoConfSeg)}
                       </span>
-                    </Td>
+                    </TdCompact>
 
                     {/* Expedido */}
-                    <Td style={tdCompact}>
-                      {formatDateTime(p.expedido_em)}
-                    </Td>
+                    <TdCompact>{formatDateTime(p.expedido_em)}</TdCompact>
 
                     {/* Δ Conf → Expedição */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       <span style={getDurationChipStyle(tempoConfExpSeg)}>
                         {formatDuration(tempoConfExpSeg)}
                       </span>
-                    </Td>
+                    </TdCompact>
 
                     {/* Bipagens */}
-                    <Td style={tdCompact}>
+                    <TdCompact>
                       <div
                         style={{
                           display: "flex",
@@ -598,22 +679,22 @@ export default function RelatorioConferenciaPage() {
                           gap: 3,
                         }}
                       >
-                        <div className="unit-box" style={unitBox}>
+                        <UnitBox>
                           <span>Unitário</span>
                           <strong>{p.total_scan_unitario ?? "—"}</strong>
-                        </div>
+                        </UnitBox>
 
-                        <div className="lote-box" style={loteBox}>
+                        <LoteBox>
                           <div>
-                            <span>Lote abatido:</span>{" "}
+                            <span>Caixa Master:</span>{" "}
                             <strong>{p.total_scan_lote_qtde ?? "—"}</strong>
                           </div>
                           <div style={{ fontSize: 10, opacity: 0.7 }}>
                             Leituras: {p.total_scan_lote_eventos ?? "—"}
                           </div>
-                        </div>
+                        </LoteBox>
                       </div>
-                    </Td>
+                    </TdCompact>
                   </tr>
                 );
               })}
@@ -621,7 +702,7 @@ export default function RelatorioConferenciaPage() {
               {!rows.length && !loading.any() && (
                 <tr>
                   <Td
-                    colSpan={16}
+                    colSpan={21}
                     style={{
                       textAlign: "center",
                       opacity: 0.7,
@@ -636,49 +717,17 @@ export default function RelatorioConferenciaPage() {
           </Table>
         </TableWrap>
       </Section>
+
+      {activePedido && (
+        <ModalInfo
+          isOpen={openInfo}
+          onClose={() => setOpenInfo(false)}
+          pedido={activePedido}
+          onUpdate={() => {}}
+          onOpenConferencia={() => {}}
+          onDeleted={() => {}}
+        />
+      )}
     </Page>
   );
 }
-
-/* ===== estilos inline compactos ===== */
-
-const tdCompact = {
-  padding: "4px 6px",
-  whiteSpace: "nowrap",
-  lineHeight: 1,
-  verticalAlign: "middle",
-};
-
-const occBadge = {
-  display: "inline-flex",
-  alignItems: "center",
-  padding: "2px 6px",
-  borderRadius: 9999,
-  background: "#fed7aa",
-  color: "#7c2d12",
-  fontSize: 11,
-  fontWeight: 600,
-  whiteSpace: "nowrap",
-};
-
-const unitBox = {
-  display: "flex",
-  justifyContent: "space-between",
-  background: "#eff6ff",
-  color: "#1d4ed8",
-  padding: "3px 6px",
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 600,
-};
-
-const loteBox = {
-  display: "flex",
-  flexDirection: "column",
-  background: "#ecfdf5",
-  color: "#047857",
-  padding: "3px 6px",
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 600,
-};
