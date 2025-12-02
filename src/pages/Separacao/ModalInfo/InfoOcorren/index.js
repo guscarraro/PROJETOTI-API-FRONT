@@ -283,7 +283,7 @@ const CardWrap = styled.div`
   overflow: hidden;
 
   /* estilo parecido com CaixasCard, mas roxinho */
-  border: 1px dashed #c4b5fd; /* purple-300 */
+  border: 2px dashed #c4b5fd; /* purple-300 */
   background: #f5f3ff; /* purple-50 */
   display: grid;
   gap: 10px;

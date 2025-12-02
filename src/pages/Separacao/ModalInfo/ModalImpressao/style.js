@@ -5,7 +5,7 @@ export const CaixasCard = styled.div`
   margin-top: 6px;
   border-radius: 12px;
   padding: 12px;
-  border: 1px dashed #facc15; /* amarelo/laranja */
+  border: 2px dashed #facc15; /* amarelo/laranja */
   background: rgba(254, 252, 232, 0.92); /* laranja bem claro, fosco */
   backdrop-filter: blur(6px);
   display: grid;
@@ -13,7 +13,7 @@ export const CaixasCard = styled.div`
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
 
   [data-theme="dark"] & {
-    background: rgba(120, 53, 15, 0.72); /* laranja mais escuro no dark */
+    background: #facc1580; /* laranja mais escuro no dark */
     border-color: rgba(250, 204, 21, 0.7);
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
   }
