@@ -57,7 +57,7 @@ export function printPedidoLabels(pedido, opts = {}) {
   }
   .pill {
     display: inline-block; padding: 1mm 4mm; border: 0.3mm solid #000; border-radius: 12mm;
-    font-weight: 900; font-size: 7pt; line-height: 1; white-space: nowrap; max-width: 46mm;
+    font-weight: 900; font-size: 15pt; line-height: 1; white-space: nowrap; max-width: 46mm;
     overflow: hidden; text-overflow: ellipsis;
   }
   .headRight { display: flex; flex-direction: column; align-items: flex-end; gap: 1mm; }
@@ -65,7 +65,7 @@ export function printPedidoLabels(pedido, opts = {}) {
 
   /* Remessa maior */
   .pedidoNo {
-    font-size: 12pt;
+    font-size:20pt;
     font-weight: 900;
     white-space: nowrap;
   }
@@ -102,6 +102,10 @@ export function printPedidoLabels(pedido, opts = {}) {
     flex: 1 1 auto;
     min-width: 0;
   }
+  .client{
+  font-size: 5pt;
+  }
+
 
   /* Destinatário / Cliente maiores */
   .big  { font-size: 9pt; font-weight: 700; letter-spacing: 0; }
@@ -115,7 +119,7 @@ export function printPedidoLabels(pedido, opts = {}) {
   /* Nota Fiscal bem grande */
   .nf {
     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
-    font-size: 12pt;
+    font-size: 13pt;
     font-weight: 900;
   }
 
@@ -169,10 +173,10 @@ export function printPedidoLabels(pedido, opts = {}) {
       out += `
       <section class="label">
         <div class="header">
-          <div class="pill">EMBALAGEM ${seq}/${total}</div>
+          <div class="pill">EMBL: ${seq}/${total}</div>
           <div class="headRight">
             <div class="timestamp mono">${formatDate(impressaoAt)}</div>
-            <div class="pedidoNo">Rem: #${pedidoNr}</div>
+            <span class="vwrap"><span class="nf">NF: ${nf}</span></span>
             <div class="ovLine">OV: ${pedido.ov || "—"}</div>
           </div>
         </div>
@@ -195,13 +199,13 @@ export function printPedidoLabels(pedido, opts = {}) {
           <div class="hr"></div>
           <!-- linha 4: NF (MAIOR) -->
           <div class="row">
-            <span class="k">Nota Fiscal:</span>
-            <span class="vwrap"><span class="nf">${nf}</span></span>
+            
+            <div class="pedidoNo">Rem: #${pedidoNr}</div>
           </div>
           <!-- linha 5: Cliente -->
           <div class="row">
             <span class="k">Cliente:</span>
-            <span class="vwrap"><span class="mid">${cliente}</span></span>
+            <span class="vwrap client"><span class="mid">${cliente}</span></span>
           </div>
         </div>
         <div class="chips">
