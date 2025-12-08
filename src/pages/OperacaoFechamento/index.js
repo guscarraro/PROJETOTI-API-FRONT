@@ -92,6 +92,7 @@ const monthOptions = [
   { value: "2025-09", label: "Setembro 2025" },
   { value: "2025-10", label: "Outubro 2025" },
   { value: "2025-11", label: "Novembro 2025" },
+  { value: "2025-12", label: "Dezembro 2025" },
 ];
 
 const OperacaoFechamento = () => {
