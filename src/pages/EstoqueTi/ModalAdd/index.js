@@ -322,7 +322,7 @@ function ModalAdd({ isOpen, toggle }) {
               onChange={handleInputChange}
             >
               <option value="">Selecione</option>
-              {['SJP', 'COLOMBO', 'PINHAIS', 'PTO', 'MGA', 'MINAS', 'GOIAS', 'CUIABA', 'SP', 'RS', 'SC', 'LONDRINA',"ES"].map((local) => (
+              {['SJP', 'COLOMBO', 'PINHAIS', 'PTO', 'MGA', 'MINAS', 'GOIAS', 'CUIABA', 'SP', 'RS', 'SC', 'LONDRINA',"ES","FRANCISCO BELTRÃO"].map((local) => (
                 <option key={local} value={local}>
                   {local}
                 </option>

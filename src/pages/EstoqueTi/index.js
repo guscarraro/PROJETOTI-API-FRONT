@@ -1,21 +1,41 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Button, Modal, ModalHeader, ModalBody } from 'reactstrap';
-import ModalAdd from './ModalAdd';
-import CardEquip from './CardEquip';
-import ModalEdit from './ModalEdit';
-import apiLocal from '../../services/apiLocal';
-import { EditButton, StyledContainer, SetorSection, CardStyle } from './style';
-import { toast } from 'react-toastify';
-import { FaLaptop, FaDesktop, FaCloud, FaEnvelope, FaDatabase } from 'react-icons/fa';
-import ModalCloud from './ModalCloud';
-import ModalLicenca from './ModalLicenca';
-import ModalAparelho from './ModalAparelho';
-import ModalDel from './ModalDel';
-import TabelaEquipamentos from './TabelaEquipamentos';
-import * as XLSX from 'xlsx';
+import React, { useState, useEffect } from "react";
+import { Button, Modal, ModalHeader, ModalBody } from "reactstrap";
+import { toast } from "react-toastify";
+import { FaLaptop, FaCloud, FaEnvelope, FaTrash, FaEdit } from "react-icons/fa";
 
+import * as XLSX from "xlsx";
 
+import ModalAdd from "./ModalAdd";
+import ModalEdit from "./ModalEdit";
+import ModalCloud from "./ModalCloud";
+import ModalLicenca from "./ModalLicenca";
+import ModalAparelho from "./ModalAparelho";
+import ModalDel from "./ModalDel";
 
+import apiLocal from "../../services/apiLocal";
+
+import {
+  Page,
+  TitleBar,
+  H1,
+  Section,
+  SectorFilterBar,
+  FilterLabel,
+  SectorSelect,
+  InfoGrid,
+  InfoItem,
+  SetorSection,
+  TableWrap,
+  Table,
+  Th,
+  Td,
+  TdCompact,
+  StatusBadge,
+  GlobalModalStyles,
+  MODAL_CLASS,
+} from "./style";
+import NavBar from "../Projetos/components/NavBar";
+import { ThemeScope } from "../Projetos/style";
 
 function EstoqueTi() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,14 +50,18 @@ function EstoqueTi() {
   const [equipamentoToDelete, setEquipamentoToDelete] = useState(null);
   const [tipoSelecionado, setTipoSelecionado] = useState("todos");
 
+  // estado da ordenação
+  const [sortConfig, setSortConfig] = useState({
+    key: "tipo_aparelho",
+    direction: "asc",
+  });
 
+  const toggleAparelhoModal = () => setAparelhoModalOpen((v) => !v);
+  const toggleCloudModal = () => setCloudModalOpen((v) => !v);
+  const toggleMicrosoftModal = () => setMicrosoftModalOpen((v) => !v);
 
-  const toggleAparelhoModal = () => setAparelhoModalOpen(!aparelhoModalOpen);
-  const toggleCloudModal = () => setCloudModalOpen(!cloudModalOpen);
-  const toggleMicrosoftModal = () => setMicrosoftModalOpen(!microsoftModalOpen);
-
-  const toggleModal = () => setIsModalOpen(!isModalOpen);
-  const toggleEditModal = () => setIsEditModalOpen(!isEditModalOpen);
+  const toggleModal = () => setIsModalOpen((v) => !v);
+  const toggleEditModal = () => setIsEditModalOpen((v) => !v);
   const toggleDetailsModal = () => setSelectedEquipamento(null);
 
   const fetchEquipamentos = async () => {
@@ -45,7 +69,7 @@ function EstoqueTi() {
       const response = await apiLocal.getControleEstoque();
       setEquipamentos(response.data || []);
     } catch (error) {
-      console.error('Erro ao buscar equipamentos:', error);
+      console.error("Erro ao buscar equipamentos:", error);
     }
   };
 
@@ -65,14 +89,18 @@ function EstoqueTi() {
     return `${dd}/${mm}/${yyyy} ${HH}:${MM}`;
   };
 
-
-  const setores = [...new Set(equipamentos.map((eq) => eq.setor))];
-  const tiposAparelhos = [...new Set(equipamentos.map(eq => eq.tipo_aparelho))];
+  const setores = [...new Set(equipamentos.map((eq) => eq.setor))].filter(
+    (s) => s
+  );
+  const tiposAparelhos = [
+    ...new Set(equipamentos.map((eq) => eq.tipo_aparelho)),
+  ].filter((t) => t);
 
   const handleEditClick = (equipamento) => {
     setEquipamentoToEdit(equipamento);
     setIsEditModalOpen(true);
   };
+
   const confirmDeleteEquipamento = async () => {
     if (!equipamentoToDelete) return;
     try {
@@ -88,188 +116,430 @@ function EstoqueTi() {
     }
   };
 
+  const handleExportExcel = () => {
+    const equipamentosFiltrados = equipamentos.filter(
+      (eq) =>
+        tipoSelecionado === "todos" || eq.tipo_aparelho === tipoSelecionado
+    );
 
-const handleExportExcel = () => {
-  // Aplica o filtro global por tipo
-  const equipamentosFiltrados = equipamentos.filter(eq =>
-    tipoSelecionado === "todos" || eq.tipo_aparelho === tipoSelecionado
-  );
+    if (!equipamentosFiltrados.length) {
+      toast.info("Não há dados para exportar com o filtro atual.");
+      return;
+    }
 
-  if (equipamentosFiltrados.length === 0) {
-    toast.info("Não há dados para exportar com o filtro atual.");
-    return;
-  }
+    const wb = XLSX.utils.book_new();
 
-  const wb = XLSX.utils.book_new();
+    const linhas = equipamentosFiltrados.map((eq) => ({
+      Setor: eq.setor || "Não informado",
+      Tipo: eq.tipo_aparelho || "Não informado",
+      "Data Alteração": formatarData(eq.data_atualizacao),
+      Responsável: eq.pessoa_responsavel || "Não informado",
+      Email: eq.email_utilizado || "Não informado",
+      Cloud: eq.cloud_utilizado || "Não informado",
+      Descrição: eq.descricao || "Não informado",
+      Status: eq.status || "Não informado",
+      Obs: eq.observacoes || "",
+    }));
 
-  // Mapeia todos os equipamentos filtrados em uma única lista
-  const linhas = equipamentosFiltrados.map(eq => ({
-    "Setor": eq.setor || "Não informado",
-    "Tipo": eq.tipo_aparelho || "Não informado",
-    "Data Alteração": formatarData(eq.data_atualizacao),
-    "Responsável": eq.pessoa_responsavel || "Não informado",
-    "Email": eq.email_utilizado || "Não informado",
-    "Cloud": eq.cloud_utilizado || "Não informado",
-    "Descrição": eq.descricao || "Não informado",
-    "Status": eq.status || "Não informado",
-    "Obs": eq.observacoes || ""
-  }));
+    const ws = XLSX.utils.json_to_sheet(linhas, { skipHeader: false });
+    XLSX.utils.book_append_sheet(wb, ws, "Estoque TI");
 
-  const ws = XLSX.utils.json_to_sheet(linhas, { skipHeader: false });
-  XLSX.utils.book_append_sheet(wb, ws, "Estoque TI");
-
-  XLSX.writeFile(wb, "estoque_filtrado.xlsx");
-  toast.success("Excel gerado com sucesso!");
-};
-
+    XLSX.writeFile(wb, "estoque_filtrado.xlsx");
+    toast.success("Excel gerado com sucesso!");
+  };
 
   const handleSaveEdit = async (updatedEquipamento) => {
     try {
       await apiLocal.createOrUpdateControleEstoque(updatedEquipamento);
       fetchEquipamentos();
       setIsEditModalOpen(false);
-      toast.success('Equipamento editado com sucesso!');
+      toast.success("Equipamento editado com sucesso!");
     } catch (error) {
-      console.error('Erro ao salvar as alterações:', error);
+      console.error("Erro ao salvar as alterações:", error);
     }
   };
 
-  // **Correção do contador de Clouds Ativos**
+  // clouds ativos únicos
   const cloudsFiltrados = equipamentos
-    .filter(eq => eq.cloud_utilizado?.trim() && eq.cloud_utilizado.trim() !== "NA")
-    .map(eq => eq.cloud_utilizado.trim());
-
+    .filter(
+      (eq) => eq.cloud_utilizado?.trim() && eq.cloud_utilizado.trim() !== "NA"
+    )
+    .map((eq) => eq.cloud_utilizado.trim());
   const totalCloudsAtivos = [...new Set(cloudsFiltrados)].length;
 
+  // colunas da tabela
+  const columns = [
+    { label: "Tipo", key: "tipo_aparelho" },
+    { label: "Responsável", key: "pessoa_responsavel" },
+    { label: "Email", key: "email_utilizado" },
+    { label: "Cloud", key: "cloud_utilizado" },
+    { label: "Descrição", key: "descricao" },
+    { label: "Status", key: "status" },
+    { label: "Localização", key: "localizacao_fisica" },
+    { label: "Última alteração", key: "data_atualizacao" },
+    { label: "Ações", key: "acoes", sortable: false },
+  ];
+
+  const handleSort = (key) => {
+    const col = columns.find((c) => c.key === key);
+    if (col && col.sortable === false) return;
+
+    setSortConfig((prev) => {
+      if (prev.key === key) {
+        return {
+          key,
+          direction: prev.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const getSortableValue = (eq, key) => {
+    if (key === "tipo_aparelho") return eq.tipo_aparelho || "";
+    if (key === "pessoa_responsavel") return eq.pessoa_responsavel || "";
+    if (key === "email_utilizado") return eq.email_utilizado || "";
+    if (key === "cloud_utilizado") return eq.cloud_utilizado || "";
+    if (key === "descricao") return eq.descricao || "";
+    if (key === "status") return eq.status || "";
+    if (key === "localizacao_fisica") return eq.localizacao_fisica || "";
+    if (key === "data_atualizacao") return eq.data_atualizacao || "";
+    return "";
+  };
+
+  const getSortedEquipamentos = (lista) => {
+    if (!sortConfig.key || sortConfig.key === "acoes") return lista;
+
+    const data = [...lista];
+
+    data.sort((a, b) => {
+      const va = getSortableValue(a, sortConfig.key);
+      const vb = getSortableValue(b, sortConfig.key);
+
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+
+      const sa = String(va).toUpperCase();
+      const sb = String(vb).toUpperCase();
+
+      if (sa < sb) return sortConfig.direction === "asc" ? -1 : 1;
+      if (sa > sb) return sortConfig.direction === "asc" ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  };
+  const setorPalette = [
+    { border: "#c4b5fd", bg: "#f5f3ff" }, // roxo
+    { border: "#6ee7b7", bg: "#ecfdf5" }, // verde
+    { border: "#fcd34d", bg: "#fffbeb" }, // amarelo
+    { border: "#fca5a5", bg: "#fef2f2" }, // vermelho/rose
+    { border: "#7dd3fc", bg: "#eff6ff" }, // azul
+  ];
+
   return (
-    <StyledContainer>
-      <Container fluid>
-        <ModalCloud isOpen={cloudModalOpen} toggle={toggleCloudModal} equipamentos={equipamentos} />
-        <ModalLicenca isOpen={microsoftModalOpen} toggle={toggleMicrosoftModal} equipamentos={equipamentos} />
-        <ModalAparelho isOpen={aparelhoModalOpen} toggle={toggleAparelhoModal} equipamentos={equipamentos} />
+    <ThemeScope>
+      <NavBar />
+      <Page>
+        <GlobalModalStyles />
 
+        <TitleBar>
+          <H1 $accent="#0ea5e9">Estoque TI</H1>
 
-        <Row>
-          <Col md={12} className="text-center mb-4">
-            <h1>Estoque TI</h1>
-          </Col>
-          <Col md={12} className="text-center mb-4">
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
             <Button color="primary" onClick={toggleModal}>
               + Adicionar ao Estoque
             </Button>
-          </Col>
-        </Row>
-        <Row className="mb-3 align-items-end">
-          <Col md={4}>
-            <label htmlFor="filtroTipo">Filtrar por Tipo de Aparelho:</label>
-            <select
+            <Button color="success" onClick={handleExportExcel}>
+              Exportar Excel
+            </Button>
+          </div>
+        </TitleBar>
+
+        {/* Filtros + Cards */}
+        <Section>
+          <SectorFilterBar>
+            <FilterLabel htmlFor="filtroTipo">Tipo de aparelho</FilterLabel>
+            <SectorSelect
               id="filtroTipo"
-              className="form-control"
               value={tipoSelecionado}
               onChange={(e) => setTipoSelecionado(e.target.value)}
             >
               <option value="todos">Todos</option>
-              {tiposAparelhos.map(tipo => (
+              {tiposAparelhos.map((tipo) => (
                 <option key={tipo} value={tipo}>
                   {tipo}
                 </option>
               ))}
-            </select>
-          </Col>
+            </SectorSelect>
+          </SectorFilterBar>
 
-          <Col md="auto">
-            <Button color="success" onClick={handleExportExcel}>
-              Exportar Excel
-            </Button>
-          </Col>
-        </Row>
+          <InfoGrid style={{ marginTop: 12 }}>
+            <InfoItem $clickable onClick={toggleAparelhoModal}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <FaLaptop />
+                <div>
+                  <small>Total de aparelhos</small>
+                  <div style={{ fontSize: 24, fontWeight: 700 }}>
+                    {equipamentos.length}
+                  </div>
+                </div>
+              </div>
+              <small style={{ fontStyle: "italic" }}>
+                Clique para ver o detalhamento
+              </small>
+            </InfoItem>
 
+            <InfoItem $clickable onClick={toggleCloudModal}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <FaCloud />
+                <div>
+                  <small>Clouds ativos</small>
+                  <div style={{ fontSize: 24, fontWeight: 700 }}>
+                    {totalCloudsAtivos}
+                  </div>
+                </div>
+              </div>
+              <small style={{ fontStyle: "italic" }}>
+                Clique para ver o detalhamento
+              </small>
+            </InfoItem>
 
-        {/* Cards Personalizados */}
-        <Row>
-          <Col md={4}>
-            <CardStyle
-              bgColor="rgba(70, 130, 180, 0.2)"
-              iconColor="#4682B4"
-              onClick={toggleAparelhoModal}
-              style={{ cursor: "pointer" }}
-            >
-              <h3>
-                <FaLaptop /> Quantidade de Aparelhos
-              </h3>
-              <p style={{ fontSize: 32, fontWeight: 700 }}>{equipamentos.length}</p>
-              <p style={{ fontSize: 14, fontStyle: "italic" }}>
-                Clique para mais informações
-              </p>
-            </CardStyle>
-          </Col>
+            <InfoItem $clickable onClick={toggleMicrosoftModal}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <FaEnvelope />
+                <div>
+                  <small>Licenças Microsoft</small>
+                  <div style={{ fontSize: 24, fontWeight: 700 }}>
+                    {
+                      equipamentos.filter((eq) => eq.email_utilizado?.trim())
+                        .length
+                    }
+                  </div>
+                </div>
+              </div>
+              <small style={{ fontStyle: "italic" }}>
+                Clique para ver o detalhamento
+              </small>
+            </InfoItem>
+          </InfoGrid>
+        </Section>
 
+        {/* Tabelas por setor */}
+        <Section style={{ marginTop: 16 }}>
+          {setores.map((setor, index) => {
+            const equipamentosDoSetor = equipamentos.filter((eq) => {
+              const filtroTipoOk =
+                tipoSelecionado === "todos" ||
+                eq.tipo_aparelho === tipoSelecionado;
+              return eq.setor === setor && filtroTipoOk;
+            });
 
-          <Col md={4}>
-            <CardStyle
-              bgColor="rgba(255, 140, 0, 0.2)"
-              iconColor="#FF8C00"
-              onClick={toggleCloudModal}
-              style={{ cursor: "pointer" }}
-            >
-              <h3>
-                <FaCloud /> Clouds Ativos
-              </h3>
-              <p style={{ fontSize: 32, fontWeight: 700 }}>{totalCloudsAtivos}</p>
-              <p style={{ fontSize: 14, fontStyle: "italic" }}>
-                Clique para mais informações
-              </p>
-            </CardStyle>
-          </Col>
+            const sorted = getSortedEquipamentos(equipamentosDoSetor);
 
-          <Col md={4}>
-            <CardStyle
-              bgColor="rgba(34, 139, 34, 0.2)"
-              iconColor="#228B22"
-              onClick={toggleMicrosoftModal}
-              style={{ cursor: "pointer" }}
-            >
-              <h3>
-                <FaEnvelope /> Licenças Microsoft
-              </h3>
-              <p style={{ fontSize: 32, fontWeight: 700 }}>{equipamentos.filter(eq => eq.email_utilizado?.trim()).length}</p>
-              <p style={{ fontSize: 14, fontStyle: "italic" }}>
-                Clique para mais informações
-              </p>
-            </CardStyle>
-          </Col>
-        </Row>
-        <Row className="mt-3">
+            // pega um par de cores da paleta com base no índice
+            const colors = setorPalette[index % setorPalette.length];
 
-        </Row>
+            return (
+              <SetorSection
+                key={setor}
+                $borderColor={colors.border}
+                $bgColor={colors.bg}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    marginTop: 0,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: "999px",
+                      background: colors.border,
+                      boxShadow: "0 0 0 3px rgba(0,0,0,0.04)",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <h3 style={{ margin: 0 }}>{setor}</h3>
+                </div>
 
-        {/* Exibição por Setor */}
-        {setores.map((setor) => {
-          const equipamentosDoSetor = equipamentos.filter(eq => {
-            const filtroTipoOk = tipoSelecionado === "todos" || eq.tipo_aparelho === tipoSelecionado;
-            return eq.setor === setor && filtroTipoOk;
-          });
+                <TableWrap>
+                  <Table>
+                    {/* ... resto da tabela igual ... */}
 
-          return (
-            <SetorSection key={setor}>
-              <h3>{setor}</h3>
-              <hr />
-              <TabelaEquipamentos
-                equipamentos={equipamentosDoSetor}
-                onEdit={handleEditClick}
-                onDelete={(equipamento) => {
-                  setEquipamentoToDelete(equipamento);
-                  setIsDeleteModalOpen(true);
-                }}
-                onInfo={setSelectedEquipamento}
-              />
-            </SetorSection>
-          );
-        })}
+                    <thead>
+                      <tr>
+                        {columns.map((col) => {
+                          const isActive = sortConfig.key === col.key;
+                          const arrow =
+                            col.sortable === false
+                              ? ""
+                              : isActive
+                              ? sortConfig.direction === "asc"
+                                ? "▲"
+                                : "▼"
+                              : "↕";
 
+                          return (
+                            <Th
+                              key={col.key}
+                              onClick={() =>
+                                col.sortable === false
+                                  ? undefined
+                                  : handleSort(col.key)
+                              }
+                              style={{
+                                padding: "4px 6px",
+                                whiteSpace: "nowrap",
+                                lineHeight: 1,
+                                minWidth: 120,
+                                cursor:
+                                  col.sortable === false
+                                    ? "default"
+                                    : "pointer",
+                                userSelect: "none",
+                              }}
+                            >
+                              <span>{col.label}</span>
+                              {col.sortable === false ? null : (
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    opacity: 0.7,
+                                    marginLeft: 4,
+                                  }}
+                                >
+                                  {arrow}
+                                </span>
+                              )}
+                            </Th>
+                          );
+                        })}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sorted.map((eq) => (
+                        <tr
+                          key={eq.id}
+                          onClick={() => setSelectedEquipamento(eq)}
+                          style={{ cursor: "pointer" }}
+                        >
+                          {/* Tipo */}
+                          <TdCompact>{eq.tipo_aparelho || "—"}</TdCompact>
 
-        {/* Almoxarifado (Backup) - Só aparece se showBackup for verdadeiro */}
+                          {/* Responsável */}
+                          <TdCompact>{eq.pessoa_responsavel || "—"}</TdCompact>
 
+                          {/* Email */}
+                          <TdCompact>{eq.email_utilizado || "—"}</TdCompact>
+
+                          {/* Cloud */}
+                          <TdCompact>{eq.cloud_utilizado || "—"}</TdCompact>
+
+                          {/* Descrição */}
+                          <TdCompact
+                            style={{
+                              maxWidth: 260,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            title={eq.descricao || ""}
+                          >
+                            {eq.descricao || "—"}
+                          </TdCompact>
+
+                          {/* Status */}
+                          <TdCompact>
+                            <StatusBadge $status={eq.status}>
+                              {eq.status || "—"}
+                            </StatusBadge>
+                          </TdCompact>
+
+                          {/* Localização */}
+                          <TdCompact>{eq.localizacao_fisica || "—"}</TdCompact>
+
+                          {/* Última alteração */}
+                          <TdCompact>
+                            {formatarData(eq.data_atualizacao)}
+                          </TdCompact>
+
+                          {/* Ações */}
+                          {/* Ações */}
+                          <TdCompact onClick={(e) => e.stopPropagation()}>
+                            <div
+                              style={{
+                                display: "flex",
+                                gap: 6,
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                              }}
+                            >
+                              {/* Editar */}
+                              <Button
+                                size="sm"
+                                color="warning"
+                                onClick={() => handleEditClick(eq)}
+                                style={{
+                                  padding: "2px 6px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                                title="Editar"
+                              >
+                                <FaEdit size={14} />
+                              </Button>
+
+                              {/* Excluir */}
+                              <Button
+                                size="sm"
+                                color="danger"
+                                onClick={() => {
+                                  setEquipamentoToDelete(eq);
+                                  setIsDeleteModalOpen(true);
+                                }}
+                                style={{
+                                  padding: "2px 6px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                }}
+                                title="Excluir"
+                              >
+                                <FaTrash size={14} />
+                              </Button>
+                            </div>
+                          </TdCompact>
+                        </tr>
+                      ))}
+
+                      {!sorted.length && (
+                        <tr>
+                          <Td colSpan={columns.length} style={{ opacity: 0.7 }}>
+                            Nenhum equipamento neste setor com o filtro atual.
+                          </Td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </Table>
+                </TableWrap>
+              </SetorSection>
+            );
+          })}
+        </Section>
 
         {/* Modal de Adicionar */}
         {isModalOpen && <ModalAdd isOpen={isModalOpen} toggle={toggleModal} />}
@@ -283,6 +553,8 @@ const handleExportExcel = () => {
             onSave={handleSaveEdit}
           />
         )}
+
+        {/* Modal de Delete */}
         <ModalDel
           isOpen={isDeleteModalOpen}
           toggle={() => setIsDeleteModalOpen(false)}
@@ -290,27 +562,71 @@ const handleExportExcel = () => {
           itemName={equipamentoToDelete?.tipo_aparelho}
         />
 
-
         {/* Modal de Detalhes */}
         {selectedEquipamento && (
-          <Modal isOpen={true} toggle={toggleDetailsModal} size="md">
-            <ModalHeader toggle={toggleDetailsModal}>Detalhes do Equipamento</ModalHeader>
+          <Modal
+            isOpen={true}
+            toggle={toggleDetailsModal}
+            size="md"
+            contentClassName={MODAL_CLASS}
+          >
+            <ModalHeader toggle={toggleDetailsModal}>
+              Detalhes do Equipamento
+            </ModalHeader>
             <ModalBody>
-              <p><strong>Tipo:</strong> {selectedEquipamento.tipo_aparelho}</p>
-              <p><strong>Responsável:</strong> {selectedEquipamento.pessoa_responsavel || 'Não informado'}</p>
-              <p><strong>Email:</strong> {selectedEquipamento.email_utilizado || 'Não informado'}</p>
-              <p><strong>Cloud:</strong> {selectedEquipamento.cloud_utilizado || 'Não informado'}</p>
-              <p><strong>Descrição:</strong> {selectedEquipamento.descricao}</p>
-              <p><strong>Localização Física:</strong> {selectedEquipamento.localizacao_fisica}</p>
-              <p><strong>Obs adicional:</strong> {selectedEquipamento.observacoes || 'Não informado'}</p>
-              <p><strong>Numero serie:</strong> {selectedEquipamento.numero_serie || 'Não informado'}</p>
+              <p>
+                <strong>Tipo:</strong> {selectedEquipamento.tipo_aparelho}
+              </p>
+              <p>
+                <strong>Responsável:</strong>{" "}
+                {selectedEquipamento.pessoa_responsavel || "Não informado"}
+              </p>
+              <p>
+                <strong>Email:</strong>{" "}
+                {selectedEquipamento.email_utilizado || "Não informado"}
+              </p>
+              <p>
+                <strong>Cloud:</strong>{" "}
+                {selectedEquipamento.cloud_utilizado || "Não informado"}
+              </p>
+              <p>
+                <strong>Descrição:</strong> {selectedEquipamento.descricao}
+              </p>
+              <p>
+                <strong>Localização Física:</strong>{" "}
+                {selectedEquipamento.localizacao_fisica}
+              </p>
+              <p>
+                <strong>Obs adicional:</strong>{" "}
+                {selectedEquipamento.observacoes || "Não informado"}
+              </p>
+              <p>
+                <strong>Número série:</strong>{" "}
+                {selectedEquipamento.numero_serie || "Não informado"}
+              </p>
             </ModalBody>
           </Modal>
         )}
-      </Container>
-    </StyledContainer>
+
+        {/* Modais de dashboards auxiliares */}
+        <ModalCloud
+          isOpen={cloudModalOpen}
+          toggle={toggleCloudModal}
+          equipamentos={equipamentos}
+        />
+        <ModalLicenca
+          isOpen={microsoftModalOpen}
+          toggle={toggleMicrosoftModal}
+          equipamentos={equipamentos}
+        />
+        <ModalAparelho
+          isOpen={aparelhoModalOpen}
+          toggle={toggleAparelhoModal}
+          equipamentos={equipamentos}
+        />
+      </Page>
+    </ThemeScope>
   );
 }
 
 export default EstoqueTi;
-

@@ -206,7 +206,7 @@ const App = () => {
         {/* Gestão de Acessos */}
         <Route
           path="/Projetos/GestaoAcessos"
-          element={<PrivateRoute element={<GestaoAcessos />} allowedSectors={[SECTORS.ADMIN]} />}
+          element={<PrivateRoute element={<GestaoAcessos />} allowedSectors={[SECTORS.ADMIN, SECTORS.TI]} />}
         />
           <Route
          path="/conferencia"

@@ -22,6 +22,7 @@ import {
   FiClipboard,
   FiUsers,
   FiActivity,
+  FiCpu,
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
@@ -112,6 +113,38 @@ export default function NavBar() {
     );
   }, [user?.tipo, userSectorNames]);
 
+  // ===== SETORES / FLAGS (antes de usar no useMemo) =====
+  const setorIds = (Array.isArray(user?.setor_ids) ? user.setor_ids : []).map(
+    Number
+  );
+
+  const isSetor23 = setorIds.includes(23); // Fersa
+  const isSetor6 = setorIds.includes(6);
+  const isSetor9 = setorIds.includes(9);
+  const isSetorTI = setorIds.includes(2); // TI
+  const isSetor7 = setorIds.includes(7);
+  const isSetor16 = setorIds.includes(16);
+  const isSetor25 = setorIds.includes(25); // Coletores
+
+  const lowerSetores = Array.isArray(user?.setores)
+    ? user.setores.map((s) => String(s).toLowerCase())
+    : [];
+
+  const isFersa =
+    isSetor23 ||
+    lowerSetores.includes("fersa_cliente") ||
+    userSectorNames.some(
+      (n) => String(n || "").toLowerCase() === "fersa_cliente"
+    );
+
+  const isColetores =
+    isSetor25 ||
+    lowerSetores.includes("coletores") ||
+    userSectorNames.some((n) => String(n || "").toLowerCase() === "coletores");
+
+  const isRestrictedUser = isFersa || isColetores;
+
+  // ===== ITENS PRINCIPAIS DO MENU =====
   const items = useMemo(() => {
     const base = [
       {
@@ -133,8 +166,18 @@ export default function NavBar() {
         to: "/sac",
       },
     ];
+
     if (isAdmin) {
-      base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
+      base.unshift({
+        key: "geral",
+        label: "Geral",
+        icon: <FiHome />,
+        to: "/",
+      });
+    }
+
+    // Gestão de Acessos → Admin OU Setor TI (2)
+    if (isAdmin || isSetorTI) {
       base.push({
         key: "acessos",
         label: "Gestão de Acessos",
@@ -142,8 +185,9 @@ export default function NavBar() {
         to: "/projetos/gestaoacessos",
       });
     }
+
     return base;
-  }, [isAdmin]);
+  }, [isAdmin, isSetorTI]);
 
   const avatarInitial = (
     user?.email?.split("@")[0]?.slice(0, 2) || "U"
@@ -175,37 +219,6 @@ export default function NavBar() {
     };
   }, []);
 
-  const setorIds = (Array.isArray(user?.setor_ids) ? user.setor_ids : []).map(
-    Number
-  );
-
-  const isSetor23 = setorIds.includes(23); // Fersa
-  const isSetor6 = setorIds.includes(6);
-  const isSetor9 = setorIds.includes(9);
-  const isSetor7 = setorIds.includes(7);
-  const isSetor16 = setorIds.includes(16);
-  const isSetor25 = setorIds.includes(25); // Coletores
-
-  const lowerSetores = Array.isArray(user?.setores)
-    ? user.setores.map((s) => String(s).toLowerCase())
-    : [];
-
-  // Flags semânticas
-  const isFersa =
-    isSetor23 ||
-    lowerSetores.includes("fersa_cliente") ||
-    userSectorNames.some(
-      (n) => String(n || "").toLowerCase() === "fersa_cliente"
-    );
-
-  const isColetores =
-    isSetor25 ||
-    lowerSetores.includes("coletores") ||
-    userSectorNames.some((n) => String(n || "").toLowerCase() === "coletores");
-
-  // Restrição do MENU PRINCIPAL: Fersa e Coletores só Conferência
-  const isRestrictedUser = isFersa || isColetores;
-
   // Se não tiver user ainda, não renderiza nada
   if (!user) return null;
 
@@ -213,7 +226,6 @@ export default function NavBar() {
   if (isRestrictedUser) {
     return (
       <NavWrap ref={navWrapRef} data-open={mobileOpen}>
-        {/* Botão Hamburguer (mobile) */}
         <button
           className="nav-hamburger"
           aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
@@ -226,7 +238,6 @@ export default function NavBar() {
         </button>
 
         <NavInner>
-          {/* Conferência sempre visível pra restritos */}
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"
@@ -269,7 +280,6 @@ export default function NavBar() {
                   zIndex: 10,
                 }}
               >
-                {/* Pedidos – todos restritos enxergam */}
                 {!isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/dashboard"}
@@ -304,7 +314,6 @@ export default function NavBar() {
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
 
-                {/* Relatório – liberado para Fersa (não coletores) */}
                 {!isColetores && (
                   <NavItem
                     $active={pathname === "/conferencia/relatorio"}
@@ -395,7 +404,6 @@ export default function NavBar() {
   // ===== MENU NORMAL (não restrito) =====
   return (
     <NavWrap ref={navWrapRef} data-open={mobileOpen}>
-      {/* Botão Hamburguer (mobile) */}
       <button
         className="nav-hamburger"
         aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
@@ -423,7 +431,12 @@ export default function NavBar() {
           </NavItem>
         ))}
 
-        {(isSetor16 ||isSetor7 || isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
+        {(isSetor16 ||
+          isSetor7 ||
+          isSetor6 ||
+          isSetor9 ||
+          isSetor23 ||
+          isSetor25) && (
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"
@@ -466,7 +479,7 @@ export default function NavBar() {
                   zIndex: 10,
                 }}
               >
-                { !isSetor25 && (
+                {!isSetor25 && (
                   <NavItem
                     $active={pathname === "/conferencia/dashboard"}
                     onClick={() => {
@@ -483,6 +496,7 @@ export default function NavBar() {
                     <NavLabel>Dashboard</NavLabel>
                   </NavItem>
                 )}
+
                 <NavItem
                   $active={pathname === "/conferencia"}
                   onClick={() => {
@@ -537,6 +551,24 @@ export default function NavBar() {
               </div>
             )}
           </div>
+        )}
+
+       {(isAdmin || isSetorTI) && (
+
+          <NavItem
+            key="estoque-ti"
+            $active={pathname.toLowerCase().startsWith("/ti")}
+            onClick={() => {
+              setMobileOpen(false);
+              navigate("/ti");
+            }}
+            title="Estoque TI"
+          >
+            <NavIcon>
+              <FiCpu />
+            </NavIcon>
+            <NavLabel>Estoque TI</NavLabel>
+          </NavItem>
         )}
 
         <NavSpacer />

@@ -1,45 +1,67 @@
-import React from 'react';
-import { Modal, ModalHeader, ModalBody, Table } from 'reactstrap';
-import { FaLaptop, FaDesktop, FaNetworkWired, FaWifi, FaMobileAlt, FaBox, FaEnvelope } from 'react-icons/fa';
-import { LiaMicrochipSolid } from "react-icons/lia"; // Ícone correto para Chip
-import * as XLSX from 'xlsx';
-import { Button } from 'reactstrap';
+import React from "react";
+import { Modal, ModalHeader, ModalBody } from "reactstrap";
+import { Button } from "reactstrap";
+import {
+  FaLaptop,
+  FaDesktop,
+  FaNetworkWired,
+  FaWifi,
+  FaMobileAlt,
+  FaBox,
+  FaEnvelope,
+} from "react-icons/fa";
+import { LiaMicrochipSolid } from "react-icons/lia";
+import * as XLSX from "xlsx";
+
+import {
+  InfoGrid,
+  InfoItem,
+  TableWrap,
+  Table,
+  Th,
+  Td,
+  MODAL_CLASS,
+} from "../style";
 
 const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
-  // Mapeamento dos ícones por tipo de aparelho
+  // Ícone por tipo
   const iconePorTipo = {
-    Notebook: <FaLaptop size={30} />,
-    Desktop: <FaDesktop size={30} />,
-    Switch: <FaNetworkWired size={30} />,
-    Roteador: <FaWifi size={30} />,
-    Licença: <FaEnvelope size={30} />,
-    Celular: <FaMobileAlt size={30} />,
-    Chip: <LiaMicrochipSolid size={30} /> // Ícone correto para Chip
+    Notebook: <FaLaptop size={18} />,
+    Desktop: <FaDesktop size={18} />,
+    Switch: <FaNetworkWired size={18} />,
+    Roteador: <FaWifi size={18} />,
+    Licença: <FaEnvelope size={18} />,
+    Celular: <FaMobileAlt size={18} />,
+    Chip: <LiaMicrochipSolid size={18} />,
   };
 
-  // Agrupar os tipos de aparelhos por setor
+  // Agrupar por setor / tipo (mantendo regra Celular+Chip)
   const agrupados = {};
-  
+
   equipamentos.forEach(({ setor, tipo_aparelho, descricao }) => {
+    if (!setor) return;
     if (!agrupados[setor]) agrupados[setor] = {};
 
     if (tipo_aparelho === "Celular") {
-      if (descricao.includes("Celular+Chip")) {
-        agrupados[setor]["Celular"] = (agrupados[setor]["Celular"] || 0) + 1;
+      if (descricao?.includes("Celular+Chip")) {
+        agrupados[setor]["Celular"] =
+          (agrupados[setor]["Celular"] || 0) + 1;
         agrupados[setor]["Chip"] = (agrupados[setor]["Chip"] || 0) + 1;
         return;
-      } else if (descricao.includes("Chip") && !descricao.includes("Celular")) {
+      } else if (descricao?.includes("Chip") && !descricao.includes("Celular")) {
         agrupados[setor]["Chip"] = (agrupados[setor]["Chip"] || 0) + 1;
         return;
       }
-      agrupados[setor]["Celular"] = (agrupados[setor]["Celular"] || 0) + 1;
+      agrupados[setor]["Celular"] =
+        (agrupados[setor]["Celular"] || 0) + 1;
       return;
     }
 
-    agrupados[setor][tipo_aparelho] = (agrupados[setor][tipo_aparelho] || 0) + 1;
+    agrupados[setor][tipo_aparelho] =
+      (agrupados[setor][tipo_aparelho] || 0) + 1;
   });
 
-  // Contagem total de cada tipo de aparelho
+  // Totais por tipo
   const totalPorTipo = {};
   Object.values(agrupados).forEach((setor) => {
     Object.entries(setor).forEach(([tipo, quantidade]) => {
@@ -47,7 +69,7 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
     });
   });
 
-  // Converter para um array para exibição na tabela
+  // Dados para tabela
   const dadosTabela = [];
   Object.entries(agrupados).forEach(([setor, aparelhos]) => {
     Object.entries(aparelhos).forEach(([tipo, quantidade]) => {
@@ -57,11 +79,11 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
 
   const exportarParaExcel = () => {
     const dadosFormatados = dadosTabela.map((item) => ({
-      "Setor": item.setor,
+      Setor: item.setor,
       "Tipo de Aparelho": item.tipo,
-      "Quantidade": item.quantidade,
+      Quantidade: item.quantidade,
     }));
-  
+
     const ws = XLSX.utils.json_to_sheet(dadosFormatados);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Aparelhos por Setor");
@@ -69,44 +91,98 @@ const ModalAparelho = ({ isOpen, toggle, equipamentos }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} toggle={toggle} size="lg">
+    <Modal
+      isOpen={isOpen}
+      toggle={toggle}
+      size="lg"
+      contentClassName={MODAL_CLASS}
+    >
       <ModalHeader toggle={toggle}>Quantidade de Aparelhos por Setor</ModalHeader>
-      <Button color="success" onClick={exportarParaExcel} style={{ width:'200px',marginTop:15, marginLeft:15, marginBottom: "20px" }}>
-  Exportar para Excel
-</Button>
-      <ModalBody>
 
-        {/* Linha de Ícones com Contadores */}
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '30px', marginBottom: '20px', flexWrap: 'wrap' }}>
-          {Object.entries(totalPorTipo).map(([tipo, quantidade]) => (
-            <div key={tipo} style={{ textAlign: 'center' }}>
-              {iconePorTipo[tipo] || <FaBox size={30} />} {/* Ícone padrão se não houver */}
-              <h2>{quantidade}</h2>
-              <p style={{ fontSize: '14px', fontWeight: 'bold' }}>{tipo}</p>
-            </div>
-          ))}
+      <ModalBody>
+        {/* Botão de export na header do conteúdo */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            marginBottom: 12,
+          }}
+        >
+          <Button color="success" onClick={exportarParaExcel}>
+            Exportar para Excel
+          </Button>
         </div>
 
-        {/* Tabela de Quantidades por Setor */}
-        <Table bordered>
-          <thead>
-            <tr>
-              <th>Setor</th>
-              <th>Tipo de Aparelho</th>
-              <th>Quantidade</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dadosTabela.map((item, index) => (
-              <tr key={index}>
-                <td>{item.setor}</td>
-                <td>{item.tipo}</td>
-                <td>{item.quantidade}</td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+        {/* Cards de tipos com ícones modernos */}
+        <InfoGrid style={{ marginBottom: 16 }}>
+          {Object.entries(totalPorTipo).map(([tipo, quantidade]) => (
+            <InfoItem key={tipo}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  justifyContent: "space-between",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "999px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "rgba(59,130,246,0.12)",
+                    }}
+                  >
+                    {iconePorTipo[tipo] || <FaBox size={18} />}
+                  </div>
+                  <div>
+                    <div
+                      style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}
+                    >
+                      {tipo}
+                    </div>
+                    <small>Total no estoque</small>
+                  </div>
+                </div>
+                <div style={{ fontSize: 22, fontWeight: 800 }}>{quantidade}</div>
+              </div>
+            </InfoItem>
+          ))}
+        </InfoGrid>
 
+        {/* Tabela estilizada no mesmo padrão da página */}
+        <TableWrap>
+          <Table>
+            <thead>
+              <tr>
+                <Th>Setor</Th>
+                <Th>Tipo de Aparelho</Th>
+                <Th>Quantidade</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {dadosTabela.map((item, index) => (
+                <tr key={`${item.setor}-${item.tipo}-${index}`}>
+                  <Td>{item.setor}</Td>
+                  <Td>{item.tipo}</Td>
+                  <Td>{item.quantidade}</Td>
+                </tr>
+              ))}
+
+              {!dadosTabela.length && (
+                <tr>
+                  <Td colSpan={3} style={{ opacity: 0.7 }}>
+                    Nenhum dado encontrado.
+                  </Td>
+                </tr>
+              )}
+            </tbody>
+          </Table>
+        </TableWrap>
       </ModalBody>
     </Modal>
   );

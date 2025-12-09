@@ -38,7 +38,25 @@ export default function GestaoAcessos() {
   const isAdmin = !!(
     user?.tipo === ADMIN_UUID || user?.setores?.includes?.(ADMIN_UUID)
   );
+  const setorIds = useMemo(
+    () =>
+      (Array.isArray(user?.setor_ids) ? user.setor_ids : []).map((n) =>
+        Number(n)
+      ),
+    [user]
+  );
 
+  // usuário é TI se tiver setor_id 2 ou setor "ti" no nome
+  const isSetorTI = useMemo(() => {
+    const hasId2 = setorIds.includes(2);
+    const hasNameTI =
+      Array.isArray(user?.setores) &&
+      user.setores.some((s) => String(s).toLowerCase() === "ti");
+    return hasId2 || hasNameTI;
+  }, [setorIds, user]);
+
+  // Regra de acesso: Admin OU TI
+  const canAccessGestao = isAdmin || isSetorTI;
   const [users, setUsers] = useState([]);
   const [sectors, setSectors] = useState([]);
   const [q, setQ] = useState("");
@@ -94,7 +112,7 @@ export default function GestaoAcessos() {
     });
   }, [q, users, sectors]);
 
-  if (!isAdmin) {
+  if (!canAccessGestao) {
     return (
       <>
         <NavBar />
@@ -103,7 +121,8 @@ export default function GestaoAcessos() {
           <TopBar>
             <Title>Gestão de Acessos</Title>
           </TopBar>
-          <Help>Somente administradores podem acessar esta página.</Help>
+          <Help>Somente administradores ou TI podem acessar esta página.</Help>
+
         </Page>
       </>
     );
