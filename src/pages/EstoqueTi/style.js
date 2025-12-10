@@ -375,6 +375,12 @@ export const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+
+  .linha-hover:hover {
+  opacity: 0.5;/* cinza leve */
+  transition: background 0.7s ease;
+}
+
 `;
 
 export const Th = styled.th`
@@ -405,7 +411,7 @@ export const Td = styled.td`
 `;
 
 export const TdCompact = styled(Td)`
-  padding: 4px 6px;
+  padding: 3px 2px;
   white-space: nowrap;
   line-height: 1.2;
   vertical-align: middle;

@@ -433,6 +433,7 @@ function EstoqueTi() {
                     <tbody>
                       {sorted.map((eq) => (
                         <tr
+                        className="linha-hover"
                           key={eq.id}
                           onClick={() => setSelectedEquipamento(eq)}
                           style={{ cursor: "pointer" }}
@@ -452,7 +453,7 @@ function EstoqueTi() {
                           {/* Descrição */}
                           <TdCompact
                             style={{
-                              maxWidth: 260,
+                              maxWidth: 150,
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                             }}
