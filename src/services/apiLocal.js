@@ -491,6 +491,26 @@ const apiLocal = {
   // ========================
   expedirPedido: (data) => api.post("/expedicao/expedir", data),
   expedirLote: (data) => api.post("/expedicao/expedir-lote", data),
+// Frota (Horário Almoço)
+getHorarioAlmoco: (params) =>
+  api.get("/horario_almoco/horario-almoco", { params }),
+
+getHorarioAlmocoOpcoes: (params) =>
+  api.get("/horario_almoco/horario-almoco/opcoes-filtros", { params }),
+
+indicadorHorarioAlmocoV3: (params) =>
+  api.get("/horario_almoco/horario-almoco/indicador-v3", { params }),
+
+getHorarioAlmocoInconsistencias: (params) =>
+  api.get("/horario_almoco/horario-almoco/inconsistencias", { params }),
+
+getHorarioAlmocoById: (id) =>
+  api.get(`/horario_almoco/horario-almoco/${id}`),
+
+updateHorarioAlmoco: (id, body, actor) =>
+  api.put(`/horario_almoco/horario-almoco/${id}`, body, {
+    params: { actor },
+  }),
 
   // ========================
   // ETIQUETAS

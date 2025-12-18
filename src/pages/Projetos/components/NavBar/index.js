@@ -14,6 +14,7 @@ import {
   FiTruck,
   FiMoon,
   FiSun,
+  FiMap,
   FiShield,
   FiHeadphones,
   FiLogOut,
@@ -125,6 +126,7 @@ export default function NavBar() {
   const isSetor7 = setorIds.includes(7);
   const isSetor16 = setorIds.includes(16);
   const isSetor25 = setorIds.includes(25); // Coletores
+  const isSetor14 = setorIds.includes(14); // Frota
 
   const lowerSetores = Array.isArray(user?.setores)
     ? user.setores.map((s) => String(s).toLowerCase())
@@ -146,26 +148,36 @@ export default function NavBar() {
 
   // ===== ITENS PRINCIPAIS DO MENU =====
   const items = useMemo(() => {
-    const base = [
-      {
-        key: "projetos",
-        label: "Projetos",
-        icon: <FiFolder />,
-        to: "/projetos",
-      },
-      {
-        key: "frete",
-        label: "Ir para o Frete",
-        icon: <FiTruck />,
-        to: "/frete",
-      },
-      {
-        key: "sac",
-        label: "Ir para o SAC",
-        icon: <FiHeadphones />,
-        to: "/sac",
-      },
-    ];
+  const base = [
+    {
+      key: "projetos",
+      label: "Projetos",
+      icon: <FiFolder />,
+      to: "/projetos",
+    },
+    {
+      key: "frete",
+      label: "Ir para o Frete",
+     icon: <FiMap />,
+      to: "/frete",
+    },
+   ...(isAdmin || isSetor14
+     ? [
+         {
+           key: "frota",
+           label: "Frota",
+           icon: <FiTruck />,
+           to: "/frota",
+         },
+       ]
+     : []),
+    {
+      key: "sac",
+      label: "Ir para o SAC",
+      icon: <FiHeadphones />,
+      to: "/sac",
+    },
+  ];
 
     if (isAdmin) {
       base.unshift({
@@ -187,7 +199,7 @@ export default function NavBar() {
     }
 
     return base;
-  }, [isAdmin, isSetorTI]);
+  }, [isAdmin, isSetorTI,isSetor14]);
 
   const avatarInitial = (
     user?.email?.split("@")[0]?.slice(0, 2) || "U"
@@ -395,7 +407,7 @@ export default function NavBar() {
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
-          <NavLabel>Versão 1.2.8</NavLabel>
+          <NavLabel>Versão 1.2.9</NavLabel>
         </NavInner>
       </NavWrap>
     );
@@ -581,7 +593,7 @@ export default function NavBar() {
             onClick={(e) => e.stopPropagation()}
           >
             <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2.8" />
+              <Notas version="1.2.9" />
             </NavIcon>
             <NavLabel>Notas nova versão</NavLabel>
           </NavItem>
@@ -664,7 +676,7 @@ export default function NavBar() {
           <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
         </NavItem>
 
-        <NavLabel>Versão 1.2.8</NavLabel>
+        <NavLabel>Versão 1.2.9</NavLabel>
       </NavInner>
     </NavWrap>
   );

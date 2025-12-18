@@ -10,7 +10,7 @@ import CargaLucrativa from './pages/CargaLucrativa';
 import Projetos from './pages/Projetos';
 import Integrantes from './pages/Projetos/Integrantes';
 import ProjetoDetalhe from './pages/Projetos/ProjetoDetalhe';
-
+import { GlobalThemeVars } from "./themeGlobals";
 import GestaoAcessos from './pages/Projetos/GestaoAcessos';
 import Login from './pages/Login';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -23,6 +23,7 @@ import Projecao from './pages/Projecao';
 
 import apiLocal from './services/apiLocal';
 import { useInactivityLogout } from './hooks/useInactivityLogout';
+import Frota from './pages/Projetos/Frota';
 
 const ADMIN_UUID = 'c1b389cb-7dee-4f91-9687-b1fad9acbf4c';
 
@@ -36,10 +37,12 @@ const SECTORS = {
   GERENTE_OPERACAO: 16,
   FERSA_CLIENTE: 23,
   COLETORES: 25,
+  FROTA: 14,
   ARMAZENAGEM: 9
 };
 
 const App = () => {
+  
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('user') || 'null'); }
     catch { return null; }
@@ -100,6 +103,7 @@ const App = () => {
 
   return (
     <>
+    <GlobalThemeVars />
       {user?.tipo === ADMIN_UUID && <AdminNavbar />}
 
       <Routes>
@@ -214,6 +218,15 @@ const App = () => {
            <PrivateRoute
              element={<Separacao />}
              allowedSectors={[SECTORS.OPERACAO, SECTORS.SAC, SECTORS.GERENTE_OPERACAO, SECTORS.ADMIN,SECTORS.ARMAZENAGEM, SECTORS.FERSA_CLIENTE, SECTORS.COLETORES, SECTORS.QUALIDADE]}
+           />
+         }
+       />
+          <Route
+         path="/Frota"
+         element={
+           <PrivateRoute
+             element={<Frota />}
+             allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]}
            />
          }
        />
