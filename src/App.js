@@ -221,15 +221,26 @@ const App = () => {
            />
          }
        />
-          <Route
-         path="/Frota"
-         element={
-           <PrivateRoute
-             element={<Frota />}
-             allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]}
-           />
-         }
-       />
+<Route
+  path="/Frota/Analise-HA"
+  element={
+    <PrivateRoute
+      element={<Frota />}
+      allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]}
+    />
+  }
+/>
+
+<Route
+  path="/Frota/Analise-Performaxxi"
+  element={
+    <PrivateRoute
+      element={<Frota />}
+      allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]}
+    />
+  }
+/>
+
           <Route
          path="/conferencia/integrantes"
          element={

@@ -36,6 +36,7 @@ export default function NavBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [confOpen, setConfOpen] = useState(false);
+  const [frotaOpen, setFrotaOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -161,16 +162,7 @@ export default function NavBar() {
      icon: <FiMap />,
       to: "/frete",
     },
-   ...(isAdmin || isSetor14
-     ? [
-         {
-           key: "frota",
-           label: "Frota",
-           icon: <FiTruck />,
-           to: "/frota",
-         },
-       ]
-     : []),
+
     {
       key: "sac",
       label: "Ir para o SAC",
@@ -442,6 +434,84 @@ export default function NavBar() {
             <NavLabel>{it.label}</NavLabel>
           </NavItem>
         ))}
+{(isAdmin || isSetor14) && (
+  <div style={{ position: "relative" }}>
+    <NavItem
+      key="frota"
+      $active={pathname.toLowerCase().startsWith("/frota")}
+      onClick={() => setFrotaOpen((v) => !v)}
+      title="Frota"
+      style={{
+        width: "100%",
+        display: "flex",
+        justifyContent: "space-around",
+      }}
+    >
+      <NavIcon>
+        <FiTruck />
+      </NavIcon>
+      <NavLabel>Frota</NavLabel>
+      <NavIcon
+        style={{
+          transition: "transform 0.2s ease",
+          transform: frotaOpen ? "rotate(180deg)" : "rotate(0deg)",
+        }}
+      >
+        <FiChevronDown />
+      </NavIcon>
+    </NavItem>
+
+    {frotaOpen && (
+      <div
+        style={{
+          position: "absolute",
+          top: "100%",
+          left: 0,
+          background: "var(--nav-bg, #0f172a)",
+          border: "1px solid rgba(255,255,255,.08)",
+          borderRadius: 10,
+          padding: 6,
+          marginTop: 6,
+          minWidth: "100%",
+          boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+          zIndex: 10,
+        }}
+      >
+        <NavItem
+          $active={pathname.toLowerCase() === "/frota/analise-ha"}
+          onClick={() => {
+            setFrotaOpen(false);
+            setMobileOpen(false);
+            navigate("/frota/analise-ha");
+          }}
+          title="Análise HA"
+          style={{ width: "100%" }}
+        >
+          <NavIcon>
+            <FiActivity />
+          </NavIcon>
+          <NavLabel>Análise HA</NavLabel>
+        </NavItem>
+
+        <NavItem
+          $active={pathname.toLowerCase() === "/frota/analise-performaxxi"}
+          onClick={() => {
+            setFrotaOpen(false);
+            setMobileOpen(false);
+            navigate("/frota/analise-performaxxi");
+          }}
+          title="Análise Performaxxi"
+          style={{ width: "100%" }}
+        >
+          <NavIcon>
+            <FiActivity />
+          </NavIcon>
+          <NavLabel>Análise Performaxxi</NavLabel>
+        </NavItem>
+      </div>
+    )}
+  </div>
+)}
 
         {(isSetor16 ||
           isSetor7 ||

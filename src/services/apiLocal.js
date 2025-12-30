@@ -511,6 +511,49 @@ updateHorarioAlmoco: (id, body, actor) =>
   api.put(`/horario_almoco/horario-almoco/${id}`, body, {
     params: { actor },
   }),
+// ========================
+// Performaxxi — Análise de Rotas
+// ========================
+
+
+
+// filtros
+getAnaliseRotasOpcoes: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/opcoes-filtros", { params }),
+
+/**
+ * indicadores principais (gráficos + rankings)
+ * (agora é v2)
+ */
+getAnaliseRotasIndicadores: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/indicadores-v2", { params }),
+
+
+// detalhe antigo (v1)
+getAnaliseRotasDetalheErros: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/detalhe-erros", { params }),
+
+/**
+ * detalhe por dia + tipo de evento (substitui detalhe-erros, almoco-pendentes, almoco-gravissimo)
+ * event_type: sla | entregas | mercadorias | devolucao | almoco_pendente | gravissimo | geral
+ * day_iso: YYYY-MM-DD (opcional)
+ */
+getAnaliseRotasDetalheEventos: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/detalhe-eventos", { params }),
+
+/**
+ * modal do motorista (novo)
+ * retorna contadores (gravissimo/entregas/sla) + lista paginada de ocorrências
+ */
+getAnaliseRotasMotoristaModal: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/motorista-modal", { params }),
+
+/**
+ * detalhe de uma rota específica (debug / drill-down)
+ */
+getAnaliseRotaById: (id) =>
+  api.get(`/analise_performaxxi/analise-rotas/by-id/${id}`),
+
 
   // ========================
   // ETIQUETAS
