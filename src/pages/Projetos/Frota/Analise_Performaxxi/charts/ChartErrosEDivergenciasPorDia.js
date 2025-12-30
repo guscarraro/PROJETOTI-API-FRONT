@@ -125,7 +125,7 @@ export default function ChartErrosEDivergenciasPorDia({
   };
 
   return (
-    <div style={{ width: "100%", height: 340, marginTop: 10, paddingBottom: 15 }}>
+    <div style={{ width: "100%", height: 450, marginTop: 10, paddingBottom: 45 }}>
       {/* Totais no topo (mesmo formato) */}
       <div
         style={{

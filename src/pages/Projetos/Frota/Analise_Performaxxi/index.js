@@ -578,7 +578,7 @@ const [motModalPayload, setMotModalPayload] = useState(null);
       </ChartCard>
 
       {/* GRAFICO 2 */}
-      <ChartCard>
+      <ChartCard >
         <ChartTitle>Erros e divergências por dia</ChartTitle>
         <div style={{ fontSize: 12, opacity: 0.88, marginTop: 6 }}>
           Clique na barra para abrir o detalhe do dia (rota + motorista).
@@ -617,7 +617,7 @@ const [motModalPayload, setMotModalPayload] = useState(null);
         open={fsOpen}
         onClose={() => setFsOpen(false)}
         users={usuariosParaRotacao}
-        intervalMs={15000}
+        intervalMs={60000}
         baseFilters={{
           data_ini: start,
           data_fim: end,
