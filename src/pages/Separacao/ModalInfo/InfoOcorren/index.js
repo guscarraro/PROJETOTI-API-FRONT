@@ -200,8 +200,9 @@ export default function InfoOcorren({
           Ocorrências registradas
         </SectionTitle>
         {Array.isArray(ocorrencias) && ocorrencias.length > 0 ? (
-          <ScrollX>
-            <Table responsive hover borderless className="mb-0">
+<ScrollX>
+  <Table hover borderless className="mb-0">
+
               <thead>
                 <tr>
                   <th style={{ whiteSpace: "nowrap" }}>Data/Hora</th>
@@ -280,8 +281,8 @@ const CardWrap = styled.div`
   margin-top: 6px;
   border-radius: 12px;
   padding: 12px;
-  overflow: hidden;
-
+  overflow: visible;
+min-width: 0;
   /* estilo parecido com CaixasCard, mas roxinho */
   border: 2px dashed #c4b5fd; /* purple-300 */
   background: #f5f3ff; /* purple-50 */
@@ -297,6 +298,7 @@ const CardWrap = styled.div`
 `;
 
 const CardInner = styled.div`
+min-width: 0;
   filter: ${({ $blur }) => ($blur ? "blur(2px)" : "none")};
   opacity: ${({ $blur }) => ($blur ? 0.6 : 1)};
   pointer-events: ${({ $blur }) => ($blur ? "none" : "auto")};
@@ -508,33 +510,30 @@ const NavBtnRight = styled(NavBtnLeft)`
 
 const ScrollX = styled.div`
   margin-top: 8px;
+display: block;
+  width: 100%;
+  max-width: 100%;
+
   overflow-x: auto;
-  border: 1px solid #e9d5ff; /* purple-200 */
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+
+  border: 1px solid #e9d5ff;
   border-radius: 12px;
-  background: #faf5ff; /* purple-50 */
+  background: #faf5ff;
+
+  /* ✅ aqui é o segredo: força a tabela a poder ultrapassar */
+  table {
+    min-width: 900px;      /* pode ajustar */
+    width: max-content;
+  }
+
+  th, td {
+    white-space: nowrap;
+  }
 
   [data-theme="dark"] & {
     border-color: rgba(196, 181, 253, 0.5);
     background: rgba(15, 23, 42, 0.7);
-  }
-
-  table thead {
-    background: #ede9fe; /* indigo/purple-100 */
-    color: #4c1d95;
-    border-bottom: 1px solid #ddd6fe;
-  }
-
-  table tbody tr + tr {
-    border-top: 1px solid #e5e7eb;
-  }
-
-  [data-theme="dark"] & table thead {
-    background: rgba(76, 29, 149, 0.6);
-    color: #e5e7eb;
-    border-bottom-color: rgba(196, 181, 253, 0.7);
-  }
-
-  [data-theme="dark"] & table tbody tr + tr {
-    border-top-color: rgba(55, 65, 81, 0.6);
   }
 `;

@@ -1,5 +1,5 @@
 // src/pages/.../Analise_Performaxxi/index.js
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import useLoading from "../../../../hooks/useLoading";
 import apiLocal from "../../../../services/apiLocal";
 
@@ -83,6 +83,9 @@ export default function Analise_Performaxxi() {
 
   const [loadingDash, setLoadingDash] = useState(false);
 
+  // ✅ NOVO: token para forçar o anúncio a cada atualização (Buscar / loadAll)
+  const [alertaSpeakToken, setAlertaSpeakToken] = useState(0);
+
   // filtros
   const [start, setStart] = useState(toISODate(monthStart));
   const [end, setEnd] = useState(toISODate(monthEnd));
@@ -91,23 +94,26 @@ export default function Analise_Performaxxi() {
   const [rota, setRota] = useState("");
   const [statusRota, setStatusRota] = useState("");
   const [metaSlaPct, setMetaSlaPct] = useState(100);
-  
+
+  const [alertaFinalizando, setAlertaFinalizando] = useState({ total: 0, items: [] });
+  const prevAlertaTotalRef = useRef(0);
+
   const [opcoes, setOpcoes] = useState({
-      usuarios: [],
-      usuarios_v2: [],
-      motoristas: [],
-      rotas: [],
-      status_rota: [],
+    usuarios: [],
+    usuarios_v2: [],
+    motoristas: [],
+    rotas: [],
+    status_rota: [],
   });
-  
+
   const [indicador, setIndicador] = useState(null);
-  
+
   // fullscreen
   const [fsOpen, setFsOpen] = useState(false);
-  
+
   // modais
   const [motModalOpen, setMotModalOpen] = useState(false);
-const [motModalPayload, setMotModalPayload] = useState(null);
+  const [motModalPayload, setMotModalPayload] = useState(null);
 
   const [errModalOpen, setErrModalOpen] = useState(false);
   const [errModalPayload, setErrModalPayload] = useState(null);
@@ -162,12 +168,33 @@ const [motModalPayload, setMotModalPayload] = useState(null);
     setIndicador(resp?.data || null);
   }
 
+  async function loadAlertaFinalizando() {
+    const params = buildBaseParams();
+
+    // padrão do endpoint: status_rota em_andamento
+    params.status_rota = "em_andamento";
+    params.threshold_faltando = 2; // 2 = último 13/15, 14/15, 15/15
+
+    const resp = await apiLocal.getAnaliseRotasAlertaAlmocoFinalizando(params);
+    const d = resp?.data || {};
+
+    const total = Number(d.total || 0);
+    const items = Array.isArray(d.items) ? d.items : [];
+
+    setAlertaFinalizando({ total, items });
+    prevAlertaTotalRef.current = total;
+  }
+
   async function loadAll() {
     setLoadingDash(true);
     loading.start("analise_performaxxi");
     try {
       await loadOpcoes();
       await loadIndicador();
+      await loadAlertaFinalizando();
+
+      // ✅ LINHA QUE IMPORTA: força o Table a anunciar de novo a cada refresh/busca
+      setAlertaSpeakToken((t) => t + 1);
     } finally {
       loading.stop("analise_performaxxi");
       setLoadingDash(false);
@@ -246,7 +273,7 @@ const [motModalPayload, setMotModalPayload] = useState(null);
       totalErrSla += Number(d.erros_sla || 0);
       totalErrEnt += Number(d.erros_entregas || 0);
       totalErrMerc += Number(d.erros_mercadorias || 0);
-      totalDev += Number(d.erros_devolucoes || 0); // ✅ CERTO
+      totalDev += Number(d.erros_devolucoes || 0);
       totalErrAny += Number(d.erros_total || 0);
     }
 
@@ -304,7 +331,7 @@ const [motModalPayload, setMotModalPayload] = useState(null);
         erros_sla: Number(d.erros_sla || 0),
         erros_entregas: Number(d.erros_entregas || 0),
         erros_mercadorias: Number(d.erros_mercadorias || 0),
-        erros_devolucoes: Number(d.erros_devolucoes || 0), // ✅ CERTO
+        erros_devolucoes: Number(d.erros_devolucoes || 0),
         erros_total: Number(d.erros_total || 0),
       });
     }
@@ -345,12 +372,11 @@ const [motModalPayload, setMotModalPayload] = useState(null);
     setGravModalOpen(true);
   }
 
-  // ✅ modal “universal” v2 (detalhe-eventos)
   function openDetalheEventosModal(dayISO, eventType) {
     if (!dayISO) return;
 
     setErrModalPayload({
-      event_type: eventType, // sla | mercadorias | devolucao | ...
+      event_type: eventType,
       meta_sla_pct: metaSlaPct,
       filters: {
         data_ini: start,
@@ -364,10 +390,11 @@ const [motModalPayload, setMotModalPayload] = useState(null);
     });
     setErrModalOpen(true);
   }
+
   function openMotoristaModal(p) {
-  setMotModalPayload(p);
-  setMotModalOpen(true);
-}
+    setMotModalPayload(p);
+    setMotModalOpen(true);
+  }
 
   const pendentesSemGravissimo = Math.max(0, overallKpis.totalPend - overallKpis.totalGrav);
   const pendentesGravissimo = overallKpis.totalGrav;
@@ -423,29 +450,6 @@ const [motModalPayload, setMotModalPayload] = useState(null);
               </Select>
             </div>
 
-            {/* <div>
-              <TinyLabel>Status rota</TinyLabel>
-              <Select value={statusRota} onChange={(e) => setStatusRota(e.target.value)}>
-                <option value="">Todos</option>
-                {opcoes.status_rota.map((x) => (
-                  <option key={x} value={x}>
-                    {x}
-                  </option>
-                ))}
-              </Select>
-            </div> */}
-
-            {/* <div>
-              <TinyLabel>Meta SLA (%)</TinyLabel>
-              <Field
-                type="number"
-                value={metaSlaPct}
-                min={0}
-                max={100}
-                onChange={(e) => setMetaSlaPct(Number(e.target.value || 0))}
-              />
-            </div> */}
-
             <div style={{ alignSelf: "flex-end", display: "flex", gap: 8 }}>
               <PrimaryButton type="button" onClick={handleBuscar} disabled={loadingDash}>
                 {loadingDash ? "Carregando..." : "Buscar"}
@@ -462,13 +466,6 @@ const [motModalPayload, setMotModalPayload] = useState(null);
             </div>
           </FiltersRow>
         </RightRow>
-
-        {/* <PillRow>
-          <Pill>Regra Erro SLA: SLA &lt; {metaSlaPct}%</Pill>
-          <Pill>Regra Erro Entregas: realizadas &lt; total</Pill>
-          <Pill $variant="warn">Almoço pendente = laranja</Pill>
-          <Pill $variant="danger">Finalizado sem lançar = vermelho</Pill>
-        </PillRow> */}
       </TitleBarWrap>
 
       {loadingDash && (
@@ -538,8 +535,6 @@ const [motModalPayload, setMotModalPayload] = useState(null);
           <KPIHint>pendente sem gravíssimo</KPIHint>
         </KPI>
 
-
-
         <KPI>
           <KPIValue>{overallKpis.totalErrMerc}</KPIValue>
           <KPILabel>Mercadorias &lt; 100%</KPILabel>
@@ -567,18 +562,19 @@ const [motModalPayload, setMotModalPayload] = useState(null);
           </div>
         </TwoCols>
 
-<ChartRotasVsAlmoco
-  data={chartByDay}
-  onClickPendencias={(dayISO) => openAlmocoPendentesModal(dayISO, false)}
-  onClickGravissimo={(dayISO) => openAlmocoGravissimoModal(dayISO)}   // ✅ NOVO
-  onOpenPendentesPeriod={() => openAlmocoPendentesModal(null, false)}
-  onOpenGravissimoPeriod={() => openAlmocoGravissimoModal(null)}
-/>
-
+        <ChartRotasVsAlmoco
+          data={chartByDay}
+          alertaFinalizando={alertaFinalizando}
+          alertaSpeakToken={alertaSpeakToken} // ✅ NOVO: passa o token
+          onClickPendencias={(dayISO) => openAlmocoPendentesModal(dayISO, false)}
+          onClickGravissimo={(dayISO) => openAlmocoGravissimoModal(dayISO)}
+          onOpenPendentesPeriod={() => openAlmocoPendentesModal(null, false)}
+          onOpenGravissimoPeriod={() => openAlmocoGravissimoModal(null)}
+        />
       </ChartCard>
 
       {/* GRAFICO 2 */}
-      <ChartCard >
+      <ChartCard>
         <ChartTitle>Erros e divergências por dia</ChartTitle>
         <div style={{ fontSize: 12, opacity: 0.88, marginTop: 6 }}>
           Clique na barra para abrir o detalhe do dia (rota + motorista).
@@ -601,15 +597,15 @@ const [motModalPayload, setMotModalPayload] = useState(null);
       {/* GRAFICO 4 */}
       <ChartCard>
         <ChartTitle>Motoristas — viagens x erros (período)</ChartTitle>
-<ChartMotoristasViagensErros
-  rankings={indicador?.rankings}
-  displayCidade={displayCidade}
-  metaSlaPct={metaSlaPct}
-  dataIni={start}
-  dataFim={end}
-  usuarioKey={usuarioKey}
-  onOpenMotoristaModal={openMotoristaModal}
-/>
+        <ChartMotoristasViagensErros
+          rankings={indicador?.rankings}
+          displayCidade={displayCidade}
+          metaSlaPct={metaSlaPct}
+          dataIni={start}
+          dataFim={end}
+          usuarioKey={usuarioKey}
+          onOpenMotoristaModal={openMotoristaModal}
+        />
       </ChartCard>
 
       {/* FULLSCREEN TV */}
@@ -630,7 +626,7 @@ const [motModalPayload, setMotModalPayload] = useState(null);
         onOpenErro={(dayISO, errorType, usuario_key) => {
           setUsuarioKey(usuario_key || "");
           setErrModalPayload({
-            event_type: errorType, // aqui também deve ser v2
+            event_type: errorType,
             meta_sla_pct: metaSlaPct,
             filters: { data_ini: start, data_fim: end, day_iso: dayISO, usuario_key, motorista, rota, status_rota: statusRota },
           });
@@ -655,58 +651,57 @@ const [motModalPayload, setMotModalPayload] = useState(null);
         }}
       />
 
-{/* MODAIS */}
-<div
-  style={
-    fsOpen
-      ? {
-          position: "fixed",
-          inset: 0,
-          zIndex: 10000000, // maior que o fullscreen
-          pointerEvents: "none", // deixa clique passar onde não tem modal
+      {/* MODAIS */}
+      <div
+        style={
+          fsOpen
+            ? {
+                position: "fixed",
+                inset: 0,
+                zIndex: 10000000,
+                pointerEvents: "none",
+              }
+            : undefined
         }
-      : undefined
-  }
->
-  <div style={fsOpen ? { pointerEvents: "auto" } : undefined}>
-    <ModalDetalheErros
-      open={errModalOpen}
-      payload={errModalPayload}
-      onClose={() => {
-        setErrModalOpen(false);
-        setErrModalPayload(null);
-      }}
-    />
+      >
+        <div style={fsOpen ? { pointerEvents: "auto" } : undefined}>
+          <ModalDetalheErros
+            open={errModalOpen}
+            payload={errModalPayload}
+            onClose={() => {
+              setErrModalOpen(false);
+              setErrModalPayload(null);
+            }}
+          />
 
-    <ModalMotoristaViagensProblemas
-      open={motModalOpen}
-      payload={motModalPayload}
-      onClose={() => {
-        setMotModalOpen(false);
-        setMotModalPayload(null);
-      }}
-    />
+          <ModalMotoristaViagensProblemas
+            open={motModalOpen}
+            payload={motModalPayload}
+            onClose={() => {
+              setMotModalOpen(false);
+              setMotModalPayload(null);
+            }}
+          />
 
-    <ModalAlmocoPendentes
-      open={almocoModalOpen}
-      payload={almocoModalPayload}
-      onClose={() => {
-        setAlmocoModalOpen(false);
-        setAlmocoModalPayload(null);
-      }}
-    />
+          <ModalAlmocoPendentes
+            open={almocoModalOpen}
+            payload={almocoModalPayload}
+            onClose={() => {
+              setAlmocoModalOpen(false);
+              setAlmocoModalPayload(null);
+            }}
+          />
 
-    <ModalAlmocoGravissimo
-      open={gravModalOpen}
-      payload={gravModalPayload}
-      onClose={() => {
-        setGravModalOpen(false);
-        setGravModalPayload(null);
-      }}
-    />
-  </div>
-</div>
-
+          <ModalAlmocoGravissimo
+            open={gravModalOpen}
+            payload={gravModalPayload}
+            onClose={() => {
+              setGravModalOpen(false);
+              setGravModalPayload(null);
+            }}
+          />
+        </div>
+      </div>
     </>
   );
 }

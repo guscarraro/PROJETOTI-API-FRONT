@@ -11,6 +11,8 @@ import {
   Legend,
 } from "recharts";
 
+import TableAlmocoPendente from "./TableAlmocoPendente";
+
 function formatXAxisDate(value) {
   if (!value) return "";
   const parts = String(value).split("-");
@@ -64,8 +66,10 @@ function readCssVars() {
 
 export default function ChartRotasVsAlmoco({
   data,
-  onClickPendencias, // (dayISO) => abre pendentes do dia
-  onClickGravissimo, // (dayISO) => abre gravíssimo do dia
+  alertaFinalizando,
+  alertaSpeakToken, // ✅ NOVO
+  onClickPendencias,
+  onClickGravissimo,
   onOpenPendentesPeriod,
   onOpenGravissimoPeriod,
   pendentesCount,
@@ -89,7 +93,6 @@ export default function ChartRotasVsAlmoco({
     return () => obs.disconnect();
   }, []);
 
-  // somatórios do período (sem reduce)
   const totals = useMemo(() => {
     let totalRotas = 0;
     let totalPend = 0;
@@ -114,11 +117,8 @@ export default function ChartRotasVsAlmoco({
     };
   }, [safeData]);
 
-  const pendCount =
-    typeof pendentesCount === "number" ? pendentesCount : totals.totalPend;
-
-  const gravCount =
-    typeof gravissimoCount === "number" ? gravissimoCount : totals.totalGrav;
+  const pendCount = typeof pendentesCount === "number" ? pendentesCount : totals.totalPend;
+  const gravCount = typeof gravissimoCount === "number" ? gravissimoCount : totals.totalGrav;
 
   const tooltipStyle = {
     background: theme.bgPanel2,
@@ -128,10 +128,7 @@ export default function ChartRotasVsAlmoco({
     fontSize: 12,
   };
 
-  // hitbox maior pra garantir clique sempre
   const HIT_R = 14;
-
-  // meta 99-100%
   const isMetaOk = totals.efPct >= 99;
 
   const efficiencyBadgeBase = {
@@ -149,22 +146,28 @@ export default function ChartRotasVsAlmoco({
   const efficiencyBadgeStyle = isMetaOk
     ? {
         ...efficiencyBadgeBase,
-        background: `linear-gradient(180deg, ${rgba(
-          COLOR_OK,
-          0.18
-        )}, ${rgba(COLOR_OK, 0.06)})`,
+        background: `linear-gradient(180deg, ${rgba(COLOR_OK, 0.18)}, ${rgba(COLOR_OK, 0.06)})`,
         border: `1px solid ${rgba(COLOR_OK, 0.35)}`,
         color: theme.text,
       }
     : {
         ...efficiencyBadgeBase,
-        background: `linear-gradient(180deg, ${rgba(
-          COLOR_PEND,
-          0.16
-        )}, ${rgba(COLOR_PEND, 0.05)})`,
+        background: `linear-gradient(180deg, ${rgba(COLOR_PEND, 0.16)}, ${rgba(COLOR_PEND, 0.05)})`,
         border: `1px solid ${rgba(COLOR_PEND, 0.35)}`,
         color: theme.text,
       };
+
+  const alertItems = Array.isArray(alertaFinalizando?.items) ? alertaFinalizando.items : [];
+
+  const alertCountByDay = useMemo(() => {
+    const map = {};
+    for (let i = 0; i < alertItems.length; i++) {
+      const d = String(alertItems[i]?.data || "").trim();
+      if (!d) continue;
+      map[d] = Number(map[d] || 0) + 1;
+    }
+    return map;
+  }, [alertItems]);
 
   return (
     <div style={{ width: "100%", marginTop: 10 }}>
@@ -178,7 +181,6 @@ export default function ChartRotasVsAlmoco({
           alignItems: "center",
         }}
       >
-        {/* Pendentes (menor) */}
         <button
           type="button"
           onClick={() => onOpenPendentesPeriod?.()}
@@ -189,10 +191,7 @@ export default function ChartRotasVsAlmoco({
             gap: 8,
             borderRadius: 999,
             border: `1px solid ${rgba(COLOR_PEND, 0.35)}`,
-            background: `linear-gradient(180deg, ${rgba(
-              COLOR_PEND,
-              0.16
-            )}, ${rgba(COLOR_PEND, 0.05)})`,
+            background: `linear-gradient(180deg, ${rgba(COLOR_PEND, 0.16)}, ${rgba(COLOR_PEND, 0.05)})`,
             padding: "8px 12px",
             fontWeight: 900,
             cursor: "pointer",
@@ -200,7 +199,6 @@ export default function ChartRotasVsAlmoco({
           }}
         >
           <span>Pendentes</span>
-
           <span
             style={{
               minWidth: 28,
@@ -218,7 +216,6 @@ export default function ChartRotasVsAlmoco({
           </span>
         </button>
 
-        {/* Finalizado sem lançar (menor) */}
         <button
           type="button"
           onClick={() => onOpenGravissimoPeriod?.()}
@@ -229,10 +226,7 @@ export default function ChartRotasVsAlmoco({
             gap: 8,
             borderRadius: 999,
             border: `1px solid ${rgba(COLOR_GRAV, 0.35)}`,
-            background: `linear-gradient(180deg, ${rgba(
-              COLOR_GRAV,
-              0.18
-            )}, ${rgba(COLOR_GRAV, 0.05)})`,
+            background: `linear-gradient(180deg, ${rgba(COLOR_GRAV, 0.18)}, ${rgba(COLOR_GRAV, 0.05)})`,
             padding: "8px 12px",
             fontWeight: 900,
             cursor: "pointer",
@@ -257,7 +251,6 @@ export default function ChartRotasVsAlmoco({
           </span>
         </button>
 
-        {/* Total de rotas no período */}
         <span
           title="Total de rotas lançadas no período selecionado"
           style={{
@@ -269,10 +262,7 @@ export default function ChartRotasVsAlmoco({
             fontSize: 11,
             fontWeight: 900,
             border: `1px solid ${rgba(COLOR_ROTAS, 0.35)}`,
-            background: `linear-gradient(180deg, ${rgba(
-              COLOR_ROTAS,
-              0.14
-            )}, ${rgba(COLOR_ROTAS, 0.04)})`,
+            background: `linear-gradient(180deg, ${rgba(COLOR_ROTAS, 0.14)}, ${rgba(COLOR_ROTAS, 0.04)})`,
             color: theme.text,
             whiteSpace: "nowrap",
           }}
@@ -295,7 +285,6 @@ export default function ChartRotasVsAlmoco({
           </span>
         </span>
 
-        {/* Eficiência (100% - ineficiência). Meta 99-100% */}
         <span
           title="Eficiência = 100% - (Pendentes / Total rotas). Meta: 99-100%."
           style={efficiencyBadgeStyle}
@@ -309,9 +298,7 @@ export default function ChartRotasVsAlmoco({
               alignItems: "center",
               justifyContent: "center",
               background: isMetaOk ? rgba(COLOR_OK, 0.22) : rgba(COLOR_PEND, 0.22),
-              border: `1px solid ${
-                isMetaOk ? rgba(COLOR_OK, 0.35) : rgba(COLOR_PEND, 0.35)
-              }`,
+              border: `1px solid ${isMetaOk ? rgba(COLOR_OK, 0.35) : rgba(COLOR_PEND, 0.35)}`,
               fontSize: 12,
               lineHeight: "18px",
               userSelect: "none",
@@ -321,217 +308,243 @@ export default function ChartRotasVsAlmoco({
           </span>
 
           <span>
-            Eficiência{" "}
-            <b>
-              {totals.efPct.toFixed(1)}%
-            </b>
+            Eficiência <b>{totals.efPct.toFixed(1)}%</b>
           </span>
 
-          <span style={{ opacity: 0.8, fontWeight: 800 }}>
-            (meta 99–100%)
-          </span>
+          <span style={{ opacity: 0.8, fontWeight: 800 }}>(meta 99–100%)</span>
         </span>
       </div>
 
-      <div style={{ width: "100%", height }}>
-        <ResponsiveContainer>
-          <ComposedChart
-            data={safeData}
-            margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-          >
-            <defs>
-              <linearGradient id="fogRotas" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={rgba(COLOR_ROTAS, 0.45)} />
-                <stop offset="75%" stopColor={rgba(COLOR_ROTAS, 0.1)} />
-                <stop offset="100%" stopColor={rgba(COLOR_ROTAS, 0)} />
-              </linearGradient>
+      <div style={{ display: "grid", gridTemplateColumns: "9fr 3fr", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ width: "100%", height }}>
+            <ResponsiveContainer>
+              <ComposedChart data={safeData} margin={{ top: 22, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="fogRotas" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={rgba(COLOR_ROTAS, 0.45)} />
+                    <stop offset="75%" stopColor={rgba(COLOR_ROTAS, 0.1)} />
+                    <stop offset="100%" stopColor={rgba(COLOR_ROTAS, 0)} />
+                  </linearGradient>
 
-              <linearGradient id="fogPend" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={rgba(COLOR_PEND, 0.55)} />
-                <stop offset="75%" stopColor={rgba(COLOR_PEND, 0.12)} />
-                <stop offset="100%" stopColor={rgba(COLOR_PEND, 0)} />
-              </linearGradient>
-            </defs>
+                  <linearGradient id="fogPend" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={rgba(COLOR_PEND, 0.55)} />
+                    <stop offset="75%" stopColor={rgba(COLOR_PEND, 0.12)} />
+                    <stop offset="100%" stopColor={rgba(COLOR_PEND, 0)} />
+                  </linearGradient>
+                </defs>
 
-            <XAxis
-              dataKey="data"
-              tickFormatter={formatXAxisDate}
-              tick={{ fontSize: 11, fill: theme.muted }}
-              axisLine={{ stroke: theme.border }}
-              tickLine={{ stroke: theme.border }}
-            />
+                <XAxis
+                  dataKey="data"
+                  tickFormatter={formatXAxisDate}
+                  tick={{ fontSize: 11, fill: theme.muted }}
+                  axisLine={{ stroke: theme.border }}
+                  tickLine={{ stroke: theme.border }}
+                />
 
-            <YAxis
-              allowDecimals={false}
-              tick={{ fontSize: 11, fill: theme.muted }}
-              axisLine={{ stroke: theme.border }}
-              tickLine={{ stroke: theme.border }}
-            />
+                <YAxis
+                  allowDecimals={false}
+                  tick={{ fontSize: 11, fill: theme.muted }}
+                  axisLine={{ stroke: theme.border }}
+                  tickLine={{ stroke: theme.border }}
+                />
 
-            <Tooltip
-              contentStyle={tooltipStyle}
-              labelStyle={{ color: theme.text }}
-              itemStyle={{ color: theme.text }}
-              labelFormatter={(label) => `Dia: ${formatXAxisDate(label)}`}
-              formatter={(value, name) => {
-                if (name === "rotas_total") return [value, "Rotas"];
-                if (name === "almoco_pendente") return [value, "Pendências almoço"];
-                if (name === "almoco_gravissimo") return [value, "Finalizado sem lançar"];
-                return [value, name];
-              }}
-            />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  labelStyle={{ color: theme.text }}
+                  itemStyle={{ color: theme.text }}
+                  labelFormatter={(label) => `Dia: ${formatXAxisDate(label)}`}
+                  formatter={(value, name) => {
+                    if (name === "rotas_total") return [value, "Rotas"];
+                    if (name === "almoco_pendente") return [value, "Pendências almoço"];
+                    if (name === "almoco_gravissimo") return [value, "Finalizado sem lançar"];
+                    return [value, name];
+                  }}
+                />
 
-            <Legend wrapperStyle={{ color: theme.muted, fontSize: 12 }} />
+                <Legend wrapperStyle={{ color: theme.muted, fontSize: 12 }} />
 
-            <Area
-              type="monotone"
-              dataKey="rotas_total"
-              name="Rotas"
-              stroke="transparent"
-              fill="url(#fogRotas)"
-              fillOpacity={1}
-              isAnimationActive={false}
-              dot={false}
-              activeDot={false}
-              tooltipType="none"
-              legendType="none"
-            />
+                <Area
+                  type="monotone"
+                  dataKey="rotas_total"
+                  name="Rotas"
+                  stroke="transparent"
+                  fill="url(#fogRotas)"
+                  fillOpacity={1}
+                  isAnimationActive={false}
+                  dot={false}
+                  activeDot={false}
+                  tooltipType="none"
+                  legendType="none"
+                />
 
-            <Area
-              type="monotone"
-              dataKey="almoco_pendente"
-              name="Pendências almoço"
-              stroke="transparent"
-              fill="url(#fogPend)"
-              fillOpacity={1}
-              isAnimationActive={false}
-              dot={false}
-              activeDot={false}
-              tooltipType="none"
-              legendType="none"
-            />
+                <Area
+                  type="monotone"
+                  dataKey="almoco_pendente"
+                  name="Pendências almoço"
+                  stroke="transparent"
+                  fill="url(#fogPend)"
+                  fillOpacity={1}
+                  isAnimationActive={false}
+                  dot={false}
+                  activeDot={false}
+                  tooltipType="none"
+                  legendType="none"
+                />
 
-            <Line
-              type="monotone"
-              dataKey="rotas_total"
-              name="Total de rotas"
-              stroke={COLOR_ROTAS}
-              strokeWidth={3}
-              dot={false}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              isAnimationActive={false}
-            />
+                <Line
+                  type="monotone"
+                  dataKey="rotas_total"
+                  name="Total de rotas"
+                  stroke={COLOR_ROTAS}
+                  strokeWidth={3}
+                  dot={false}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  isAnimationActive={false}
+                />
 
-            <Line
-              type="monotone"
-              dataKey="almoco_pendente"
-              name="Pendência almoço"
-              stroke={COLOR_PEND}
-              strokeWidth={3}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              isAnimationActive={false}
-              // garante que dots cliquem mesmo com layers
-              isFront
-              dot={(props) => {
-                const { cx, cy, payload } = props;
-                if (cx == null || cy == null) return null;
+                <Line
+                  type="monotone"
+                  dataKey="almoco_pendente"
+                  name="Pendência almoço"
+                  stroke={COLOR_PEND}
+                  strokeWidth={3}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  isAnimationActive={false}
+                  isFront
+                  dot={(props) => {
+                    const { cx, cy, payload } = props;
+                    if (cx == null || cy == null) return null;
 
-                const dayISO = payload?.data;
-                if (!dayISO) return null;
+                    const dayISO = payload?.data;
+                    if (!dayISO) return null;
 
-                const pend = Number(payload?.almoco_pendente || 0);
-                const grav = Number(payload?.almoco_gravissimo || 0);
+                    const pend = Number(payload?.almoco_pendente || 0);
+                    const grav = Number(payload?.almoco_gravissimo || 0);
+                    const alertCount = Number(alertCountByDay[dayISO] || 0);
 
-                const commonGProps = {
-                  style: { cursor: "pointer" },
-                  pointerEvents: "visiblePainted",
-                };
+                    if (pend <= 0) return null;
 
-                if (grav > 0) {
-                  return (
-                    <g
-                      {...commonGProps}
-                      onClick={(e) => {
-                        e?.stopPropagation?.();
-                        if (onClickGravissimo) onClickGravissimo(dayISO);
-                      }}
-                    >
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={HIT_R}
-                        fill="transparent"
-                        style={{ pointerEvents: "all" }}
-                      />
-                      <circle
-                        cx={cx}
-                        cy={cy}
-                        r={7}
-                        fill={rgba(COLOR_GRAV, 0.95)}
-                        stroke={rgba("#ffffff", 0.35)}
-                        strokeWidth={2}
-                        style={{ pointerEvents: "none" }}
-                      />
-                      <text
-                        x={cx}
-                        y={cy + 3.5}
-                        textAnchor="middle"
-                        fontSize={11}
-                        fontWeight={1000}
-                        fill={theme.bgPanel2}
-                        style={{ pointerEvents: "none", userSelect: "none" }}
-                      >
-                        !
-                      </text>
-                    </g>
-                  );
-                }
+                    const yBase = cy;
+                    const yIcon1 = cy - 16; // alert (table)
+                    const yIcon2 = cy - 30; // gravíssimo
 
-                const hasPend = pend > 0;
-                return (
-                  <g
-                    {...commonGProps}
-                    onClick={(e) => {
-                      e?.stopPropagation?.();
-                      if (onClickPendencias) onClickPendencias(dayISO);
-                    }}
-                  >
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={HIT_R}
-                      fill="transparent"
-                      style={{ pointerEvents: "all" }}
-                    />
-                    <circle
-                      cx={cx}
-                      cy={cy}
-                      r={hasPend ? 4 : 2}
-                      fill={COLOR_PEND}
-                      stroke="transparent"
-                      style={{ pointerEvents: "none" }}
-                    />
-                  </g>
-                );
-              }}
-              activeDot={false}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+                    return (
+                      <g style={{ cursor: "pointer" }} pointerEvents="visiblePainted">
+                        <g
+                          onClick={(e) => {
+                            e?.stopPropagation?.();
+                            onClickPendencias?.(dayISO);
+                          }}
+                        >
+                          <circle cx={cx} cy={yBase} r={HIT_R} fill="transparent" style={{ pointerEvents: "all" }} />
+                          <circle cx={cx} cy={yBase} r={4} fill={COLOR_PEND} stroke="transparent" style={{ pointerEvents: "none" }} />
+                        </g>
 
-      <div
-        style={{
-          marginTop: 8,
-          fontSize: 12,
-          opacity: 0.82,
-          color: theme.muted,
-        }}
-      >
-        Dica: clique no ponto laranja do dia para abrir os pendentes daquele dia.
-        O “!” abre o Finalizado sem lançar do dia.
+                        {grav > 0 && (
+                          <g
+                            onClick={(e) => {
+                              e?.stopPropagation?.();
+                              onClickGravissimo?.(dayISO);
+                            }}
+                            style={{ cursor: "pointer" }}
+                          >
+                            <circle
+                              cx={cx}
+                              cy={yIcon2}
+                              r={7}
+                              fill={rgba(COLOR_GRAV, 0.95)}
+                              stroke={rgba("#ffffff", 0.35)}
+                              strokeWidth={2}
+                              style={{ pointerEvents: "all" }}
+                            />
+                            <text
+                              x={cx}
+                              y={yIcon2 + 3.5}
+                              textAnchor="middle"
+                              fontSize={11}
+                              fontWeight={1000}
+                              fill={theme.bgPanel2}
+                              style={{ pointerEvents: "none", userSelect: "none" }}
+                            >
+                              !
+                            </text>
+
+                            <text
+                              x={cx + 12}
+                              y={yIcon2 + 4}
+                              textAnchor="start"
+                              fontSize={10}
+                              fontWeight={1000}
+                              fill={theme.text}
+                              style={{ pointerEvents: "none", userSelect: "none" }}
+                            >
+                              {grav}
+                            </text>
+                          </g>
+                        )}
+
+                        {alertCount > 0 && (
+                          <g style={{ cursor: "default" }}>
+                            <circle
+                              cx={cx}
+                              cy={yIcon1}
+                              r={6}
+                              fill={rgba(COLOR_PEND, 0.95)}
+                              stroke={rgba("#ffffff", 0.25)}
+                              strokeWidth={2}
+                              style={{ pointerEvents: "none" }}
+                            />
+                            <text
+                              x={cx}
+                              y={yIcon1 + 3.5}
+                              textAnchor="middle"
+                              fontSize={10}
+                              fontWeight={1000}
+                              fill={theme.bgPanel2}
+                              style={{ pointerEvents: "none", userSelect: "none" }}
+                            >
+                              ⏱
+                            </text>
+
+                            <text
+                              x={cx + 12}
+                              y={yIcon1 + 4}
+                              textAnchor="start"
+                              fontSize={10}
+                              fontWeight={1000}
+                              fill={theme.text}
+                              style={{ pointerEvents: "none", userSelect: "none" }}
+                            >
+                              {alertCount}
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  }}
+                  activeDot={false}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 12, opacity: 0.82, color: theme.muted }}>
+            Dica: clique na bolinha laranja para abrir os pendentes do dia. O “!” abre o Finalizado sem lançar do dia.
+            O “⏱” indica alertas da tabela naquele dia.
+          </div>
+        </div>
+
+        <div style={{ minWidth: 0 }}>
+          <TableAlmocoPendente
+            items={alertItems}
+            height={height}
+            announceToken={alertaSpeakToken}
+            criticalWhenFaltandoLE={1} // ✅ NOVO: token chega no filho
+          />
+        </div>
       </div>
     </div>
   );

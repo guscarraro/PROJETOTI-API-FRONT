@@ -38,24 +38,24 @@ function getThemeMode() {
 function readCssVars() {
   const mode = typeof window !== "undefined" ? getThemeMode() : "light";
 
-  // fallbacks consistentes por modo
-  const FALLBACK = mode === "dark"
-    ? {
-        bg: "#0b1220",
-        bgPanel: "#0f172a",
-        bgPanel2: "#0b1220",
-        text: "#e5e7eb",
-        muted: "#9ca3af",
-        border: "rgba(148,163,184,0.25)",
-      }
-    : {
-        bg: "#f8fafc",
-        bgPanel: "#ffffff",
-        bgPanel2: "#f1f5f9",
-        text: "#0f172a",
-        muted: "#64748b",
-        border: "rgba(148,163,184,0.35)",
-      };
+  const FALLBACK =
+    mode === "dark"
+      ? {
+          bg: "#0b1220",
+          bgPanel: "#0f172a",
+          bgPanel2: "#0b1220",
+          text: "#e5e7eb",
+          muted: "#9ca3af",
+          border: "rgba(148,163,184,0.25)",
+        }
+      : {
+          bg: "#f8fafc",
+          bgPanel: "#ffffff",
+          bgPanel2: "#f1f5f9",
+          text: "#0f172a",
+          muted: "#64748b",
+          border: "rgba(148,163,184,0.35)",
+        };
 
   if (typeof window === "undefined") return FALLBACK;
 
@@ -76,8 +76,6 @@ function readCssVars() {
     text: pick("--text", FALLBACK.text),
     muted: pick("--muted", FALLBACK.muted),
     border: pick("--border", FALLBACK.border),
-
-    // extras p/ estados (se existir no seu tema, usa; senão fallback)
     ok: pick("--ok", "rgb(34,197,94)"),
     warn: pick("--warn", "rgb(249,115,22)"),
     danger: pick("--danger", "rgb(239,68,68)"),
@@ -112,6 +110,19 @@ function buildPiePath(cx, cy, r, ratioRemaining) {
   return `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} Z`;
 }
 
+function getCacheKeyFromFilters(uk, baseFilters) {
+  const f = baseFilters || {};
+  return [
+    String(uk || ""),
+    String(f.data_ini || ""),
+    String(f.data_fim || ""),
+    String(f.meta_sla_pct || ""),
+    String(f.motorista || ""),
+    String(f.rota || ""),
+    String(f.status_rota || ""),
+  ].join("|");
+}
+
 export default function FullscreenRotator({
   open,
   onClose,
@@ -131,9 +142,17 @@ export default function FullscreenRotator({
   const [slideIdx, setSlideIdx] = useState(0);
 
   const [loading, setLoading] = useState(false);
+
+  // ✅ dados do CD ATUAL
   const [dataByUser, setDataByUser] = useState(null);
+  const [alertaFinalizando, setAlertaFinalizando] = useState({ total: 0, items: [] });
+  const [alertaSpeakToken, setAlertaSpeakToken] = useState(0);
 
   const cacheRef = useRef(new Map());
+
+  // ✅ refs “instantâneos” pra travas (não dependem de state async)
+  const currentUkRef = useRef("");
+  const reqIdRef = useRef(0);
 
   const [remainingMs, setRemainingMs] = useState(() => Number(intervalMs || 60000));
   const tickRef = useRef(null);
@@ -151,12 +170,19 @@ export default function FullscreenRotator({
     return safeUsers[idx];
   }, [safeUsers, totalUsers, userIdx]);
 
+  const currentUk = current?.usuario_key || "";
+
+  // ✅ mantém ref sempre atual (sem depender de render)
+  useEffect(() => {
+    currentUkRef.current = currentUk || "";
+  }, [currentUk]);
+
   const cdLabel = useMemo(() => {
-    const uk = current?.usuario_key;
+    const uk = currentUk;
     const lbl = current?.usuario_label;
     const fallback = displayCidade?.(uk, "") || "-";
     return lbl || fallback;
-  }, [current, displayCidade]);
+  }, [current, currentUk, displayCidade]);
 
   const borderColor = useMemo(() => {
     if (totalUsers === 0) return CD_BORDER_COLORS[0];
@@ -180,26 +206,6 @@ export default function FullscreenRotator({
     setRemainingMs(dur);
   }
 
-  function nextStep() {
-    setSlideIdx((prevSlide) => {
-      const nextSlide = prevSlide + 1;
-
-      if (nextSlide <= 3) {
-        resetSlideTimer();
-        return nextSlide;
-      }
-
-      if (totalUsers > 1) {
-        setUserIdx((prevU) => {
-          const nu = prevU + 1;
-          return nu >= totalUsers ? 0 : nu;
-        });
-      }
-      resetSlideTimer();
-      return 0;
-    });
-  }
-
   async function fetchIndicadores(uk) {
     if (!uk) return null;
 
@@ -214,47 +220,116 @@ export default function FullscreenRotator({
     return resp?.data || null;
   }
 
+  async function fetchAlertaFinalizando(uk) {
+    if (!uk) return { total: 0, items: [] };
+
+    const params = {
+      ...(baseFilters || {}),
+      usuario_key: uk,
+      max_rows: 120000,
+      page_size: 5000,
+      status_rota: "em_andamento",
+      threshold_faltando: 2,
+    };
+
+    const resp = await apiLocal.getAnaliseRotasAlertaAlmocoFinalizando(params);
+    const d = resp?.data || {};
+
+    return {
+      total: Number(d.total || 0),
+      items: Array.isArray(d.items) ? d.items : [],
+    };
+  }
+
+  function applyPayloadIfStillCurrent(uk, payload, opts) {
+    // ✅ trava correta: só aplica se ainda for o CD atual
+    if (String(uk) !== String(currentUkRef.current)) return;
+
+    setDataByUser(payload?.data || null);
+    setAlertaFinalizando(payload?.alerta || { total: 0, items: [] });
+
+    // ✅ som só no slide 1/4 e só quando explicitamente pedido
+    if (opts?.announce && slideIdx === 0) {
+      setAlertaSpeakToken((t) => t + 1);
+    }
+  }
+
+  async function loadUserData(uk, opts) {
+    const silent = !!opts?.silent;
+    const allowCache = opts?.allowCache !== false;
+    const announce = !!opts?.announce;
+
+    if (!uk) return;
+
+    const cacheKey = getCacheKeyFromFilters(uk, baseFilters);
+
+    if (allowCache) {
+      const cached = cacheRef.current.get(cacheKey);
+      if (cached?.data && cached?.alerta) {
+        applyPayloadIfStillCurrent(uk, cached, { announce: false });
+        // segue refresh por trás se não for silent
+        if (silent) return;
+      }
+    }
+
+    const myReqId = ++reqIdRef.current;
+
+    if (!silent) setLoading(true);
+
+    try {
+      const [data, alerta] = await Promise.all([fetchIndicadores(uk), fetchAlertaFinalizando(uk)]);
+
+      // ✅ corrida: ignora resposta velha
+      if (reqIdRef.current !== myReqId) return;
+
+      const payload = { data, alerta, ts: Date.now() };
+      cacheRef.current.set(cacheKey, payload);
+
+      applyPayloadIfStillCurrent(uk, payload, { announce });
+    } catch {
+      // mantém
+    } finally {
+      if (reqIdRef.current === myReqId && !silent) setLoading(false);
+    }
+  }
+
   async function warmCacheForUser(uk) {
     if (!uk) return;
 
-    const c = cacheRef.current.get(uk);
-    if (c?.data) return;
+    const cacheKey = getCacheKeyFromFilters(uk, baseFilters);
+    const cached = cacheRef.current.get(cacheKey);
+    if (cached?.data && cached?.alerta) return;
 
+    const myReqId = ++reqIdRef.current;
     try {
-      const data = await fetchIndicadores(uk);
-      cacheRef.current.set(uk, { data, ts: Date.now() });
+      const [data, alerta] = await Promise.all([fetchIndicadores(uk), fetchAlertaFinalizando(uk)]);
+      if (reqIdRef.current !== myReqId) return;
+      cacheRef.current.set(cacheKey, { data, alerta, ts: Date.now() });
     } catch {
       // ignora
     }
   }
 
-  async function refreshCurrentSilently() {
-    const uk = current?.usuario_key;
-    if (!uk) return;
+  function nextStep() {
+    setSlideIdx((prevSlide) => {
+      const nextSlide = prevSlide + 1;
 
-    try {
-      setLoading(true);
-      const data = await fetchIndicadores(uk);
+      if (nextSlide <= 3) {
+        resetSlideTimer();
+        return nextSlide;
+      }
 
-      cacheRef.current.set(uk, { data, ts: Date.now() });
-      setDataByUser(data);
-    } catch {
-      // mantém
-    } finally {
-      setLoading(false);
-    }
-  }
+      if (totalUsers > 1) {
+        const nextIdx = userIdx + 1 >= totalUsers ? 0 : userIdx + 1;
+        const nextUk = safeUsers[nextIdx]?.usuario_key;
 
-  function applyCacheOrLoad() {
-    const uk = current?.usuario_key;
-    if (!uk) return;
+        warmCacheForUser(nextUk);
+        setUserIdx(nextIdx);
+      }
 
-    const cached = cacheRef.current.get(uk);
-    if (cached?.data) {
-      setDataByUser(cached.data);
-    } else {
-      refreshCurrentSilently();
-    }
+      resetSlideTimer();
+      return 0;
+    });
   }
 
   async function requestFullscreenOnRoot() {
@@ -277,10 +352,9 @@ export default function FullscreenRotator({
     }
   }
 
-  // ✅ tema dinâmico no fullscreen
+  // tema dinâmico
   useEffect(() => {
     setTheme(readCssVars());
-
     if (typeof window === "undefined") return;
 
     const root = document.documentElement;
@@ -306,9 +380,14 @@ export default function FullscreenRotator({
 
     setUserIdx(0);
     setSlideIdx(0);
-    setDataByUser(null);
 
     cacheRef.current = new Map();
+    reqIdRef.current = 0;
+
+    setDataByUser(null);
+    setAlertaFinalizando({ total: 0, items: [] });
+    setLoading(false);
+
     resetSlideTimer();
 
     const t = setTimeout(() => requestFullscreenOnRoot(), 0);
@@ -328,7 +407,9 @@ export default function FullscreenRotator({
       exitFullscreen();
       document.body.style.overflow = "";
       document.documentElement.classList.remove("tv-mode");
+
       setDataByUser(null);
+      setAlertaFinalizando({ total: 0, items: [] });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -359,32 +440,53 @@ export default function FullscreenRotator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, intervalMs]);
 
-  // troca de CD: cache/load + prefetch
+  // ✅ troca de CD: nunca renderiza dado antigo
   useEffect(() => {
     if (!open) return;
+    if (!currentUk) return;
 
-    applyCacheOrLoad();
+    // zera pra não piscar o antigo
+    setDataByUser(null);
+    setAlertaFinalizando({ total: 0, items: [] });
 
+    // tenta cache primeiro (instantâneo)
+    const cacheKey = getCacheKeyFromFilters(currentUk, baseFilters);
+    const cached = cacheRef.current.get(cacheKey);
+
+    if (cached?.data && cached?.alerta) {
+      setDataByUser(cached.data);
+      setAlertaFinalizando(cached.alerta);
+      setLoading(false);
+
+      // refresh silencioso por trás (sem anunciar)
+      loadUserData(currentUk, { silent: true, allowCache: false, announce: false });
+    } else {
+      // carrega de verdade e anuncia (só se estiver no slide 1)
+      loadUserData(currentUk, { silent: false, allowCache: false, announce: true });
+    }
+
+    // prefetch próximo
     if (totalUsers > 1) {
       const nextIdx = userIdx + 1 >= totalUsers ? 0 : userIdx + 1;
       const nextUk = safeUsers[nextIdx]?.usuario_key;
       warmCacheForUser(nextUk);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, current?.usuario_key]);
+  }, [open, currentUk]);
 
-  // filtros mudaram: invalida cache e recarrega
+  // ✅ filtros mudaram: limpa cache e recarrega CD atual
   useEffect(() => {
     if (!open) return;
+    if (!currentUk) return;
 
     cacheRef.current = new Map();
-    applyCacheOrLoad();
+    reqIdRef.current = 0;
 
-    if (totalUsers > 1) {
-      const nextIdx = userIdx + 1 >= totalUsers ? 0 : userIdx + 1;
-      const nextUk = safeUsers[nextIdx]?.usuario_key;
-      warmCacheForUser(nextUk);
-    }
+    setDataByUser(null);
+    setAlertaFinalizando({ total: 0, items: [] });
+
+    loadUserData(currentUk, { silent: false, allowCache: false, announce: true });
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     open,
@@ -396,18 +498,39 @@ export default function FullscreenRotator({
     baseFilters?.status_rota,
   ]);
 
-  // ✅ antes de renderizar cada slide: refresh silencioso
+  // poll (refresh silencioso)
   useEffect(() => {
     if (!open) return;
-    refreshCurrentSilently();
+
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+
+    pollRef.current = setInterval(() => {
+      const uk = currentUkRef.current;
+      if (!uk) return;
+      loadUserData(uk, { silent: true, allowCache: true, announce: false });
+    }, 20000);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, slideIdx]);
+  }, [open]);
 
-  // timer + poll
+  // timer
   useEffect(() => {
     if (!open) return;
 
-    stopAllTimers();
+    if (tickRef.current) {
+      clearInterval(tickRef.current);
+      tickRef.current = null;
+    }
+
     resetSlideTimer();
 
     const dur = Number(intervalMs || 60000);
@@ -422,13 +545,14 @@ export default function FullscreenRotator({
       if (left <= 0) nextStep();
     }, 120);
 
-    pollRef.current = setInterval(() => {
-      refreshCurrentSilently();
-    }, 20000);
-
-    return () => stopAllTimers();
+    return () => {
+      if (tickRef.current) {
+        clearInterval(tickRef.current);
+        tickRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, intervalMs, current?.usuario_key]);
+  }, [open, intervalMs, userIdx]);
 
   const slideTitle = useMemo(() => {
     if (slideIdx === 0) return "Rotas x Pendência de Almoço";
@@ -503,6 +627,8 @@ export default function FullscreenRotator({
     return Math.max(340, Math.min(640, h));
   }, [vh]);
 
+  const canRenderContent = !!dataByUser;
+
   if (!open) return null;
 
   return (
@@ -518,19 +644,17 @@ export default function FullscreenRotator({
         color: theme.text,
       }}
     >
-      {/* tv-mode global */}
       <style>{`
         html.tv-mode #app-navbar { display: none !important; }
         html.tv-mode body { overflow: hidden !important; }
       `}</style>
 
-      {/* borda CD */}
       <div
         style={{
           position: "absolute",
           inset: 12,
           borderRadius: 22,
-          border: `2px dashed ${rgba(borderColor, 0.9)}`,
+          border: `4px dashed ${rgba(borderColor, 0.9)}`,
           pointerEvents: "none",
           boxShadow: `0 0 0 1px ${rgba(theme.border, 0.65)}, 0 18px 60px ${rgba(borderColor, 0.12)}`,
         }}
@@ -539,7 +663,6 @@ export default function FullscreenRotator({
       {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {/* timer pizza */}
           <div
             title={`Troca em ${Math.ceil(remainingMs / 1000)}s (mover mouse reseta)`}
             style={{
@@ -554,19 +677,13 @@ export default function FullscreenRotator({
           >
             <svg width={pie.size} height={pie.size} viewBox={`0 0 ${pie.size} ${pie.size}`}>
               <circle cx={pie.cx} cy={pie.cy} r={pie.r} fill={rgba(theme.border, 0.12)} />
-              {pie.path ? (
-                <path
-                  d={pie.path}
-                  fill={effOk ? rgba(theme.ok, 0.92) : rgba(theme.warn, 0.92)}
-                />
-              ) : null}
+              {pie.path ? <path d={pie.path} fill={effOk ? rgba(theme.ok, 0.92) : rgba(theme.warn, 0.92)} /> : null}
               <circle cx={pie.cx} cy={pie.cy} r={pie.r} fill="transparent" stroke={rgba(theme.border, 0.75)} />
             </svg>
           </div>
 
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-              {/* CD */}
               <span
                 style={{
                   display: "inline-flex",
@@ -582,10 +699,9 @@ export default function FullscreenRotator({
               >
                 <span style={{ fontSize: 12, opacity: 0.85 }}>CD</span>
                 <span style={{ fontSize: 14 }}>{cdLabel}</span>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>({current?.usuario_key || ""})</span>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>({currentUk || ""})</span>
               </span>
 
-              {/* slide */}
               <span
                 style={{
                   display: "inline-flex",
@@ -604,7 +720,6 @@ export default function FullscreenRotator({
                 <span style={{ fontSize: 12, opacity: 0.7 }}>• {slideTitle}</span>
               </span>
 
-              {/* eficiência */}
               <span
                 title="Eficiência = 100% - (pendências/rotas)"
                 style={{
@@ -708,45 +823,67 @@ export default function FullscreenRotator({
         </div>
 
         <div style={{ width: "100%", height: "calc(100% - 48px)", marginTop: 10 }}>
-          {slideIdx === 0 && (
-            <div style={{ width: "100%", height: "100%" }}>
-              <ChartRotasVsAlmoco
-                data={chartByDay}
-                onClickPendencias={(dayISO) => onOpenPendentes?.(dayISO, false, current?.usuario_key)}
-                onClickGravissimo={(dayISO) => onOpenGravissimo?.(dayISO, current?.usuario_key)}
-                onOpenPendentesPeriod={() => onOpenPendentes?.(null, false, current?.usuario_key)}
-                onOpenGravissimoPeriod={() => onOpenGravissimo?.(null, current?.usuario_key)}
-                height={chart1Height}
-              />
+          {!canRenderContent ? (
+            <div
+              style={{
+                height: "100%",
+                display: "grid",
+                placeItems: "center",
+                borderRadius: 16,
+                border: `1px dashed ${rgba(theme.border, 0.85)}`,
+                background: theme.bgPanel2,
+                color: theme.muted,
+                fontWeight: 900,
+                fontSize: 14,
+              }}
+            >
+              Carregando dados do CD...
             </div>
-          )}
+          ) : (
+            <>
+              {slideIdx === 0 && (
+                <div style={{ width: "100%", height: "100%" }}>
+                  <ChartRotasVsAlmoco
+                    data={chartByDay}
+                    alertaFinalizando={alertaFinalizando}
+                    alertaSpeakToken={alertaSpeakToken}
+                    onClickPendencias={(dayISO) => onOpenPendentes?.(dayISO, false, currentUk)}
+                    onClickGravissimo={(dayISO) => onOpenGravissimo?.(dayISO, currentUk)}
+                    onOpenPendentesPeriod={() => onOpenPendentes?.(null, false, currentUk)}
+                    onOpenGravissimoPeriod={() => onOpenGravissimo?.(null, currentUk)}
+                    height={chart1Height}
+                  />
+                </div>
+              )}
 
-          {slideIdx === 1 && (
-            <ChartErrosEDivergenciasPorDia
-              data={chartByDay}
-              onClickErroSla={(dayISO) => onOpenErro?.(dayISO, "sla", current?.usuario_key)}
-              onClickDevolucao={(dayISO) => onOpenErro?.(dayISO, "devolucao", current?.usuario_key)}
-              onClickMercadorias={(dayISO) => onOpenErro?.(dayISO, "mercadorias", current?.usuario_key)}
-            />
-          )}
+              {slideIdx === 1 && (
+                <ChartErrosEDivergenciasPorDia
+                  data={chartByDay}
+                  onClickErroSla={(dayISO) => onOpenErro?.(dayISO, "sla", currentUk)}
+                  onClickDevolucao={(dayISO) => onOpenErro?.(dayISO, "devolucao", currentUk)}
+                  onClickMercadorias={(dayISO) => onOpenErro?.(dayISO, "mercadorias", currentUk)}
+                />
+              )}
 
-          {slideIdx === 2 && (
-            <ChartRankingProblemas
-              rankings={dataByUser?.rankings}
-              displayCidade={displayCidade}
-              metaSlaPct={baseFilters?.meta_sla_pct || 100}
-            />
-          )}
+              {slideIdx === 2 && (
+                <ChartRankingProblemas
+                  rankings={dataByUser?.rankings}
+                  displayCidade={displayCidade}
+                  metaSlaPct={baseFilters?.meta_sla_pct || 100}
+                />
+              )}
 
-          {slideIdx === 3 && (
-            <ChartMotoristasViagensErros
-              rankings={dataByUser?.rankings}
-              displayCidade={displayCidade}
-              metaSlaPct={baseFilters?.meta_sla_pct || 100}
-              dataIni={baseFilters?.data_ini}
-              dataFim={baseFilters?.data_fim}
-              usuarioKey={current?.usuario_key}
-            />
+              {slideIdx === 3 && (
+                <ChartMotoristasViagensErros
+                  rankings={dataByUser?.rankings}
+                  displayCidade={displayCidade}
+                  metaSlaPct={baseFilters?.meta_sla_pct || 100}
+                  dataIni={baseFilters?.data_ini}
+                  dataFim={baseFilters?.data_fim}
+                  usuarioKey={currentUk}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

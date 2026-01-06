@@ -514,6 +514,11 @@ updateHorarioAlmoco: (id, body, actor) =>
 // ========================
 // Performaxxi — Análise de Rotas
 // ========================
+getAnaliseRotasAlertaAlmocoFinalizando: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/alerta-almoco-finalizando", { params }),
+
+getAnaliseRotasEficienciaPorRota: (params) =>
+  api.get("/analise_performaxxi/analise-rotas/eficiencia-por-rota", { params }),
 
 
 
