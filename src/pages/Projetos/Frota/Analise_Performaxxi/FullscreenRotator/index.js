@@ -127,7 +127,7 @@ export default function FullscreenRotator({
   open,
   onClose,
   users,
-  intervalMs = 10000,
+  intervalMs = 60000,
   baseFilters,
   displayCidade,
   onOpenErro,
