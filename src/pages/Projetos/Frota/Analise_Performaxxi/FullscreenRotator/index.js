@@ -127,7 +127,7 @@ export default function FullscreenRotator({
   open,
   onClose,
   users,
-  intervalMs = 60000,
+  intervalMs = 10000,
   baseFilters,
   displayCidade,
   onOpenErro,
@@ -143,14 +143,12 @@ export default function FullscreenRotator({
 
   const [loading, setLoading] = useState(false);
 
-  // ✅ dados do CD ATUAL
   const [dataByUser, setDataByUser] = useState(null);
   const [alertaFinalizando, setAlertaFinalizando] = useState({ total: 0, items: [] });
   const [alertaSpeakToken, setAlertaSpeakToken] = useState(0);
 
   const cacheRef = useRef(new Map());
 
-  // ✅ refs “instantâneos” pra travas (não dependem de state async)
   const currentUkRef = useRef("");
   const reqIdRef = useRef(0);
 
@@ -172,10 +170,31 @@ export default function FullscreenRotator({
 
   const currentUk = current?.usuario_key || "";
 
-  // ✅ mantém ref sempre atual (sem depender de render)
   useEffect(() => {
     currentUkRef.current = currentUk || "";
   }, [currentUk]);
+
+  // ✅ NOVO: ao trocar de CD (usuario), mata qualquer fala pendurada
+  useEffect(() => {
+    if (!open) return;
+    try {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
+  }, [open, currentUk]);
+
+  // ✅ NOVO: ao sair do slide 1/4, mata fala (evita "continuar falando" no slide 2/4)
+  useEffect(() => {
+    if (!open) return;
+    if (slideIdx !== 0) {
+      try {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+      } catch {}
+    }
+  }, [open, slideIdx]);
 
   const cdLabel = useMemo(() => {
     const uk = currentUk;
@@ -242,13 +261,11 @@ export default function FullscreenRotator({
   }
 
   function applyPayloadIfStillCurrent(uk, payload, opts) {
-    // ✅ trava correta: só aplica se ainda for o CD atual
     if (String(uk) !== String(currentUkRef.current)) return;
 
     setDataByUser(payload?.data || null);
     setAlertaFinalizando(payload?.alerta || { total: 0, items: [] });
 
-    // ✅ som só no slide 1/4 e só quando explicitamente pedido
     if (opts?.announce && slideIdx === 0) {
       setAlertaSpeakToken((t) => t + 1);
     }
@@ -267,7 +284,6 @@ export default function FullscreenRotator({
       const cached = cacheRef.current.get(cacheKey);
       if (cached?.data && cached?.alerta) {
         applyPayloadIfStillCurrent(uk, cached, { announce: false });
-        // segue refresh por trás se não for silent
         if (silent) return;
       }
     }
@@ -279,7 +295,6 @@ export default function FullscreenRotator({
     try {
       const [data, alerta] = await Promise.all([fetchIndicadores(uk), fetchAlertaFinalizando(uk)]);
 
-      // ✅ corrida: ignora resposta velha
       if (reqIdRef.current !== myReqId) return;
 
       const payload = { data, alerta, ts: Date.now() };
@@ -352,7 +367,6 @@ export default function FullscreenRotator({
     }
   }
 
-  // tema dinâmico
   useEffect(() => {
     setTheme(readCssVars());
     if (typeof window === "undefined") return;
@@ -371,7 +385,6 @@ export default function FullscreenRotator({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // open/close
   useEffect(() => {
     if (!open) return;
 
@@ -408,13 +421,19 @@ export default function FullscreenRotator({
       document.body.style.overflow = "";
       document.documentElement.classList.remove("tv-mode");
 
+      // ✅ NOVO: ao fechar, cancela fala pendente
+      try {
+        if (typeof window !== "undefined" && "speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+      } catch {}
+
       setDataByUser(null);
       setAlertaFinalizando({ total: 0, items: [] });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // mouse move reseta timer
   useEffect(() => {
     if (!open) return;
     const el = overlayRef.current;
@@ -440,16 +459,13 @@ export default function FullscreenRotator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, intervalMs]);
 
-  // ✅ troca de CD: nunca renderiza dado antigo
   useEffect(() => {
     if (!open) return;
     if (!currentUk) return;
 
-    // zera pra não piscar o antigo
     setDataByUser(null);
     setAlertaFinalizando({ total: 0, items: [] });
 
-    // tenta cache primeiro (instantâneo)
     const cacheKey = getCacheKeyFromFilters(currentUk, baseFilters);
     const cached = cacheRef.current.get(cacheKey);
 
@@ -458,14 +474,11 @@ export default function FullscreenRotator({
       setAlertaFinalizando(cached.alerta);
       setLoading(false);
 
-      // refresh silencioso por trás (sem anunciar)
       loadUserData(currentUk, { silent: true, allowCache: false, announce: false });
     } else {
-      // carrega de verdade e anuncia (só se estiver no slide 1)
       loadUserData(currentUk, { silent: false, allowCache: false, announce: true });
     }
 
-    // prefetch próximo
     if (totalUsers > 1) {
       const nextIdx = userIdx + 1 >= totalUsers ? 0 : userIdx + 1;
       const nextUk = safeUsers[nextIdx]?.usuario_key;
@@ -474,7 +487,6 @@ export default function FullscreenRotator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, currentUk]);
 
-  // ✅ filtros mudaram: limpa cache e recarrega CD atual
   useEffect(() => {
     if (!open) return;
     if (!currentUk) return;
@@ -498,7 +510,6 @@ export default function FullscreenRotator({
     baseFilters?.status_rota,
   ]);
 
-  // poll (refresh silencioso)
   useEffect(() => {
     if (!open) return;
 
@@ -522,7 +533,6 @@ export default function FullscreenRotator({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // timer
   useEffect(() => {
     if (!open) return;
 
@@ -791,14 +801,12 @@ export default function FullscreenRotator({
         </div>
       </div>
 
-      {/* KPIs rápidos */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
         <MiniPill theme={theme} label="Rotas (período)" value={kpis.totalRotas} color="#22d3ee" />
         <MiniPill theme={theme} label="Pendentes almoço" value={kpis.totalPend} color="#f97316" />
         <MiniPill theme={theme} label="Finalizado sem lançar" value={kpis.totalGrav} color="#ef4444" />
       </div>
 
-      {/* CONTEÚDO */}
       <div
         style={{
           marginTop: 12,
@@ -852,6 +860,7 @@ export default function FullscreenRotator({
                     onOpenPendentesPeriod={() => onOpenPendentes?.(null, false, currentUk)}
                     onOpenGravissimoPeriod={() => onOpenGravissimo?.(null, currentUk)}
                     height={chart1Height}
+                    usuarioKey={currentUk} // ✅ já está certo
                   />
                 </div>
               )}

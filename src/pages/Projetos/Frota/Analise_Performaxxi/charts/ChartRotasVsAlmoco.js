@@ -24,7 +24,7 @@ function formatXAxisDate(value) {
 const COLOR_ROTAS = "#22d3ee";
 const COLOR_PEND = "#f97316";
 const COLOR_GRAV = "#ef4444";
-const COLOR_OK = "#22c55e"; // verde
+const COLOR_OK = "#22c55e";
 
 function rgba(hex, a) {
   const h = String(hex || "").replace("#", "").trim();
@@ -67,7 +67,11 @@ function readCssVars() {
 export default function ChartRotasVsAlmoco({
   data,
   alertaFinalizando,
-  alertaSpeakToken, // ✅ NOVO
+  alertaSpeakToken,
+
+  // ✅ NOVO: pra detectar troca de CD e matar áudio anterior
+  usuarioKey,
+
   onClickPendencias,
   onClickGravissimo,
   onOpenPendentesPeriod,
@@ -85,13 +89,20 @@ export default function ChartRotasVsAlmoco({
     if (typeof window === "undefined") return;
 
     const root = document.documentElement;
-    const obs = new MutationObserver(() => {
-      setTheme(readCssVars());
-    });
-
+    const obs = new MutationObserver(() => setTheme(readCssVars()));
     obs.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+
     return () => obs.disconnect();
   }, []);
+
+  // ✅ NOVO: ao trocar de CD, cancela qualquer fala em andamento do CD anterior
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    } catch {}
+  }, [usuarioKey]);
 
   const totals = useMemo(() => {
     let totalRotas = 0;
@@ -428,8 +439,8 @@ export default function ChartRotasVsAlmoco({
                     if (pend <= 0) return null;
 
                     const yBase = cy;
-                    const yIcon1 = cy - 16; // alert (table)
-                    const yIcon2 = cy - 30; // gravíssimo
+                    const yIcon1 = cy - 16;
+                    const yIcon2 = cy - 30;
 
                     return (
                       <g style={{ cursor: "pointer" }} pointerEvents="visiblePainted">
@@ -440,7 +451,14 @@ export default function ChartRotasVsAlmoco({
                           }}
                         >
                           <circle cx={cx} cy={yBase} r={HIT_R} fill="transparent" style={{ pointerEvents: "all" }} />
-                          <circle cx={cx} cy={yBase} r={4} fill={COLOR_PEND} stroke="transparent" style={{ pointerEvents: "none" }} />
+                          <circle
+                            cx={cx}
+                            cy={yBase}
+                            r={4}
+                            fill={COLOR_PEND}
+                            stroke="transparent"
+                            style={{ pointerEvents: "none" }}
+                          />
                         </g>
 
                         {grav > 0 && (
@@ -539,10 +557,12 @@ export default function ChartRotasVsAlmoco({
 
         <div style={{ minWidth: 0 }}>
           <TableAlmocoPendente
+            // ✅ remount por CD: zera refs internas e impede "fala atrasada"
+            key={String(usuarioKey || "no-uk")}
             items={alertItems}
             height={height}
             announceToken={alertaSpeakToken}
-            criticalWhenFaltandoLE={1} // ✅ NOVO: token chega no filho
+            criticalWhenFaltandoLE={1}
           />
         </div>
       </div>

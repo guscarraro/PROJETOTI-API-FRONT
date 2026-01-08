@@ -236,7 +236,7 @@ const App = () => {
   element={
     <PrivateRoute
       element={<Frota />}
-      allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]}
+      allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA, SECTORS.TI]}
     />
   }
 />

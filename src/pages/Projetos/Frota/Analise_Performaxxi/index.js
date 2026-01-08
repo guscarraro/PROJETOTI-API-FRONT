@@ -613,7 +613,7 @@ export default function Analise_Performaxxi() {
         open={fsOpen}
         onClose={() => setFsOpen(false)}
         users={usuariosParaRotacao}
-        intervalMs={60000}
+        intervalMs={10000}
         baseFilters={{
           data_ini: start,
           data_fim: end,
