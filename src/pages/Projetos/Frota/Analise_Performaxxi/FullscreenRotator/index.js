@@ -18,7 +18,9 @@ const CD_BORDER_COLORS = [
 ];
 
 function rgba(hex, a) {
-  const h = String(hex || "").replace("#", "").trim();
+  const h = String(hex || "")
+    .replace("#", "")
+    .trim();
   if (h.length !== 6) return `rgba(148,163,184,${a})`;
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -144,7 +146,10 @@ export default function FullscreenRotator({
   const [loading, setLoading] = useState(false);
 
   const [dataByUser, setDataByUser] = useState(null);
-  const [alertaFinalizando, setAlertaFinalizando] = useState({ total: 0, items: [] });
+  const [alertaFinalizando, setAlertaFinalizando] = useState({
+    total: 0,
+    items: [],
+  });
   const [alertaSpeakToken, setAlertaSpeakToken] = useState(0);
 
   const cacheRef = useRef(new Map());
@@ -152,12 +157,16 @@ export default function FullscreenRotator({
   const currentUkRef = useRef("");
   const reqIdRef = useRef(0);
 
-  const [remainingMs, setRemainingMs] = useState(() => Number(intervalMs || 60000));
+  const [remainingMs, setRemainingMs] = useState(() =>
+    Number(intervalMs || 60000)
+  );
   const tickRef = useRef(null);
   const pollRef = useRef(null);
   const lastSwapAtRef = useRef(0);
 
-  const [vh, setVh] = useState(() => (typeof window !== "undefined" ? window.innerHeight : 900));
+  const [vh, setVh] = useState(() =>
+    typeof window !== "undefined" ? window.innerHeight : 900
+  );
 
   const safeUsers = Array.isArray(users) ? users : [];
   const totalUsers = safeUsers.length;
@@ -293,7 +302,10 @@ export default function FullscreenRotator({
     if (!silent) setLoading(true);
 
     try {
-      const [data, alerta] = await Promise.all([fetchIndicadores(uk), fetchAlertaFinalizando(uk)]);
+      const [data, alerta] = await Promise.all([
+        fetchIndicadores(uk),
+        fetchAlertaFinalizando(uk),
+      ]);
 
       if (reqIdRef.current !== myReqId) return;
 
@@ -317,7 +329,10 @@ export default function FullscreenRotator({
 
     const myReqId = ++reqIdRef.current;
     try {
-      const [data, alerta] = await Promise.all([fetchIndicadores(uk), fetchAlertaFinalizando(uk)]);
+      const [data, alerta] = await Promise.all([
+        fetchIndicadores(uk),
+        fetchAlertaFinalizando(uk),
+      ]);
       if (reqIdRef.current !== myReqId) return;
       cacheRef.current.set(cacheKey, { data, alerta, ts: Date.now() });
     } catch {
@@ -474,9 +489,17 @@ export default function FullscreenRotator({
       setAlertaFinalizando(cached.alerta);
       setLoading(false);
 
-      loadUserData(currentUk, { silent: true, allowCache: false, announce: false });
+      loadUserData(currentUk, {
+        silent: true,
+        allowCache: false,
+        announce: false,
+      });
     } else {
-      loadUserData(currentUk, { silent: false, allowCache: false, announce: true });
+      loadUserData(currentUk, {
+        silent: false,
+        allowCache: false,
+        announce: true,
+      });
     }
 
     if (totalUsers > 1) {
@@ -497,7 +520,11 @@ export default function FullscreenRotator({
     setDataByUser(null);
     setAlertaFinalizando({ total: 0, items: [] });
 
-    loadUserData(currentUk, { silent: false, allowCache: false, announce: true });
+    loadUserData(currentUk, {
+      silent: false,
+      allowCache: false,
+      announce: true,
+    });
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -666,15 +693,27 @@ export default function FullscreenRotator({
           borderRadius: 22,
           border: `4px dashed ${rgba(borderColor, 0.9)}`,
           pointerEvents: "none",
-          boxShadow: `0 0 0 1px ${rgba(theme.border, 0.65)}, 0 18px 60px ${rgba(borderColor, 0.12)}`,
+          boxShadow: `0 0 0 1px ${rgba(theme.border, 0.65)}, 0 18px 60px ${rgba(
+            borderColor,
+            0.12
+          )}`,
         }}
       />
 
       {/* HEADER */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 12,
+        }}
+      >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div
-            title={`Troca em ${Math.ceil(remainingMs / 1000)}s (mover mouse reseta)`}
+            title={`Troca em ${Math.ceil(
+              remainingMs / 1000
+            )}s (mover mouse reseta)`}
             style={{
               width: pie.size,
               height: pie.size,
@@ -685,15 +724,42 @@ export default function FullscreenRotator({
               background: theme.bgPanel2,
             }}
           >
-            <svg width={pie.size} height={pie.size} viewBox={`0 0 ${pie.size} ${pie.size}`}>
-              <circle cx={pie.cx} cy={pie.cy} r={pie.r} fill={rgba(theme.border, 0.12)} />
-              {pie.path ? <path d={pie.path} fill={effOk ? rgba(theme.ok, 0.92) : rgba(theme.warn, 0.92)} /> : null}
-              <circle cx={pie.cx} cy={pie.cy} r={pie.r} fill="transparent" stroke={rgba(theme.border, 0.75)} />
+            <svg
+              width={pie.size}
+              height={pie.size}
+              viewBox={`0 0 ${pie.size} ${pie.size}`}
+            >
+              <circle
+                cx={pie.cx}
+                cy={pie.cy}
+                r={pie.r}
+                fill={rgba(theme.border, 0.12)}
+              />
+              {pie.path ? (
+                <path
+                  d={pie.path}
+                  fill={effOk ? rgba(theme.ok, 0.92) : rgba(theme.warn, 0.92)}
+                />
+              ) : null}
+              <circle
+                cx={pie.cx}
+                cy={pie.cy}
+                r={pie.r}
+                fill="transparent"
+                stroke={rgba(theme.border, 0.75)}
+              />
             </svg>
           </div>
 
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap",
+              }}
+            >
               <span
                 style={{
                   display: "inline-flex",
@@ -702,14 +768,19 @@ export default function FullscreenRotator({
                   padding: "6px 10px",
                   borderRadius: 999,
                   border: `1px solid ${rgba(borderColor, 0.55)}`,
-                  background: `linear-gradient(180deg, ${rgba(borderColor, 0.16)}, ${rgba(borderColor, 0.06)})`,
+                  background: `linear-gradient(180deg, ${rgba(
+                    borderColor,
+                    0.16
+                  )}, ${rgba(borderColor, 0.06)})`,
                   fontWeight: 1000,
                   color: theme.text,
                 }}
               >
                 <span style={{ fontSize: 12, opacity: 0.85 }}>CD</span>
                 <span style={{ fontSize: 14 }}>{cdLabel}</span>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>({currentUk || ""})</span>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>
+                  ({currentUk || ""})
+                </span>
               </span>
 
               <span
@@ -727,7 +798,9 @@ export default function FullscreenRotator({
               >
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Slide</span>
                 <span style={{ fontSize: 14 }}>{slideIdx + 1}/4</span>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>• {slideTitle}</span>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>
+                  • {slideTitle}
+                </span>
               </span>
 
               <span
@@ -738,10 +811,18 @@ export default function FullscreenRotator({
                   gap: 8,
                   padding: "6px 10px",
                   borderRadius: 999,
-                  border: effOk ? `1px solid ${rgba(theme.ok, 0.45)}` : `1px solid ${rgba(theme.warn, 0.45)}`,
+                  border: effOk
+                    ? `1px solid ${rgba(theme.ok, 0.45)}`
+                    : `1px solid ${rgba(theme.warn, 0.45)}`,
                   background: effOk
-                    ? `linear-gradient(180deg, ${rgba(theme.ok, 0.18)}, ${rgba(theme.ok, 0.08)})`
-                    : `linear-gradient(180deg, ${rgba(theme.warn, 0.18)}, ${rgba(theme.warn, 0.08)})`,
+                    ? `linear-gradient(180deg, ${rgba(theme.ok, 0.18)}, ${rgba(
+                        theme.ok,
+                        0.08
+                      )})`
+                    : `linear-gradient(180deg, ${rgba(
+                        theme.warn,
+                        0.18
+                      )}, ${rgba(theme.warn, 0.08)})`,
                   fontWeight: 1000,
                   color: theme.text,
                 }}
@@ -753,10 +834,21 @@ export default function FullscreenRotator({
               </span>
             </div>
 
-            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.78, color: theme.muted }}>
-              {totalUsers ? `CD ${userIdx + 1}/${totalUsers}` : "Sem CDs no filtro"} • troca automática a cada{" "}
-              <b style={{ color: theme.text }}>{Math.round(dur / 1000)}s</b> • mouse reseta • sai no{" "}
-              <b style={{ color: theme.text }}>ESC</b> ou <b style={{ color: theme.text }}>X</b>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 12,
+                opacity: 0.78,
+                color: theme.muted,
+              }}
+            >
+              {totalUsers
+                ? `CD ${userIdx + 1}/${totalUsers}`
+                : "Sem CDs no filtro"}{" "}
+              • troca automática a cada{" "}
+              <b style={{ color: theme.text }}>{Math.round(dur / 1000)}s</b> •
+              mouse reseta • sai no <b style={{ color: theme.text }}>ESC</b> ou{" "}
+              <b style={{ color: theme.text }}>X</b>
             </div>
           </div>
         </div>
@@ -801,10 +893,27 @@ export default function FullscreenRotator({
         </div>
       </div>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
-        <MiniPill theme={theme} label="Rotas (período)" value={kpis.totalRotas} color="#22d3ee" />
-        <MiniPill theme={theme} label="Pendentes almoço" value={kpis.totalPend} color="#f97316" />
-        <MiniPill theme={theme} label="Finalizado sem lançar" value={kpis.totalGrav} color="#ef4444" />
+      <div
+        style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}
+      >
+        <MiniPill
+          theme={theme}
+          label="Rotas (período)"
+          value={kpis.totalRotas}
+          color="#22d3ee"
+        />
+        <MiniPill
+          theme={theme}
+          label="Pendentes almoço"
+          value={kpis.totalPend}
+          color="#f97316"
+        />
+        <MiniPill
+          theme={theme}
+          label="Finalizado sem lançar"
+          value={kpis.totalGrav}
+          color="#ef4444"
+        />
       </div>
 
       <div
@@ -818,11 +927,28 @@ export default function FullscreenRotator({
           boxSizing: "border-box",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "flex-end",
+            gap: 12,
+          }}
+        >
           <div>
-            <div style={{ fontWeight: 1000, fontSize: 14, color: theme.text }}>{slideTitle}</div>
-            <div style={{ fontSize: 12, opacity: 0.82, marginTop: 4, color: theme.muted }}>
-              {slideIdx === 0 && "Clique no ponto laranja do dia para abrir pendentes. O “!” abre Finalizado sem lançar."}
+            <div style={{ fontWeight: 1000, fontSize: 14, color: theme.text }}>
+              {slideTitle}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.82,
+                marginTop: 4,
+                color: theme.muted,
+              }}
+            >
+              {slideIdx === 0 &&
+                "Clique no ponto laranja do dia para abrir pendentes. O “!” abre Finalizado sem lançar."}
               {slideIdx === 1 && "Clique na barra para abrir o detalhe do dia."}
               {slideIdx === 2 && "Período completo. Top rotas por problema."}
               {slideIdx === 3 && "Período completo. Motoristas e performance."}
@@ -830,7 +956,9 @@ export default function FullscreenRotator({
           </div>
         </div>
 
-        <div style={{ width: "100%", height: "calc(100% - 48px)", marginTop: 10 }}>
+        <div
+          style={{ width: "100%", height: "calc(100% - 48px)", marginTop: 10 }}
+        >
           {!canRenderContent ? (
             <div
               style={{
@@ -852,15 +980,24 @@ export default function FullscreenRotator({
               {slideIdx === 0 && (
                 <div style={{ width: "100%", height: "100%" }}>
                   <ChartRotasVsAlmoco
+                    key={`rotas-almoco-${currentUk}`} // ✅ remonta quando troca CD
                     data={chartByDay}
                     alertaFinalizando={alertaFinalizando}
                     alertaSpeakToken={alertaSpeakToken}
-                    onClickPendencias={(dayISO) => onOpenPendentes?.(dayISO, false, currentUk)}
-                    onClickGravissimo={(dayISO) => onOpenGravissimo?.(dayISO, currentUk)}
-                    onOpenPendentesPeriod={() => onOpenPendentes?.(null, false, currentUk)}
-                    onOpenGravissimoPeriod={() => onOpenGravissimo?.(null, currentUk)}
+                    onClickPendencias={(dayISO) =>
+                      onOpenPendentes?.(dayISO, false, currentUk)
+                    }
+                    onClickGravissimo={(dayISO) =>
+                      onOpenGravissimo?.(dayISO, currentUk)
+                    }
+                    onOpenPendentesPeriod={() =>
+                      onOpenPendentes?.(null, false, currentUk)
+                    }
+                    onOpenGravissimoPeriod={() =>
+                      onOpenGravissimo?.(null, currentUk)
+                    }
                     height={chart1Height}
-                    usuarioKey={currentUk} // ✅ já está certo
+                    usuarioKey={currentUk}
                   />
                 </div>
               )}
@@ -868,9 +1005,15 @@ export default function FullscreenRotator({
               {slideIdx === 1 && (
                 <ChartErrosEDivergenciasPorDia
                   data={chartByDay}
-                  onClickErroSla={(dayISO) => onOpenErro?.(dayISO, "sla", currentUk)}
-                  onClickDevolucao={(dayISO) => onOpenErro?.(dayISO, "devolucao", currentUk)}
-                  onClickMercadorias={(dayISO) => onOpenErro?.(dayISO, "mercadorias", currentUk)}
+                  onClickErroSla={(dayISO) =>
+                    onOpenErro?.(dayISO, "sla", currentUk)
+                  }
+                  onClickDevolucao={(dayISO) =>
+                    onOpenErro?.(dayISO, "devolucao", currentUk)
+                  }
+                  onClickMercadorias={(dayISO) =>
+                    onOpenErro?.(dayISO, "mercadorias", currentUk)
+                  }
                 />
               )}
 
@@ -909,7 +1052,10 @@ function MiniPill({ theme, label, value, color }) {
         gap: 10,
         borderRadius: 999,
         border: `1px solid ${rgba(color, 0.35)}`,
-        background: `linear-gradient(180deg, ${rgba(color, 0.14)}, ${rgba(color, 0.06)})`,
+        background: `linear-gradient(180deg, ${rgba(color, 0.14)}, ${rgba(
+          color,
+          0.06
+        )})`,
         padding: "8px 12px",
         fontWeight: 900,
         color: theme.text,
