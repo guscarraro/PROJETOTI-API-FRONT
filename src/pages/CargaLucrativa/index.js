@@ -34,33 +34,32 @@ const Navbar = ({ currentTab, setCurrentTab, setNumeroViagem }) => {
   };
 
   const handleSelection = (option, tab) => {
-  if (!tab.includes("relatorio")) {
-    setSelectedOption(option);
-  }
+    if (!tab.includes("relatorio")) {
+      setSelectedOption(option);
+    }
 
-  setCurrentTab(tab);
-  setNumeroViagem(null);
-  setDropdownVisible(false);
+    setCurrentTab(tab);
+    setNumeroViagem(null);
+    setDropdownVisible(false);
 
-  // Atualiza a URL de forma clara
-  switch (tab) {
-    case "gerarViagem":
-      navigate("/gerar-viagem");
-      break;
-    case "dashboard":
-      navigate("/gerar-viagem/dashboard");
-      break;
-    case "custosTabela":
-      navigate("/gerar-viagem/custos");
-      break;
-    case "relatorioViagem":
-      navigate("/gerar-viagem/relatorio");
-      break;
-    default:
-      navigate("/gerar-viagem");
-  }
-};
-
+    // Atualiza a URL de forma clara
+    switch (tab) {
+      case "gerarViagem":
+        navigate("/gerar-viagem");
+        break;
+      case "dashboard":
+        navigate("/gerar-viagem/dashboard");
+        break;
+      case "custosTabela":
+        navigate("/gerar-viagem/custos");
+        break;
+      case "relatorioViagem":
+        navigate("/gerar-viagem/relatorio");
+        break;
+      default:
+        navigate("/gerar-viagem");
+    }
+  };
 
   return (
     <NavbarContainer>
