@@ -71,21 +71,31 @@ export default function Login() {
       toast.success("Login realizado com sucesso!");
 
       // 🔹 Se for cliente Fersa (id 23 ou setor Fersa_Cliente/Coletores), vai pra /conferencia
-      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+const userData = JSON.parse(localStorage.getItem("user") || "{}");
 
-      if (
-        (Array.isArray(userData?.setor_ids) &&
-          (userData.setor_ids.includes(23) ||
-            userData.setor_ids.includes(25))) ||
-        userData?.setores?.some?.((s) => {
-          const nome = String(s || "").toLowerCase();
-          return nome === "fersa_cliente" || nome === "coletores";
-        })
-      ) {
-        navigate("/conferencia");
-      } else {
-        navigate("/projetos");
-      }
+const isUser26 = Number(userData?.id) === 26;
+const isSetorRaia =
+  (Array.isArray(userData?.setor_ids) && userData.setor_ids.map(Number).includes(26)) ||
+  userData?.setores?.some?.((s) => String(s || "").toLowerCase() === "raia");
+
+if (isUser26 || isSetorRaia) {
+  navigate("/frota/analise-performaxxi");
+  return;
+}
+
+if (
+  (Array.isArray(userData?.setor_ids) &&
+    (userData.setor_ids.includes(23) || userData.setor_ids.includes(25))) ||
+  userData?.setores?.some?.((s) => {
+    const nome = String(s || "").toLowerCase();
+    return nome === "fersa_cliente" || nome === "coletores";
+  })
+) {
+  navigate("/conferencia");
+} else {
+  navigate("/projetos");
+}
+
     } catch (err) {
       const msg =
         err?.response?.data?.detail || err?.message || "Erro ao fazer login";

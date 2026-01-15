@@ -32,7 +32,9 @@ import {
   CaixaPesoTd,
   Caixa01Td,
   Caixa02Td,
+  Caixa03Td,
   CaixaMadeiraTd,
+  CaixaNkeHTd,
   Caixa04Td,
 } from "./style";
 import * as XLSX from "xlsx";
@@ -73,7 +75,7 @@ function getDurationChipStyle(sec) {
   if (sec === null || sec === undefined) {
     return {
       ...baseStyle,
-      background: "#374151", // cinza dark
+      background: "#374151",
       color: "#e5e7eb",
       fontWeight: 500,
     };
@@ -91,8 +93,8 @@ function getDurationChipStyle(sec) {
 
   return {
     ...baseStyle,
-    background: "#1e40af", // azul 800
-    color: "#e0f2fe", // azul 100
+    background: "#1e40af",
+    color: "#e0f2fe",
     fontWeight: 600,
   };
 }
@@ -228,7 +230,6 @@ export default function RelatorioConferenciaPage() {
     setRows(res.data || []);
   };
 
-  // aplica range rápido (Hoje, Ontem, Semana, etc.)
   const applyQuickRange = useCallback((value) => {
     setQuickRange(value);
 
@@ -257,7 +258,7 @@ export default function RelatorioConferenciaPage() {
       end = d;
     } else if (value === "semana_atual") {
       const d = new Date(today);
-      const day = d.getDay(); // 0 = domingo, 1 = segunda, ...
+      const day = d.getDay();
       const diffToMonday = day === 0 ? -6 : 1 - day;
       const monday = new Date(d);
       monday.setDate(d.getDate() + diffToMonday);
@@ -265,14 +266,14 @@ export default function RelatorioConferenciaPage() {
       end = d;
     } else if (value === "mes_atual") {
       const year = today.getFullYear();
-      const month = today.getMonth(); // 0-11
+      const month = today.getMonth();
       const first = new Date(year, month, 1);
       const last = new Date(year, month + 1, 0);
       start = first;
       end = last;
     } else if (value === "mes_passado") {
       const year = today.getFullYear();
-      const month = today.getMonth(); // 0-11
+      const month = today.getMonth();
       const prevMonth = month === 0 ? 11 : month - 1;
       const prevYear = month === 0 ? year - 1 : year;
       const first = new Date(prevYear, prevMonth, 1);
@@ -332,8 +333,10 @@ export default function RelatorioConferenciaPage() {
         "Peso total (caixas)": p.peso_total_caixas ?? "",
         Caixa01: p.caixas_caixa01 ?? 0,
         Caixa02: p.caixas_caixa02 ?? 0,
-        "Caixa Madeira": p.caixas_caixa_madeira ?? 0,
+        Caixa03: p.caixas_caixa03 ?? 0,
         Caixa04: p.caixas_caixa04 ?? 0,
+        "Caixa Madeira": p.caixas_caixa_madeira ?? 0,
+        "Caixa NKE H": p.caixas_caixa_nke_h ?? 0,
         Separador: p.separador || "",
         Conferente: p.conferente || "",
         Transportador: p.transportador || "",
@@ -525,8 +528,10 @@ export default function RelatorioConferenciaPage() {
                   "Peso total (caixas)",
                   "Caixa01",
                   "Caixa02",
-                  "Caixa Madeira",
+                  "Caixa03",
                   "Caixa04",
+                  "Caixa Madeira",
+                  "Caixa NKE H",
                   "Separador",
                   "Conferente",
                   "Transportador",
@@ -571,41 +576,33 @@ export default function RelatorioConferenciaPage() {
                     onClick={() => handleOpenInfo(p)}
                     style={{ cursor: "pointer" }}
                   >
-                    {/* Criado em */}
                     <TdCompact>{formatDateTime(p.created_at)}</TdCompact>
 
-                    {/* Remessa */}
                     <TdCompact>
                       <strong>{p.nr_pedido}</strong>
                     </TdCompact>
 
-                    {/* NF */}
                     <TdCompact>{p.nota || "—"}</TdCompact>
 
-                    {/* Cliente */}
                     <TdCompact>
                       <div>{p.cliente}</div>
                       <MutedText style={{ whiteSpace: "nowrap" }}>
                         {p.ov ? `OV: ${p.ov}` : ""}
                       </MutedText>
                     </TdCompact>
-                    {/* Status */}
+
                     <TdCompact>
                       <StatusBadge $status={mapStatusForDisplay(p.status)}>
                         {mapStatusForDisplay(p.status)}
                       </StatusBadge>
                     </TdCompact>
-                    {/* Destino */}
+
                     <TdCompact>{p.destino || "—"}</TdCompact>
 
-
-
-                    {/* Itens */}
                     <TdCompact style={{ textAlign: "right" }}>
                       {p.total_itens}
                     </TdCompact>
 
-                    {/* Peso total (caixas) */}
                     <CaixaPesoTd style={{ textAlign: "right" }}>
                       {pesoTotalCaixas}
                     </CaixaPesoTd>
@@ -618,24 +615,27 @@ export default function RelatorioConferenciaPage() {
                       {p.caixas_caixa02 ?? 0}
                     </Caixa02Td>
 
-                    <CaixaMadeiraTd style={{ textAlign: "right" }}>
-                      {p.caixas_caixa_madeira ?? 0}
-                    </CaixaMadeiraTd>
-
+                    <Caixa03Td style={{ textAlign: "right" }}>
+                      {p.caixas_caixa03 ?? 0}
+                    </Caixa03Td>
+                    
                     <Caixa04Td style={{ textAlign: "right" }}>
                       {p.caixas_caixa04 ?? 0}
                     </Caixa04Td>
 
-                    {/* Separador */}
+                    <CaixaMadeiraTd style={{ textAlign: "right" }}>
+                      {p.caixas_caixa_madeira ?? 0}
+                    </CaixaMadeiraTd>
+
+                    <CaixaNkeHTd style={{ textAlign: "right" }}>
+                      {p.caixas_caixa_nke_h ?? 0}
+                    </CaixaNkeHTd>
+
+
                     <TdCompact>{p.separador || "—"}</TdCompact>
-
-                    {/* Conferente */}
                     <TdCompact>{p.conferente || "—"}</TdCompact>
-
-                    {/* Transportador */}
                     <TdCompact>{p.transportador || "—"}</TdCompact>
 
-                    {/* Ocorrência */}
                     <TdCompact>
                       {p.has_ocorrencia ? (
                         <OccBadge>
@@ -648,37 +648,26 @@ export default function RelatorioConferenciaPage() {
                       )}
                     </TdCompact>
 
-                    {/* Conf. finalizada */}
                     <TdCompact>
                       {formatDateTime(p.conferencia_finalizada_em)}
                     </TdCompact>
 
-                    {/* Δ criação → Conf */}
                     <TdCompact>
                       <span style={getDurationChipStyle(tempoCriacaoConfSeg)}>
                         {formatDuration(tempoCriacaoConfSeg)}
                       </span>
                     </TdCompact>
 
-                    {/* Expedido */}
                     <TdCompact>{formatDateTime(p.expedido_em)}</TdCompact>
 
-                    {/* Δ Conf → Expedição */}
                     <TdCompact>
                       <span style={getDurationChipStyle(tempoConfExpSeg)}>
                         {formatDuration(tempoConfExpSeg)}
                       </span>
                     </TdCompact>
 
-                    {/* Bipagens */}
                     <TdCompact>
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 3,
-                        }}
-                      >
+                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                         <UnitBox>
                           <span>Unitário</span>
                           <strong>{p.total_scan_unitario ?? "—"}</strong>
@@ -702,7 +691,7 @@ export default function RelatorioConferenciaPage() {
               {!rows.length && !loading.any() && (
                 <tr>
                   <Td
-                    colSpan={21}
+                    colSpan={23}
                     style={{
                       textAlign: "center",
                       opacity: 0.7,

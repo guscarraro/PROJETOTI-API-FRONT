@@ -265,9 +265,10 @@ export default function ModalImpressao({
                     disabled={isRestrictedUser}
                   >
                     <option value="CAIXA01">CAIXA 01</option>
-                    <option value="CAIXA02">CAIXA 02</option>
-                    <option value="CAIXA-MADEIRA">CAIXA MADEIRA</option>
+                    <option value="CAIXA03">CAIXA 03</option>
                     <option value="CAIXA04">CAIXA 04</option>
+                    <option value="CAIXA-MADEIRA">CAIXA MADEIRA</option>
+                    <option value="CAIXA-NKE-H">CAIXA NKE HORIZONTAL</option>
                   </CaixaSelect>
                 </div>
 

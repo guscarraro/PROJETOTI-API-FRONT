@@ -76,7 +76,7 @@ export default function ChartRankingProblemas({
   rankings,
   displayCidade,
   metaSlaPct,
-  maxItems = 12,
+  maxItems = 7,
 }) {
   const [mode, setMode] = useState(() => getThemeMode());
   const ui = useMemo(() => buildUi(mode), [mode]);
@@ -95,7 +95,7 @@ export default function ChartRankingProblemas({
 
     list.sort((a, b) => sum4(b) - sum4(a));
 
-    const lim = Math.max(1, Number(maxItems || 12));
+    const lim = Math.max(1, Number(maxItems || 7));
     return list.slice(0, lim);
   }, [rankings, maxItems]);
 
