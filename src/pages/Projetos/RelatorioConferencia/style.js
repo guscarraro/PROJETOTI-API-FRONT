@@ -246,6 +246,25 @@ export const Caixa04Td = styled(TdCompact)`
   }
 `;
 
+export const Caixa03Td = styled(TdCompact)`
+  background: rgba(34, 197, 94, 0.12);
+
+  [data-theme="dark"] & {
+    background: rgba(22, 163, 74, 0.30);
+    color: #e5e7eb;
+  }
+`;
+
+export const CaixaNkeHTd = styled(TdCompact)`
+  background: rgba(251, 146, 60, 0.14);
+
+  [data-theme="dark"] & {
+    background: rgba(234, 88, 12, 0.30);
+    color: #e5e7eb;
+  }
+`;
+
+
 /* =========================
    STATUS / CONTADOR
    ========================= */

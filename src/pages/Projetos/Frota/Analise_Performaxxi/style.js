@@ -95,7 +95,7 @@ export const Select = styled.select`
 
 export const CardGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-top: 12px;
 

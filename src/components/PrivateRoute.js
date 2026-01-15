@@ -61,5 +61,9 @@ export default function PrivateRoute({ element, allowedSectors }) {
     userSectorNames.some((n) => allowNames.includes(n)) ||
     userSectorIds.some((id) => allowIds.includes(id));
 
-  return allowed ? element : <Navigate to="/Projetos" replace />;
+  const isSetor26 = Array.isArray(user?.setor_ids) && user.setor_ids.map(Number).includes(26);
+return allowed
+  ? element
+  : <Navigate to={isSetor26 ? "/Frota/Analise-Performaxxi" : "/Projetos"} replace />;
+
 }

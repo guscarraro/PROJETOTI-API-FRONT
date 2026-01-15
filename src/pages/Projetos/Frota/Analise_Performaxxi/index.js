@@ -1,4 +1,3 @@
-// src/pages/.../Analise_Performaxxi/index.js
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import useLoading from "../../../../hooks/useLoading";
 import apiLocal from "../../../../services/apiLocal";
@@ -20,8 +19,6 @@ import {
   TwoCols,
   PrimaryButton,
   SecondaryButton,
-  Pill,
-  PillRow,
 } from "./style";
 
 import FullscreenRotator from "./FullscreenRotator";
@@ -44,10 +41,6 @@ function getCurrentMonthRange(base) {
   const end = new Date(base.getFullYear(), base.getMonth() + 1, 0);
   return { start, end };
 }
-function pct(v) {
-  const n = Number(v || 0);
-  return `${n.toFixed(0)}%`;
-}
 
 const USER_CITY_MAP = {
   user_1: "Ribeirão Preto",
@@ -67,6 +60,21 @@ function displayCidade(usuario_key, usuario_label_from_back) {
   return USER_CITY_MAP[k] || k;
 }
 
+/**
+ * ===== REGRAS DE ACESSO POR E-MAIL (apenas user id 26) =====
+ * - Se email existir aqui e tiver usuarioKey definido => força o filtro e trava
+ * - Se email estiver aqui com allowMacro=true => NÃO força e NÃO trava (macro)
+ * - Se não estiver no mapa => comportamento normal (não força)
+ */
+const USER26_EMAIL_RULES = {
+  "raia.sjp@carraro.com": { usuarioKey: "user_7", lock: true }, // SJ Dos Pinhais
+  // "fulano.guarulhos@carraro.com": { usuarioKey: "user_2", lock: true },
+  // "ciclano.cuiaba@carraro.com": { usuarioKey: "user_8", lock: true },
+
+  // exemplo de "geral/macro" (não trava e não força)
+  "performaxxi.geral@carraro.com": { allowMacro: true },
+};
+
 export default function Analise_Performaxxi() {
   const loading = useLoading();
 
@@ -78,12 +86,22 @@ export default function Analise_Performaxxi() {
     }
   });
 
+const isUser26 = Array.isArray(user?.setor_ids) && user.setor_ids.map(Number).includes(26);
+const userEmail = String(user?.email || "").trim().toLowerCase();
+
+const user26Rule = isUser26 ? USER26_EMAIL_RULES[userEmail] : null;
+const shouldLockUsuarioKey = !!(isUser26 && user26Rule?.lock && user26Rule?.usuarioKey);
+const forcedUsuarioKey = isUser26 && user26Rule?.usuarioKey ? String(user26Rule.usuarioKey) : "";
+
+
+
+
   const today = new Date();
   const { start: monthStart, end: monthEnd } = getCurrentMonthRange(today);
 
   const [loadingDash, setLoadingDash] = useState(false);
 
-  // ✅ NOVO: token para forçar o anúncio a cada atualização (Buscar / loadAll)
+  // ✅ token para forçar o anúncio a cada atualização (Buscar / loadAll)
   const [alertaSpeakToken, setAlertaSpeakToken] = useState(0);
 
   // filtros
@@ -124,9 +142,27 @@ export default function Analise_Performaxxi() {
   const [gravModalOpen, setGravModalOpen] = useState(false);
   const [gravModalPayload, setGravModalPayload] = useState(null);
 
+  // ===== aplica o "FORCE" do CD por e-mail (somente user 26) =====
+  useEffect(() => {
+    if (!isUser26) return;
+
+    // se for "macro", não força nada
+    if (user26Rule?.allowMacro) return;
+
+    // se tiver usuarioKey definido, força
+    if (forcedUsuarioKey) {
+      setUsuarioKey(forcedUsuarioKey);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUser26, forcedUsuarioKey, userEmail]);
+
   function buildBaseParams() {
     const params = { data_ini: start, data_fim: end };
-    if (usuarioKey) params.usuario_key = usuarioKey;
+
+    // se for user 26 com trava, usa SEMPRE o forced
+    const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+
+    if (effectiveUsuarioKey) params.usuario_key = effectiveUsuarioKey;
     if (motorista) params.motorista = motorista;
     if (rota) params.rota = rota;
     if (statusRota) params.status_rota = statusRota;
@@ -142,7 +178,9 @@ export default function Analise_Performaxxi() {
 
   async function loadOpcoes() {
     const params = { data_ini: start, data_fim: end, max_rows: 120000, page_size: 5000 };
-    if (usuarioKey) params.usuario_key = usuarioKey;
+
+    const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+    if (effectiveUsuarioKey) params.usuario_key = effectiveUsuarioKey;
 
     const resp = await apiLocal.getAnaliseRotasOpcoes(params);
     const d = resp?.data || {};
@@ -173,7 +211,7 @@ export default function Analise_Performaxxi() {
 
     // padrão do endpoint: status_rota em_andamento
     params.status_rota = "em_andamento";
-    params.threshold_faltando = 2; // 2 = último 13/15, 14/15, 15/15
+    params.threshold_faltando = 2;
 
     const resp = await apiLocal.getAnaliseRotasAlertaAlmocoFinalizando(params);
     const d = resp?.data || {};
@@ -193,7 +231,6 @@ export default function Analise_Performaxxi() {
       await loadIndicador();
       await loadAlertaFinalizando();
 
-      // ✅ LINHA QUE IMPORTA: força o Table a anunciar de novo a cada refresh/busca
       setAlertaSpeakToken((t) => t + 1);
     } finally {
       loading.stop("analise_performaxxi");
@@ -212,17 +249,24 @@ export default function Analise_Performaxxi() {
 
   // ===== usuários para rotação
   const usuariosParaRotacao = useMemo(() => {
-    if (usuarioKey) {
+    const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+
+    if (effectiveUsuarioKey) {
       let lbl = "";
       const arr = Array.isArray(opcoes.usuarios_v2) ? opcoes.usuarios_v2 : [];
       for (let i = 0; i < arr.length; i++) {
         const it = arr[i];
-        if (String(it?.usuario_key || "") === String(usuarioKey)) {
+        if (String(it?.usuario_key || "") === String(effectiveUsuarioKey)) {
           lbl = it?.usuario_label || "";
           break;
         }
       }
-      return [{ usuario_key: usuarioKey, usuario_label: displayCidade(usuarioKey, lbl) }];
+      return [
+        {
+          usuario_key: effectiveUsuarioKey,
+          usuario_label: displayCidade(effectiveUsuarioKey, lbl),
+        },
+      ];
     }
 
     const out = [];
@@ -247,9 +291,9 @@ export default function Analise_Performaxxi() {
 
     out.sort((a, b) => String(a.usuario_label).localeCompare(String(b.usuario_label)));
     return out;
-  }, [usuarioKey, opcoes]);
+  }, [usuarioKey, forcedUsuarioKey, shouldLockUsuarioKey, opcoes]);
 
-  // ===== KPIs gerais (v2 certo)
+  // ===== KPIs gerais
   const overallKpis = useMemo(() => {
     const byDay = Array.isArray(indicador?.by_day) ? indicador.by_day : [];
     const counts = indicador?.counts || {};
@@ -277,44 +321,21 @@ export default function Analise_Performaxxi() {
       totalErrAny += Number(d.erros_total || 0);
     }
 
-    const topRotas = Array.isArray(indicador?.rankings?.rotas_problemas)
-      ? indicador.rankings.rotas_problemas
-      : [];
-    const topMot = Array.isArray(indicador?.rankings?.motoristas_problemas)
-      ? indicador.rankings.motoristas_problemas
-      : [];
-
     return {
       totalRotas,
       totalPend,
       totalGrav,
-
       totalErrSla,
       totalErrEnt,
       totalErrMerc,
       totalDev,
       totalErrAny,
-
       scanned: Number(counts.total_rows_scanned || 0),
       truncated: !!indicador?.truncated,
-
-      topRotas,
-      topMot,
-
-      countsFromBack: {
-        total_rotas: Number(counts.total_rotas || 0),
-        total_erros_any: Number(counts.total_erros_any || 0),
-        total_almoco_pendente: Number(counts.total_almoco_pendente || 0),
-        total_almoco_gravissimo: Number(counts.total_almoco_gravissimo || 0),
-        total_erros_sla: Number(counts.total_erros_sla || 0),
-        total_erros_entregas: Number(counts.total_erros_entregas || 0),
-        total_erros_mercadorias: Number(counts.total_erros_mercadorias || 0),
-        total_erros_devolucoes: Number(counts.total_erros_devolucoes || 0),
-      },
     };
   }, [indicador]);
 
-  // ===== dataset por dia (v2 shape certo)
+  // ===== dataset por dia
   const chartByDay = useMemo(() => {
     const byDay = Array.isArray(indicador?.by_day) ? indicador.by_day : [];
     const out = [];
@@ -323,11 +344,9 @@ export default function Analise_Performaxxi() {
       const d = byDay[i] || {};
       out.push({
         data: d.data,
-
         rotas_total: Number(d.rotas_total || 0),
         almoco_pendente: Number(d.almoco_pendente || 0),
         almoco_gravissimo: Number(d.almoco_gravissimo || 0),
-
         erros_sla: Number(d.erros_sla || 0),
         erros_entregas: Number(d.erros_entregas || 0),
         erros_mercadorias: Number(d.erros_mercadorias || 0),
@@ -340,6 +359,8 @@ export default function Analise_Performaxxi() {
   }, [indicador]);
 
   function openAlmocoPendentesModal(dayISO, onlyOverdue) {
+    const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+
     setAlmocoModalPayload({
       dayISO,
       only_overdue: !!onlyOverdue,
@@ -347,7 +368,7 @@ export default function Analise_Performaxxi() {
         data_ini: start,
         data_fim: end,
         day_iso: dayISO || undefined,
-        usuario_key: usuarioKey || "",
+        usuario_key: effectiveUsuarioKey || "",
         motorista,
         rota,
         status_rota: statusRota,
@@ -357,13 +378,15 @@ export default function Analise_Performaxxi() {
   }
 
   function openAlmocoGravissimoModal(dayISO) {
+    const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+
     setGravModalPayload({
       dayISO,
       filters: {
         data_ini: start,
         data_fim: end,
         day_iso: dayISO || undefined,
-        usuario_key: usuarioKey || "",
+        usuario_key: effectiveUsuarioKey || "",
         motorista,
         rota,
         status_rota: statusRota,
@@ -375,6 +398,8 @@ export default function Analise_Performaxxi() {
   function openDetalheEventosModal(dayISO, eventType) {
     if (!dayISO) return;
 
+    const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+
     setErrModalPayload({
       event_type: eventType,
       meta_sla_pct: metaSlaPct,
@@ -382,7 +407,7 @@ export default function Analise_Performaxxi() {
         data_ini: start,
         data_fim: end,
         day_iso: dayISO,
-        usuario_key: usuarioKey || "",
+        usuario_key: effectiveUsuarioKey || "",
         motorista,
         rota,
         status_rota: statusRota,
@@ -416,7 +441,19 @@ export default function Analise_Performaxxi() {
 
             <div>
               <TinyLabel>CD (usuário importação)</TinyLabel>
-              <Select value={usuarioKey} onChange={(e) => setUsuarioKey(e.target.value)}>
+              <Select
+                value={shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey}
+                onChange={(e) => {
+                  if (shouldLockUsuarioKey) return;
+                  setUsuarioKey(e.target.value);
+                }}
+                disabled={shouldLockUsuarioKey}
+                title={
+                  shouldLockUsuarioKey
+                    ? "Seu acesso está restrito ao seu CD."
+                    : "Selecione um CD"
+                }
+              >
                 <option value="">Todos</option>
                 {usuariosParaRotacao.map((u) => (
                   <option key={u.usuario_key} value={u.usuario_key}>
@@ -495,7 +532,6 @@ export default function Analise_Performaxxi() {
         </div>
       )}
 
-      {/* KPIs */}
       <CardGrid>
         <KPI>
           <KPIValue>{overallKpis.scanned}</KPIValue>
@@ -521,18 +557,18 @@ export default function Analise_Performaxxi() {
           <KPIHint>SLA &lt; {metaSlaPct}%</KPIHint>
         </KPI>
 
-        <KPI>
+        {/* <KPI>
           <KPIValue style={{ color: "#f97316" }}>{overallKpis.totalErrEnt}</KPIValue>
           <KPILabel>Erro Entregas</KPILabel>
           <KPIHint>realizadas &lt; total</KPIHint>
-        </KPI>
+        </KPI> */}
       </CardGrid>
 
-      <CardGrid style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
+      <CardGrid >
         <KPI>
           <KPIValue style={{ color: "#f97316" }}>{pendentesSemGravissimo}</KPIValue>
           <KPILabel>Almoço pendente</KPILabel>
-          <KPIHint>pendente sem gravíssimo</KPIHint>
+          <KPIHint>pendente(s) não finalizado(s)</KPIHint>
         </KPI>
 
         <KPI>
@@ -551,7 +587,6 @@ export default function Analise_Performaxxi() {
         </KPI>
       </CardGrid>
 
-      {/* GRAFICO 1 */}
       <ChartCard>
         <TwoCols>
           <div>
@@ -565,7 +600,7 @@ export default function Analise_Performaxxi() {
         <ChartRotasVsAlmoco
           data={chartByDay}
           alertaFinalizando={alertaFinalizando}
-          alertaSpeakToken={alertaSpeakToken} // ✅ NOVO: passa o token
+          alertaSpeakToken={alertaSpeakToken}
           onClickPendencias={(dayISO) => openAlmocoPendentesModal(dayISO, false)}
           onClickGravissimo={(dayISO) => openAlmocoGravissimoModal(dayISO)}
           onOpenPendentesPeriod={() => openAlmocoPendentesModal(null, false)}
@@ -573,7 +608,6 @@ export default function Analise_Performaxxi() {
         />
       </ChartCard>
 
-      {/* GRAFICO 2 */}
       <ChartCard>
         <ChartTitle>Erros e divergências por dia</ChartTitle>
         <div style={{ fontSize: 12, opacity: 0.88, marginTop: 6 }}>
@@ -588,13 +622,11 @@ export default function Analise_Performaxxi() {
         />
       </ChartCard>
 
-      {/* GRAFICO 3 */}
       <ChartCard>
         <ChartTitle>Ranking — rotas com mais problemas (período)</ChartTitle>
         <ChartRankingProblemas rankings={indicador?.rankings} displayCidade={displayCidade} metaSlaPct={metaSlaPct} />
       </ChartCard>
 
-      {/* GRAFICO 4 */}
       <ChartCard>
         <ChartTitle>Motoristas — viagens x erros (período)</ChartTitle>
         <ChartMotoristasViagensErros
@@ -603,17 +635,16 @@ export default function Analise_Performaxxi() {
           metaSlaPct={metaSlaPct}
           dataIni={start}
           dataFim={end}
-          usuarioKey={usuarioKey}
+          usuarioKey={shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey}
           onOpenMotoristaModal={openMotoristaModal}
         />
       </ChartCard>
 
-      {/* FULLSCREEN TV */}
       <FullscreenRotator
         open={fsOpen}
         onClose={() => setFsOpen(false)}
         users={usuariosParaRotacao}
-        intervalMs={60000}
+        intervalMs={10000}
         baseFilters={{
           data_ini: start,
           data_fim: end,
@@ -624,34 +655,75 @@ export default function Analise_Performaxxi() {
         }}
         displayCidade={displayCidade}
         onOpenErro={(dayISO, errorType, usuario_key) => {
-          setUsuarioKey(usuario_key || "");
+          const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : (usuario_key || "");
+          if (shouldLockUsuarioKey) {
+            setUsuarioKey(forcedUsuarioKey);
+          } else {
+            setUsuarioKey(effectiveUsuarioKey);
+          }
+
           setErrModalPayload({
             event_type: errorType,
             meta_sla_pct: metaSlaPct,
-            filters: { data_ini: start, data_fim: end, day_iso: dayISO, usuario_key, motorista, rota, status_rota: statusRota },
+            filters: {
+              data_ini: start,
+              data_fim: end,
+              day_iso: dayISO,
+              usuario_key: effectiveUsuarioKey,
+              motorista,
+              rota,
+              status_rota: statusRota,
+            },
           });
           setErrModalOpen(true);
         }}
         onOpenPendentes={(dayISO, onlyOverdue, usuario_key) => {
-          setUsuarioKey(usuario_key || "");
+          const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : (usuario_key || "");
+          if (shouldLockUsuarioKey) {
+            setUsuarioKey(forcedUsuarioKey);
+          } else {
+            setUsuarioKey(effectiveUsuarioKey);
+          }
+
           setAlmocoModalPayload({
             dayISO,
             only_overdue: !!onlyOverdue,
-            filters: { data_ini: start, data_fim: end, day_iso: dayISO || undefined, usuario_key, motorista, rota, status_rota: statusRota },
+            filters: {
+              data_ini: start,
+              data_fim: end,
+              day_iso: dayISO || undefined,
+              usuario_key: effectiveUsuarioKey,
+              motorista,
+              rota,
+              status_rota: statusRota,
+            },
           });
           setAlmocoModalOpen(true);
         }}
         onOpenGravissimo={(dayISO, usuario_key) => {
-          setUsuarioKey(usuario_key || "");
+          const effectiveUsuarioKey = shouldLockUsuarioKey ? forcedUsuarioKey : usuarioKey;
+          if (shouldLockUsuarioKey) {
+            setUsuarioKey(forcedUsuarioKey);
+          } else {
+            setUsuarioKey(effectiveUsuarioKey);
+          }
+
           setGravModalPayload({
             dayISO,
-            filters: { data_ini: start, data_fim: end, day_iso: dayISO || undefined, usuario_key, motorista, rota, status_rota: statusRota },
+            filters: {
+              data_ini: start,
+              data_fim: end,
+              day_iso: dayISO || undefined,
+              usuario_key: effectiveUsuarioKey,
+              motorista,
+              rota,
+              status_rota: statusRota,
+            },
           });
           setGravModalOpen(true);
         }}
       />
 
-      {/* MODAIS */}
       <div
         style={
           fsOpen

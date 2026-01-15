@@ -104,29 +104,36 @@ export default function ChartRotasVsAlmoco({
     } catch {}
   }, [usuarioKey]);
 
-  const totals = useMemo(() => {
-    let totalRotas = 0;
-    let totalPend = 0;
-    let totalGrav = 0;
+const totals = useMemo(() => {
+  let totalRotas = 0;
+  let totalRotasAbertas = 0; // ✅ NOVO
+  let totalPend = 0;
+  let totalGrav = 0;
 
-    for (let i = 0; i < safeData.length; i++) {
-      const d = safeData[i] || {};
-      totalRotas += Number(d.rotas_total || 0);
-      totalPend += Number(d.almoco_pendente || 0);
-      totalGrav += Number(d.almoco_gravissimo || 0);
-    }
+  for (let i = 0; i < safeData.length; i++) {
+    const d = safeData[i] || {};
+    totalRotas += Number(d.rotas_total || 0);
+    totalRotasAbertas += Number(d.rotas_nao_finalizadas || 0); // ✅ NOVO
+    totalPend += Number(d.almoco_pendente || 0);
+    totalGrav += Number(d.almoco_gravissimo || 0);
+  }
 
-    const inefPct = totalRotas > 0 ? (totalPend / totalRotas) * 100 : 0;
-    const efPct = Math.max(0, 100 - inefPct);
+  // ✅ TROCA AQUI: base só nas não finalizadas
+const inefCount = totalGrav;
+const inefPct = totalRotas > 0 ? (inefCount / totalRotas) * 100 : 0;
+const efPct = Math.max(0, 100 - inefPct);
 
-    return {
-      totalRotas: Number.isFinite(totalRotas) ? totalRotas : 0,
-      totalPend: Number.isFinite(totalPend) ? totalPend : 0,
-      totalGrav: Number.isFinite(totalGrav) ? totalGrav : 0,
-      inefPct: Number.isFinite(inefPct) ? inefPct : 0,
-      efPct: Number.isFinite(efPct) ? efPct : 0,
-    };
-  }, [safeData]);
+
+  return {
+    totalRotas: Number.isFinite(totalRotas) ? totalRotas : 0,
+    totalRotasAbertas: Number.isFinite(totalRotasAbertas) ? totalRotasAbertas : 0, // opcional
+    totalPend: Number.isFinite(totalPend) ? totalPend : 0,
+    totalGrav: Number.isFinite(totalGrav) ? totalGrav : 0,
+    inefPct: Number.isFinite(inefPct) ? inefPct : 0,
+    efPct: Number.isFinite(efPct) ? efPct : 0,
+  };
+}, [safeData]);
+
 
   const pendCount = typeof pendentesCount === "number" ? pendentesCount : totals.totalPend;
   const gravCount = typeof gravissimoCount === "number" ? gravissimoCount : totals.totalGrav;
@@ -140,7 +147,7 @@ export default function ChartRotasVsAlmoco({
   };
 
   const HIT_R = 14;
-  const isMetaOk = totals.efPct >= 99;
+  const isMetaOk = totals.efPct >= 100;
 
   const efficiencyBadgeBase = {
     display: "inline-flex",
@@ -297,7 +304,7 @@ export default function ChartRotasVsAlmoco({
         </span>
 
         <span
-          title="Eficiência = 100% - (Pendentes / Total rotas). Meta: 99-100%."
+          title="Eficiência = (Finalizada sem lançar / Total rotas finalizadas). Meta: 100%."
           style={efficiencyBadgeStyle}
         >
           <span
@@ -322,7 +329,7 @@ export default function ChartRotasVsAlmoco({
             Eficiência <b>{totals.efPct.toFixed(1)}%</b>
           </span>
 
-          <span style={{ opacity: 0.8, fontWeight: 800 }}>(meta 99–100%)</span>
+          <span style={{ opacity: 0.8, fontWeight: 800 }}>(meta 100%)</span>
         </span>
       </div>
 

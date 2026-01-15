@@ -1,13 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  NavWrap,
-  NavInner,
-  NavItem,
-  NavIcon,
-  NavLabel,
-  NavSpacer,
-} from "./style";
+import { NavWrap, NavInner, NavItem, NavIcon, NavLabel, NavSpacer } from "./style";
 import {
   FiHome,
   FiFolder,
@@ -35,9 +28,11 @@ const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 export default function NavBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+
   const [confOpen, setConfOpen] = useState(false);
   const [frotaOpen, setFrotaOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
   const [dark, setDark] = useState(() => {
     if (typeof window === "undefined") return false;
     return (localStorage.getItem("theme") || "") === "dark";
@@ -45,6 +40,7 @@ export default function NavBar() {
 
   useEffect(() => {
     setConfOpen(false);
+    setFrotaOpen(false);
     setMobileOpen(false);
   }, [pathname]);
 
@@ -67,6 +63,9 @@ export default function NavBar() {
       return null;
     }
   });
+
+  // ✅ userSafe evita condicional em hooks
+  const userSafe = user || {};
 
   useEffect(() => {
     (async () => {
@@ -95,9 +94,10 @@ export default function NavBar() {
 
   const userSectorNames = useMemo(() => {
     const ids =
-      (Array.isArray(user?.setor_ids) && user.setor_ids) ||
-      (Array.isArray(user?.setores) && user.setores) ||
+      (Array.isArray(userSafe?.setor_ids) && userSafe.setor_ids) ||
+      (Array.isArray(userSafe?.setores) && userSafe.setores) ||
       [];
+
     return ids
       .map(
         (sid) =>
@@ -106,39 +106,39 @@ export default function NavBar() {
           )?.nome
       )
       .filter(Boolean);
-  }, [user, allSectors]);
+  }, [userSafe, allSectors]);
 
   const isAdmin = useMemo(() => {
     return (
-      user?.tipo === ADMIN_UUID ||
+      userSafe?.tipo === ADMIN_UUID ||
       userSectorNames.some((n) => n?.toLowerCase() === "admin")
     );
-  }, [user?.tipo, userSectorNames]);
+  }, [userSafe?.tipo, userSectorNames]);
 
-  // ===== SETORES / FLAGS (antes de usar no useMemo) =====
-  const setorIds = (Array.isArray(user?.setor_ids) ? user.setor_ids : []).map(
-    Number
-  );
+  const setorIds = useMemo(() => {
+    const ids = Array.isArray(userSafe?.setor_ids) ? userSafe.setor_ids : [];
+    const out = [];
+    for (let i = 0; i < ids.length; i++) out.push(Number(ids[i]));
+    return out;
+  }, [userSafe?.setor_ids]);
 
-  const isSetor23 = setorIds.includes(23); // Fersa
+  const isSetor23 = setorIds.includes(23);
   const isSetor6 = setorIds.includes(6);
   const isSetor9 = setorIds.includes(9);
-  const isSetorTI = setorIds.includes(2); // TI
+  const isSetorTI = setorIds.includes(2);
   const isSetor7 = setorIds.includes(7);
   const isSetor16 = setorIds.includes(16);
-  const isSetor25 = setorIds.includes(25); // Coletores
-  const isSetor14 = setorIds.includes(14); // Frota
+  const isSetor25 = setorIds.includes(25);
+  const isSetor14 = setorIds.includes(14);
 
-  const lowerSetores = Array.isArray(user?.setores)
-    ? user.setores.map((s) => String(s).toLowerCase())
+  const lowerSetores = Array.isArray(userSafe?.setores)
+    ? userSafe.setores.map((s) => String(s).toLowerCase())
     : [];
 
   const isFersa =
     isSetor23 ||
     lowerSetores.includes("fersa_cliente") ||
-    userSectorNames.some(
-      (n) => String(n || "").toLowerCase() === "fersa_cliente"
-    );
+    userSectorNames.some((n) => String(n || "").toLowerCase() === "fersa_cliente");
 
   const isColetores =
     isSetor25 ||
@@ -147,55 +147,10 @@ export default function NavBar() {
 
   const isRestrictedUser = isFersa || isColetores;
 
-  // ===== ITENS PRINCIPAIS DO MENU =====
-  const items = useMemo(() => {
-  const base = [
-    {
-      key: "projetos",
-      label: "Projetos",
-      icon: <FiFolder />,
-      to: "/projetos",
-    },
-    {
-      key: "frete",
-      label: "Ir para o Frete",
-     icon: <FiMap />,
-      to: "/frete",
-    },
+  // ✅ usuário 26 por setor 26 OU id "26"
+  const isUser26 = setorIds.includes(26) || String(userSafe?.id) === "26";
 
-    {
-      key: "sac",
-      label: "Ir para o SAC",
-      icon: <FiHeadphones />,
-      to: "/sac",
-    },
-  ];
-
-    if (isAdmin) {
-      base.unshift({
-        key: "geral",
-        label: "Geral",
-        icon: <FiHome />,
-        to: "/",
-      });
-    }
-
-    // Gestão de Acessos → Admin OU Setor TI (2)
-    if (isAdmin || isSetorTI) {
-      base.push({
-        key: "acessos",
-        label: "Gestão de Acessos",
-        icon: <FiShield />,
-        to: "/projetos/gestaoacessos",
-      });
-    }
-
-    return base;
-  }, [isAdmin, isSetorTI,isSetor14]);
-
-  const avatarInitial = (
-    user?.email?.split("@")[0]?.slice(0, 2) || "U"
-  ).toUpperCase();
+  const avatarInitial = (userSafe?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCase();
 
   const handleLogout = async () => {
     try {
@@ -209,6 +164,7 @@ export default function NavBar() {
 
   const navWrapRef = useRef(null);
   const [navWidth, setNavWidth] = useState(0);
+
   useEffect(() => {
     const el = navWrapRef.current;
     if (!el) return;
@@ -223,10 +179,92 @@ export default function NavBar() {
     };
   }, []);
 
-  // Se não tiver user ainda, não renderiza nada
+  const items = useMemo(() => {
+    const base = [
+      { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
+      { key: "frete", label: "Ir para o Frete", icon: <FiMap />, to: "/frete" },
+      { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" },
+    ];
+
+    if (isAdmin) {
+      base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
+    }
+
+    if (isAdmin || isSetorTI) {
+      base.push({
+        key: "acessos",
+        label: "Gestão de Acessos",
+        icon: <FiShield />,
+        to: "/projetos/gestaoacessos",
+      });
+    }
+
+    return base;
+  }, [isAdmin, isSetorTI]);
+
+  // ✅ agora pode retornar condicionalmente (depois de todos hooks)
   if (!user) return null;
 
-  // ===== MENU RESTRITO (FERSA / COLETORES) =====
+  if (isUser26) {
+    return (
+      <NavWrap ref={navWrapRef} data-open={mobileOpen}>
+        <button
+          className="nav-hamburger"
+          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMobileOpen((v) => !v);
+          }}
+        >
+          <span className="line" />
+        </button>
+
+        <NavInner>
+          <NavItem
+            key="analise-performaxxi"
+            $active={pathname.toLowerCase() === "/frota/analise-performaxxi"}
+            onClick={() => {
+              setMobileOpen(false);
+              navigate("/frota/analise-performaxxi");
+            }}
+            title="Análise Performaxxi"
+          >
+            <NavIcon><FiActivity /></NavIcon>
+            <NavLabel>Análise Performaxxi</NavLabel>
+          </NavItem>
+
+          <NavSpacer />
+
+          <NavItem
+            role="button"
+            onClick={() => {
+              setMobileOpen(false);
+              handleLogout();
+            }}
+            title="Sair"
+          >
+            <NavIcon><FiLogOut /></NavIcon>
+            <NavLabel>Sair</NavLabel>
+          </NavItem>
+
+          <NavItem
+            role="button"
+            onClick={() => {
+              setMobileOpen(false);
+              setDark((v) => !v);
+            }}
+            title={dark ? "Desativar Dark Mode" : "Ativar Dark Mode"}
+          >
+            <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
+            <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
+          </NavItem>
+
+          <NavLabel>Versão 1.2.9</NavLabel>
+        </NavInner>
+      </NavWrap>
+    );
+  }
+
   if (isRestrictedUser) {
     return (
       <NavWrap ref={navWrapRef} data-open={mobileOpen}>
@@ -248,15 +286,9 @@ export default function NavBar() {
               $active={pathname.toLowerCase().startsWith("/conferencia")}
               onClick={() => setConfOpen((v) => !v)}
               title="Conferência"
-              style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "space-around",
-              }}
+              style={{ width: "100%", display: "flex", justifyContent: "space-around" }}
             >
-              <NavIcon>
-                <FiPackage />
-              </NavIcon>
+              <NavIcon><FiPackage /></NavIcon>
               <NavLabel>Conferência</NavLabel>
               <NavIcon
                 style={{
@@ -295,9 +327,7 @@ export default function NavBar() {
                     title="Dashboard"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon>
-                      <FiActivity />
-                    </NavIcon>
+                    <NavIcon><FiActivity /></NavIcon>
                     <NavLabel>Dashboard</NavLabel>
                   </NavItem>
                 )}
@@ -312,9 +342,7 @@ export default function NavBar() {
                   title="Pedidos"
                   style={{ width: "100%" }}
                 >
-                  <NavIcon>
-                    <FiClipboard />
-                  </NavIcon>
+                  <NavIcon><FiClipboard /></NavIcon>
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
 
@@ -329,9 +357,7 @@ export default function NavBar() {
                     title="Relatório"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon>
-                      <FaFileArchive />
-                    </NavIcon>
+                    <NavIcon><FaFileArchive /></NavIcon>
                     <NavLabel>Relatório</NavLabel>
                   </NavItem>
                 )}
@@ -341,39 +367,6 @@ export default function NavBar() {
 
           <NavSpacer />
 
-          {user && (
-            <NavItem
-              title={
-                userSectorNames.length ? userSectorNames.join(", ") : "Usuário"
-              }
-            >
-              <NavIcon>
-                <span
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: "50%",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    fontSize: 13,
-                    border: "1px solid #fff",
-                    color: "#fff",
-                    userSelect: "none",
-                  }}
-                >
-                  {avatarInitial}
-                </span>
-              </NavIcon>
-              <NavLabel>
-                {userSectorNames.length
-                  ? userSectorNames[0]
-                  : user?.email || "Usuário"}
-              </NavLabel>
-            </NavItem>
-          )}
-
           <NavItem
             role="button"
             onClick={() => {
@@ -382,9 +375,7 @@ export default function NavBar() {
             }}
             title="Sair"
           >
-            <NavIcon>
-              <FiLogOut />
-            </NavIcon>
+            <NavIcon><FiLogOut /></NavIcon>
             <NavLabel>Sair</NavLabel>
           </NavItem>
 
@@ -399,13 +390,13 @@ export default function NavBar() {
             <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
+
           <NavLabel>Versão 1.2.9</NavLabel>
         </NavInner>
       </NavWrap>
     );
   }
 
-  // ===== MENU NORMAL (não restrito) =====
   return (
     <NavWrap ref={navWrapRef} data-open={mobileOpen}>
       <button
@@ -434,106 +425,87 @@ export default function NavBar() {
             <NavLabel>{it.label}</NavLabel>
           </NavItem>
         ))}
-{(isAdmin || isSetor14) && (
-  <div style={{ position: "relative" }}>
-    <NavItem
-      key="frota"
-      $active={pathname.toLowerCase().startsWith("/frota")}
-      onClick={() => setFrotaOpen((v) => !v)}
-      title="Frota"
-      style={{
-        width: "100%",
-        display: "flex",
-        justifyContent: "space-around",
-      }}
-    >
-      <NavIcon>
-        <FiTruck />
-      </NavIcon>
-      <NavLabel>Frota</NavLabel>
-      <NavIcon
-        style={{
-          transition: "transform 0.2s ease",
-          transform: frotaOpen ? "rotate(180deg)" : "rotate(0deg)",
-        }}
-      >
-        <FiChevronDown />
-      </NavIcon>
-    </NavItem>
 
-    {frotaOpen && (
-      <div
-        style={{
-          position: "absolute",
-          top: "100%",
-          left: 0,
-          background: "var(--nav-bg, #0f172a)",
-          border: "1px solid rgba(255,255,255,.08)",
-          borderRadius: 10,
-          padding: 6,
-          marginTop: 6,
-          minWidth: "100%",
-          boxShadow: "0 10px 20px rgba(0,0,0,.3)",
-          zIndex: 10,
-        }}
-      >
-        <NavItem
-          $active={pathname.toLowerCase() === "/frota/analise-ha"}
-          onClick={() => {
-            setFrotaOpen(false);
-            setMobileOpen(false);
-            navigate("/frota/analise-ha");
-          }}
-          title="Análise HA"
-          style={{ width: "100%" }}
-        >
-          <NavIcon>
-            <FiActivity />
-          </NavIcon>
-          <NavLabel>Análise HA</NavLabel>
-        </NavItem>
+        {(isAdmin || isSetor14) && (
+          <div style={{ position: "relative" }}>
+            <NavItem
+              key="frota"
+              $active={pathname.toLowerCase().startsWith("/frota")}
+              onClick={() => setFrotaOpen((v) => !v)}
+              title="Frota"
+              style={{ width: "100%", display: "flex", justifyContent: "space-around" }}
+            >
+              <NavIcon><FiTruck /></NavIcon>
+              <NavLabel>Frota</NavLabel>
+              <NavIcon
+                style={{
+                  transition: "transform 0.2s ease",
+                  transform: frotaOpen ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              >
+                <FiChevronDown />
+              </NavIcon>
+            </NavItem>
 
-        <NavItem
-          $active={pathname.toLowerCase() === "/frota/analise-performaxxi"}
-          onClick={() => {
-            setFrotaOpen(false);
-            setMobileOpen(false);
-            navigate("/frota/analise-performaxxi");
-          }}
-          title="Análise Performaxxi"
-          style={{ width: "100%" }}
-        >
-          <NavIcon>
-            <FiActivity />
-          </NavIcon>
-          <NavLabel>Análise Performaxxi</NavLabel>
-        </NavItem>
-      </div>
-    )}
-  </div>
-)}
+            {frotaOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "100%",
+                  left: 0,
+                  background: "var(--nav-bg, #0f172a)",
+                  border: "1px solid rgba(255,255,255,.08)",
+                  borderRadius: 10,
+                  padding: 6,
+                  marginTop: 6,
+                  minWidth: "100%",
+                  boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+                  zIndex: 10,
+                }}
+              >
+                <NavItem
+                  $active={pathname.toLowerCase() === "/frota/analise-ha"}
+                  onClick={() => {
+                    setFrotaOpen(false);
+                    setMobileOpen(false);
+                    navigate("/frota/analise-ha");
+                  }}
+                  title="Análise HA"
+                  style={{ width: "100%" }}
+                >
+                  <NavIcon><FiActivity /></NavIcon>
+                  <NavLabel>Análise HA</NavLabel>
+                </NavItem>
 
-        {(isSetor16 ||
-          isSetor7 ||
-          isSetor6 ||
-          isSetor9 ||
-          isSetor23 ||
-          isSetor25) && (
+                <NavItem
+                  $active={pathname.toLowerCase() === "/frota/analise-performaxxi"}
+                  onClick={() => {
+                    setConfOpen(false);
+                    setFrotaOpen(false);
+                    setMobileOpen(false);
+                    navigate("/frota/analise-performaxxi");
+                  }}
+                  title="Análise Performaxxi"
+                  style={{ width: "100%" }}
+                >
+                  <NavIcon><FiActivity /></NavIcon>
+                  <NavLabel>Análise Performaxxi</NavLabel>
+                </NavItem>
+              </div>
+            )}
+          </div>
+        )}
+
+        {(isSetor16 || isSetor7 || isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"
               $active={pathname.toLowerCase().startsWith("/conferencia")}
               onClick={() => setConfOpen((v) => !v)}
               title="Conferência"
-              style={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "space-around",
-              }}
+              style={{ width: "100%", display: "flex", justifyContent: "space-around" }}
             >
-              <NavIcon>
-                <FiPackage />
-              </NavIcon>
+              <NavIcon><FiPackage /></NavIcon>
               <NavLabel>Conferência</NavLabel>
               <NavIcon
                 style={{
@@ -572,9 +544,7 @@ export default function NavBar() {
                     title="Dashboard"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon>
-                      <FiActivity />
-                    </NavIcon>
+                    <NavIcon><FiActivity /></NavIcon>
                     <NavLabel>Dashboard</NavLabel>
                   </NavItem>
                 )}
@@ -589,9 +559,7 @@ export default function NavBar() {
                   title="Pedidos"
                   style={{ width: "100%" }}
                 >
-                  <NavIcon>
-                    <FiClipboard />
-                  </NavIcon>
+                  <NavIcon><FiClipboard /></NavIcon>
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
 
@@ -606,9 +574,7 @@ export default function NavBar() {
                     title="Integrantes"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon>
-                      <FiUsers />
-                    </NavIcon>
+                    <NavIcon><FiUsers /></NavIcon>
                     <NavLabel>Integrantes</NavLabel>
                   </NavItem>
                 )}
@@ -624,9 +590,7 @@ export default function NavBar() {
                     title="Relatorio"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon>
-                      <FaFileArchive />
-                    </NavIcon>
+                    <NavIcon><FaFileArchive /></NavIcon>
                     <NavLabel>Relatório</NavLabel>
                   </NavItem>
                 )}
@@ -635,8 +599,7 @@ export default function NavBar() {
           </div>
         )}
 
-       {(isAdmin || isSetorTI) && (
-
+        {(isAdmin || isSetorTI) && (
           <NavItem
             key="estoque-ti"
             $active={pathname.toLowerCase().startsWith("/ti")}
@@ -646,79 +609,49 @@ export default function NavBar() {
             }}
             title="Estoque TI"
           >
-            <NavIcon>
-              <FiCpu />
-            </NavIcon>
+            <NavIcon><FiCpu /></NavIcon>
             <NavLabel>Estoque TI</NavLabel>
           </NavItem>
         )}
 
         <NavSpacer />
 
-        {user && (
-          <NavItem
-            role="button"
-            title="Notas de atualização"
-            $active={false}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <NavIcon style={{ position: "relative" }}>
-              <Notas version="1.2.9" />
-            </NavIcon>
-            <NavLabel>Notas nova versão</NavLabel>
-          </NavItem>
-        )}
+        <NavItem role="button" title="Notas de atualização" $active={false} onClick={(e) => e.stopPropagation()}>
+          <NavIcon style={{ position: "relative" }}>
+            <Notas version="1.2.9" />
+          </NavIcon>
+          <NavLabel>Notas nova versão</NavLabel>
+        </NavItem>
 
-        {user && (
-          <NavItem
-            role="button"
-            title="Notificações"
-            $active={false}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <NavIcon style={{ position: "relative" }}>
-              <Notifications
-                user={user}
-                navWidth={navWidth}
-                onOpenProject={(pid) => navigate(`/projetos/${pid}`)}
-              />
-            </NavIcon>
-            <NavLabel>Notificações</NavLabel>
-          </NavItem>
-        )}
+        <NavItem role="button" title="Notificações" $active={false} onClick={(e) => e.stopPropagation()}>
+          <NavIcon style={{ position: "relative" }}>
+            <Notifications user={userSafe} navWidth={navWidth} onOpenProject={(pid) => navigate(`/projetos/${pid}`)} />
+          </NavIcon>
+          <NavLabel>Notificações</NavLabel>
+        </NavItem>
 
-        {user && (
-          <NavItem
-            title={
-              userSectorNames.length ? userSectorNames.join(", ") : "Usuário"
-            }
-          >
-            <NavIcon>
-              <span
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 700,
-                  fontSize: 13,
-                  border: "1px solid #fff",
-                  color: "#fff",
-                  userSelect: "none",
-                }}
-              >
-                {avatarInitial}
-              </span>
-            </NavIcon>
-            <NavLabel>
-              {userSectorNames.length
-                ? userSectorNames[0]
-                : user?.email || "Usuário"}
-            </NavLabel>
-          </NavItem>
-        )}
+        <NavItem title={userSectorNames.length ? userSectorNames.join(", ") : "Usuário"}>
+          <NavIcon>
+            <span
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: "50%",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: 13,
+                border: "1px solid #fff",
+                color: "#fff",
+                userSelect: "none",
+              }}
+            >
+              {avatarInitial}
+            </span>
+          </NavIcon>
+          <NavLabel>{userSectorNames.length ? userSectorNames[0] : userSafe?.email || "Usuário"}</NavLabel>
+        </NavItem>
 
         <NavItem
           role="button"
@@ -728,9 +661,7 @@ export default function NavBar() {
           }}
           title="Sair"
         >
-          <NavIcon>
-            <FiLogOut />
-          </NavIcon>
+          <NavIcon><FiLogOut /></NavIcon>
           <NavLabel>Sair</NavLabel>
         </NavItem>
 

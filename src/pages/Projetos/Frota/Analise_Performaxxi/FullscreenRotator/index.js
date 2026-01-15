@@ -17,10 +17,22 @@ const CD_BORDER_COLORS = [
   "#ef4444",
 ];
 
+/**
+ * ===== REGRAS DE LOOP NO FULLSCREEN (apenas setor 26) =====
+ * - Se email existir aqui e tiver usuarioKey => FULLSCREEN fica só nesse CD (4 slides)
+ * - Se email "geral-performaxxi@carraro.com" => NÃO filtra (macro)
+ * - Se não estiver no mapa => não filtra (comportamento normal)
+ */
+const USER26_FULLSCREEN_RULES = {
+  "raia.sjp@carraro.com": { usuarioKey: "user_7" }, // SJ Dos Pinhais
+  // "fulano.guarulhos@carraro.com": { usuarioKey: "user_2" },
+  // "ciclano.cuiaba@carraro.com": { usuarioKey: "user_8" },
+
+  "geral-performaxxi@carraro.com": { allowMacro: true },
+};
+
 function rgba(hex, a) {
-  const h = String(hex || "")
-    .replace("#", "")
-    .trim();
+  const h = String(hex || "").replace("#", "").trim();
   if (h.length !== 6) return `rgba(148,163,184,${a})`;
   const r = parseInt(h.slice(0, 2), 16);
   const g = parseInt(h.slice(2, 4), 16);
@@ -168,14 +180,66 @@ export default function FullscreenRotator({
     typeof window !== "undefined" ? window.innerHeight : 900
   );
 
-  const safeUsers = Array.isArray(users) ? users : [];
-  const totalUsers = safeUsers.length;
+  // ====== ✅ NOVO: pega user logado e aplica regra de filtro no fullscreen ======
+  const loggedUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const loggedEmail = useMemo(() => {
+    return String(loggedUser?.email || "").trim().toLowerCase();
+  }, [loggedUser]);
+
+  const isSetor26 = useMemo(() => {
+    const ids = Array.isArray(loggedUser?.setor_ids) ? loggedUser.setor_ids : [];
+    for (let i = 0; i < ids.length; i++) {
+      if (Number(ids[i]) === 26) return true;
+    }
+    return false;
+  }, [loggedUser]);
+
+  const safeUsersRaw = Array.isArray(users) ? users : [];
+
+  const effectiveUsers = useMemo(() => {
+    // regra só vale para setor 26
+    if (!isSetor26) return safeUsersRaw;
+
+    const rule = USER26_FULLSCREEN_RULES[loggedEmail];
+
+    // macro -> não filtra
+    if (rule?.allowMacro) return safeUsersRaw;
+
+    // se tem CD definido para esse email -> filtra o looping somente nele
+    const forcedUk = rule?.usuarioKey ? String(rule.usuarioKey).trim().toLowerCase() : "";
+    if (!forcedUk) return safeUsersRaw;
+
+    const out = [];
+    for (let i = 0; i < safeUsersRaw.length; i++) {
+      const uk = String(safeUsersRaw[i]?.usuario_key || "").trim().toLowerCase();
+      if (uk && uk === forcedUk) out.push(safeUsersRaw[i]);
+    }
+
+    // se por algum motivo não encontrou, cai no padrão (não filtra)
+    return out.length ? out : safeUsersRaw;
+  }, [safeUsersRaw, isSetor26, loggedEmail]);
+
+  const totalUsers = effectiveUsers.length;
+
+  // se mudou o filtro e o index ficou inválido, reseta
+  useEffect(() => {
+    if (!open) return;
+    if (userIdx >= totalUsers) setUserIdx(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, totalUsers]);
 
   const current = useMemo(() => {
     if (totalUsers === 0) return null;
     const idx = Math.max(0, Math.min(userIdx, totalUsers - 1));
-    return safeUsers[idx];
-  }, [safeUsers, totalUsers, userIdx]);
+    return effectiveUsers[idx];
+  }, [effectiveUsers, totalUsers, userIdx]);
 
   const currentUk = current?.usuario_key || "";
 
@@ -183,7 +247,7 @@ export default function FullscreenRotator({
     currentUkRef.current = currentUk || "";
   }, [currentUk]);
 
-  // ✅ NOVO: ao trocar de CD (usuario), mata qualquer fala pendurada
+  // ✅ ao trocar de CD, mata qualquer fala pendurada
   useEffect(() => {
     if (!open) return;
     try {
@@ -193,7 +257,7 @@ export default function FullscreenRotator({
     } catch {}
   }, [open, currentUk]);
 
-  // ✅ NOVO: ao sair do slide 1/4, mata fala (evita "continuar falando" no slide 2/4)
+  // ✅ ao sair do slide 1/4, mata fala
   useEffect(() => {
     if (!open) return;
     if (slideIdx !== 0) {
@@ -319,6 +383,21 @@ export default function FullscreenRotator({
       if (reqIdRef.current === myReqId && !silent) setLoading(false);
     }
   }
+  // ✅ NOVO: a cada troca de slide, refaz a requisição do CD atual (força request real)
+useEffect(() => {
+  if (!open) return;
+
+  const uk = currentUkRef.current;
+  if (!uk) return;
+
+  loadUserData(uk, {
+    silent: true,
+    allowCache: false, // força bater no backend
+    announce: slideIdx === 0, // só anuncia no slide 1/4
+  });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [open, slideIdx]);
+
 
   async function warmCacheForUser(uk) {
     if (!uk) return;
@@ -349,9 +428,10 @@ export default function FullscreenRotator({
         return nextSlide;
       }
 
+      // ✅ se tiver mais de 1 CD, rotaciona CD também
       if (totalUsers > 1) {
         const nextIdx = userIdx + 1 >= totalUsers ? 0 : userIdx + 1;
-        const nextUk = safeUsers[nextIdx]?.usuario_key;
+        const nextUk = effectiveUsers[nextIdx]?.usuario_key;
 
         warmCacheForUser(nextUk);
         setUserIdx(nextIdx);
@@ -436,7 +516,6 @@ export default function FullscreenRotator({
       document.body.style.overflow = "";
       document.documentElement.classList.remove("tv-mode");
 
-      // ✅ NOVO: ao fechar, cancela fala pendente
       try {
         if (typeof window !== "undefined" && "speechSynthesis" in window) {
           window.speechSynthesis.cancel();
@@ -504,7 +583,7 @@ export default function FullscreenRotator({
 
     if (totalUsers > 1) {
       const nextIdx = userIdx + 1 >= totalUsers ? 0 : userIdx + 1;
-      const nextUk = safeUsers[nextIdx]?.usuario_key;
+      const nextUk = effectiveUsers[nextIdx]?.usuario_key;
       warmCacheForUser(nextUk);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -589,7 +668,7 @@ export default function FullscreenRotator({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, intervalMs, userIdx]);
+  }, [open, intervalMs, userIdx, totalUsers]);
 
   const slideTitle = useMemo(() => {
     if (slideIdx === 0) return "Rotas x Pendência de Almoço";
@@ -711,9 +790,7 @@ export default function FullscreenRotator({
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div
-            title={`Troca em ${Math.ceil(
-              remainingMs / 1000
-            )}s (mover mouse reseta)`}
+            title={`Troca em ${Math.ceil(remainingMs / 1000)}s (mover mouse reseta)`}
             style={{
               width: pie.size,
               height: pie.size,
@@ -724,42 +801,17 @@ export default function FullscreenRotator({
               background: theme.bgPanel2,
             }}
           >
-            <svg
-              width={pie.size}
-              height={pie.size}
-              viewBox={`0 0 ${pie.size} ${pie.size}`}
-            >
-              <circle
-                cx={pie.cx}
-                cy={pie.cy}
-                r={pie.r}
-                fill={rgba(theme.border, 0.12)}
-              />
+            <svg width={pie.size} height={pie.size} viewBox={`0 0 ${pie.size} ${pie.size}`}>
+              <circle cx={pie.cx} cy={pie.cy} r={pie.r} fill={rgba(theme.border, 0.12)} />
               {pie.path ? (
-                <path
-                  d={pie.path}
-                  fill={effOk ? rgba(theme.ok, 0.92) : rgba(theme.warn, 0.92)}
-                />
+                <path d={pie.path} fill={effOk ? rgba(theme.ok, 0.92) : rgba(theme.warn, 0.92)} />
               ) : null}
-              <circle
-                cx={pie.cx}
-                cy={pie.cy}
-                r={pie.r}
-                fill="transparent"
-                stroke={rgba(theme.border, 0.75)}
-              />
+              <circle cx={pie.cx} cy={pie.cy} r={pie.r} fill="transparent" stroke={rgba(theme.border, 0.75)} />
             </svg>
           </div>
 
           <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                flexWrap: "wrap",
-              }}
-            >
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span
                 style={{
                   display: "inline-flex",
@@ -768,19 +820,14 @@ export default function FullscreenRotator({
                   padding: "6px 10px",
                   borderRadius: 999,
                   border: `1px solid ${rgba(borderColor, 0.55)}`,
-                  background: `linear-gradient(180deg, ${rgba(
-                    borderColor,
-                    0.16
-                  )}, ${rgba(borderColor, 0.06)})`,
+                  background: `linear-gradient(180deg, ${rgba(borderColor, 0.16)}, ${rgba(borderColor, 0.06)})`,
                   fontWeight: 1000,
                   color: theme.text,
                 }}
               >
                 <span style={{ fontSize: 12, opacity: 0.85 }}>CD</span>
                 <span style={{ fontSize: 14 }}>{cdLabel}</span>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
-                  ({currentUk || ""})
-                </span>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>({currentUk || ""})</span>
               </span>
 
               <span
@@ -798,12 +845,10 @@ export default function FullscreenRotator({
               >
                 <span style={{ fontSize: 12, opacity: 0.8 }}>Slide</span>
                 <span style={{ fontSize: 14 }}>{slideIdx + 1}/4</span>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>
-                  • {slideTitle}
-                </span>
+                <span style={{ fontSize: 12, opacity: 0.7 }}>• {slideTitle}</span>
               </span>
 
-              <span
+              {/* <span
                 title="Eficiência = 100% - (pendências/rotas)"
                 style={{
                   display: "inline-flex",
@@ -811,18 +856,10 @@ export default function FullscreenRotator({
                   gap: 8,
                   padding: "6px 10px",
                   borderRadius: 999,
-                  border: effOk
-                    ? `1px solid ${rgba(theme.ok, 0.45)}`
-                    : `1px solid ${rgba(theme.warn, 0.45)}`,
+                  border: effOk ? `1px solid ${rgba(theme.ok, 0.45)}` : `1px solid ${rgba(theme.warn, 0.45)}`,
                   background: effOk
-                    ? `linear-gradient(180deg, ${rgba(theme.ok, 0.18)}, ${rgba(
-                        theme.ok,
-                        0.08
-                      )})`
-                    : `linear-gradient(180deg, ${rgba(
-                        theme.warn,
-                        0.18
-                      )}, ${rgba(theme.warn, 0.08)})`,
+                    ? `linear-gradient(180deg, ${rgba(theme.ok, 0.18)}, ${rgba(theme.ok, 0.08)})`
+                    : `linear-gradient(180deg, ${rgba(theme.warn, 0.18)}, ${rgba(theme.warn, 0.08)})`,
                   fontWeight: 1000,
                   color: theme.text,
                 }}
@@ -831,24 +868,13 @@ export default function FullscreenRotator({
                 <span style={{ fontSize: 12, opacity: 0.85 }}>Eficiência</span>
                 <span style={{ fontSize: 14 }}>{kpis.eff.toFixed(1)}%</span>
                 <span style={{ fontSize: 12, opacity: 0.7 }}>meta 99–100</span>
-              </span>
+              </span> */}
             </div>
 
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 12,
-                opacity: 0.78,
-                color: theme.muted,
-              }}
-            >
-              {totalUsers
-                ? `CD ${userIdx + 1}/${totalUsers}`
-                : "Sem CDs no filtro"}{" "}
-              • troca automática a cada{" "}
-              <b style={{ color: theme.text }}>{Math.round(dur / 1000)}s</b> •
-              mouse reseta • sai no <b style={{ color: theme.text }}>ESC</b> ou{" "}
-              <b style={{ color: theme.text }}>X</b>
+            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.78, color: theme.muted }}>
+              {totalUsers ? `CD ${userIdx + 1}/${totalUsers}` : "Sem CDs no filtro"} • troca automática a cada{" "}
+              <b style={{ color: theme.text }}>{Math.round(dur / 1000)}s</b> • mouse reseta • sai no{" "}
+              <b style={{ color: theme.text }}>ESC</b> ou <b style={{ color: theme.text }}>X</b>
             </div>
           </div>
         </div>
@@ -893,27 +919,10 @@ export default function FullscreenRotator({
         </div>
       </div>
 
-      <div
-        style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}
-      >
-        <MiniPill
-          theme={theme}
-          label="Rotas (período)"
-          value={kpis.totalRotas}
-          color="#22d3ee"
-        />
-        <MiniPill
-          theme={theme}
-          label="Pendentes almoço"
-          value={kpis.totalPend}
-          color="#f97316"
-        />
-        <MiniPill
-          theme={theme}
-          label="Finalizado sem lançar"
-          value={kpis.totalGrav}
-          color="#ef4444"
-        />
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+        <MiniPill theme={theme} label="Rotas (período)" value={kpis.totalRotas} color="#22d3ee" />
+        <MiniPill theme={theme} label="Pendentes almoço" value={kpis.totalPend} color="#f97316" />
+        <MiniPill theme={theme} label="Finalizado sem lançar" value={kpis.totalGrav} color="#ef4444" />
       </div>
 
       <div
@@ -927,28 +936,11 @@ export default function FullscreenRotator({
           boxSizing: "border-box",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
-            gap: 12,
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
           <div>
-            <div style={{ fontWeight: 1000, fontSize: 14, color: theme.text }}>
-              {slideTitle}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                opacity: 0.82,
-                marginTop: 4,
-                color: theme.muted,
-              }}
-            >
-              {slideIdx === 0 &&
-                "Clique no ponto laranja do dia para abrir pendentes. O “!” abre Finalizado sem lançar."}
+            <div style={{ fontWeight: 1000, fontSize: 14, color: theme.text }}>{slideTitle}</div>
+            <div style={{ fontSize: 12, opacity: 0.82, marginTop: 4, color: theme.muted }}>
+              {slideIdx === 0 && "Clique no ponto laranja do dia para abrir pendentes. O “!” abre Finalizado sem lançar."}
               {slideIdx === 1 && "Clique na barra para abrir o detalhe do dia."}
               {slideIdx === 2 && "Período completo. Top rotas por problema."}
               {slideIdx === 3 && "Período completo. Motoristas e performance."}
@@ -956,9 +948,7 @@ export default function FullscreenRotator({
           </div>
         </div>
 
-        <div
-          style={{ width: "100%", height: "calc(100% - 48px)", marginTop: 10 }}
-        >
+        <div style={{ width: "100%", height: "calc(100% - 48px)", marginTop: 10 }}>
           {!canRenderContent ? (
             <div
               style={{
@@ -980,22 +970,14 @@ export default function FullscreenRotator({
               {slideIdx === 0 && (
                 <div style={{ width: "100%", height: "100%" }}>
                   <ChartRotasVsAlmoco
-                    key={`rotas-almoco-${currentUk}`} // ✅ remonta quando troca CD
+                    key={`rotas-almoco-${currentUk}`}
                     data={chartByDay}
                     alertaFinalizando={alertaFinalizando}
                     alertaSpeakToken={alertaSpeakToken}
-                    onClickPendencias={(dayISO) =>
-                      onOpenPendentes?.(dayISO, false, currentUk)
-                    }
-                    onClickGravissimo={(dayISO) =>
-                      onOpenGravissimo?.(dayISO, currentUk)
-                    }
-                    onOpenPendentesPeriod={() =>
-                      onOpenPendentes?.(null, false, currentUk)
-                    }
-                    onOpenGravissimoPeriod={() =>
-                      onOpenGravissimo?.(null, currentUk)
-                    }
+                    onClickPendencias={(dayISO) => onOpenPendentes?.(dayISO, false, currentUk)}
+                    onClickGravissimo={(dayISO) => onOpenGravissimo?.(dayISO, currentUk)}
+                    onOpenPendentesPeriod={() => onOpenPendentes?.(null, false, currentUk)}
+                    onOpenGravissimoPeriod={() => onOpenGravissimo?.(null, currentUk)}
                     height={chart1Height}
                     usuarioKey={currentUk}
                   />
@@ -1005,15 +987,9 @@ export default function FullscreenRotator({
               {slideIdx === 1 && (
                 <ChartErrosEDivergenciasPorDia
                   data={chartByDay}
-                  onClickErroSla={(dayISO) =>
-                    onOpenErro?.(dayISO, "sla", currentUk)
-                  }
-                  onClickDevolucao={(dayISO) =>
-                    onOpenErro?.(dayISO, "devolucao", currentUk)
-                  }
-                  onClickMercadorias={(dayISO) =>
-                    onOpenErro?.(dayISO, "mercadorias", currentUk)
-                  }
+                  onClickErroSla={(dayISO) => onOpenErro?.(dayISO, "sla", currentUk)}
+                  onClickDevolucao={(dayISO) => onOpenErro?.(dayISO, "devolucao", currentUk)}
+                  onClickMercadorias={(dayISO) => onOpenErro?.(dayISO, "mercadorias", currentUk)}
                 />
               )}
 
@@ -1052,10 +1028,7 @@ function MiniPill({ theme, label, value, color }) {
         gap: 10,
         borderRadius: 999,
         border: `1px solid ${rgba(color, 0.35)}`,
-        background: `linear-gradient(180deg, ${rgba(color, 0.14)}, ${rgba(
-          color,
-          0.06
-        )})`,
+        background: `linear-gradient(180deg, ${rgba(color, 0.14)}, ${rgba(color, 0.06)})`,
         padding: "8px 12px",
         fontWeight: 900,
         color: theme.text,

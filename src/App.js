@@ -38,7 +38,8 @@ const SECTORS = {
   FERSA_CLIENTE: 23,
   COLETORES: 25,
   FROTA: 14,
-  ARMAZENAGEM: 9
+  ARMAZENAGEM: 9,
+  RAIA:26
 };
 
 const App = () => {
@@ -236,7 +237,7 @@ const App = () => {
   element={
     <PrivateRoute
       element={<Frota />}
-      allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA, SECTORS.TI]}
+      allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA, SECTORS.TI,SECTORS.RAIA]}
     />
   }
 />
