@@ -13,7 +13,7 @@ import { useEffect, useRef } from "react";
  * @param {Function} [opts.onWarning] - callback opcional (ex.: abrir modal)
  */
 export function useInactivityLogout({
-  timeoutMs = 600 * 60 * 1000,
+  timeoutMs = 20 * 600 * 60 * 1000,
   warningMs = 0,
   onTimeout,
   onWarning,
