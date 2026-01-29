@@ -1,25 +1,22 @@
-// src/hooks/useInactivityLogout.js
 import { useEffect, useRef } from "react";
 
-/**
- * useInactivityLogout
- * Dispara onTimeout() após timeoutMs sem nenhuma interação do usuário.
- * Opcionalmente dispara onWarning() warningMs antes do timeout.
- *
- * @param {Object} opts
- * @param {number} opts.timeoutMs   - tempo total de inatividade (ex.: 25*60*1000)
- * @param {number} [opts.warningMs] - aviso antes do timeout (ex.: 60*1000). Opcional.
- * @param {Function} opts.onTimeout - callback obrigatório (ex.: logout + redirect)
- * @param {Function} [opts.onWarning] - callback opcional (ex.: abrir modal)
- */
 export function useInactivityLogout({
-  timeoutMs = 20 * 6000 * 60 * 1000,
+  timeoutMs = 20 * 60 * 1000, // ✅ 20 minutos (antes estava gigantesco)
   warningMs = 0,
   onTimeout,
   onWarning,
 }) {
   const timeoutRef = useRef(null);
   const warningRef = useRef(null);
+
+  // ✅ evita re-criar listeners/timers por causa de função inline mudando
+  const onTimeoutRef = useRef(onTimeout);
+  const onWarningRef = useRef(onWarning);
+
+  useEffect(() => {
+    onTimeoutRef.current = onTimeout;
+    onWarningRef.current = onWarning;
+  }, [onTimeout, onWarning]);
 
   function clearTimers() {
     if (timeoutRef.current) {
@@ -35,33 +32,32 @@ export function useInactivityLogout({
   function startTimers() {
     clearTimers();
 
-    // Aviso opcional antes do timeout
-    if (onWarning && warningMs > 0 && warningMs < timeoutMs) {
+    if (onWarningRef.current && warningMs > 0 && warningMs < timeoutMs) {
       warningRef.current = window.setTimeout(() => {
-        // só avisa se a aba estiver visível
         if (typeof document !== "undefined" && !document.hidden) {
-          try { onWarning(); } catch {}
+          try {
+            onWarningRef.current?.();
+          } catch {}
         }
       }, timeoutMs - warningMs);
     }
 
-    // Timeout final
     timeoutRef.current = window.setTimeout(() => {
-      // só executa se a aba estiver visível
       if (typeof document !== "undefined" && !document.hidden) {
-        try { onTimeout(); } catch {}
+        try {
+          onTimeoutRef.current?.();
+        } catch {}
       }
     }, timeoutMs);
   }
 
   function resetTimers() {
-    // evita resetar quando a aba está oculta e eventos de SO disparam "scroll"/"visibilitychange"
     if (typeof document !== "undefined" && document.hidden) return;
     startTimers();
   }
 
   useEffect(() => {
-    if (typeof window === "undefined") return; // SSR safety
+    if (typeof window === "undefined") return;
 
     startTimers();
 
@@ -84,6 +80,6 @@ export function useInactivityLogout({
         window.removeEventListener(events[i], resetTimers);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeoutMs, warningMs, onTimeout, onWarning]);
+    // ✅ aqui só depende dos números; callbacks ficam em ref
+  }, [timeoutMs, warningMs]);
 }

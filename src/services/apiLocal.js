@@ -5,58 +5,59 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://projetoti-api-production.up.railway.app";
 
-//   export const apiPublic = axios.create({
-//   baseURL: API_URL.replace("http://", "https://"),
-//   headers: { "Content-Type": "application/json" },
-//   timeout: 30_000,
-// });
 const api = axios.create({
   baseURL: API_URL.replace("http://", "https://"),
   headers: { "Content-Type": "application/json" },
   timeout: 100 * 60 * 1000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
-  withCredentials: true,
+  withCredentials: true, // ✅ sessão via cookie
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
-// 🔐 Interceptor de REQUEST: injeta Authorization: Bearer <token> se existir no localStorage
-api.interceptors.request.use(
-  (config) => {
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("authToken");
-      if (token) {
-        config.headers = config.headers || {};
-        if (!config.headers.Authorization) {
-          config.headers.Authorization = `Bearer ${token}`;
-        }
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+/**
+ * ✅ Importante:
+ * Se você usa sessão via COOKIE, NÃO injete Bearer automaticamente aqui.
+ * Misturar cookie + token no header costuma causar 401 em loop dependendo do back.
+ */
 
-// 🔐 401 handler
+// 🔐 401 handler (anti-loop)
 let isRedirecting401 = false;
+
 api.interceptors.response.use(
   (r) => r,
   (err) => {
     const status = err?.response?.status;
-    const url = (err?.config?.url || "").toLowerCase();
+    const url = String(err?.config?.url || "").toLowerCase();
+
+    // (debug rápido: se quiser)
+    // console.log("[API ERROR]", { status, url, method: err?.config?.method });
+
     if (status === 401) {
+      // ✅ não redireciona pra endpoints de auth (evita loop)
       if (url.includes("/auth/login") || url.includes("/auth/me")) {
         return Promise.reject(err);
       }
-      if (!isRedirecting401 && typeof window !== "undefined") {
-        isRedirecting401 = true;
-        localStorage.removeItem("user");
-        localStorage.removeItem("authToken"); // ⬅️ limpa também o token Bearer
-        if (window.location.pathname !== "/") {
+
+      if (typeof window !== "undefined") {
+        // ✅ se já está no login, não fica tentando redirecionar
+        if (window.location.pathname === "/") {
+          return Promise.reject(err);
+        }
+
+        if (!isRedirecting401) {
+          isRedirecting401 = true;
+
+          // limpa qualquer resíduo local
+          localStorage.removeItem("user");
+          localStorage.removeItem("authToken");
+
+          // ✅ replace evita histórico e reduz “flash”
           window.location.replace("/");
         }
       }
     }
+
     return Promise.reject(err);
   }
 );
@@ -215,7 +216,7 @@ const apiLocal = {
   getBalanceteCarraro: () => api.get("/processamento/balancete-carraro/"),
   getFechamentoOperacao: () => api.get("/processamento/fechamento-operacao"),
 
-  // Recebimento + Notas + Etapas + Checklist + Ocorrências (receb)
+  // Recebimento
   getRecebimentos: () => api.get("/recebimento/"),
   getRecebimentoById: (id) => api.get(`/recebimento/${id}`),
   createRecebimento: (data) => api.post("/recebimento", data),
@@ -250,18 +251,14 @@ const apiLocal = {
   updateSetor: (id, data) => api.put(`/setor/setores/${id}`, data),
   deleteSetor: (id) => api.delete(`/setor/setores/${id}`),
 
-  // ========================
-  // PROJETOS
-  // ========================
+  // Projetos
   getProjetos: (visibleFor) =>
     api.get("/projetos/", {
       params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
     }),
 
   getProjetoById: (id, params = {}) => api.get(`/projetos/${id}`, { params }),
-
   createProjeto: (data) => api.post("/projetos/", data),
-
   updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
 
   updateProjetoSetores: (id, setores, actor_sector_id, setor_users) =>
@@ -270,6 +267,7 @@ const apiLocal = {
       actor_sector_id,
       ...(setor_users ? { setor_users } : {}),
     }),
+
   lockProjeto: (id, action, actor_sector_id) =>
     api.post(`/projetos/${id}/lock`, { action, actor_sector_id }),
 
@@ -281,9 +279,7 @@ const apiLocal = {
   deleteProjeto: (id, actor_sector_id) =>
     api.delete(`/projetos/${id}`, { data: { actor_sector_id } }),
 
-  // ========================
-  // NOTIFICAÇÕES DE PROJETOS
-  // ========================
+  // Notificações
   getNotifCounters: (userId) =>
     api.get("/projects/notifications/counters", {
       params: { user_id: String(userId) },
@@ -324,25 +320,26 @@ const apiLocal = {
     api.put(`/projetos/${projectId}/custos/${costId}`, body),
   deleteProjetoCusto: (projectId, costId) =>
     api.delete(`/projetos/${projectId}/custos/${costId}`),
+
   payParcela: (projectId, costId, parcelIndex, actorSectorId) =>
     api.post(
       `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/pagar`,
       { actor_sector_id: Number(actorSectorId) }
     ),
-  getProjetoParcels: (projectId, costId) =>
-    api.get(`/projetos/${projectId}/custos/${costId}/parcelas`),
 
-  // Timeline
   unpayParcela: (projectId, costId, parcelIndex, actorSectorId) =>
     api.post(
       `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
       { actor_sector_id: Number(actorSectorId) }
     ),
 
+  getProjetoParcels: (projectId, costId) =>
+    api.get(`/projetos/${projectId}/custos/${costId}/parcelas`),
+
+  // Timeline
   listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
 
-  addProjetoRow: (projectId, body) =>
-    api.post(`/projetos/${projectId}/rows`, body),
+  addProjetoRow: (projectId, body) => api.post(`/projetos/${projectId}/rows`, body),
 
   updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
     api.put(`/projetos/${projectId}/rows/${rowId}`, {
@@ -404,36 +401,29 @@ const apiLocal = {
         if (params.status) usp.set("status", params.status);
         if (params.visible_for_user)
           usp.set("visible_for_user", params.visible_for_user);
-        if (params.visible_for)
+        if (params.visible_for) {
           for (let i = 0; i < params.visible_for.length; i++) {
             usp.append("visible_for", String(params.visible_for[i]));
           }
+        }
         return usp.toString();
       },
     }),
 
-  // ========================
-  // DASHBOARD (Conferência/Expedição)
-  // ========================
+  // Dashboard
   dashboardOverview: (params = {}) => api.get("/dashboard/", { params }),
   dashboardSummary: (params = {}) => api.get("/dashboard/summary", { params }),
   dashboardDailyConferencias: (params = {}) =>
     api.get("/dashboard/daily-conferencias", { params }),
-  dashboardRankings: (params = {}) =>
-    api.get("/dashboard/rankings", { params }),
+  dashboardRankings: (params = {}) => api.get("/dashboard/rankings", { params }),
   dashboardTopTransportadoras: (params = {}) =>
     api.get("/dashboard/top-transportadoras", { params }),
-  dashboardLeadTimes: (params = {}) =>
-    api.get("/dashboard/lead-times", { params }),
+  dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }),
 
-  // ========================
-  // PEDIDOS
-  // ========================
-
+  // Pedidos
   getPedidos: (params = {}) => {
     const base = { events_preview: 5, ...params };
 
-    // limpa null/undefined pra não sujar a querystring
     const clean = {};
     for (const key in base) {
       if (base[key] !== null && base[key] !== undefined && base[key] !== "") {
@@ -447,127 +437,79 @@ const apiLocal = {
   updatePedidoCaixas: (nr_pedido, data) =>
     api.put(`/pedidos/${nr_pedido}/caixas`, data),
 
-  getPedidoByNr: (nr_pedido) => api.get(`/pedidos/${nr_pedido}`), // detalhe completo
+  getPedidoByNr: (nr_pedido) => api.get(`/pedidos/${nr_pedido}`),
   createPedido: (data) => api.post("/pedidos/", data),
   updatePedido: (nr_pedido, data) => api.put(`/pedidos/${nr_pedido}`, data),
-  deletePedido: (id, payload) =>
-    api.delete(`/pedidos/${id}`, { data: payload }),
+  deletePedido: (id, payload) => api.delete(`/pedidos/${id}`, { data: payload }),
   updatePedidoBasics: (nr_pedido, data) =>
     api.put(`/pedidos/${nr_pedido}/basics`, data),
   updatePedidoNF: (nr_pedido, { nota, by }) =>
     api.put(`/pedidos/${nr_pedido}/nf`, { nota, by }),
 
-  // ========================
-  // INTEGRANTES
-  // ========================
+  // Integrantes
   getIntegrantes: () => api.get("/integrantes/"),
   createIntegrante: (data) => api.post("/integrantes/", data),
   updateIntegrante: (id, data) => api.put(`/integrantes/${id}`, data),
   deleteIntegrante: (id) => api.delete(`/integrantes/${id}`),
 
-  // ========================
-  // CONFERÊNCIAS
-  // ========================
+  // Conferências
   iniciarConferencia: (nr_pedido, data) =>
     api.post(`/conferencias/${nr_pedido}/iniciar`, data),
   salvarConferencia: (nr_pedido, data) =>
     api.post(`/conferencias/${nr_pedido}/salvar`, data),
-
-  // lista ocorrências da última conferência
   getOcorrenciasConferencia: (nr_pedido) =>
     api.get(`/conferencias/${nr_pedido}/ocorrencias`),
-
-  // CONFERÊNCIAS
   getUltimaConferencia: (nr_pedido) =>
     api.get(`/conferencias/${nr_pedido}/ultima`),
-
   finalizarConferencia: (nr_pedido, data) =>
     api.post(`/conferencias/${nr_pedido}/finalizar`, data),
-
-  // envia ARRAY de ocorrências
   registrarOcorrenciaConferencia: (nr_pedido, ocorrenciasArray) =>
     api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
-
   getPedidosRelatorio: (params = {}) =>
     api.get("/pedidos/relatorio-pedidos", { params }),
 
-  // ========================
-  // EXPEDIÇÃO
-  // ========================
+  // Expedição
   expedirPedido: (data) => api.post("/expedicao/expedir", data),
   expedirLote: (data) => api.post("/expedicao/expedir-lote", data),
-// Frota (Horário Almoço)
-getHorarioAlmoco: (params) =>
-  api.get("/horario_almoco/horario-almoco", { params }),
 
-getHorarioAlmocoOpcoes: (params) =>
-  api.get("/horario_almoco/horario-almoco/opcoes-filtros", { params }),
+  // Frota (Horário Almoço)
+  getHorarioAlmoco: (params) =>
+    api.get("/horario_almoco/horario-almoco", { params }),
+  getHorarioAlmocoOpcoes: (params) =>
+    api.get("/horario_almoco/horario-almoco/opcoes-filtros", { params }),
+  indicadorHorarioAlmocoV3: (params) =>
+    api.get("/horario_almoco/horario-almoco/indicador-v3", { params }),
+  getHorarioAlmocoInconsistencias: (params) =>
+    api.get("/horario_almoco/horario-almoco/inconsistencias", { params }),
+  getHorarioAlmocoById: (id) =>
+    api.get(`/horario_almoco/horario-almoco/${id}`),
+  updateHorarioAlmoco: (id, body, actor) =>
+    api.put(`/horario_almoco/horario-almoco/${id}`, body, {
+      params: { actor },
+    }),
 
-indicadorHorarioAlmocoV3: (params) =>
-  api.get("/horario_almoco/horario-almoco/indicador-v3", { params }),
+  // Performaxxi — Análise de Rotas
+  getAnaliseRotasAlertaAlmocoFinalizando: (params) =>
+    api.get(
+      "/analise_performaxxi/analise-rotas/alerta-almoco-finalizando",
+      { params }
+    ),
+  getAnaliseRotasEficienciaPorRota: (params) =>
+    api.get("/analise_performaxxi/analise-rotas/eficiencia-por-rota", { params }),
+  getAnaliseRotasOpcoes: (params) =>
+    api.get("/analise_performaxxi/analise-rotas/opcoes-filtros", { params }),
+  getAnaliseRotasIndicadores: (params) =>
+    api.get("/analise_performaxxi/analise-rotas/indicadores-v2", { params }),
+  getAnaliseRotasDetalheErros: (params) =>
+    api.get("/analise_performaxxi/analise-rotas/detalhe-erros", { params }),
+  getAnaliseRotasDetalheEventos: (params) =>
+    api.get("/analise_performaxxi/analise-rotas/detalhe-eventos", { params }),
+  getAnaliseRotasMotoristaModal: (params) =>
+    api.get("/analise_performaxxi/analise-rotas/motorista-modal", { params }),
+  getAnaliseRotaById: (id) =>
+    api.get(`/analise_performaxxi/analise-rotas/by-id/${id}`),
 
-getHorarioAlmocoInconsistencias: (params) =>
-  api.get("/horario_almoco/horario-almoco/inconsistencias", { params }),
-
-getHorarioAlmocoById: (id) =>
-  api.get(`/horario_almoco/horario-almoco/${id}`),
-
-updateHorarioAlmoco: (id, body, actor) =>
-  api.put(`/horario_almoco/horario-almoco/${id}`, body, {
-    params: { actor },
-  }),
-// ========================
-// Performaxxi — Análise de Rotas
-// ========================
-getAnaliseRotasAlertaAlmocoFinalizando: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/alerta-almoco-finalizando", { params }),
-
-getAnaliseRotasEficienciaPorRota: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/eficiencia-por-rota", { params }),
-
-
-
-// filtros
-getAnaliseRotasOpcoes: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/opcoes-filtros", { params }),
-
-/**
- * indicadores principais (gráficos + rankings)
- * (agora é v2)
- */
-getAnaliseRotasIndicadores: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/indicadores-v2", { params }),
-
-
-// detalhe antigo (v1)
-getAnaliseRotasDetalheErros: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/detalhe-erros", { params }),
-
-/**
- * detalhe por dia + tipo de evento (substitui detalhe-erros, almoco-pendentes, almoco-gravissimo)
- * event_type: sla | entregas | mercadorias | devolucao | almoco_pendente | gravissimo | geral
- * day_iso: YYYY-MM-DD (opcional)
- */
-getAnaliseRotasDetalheEventos: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/detalhe-eventos", { params }),
-
-/**
- * modal do motorista (novo)
- * retorna contadores (gravissimo/entregas/sla) + lista paginada de ocorrências
- */
-getAnaliseRotasMotoristaModal: (params) =>
-  api.get("/analise_performaxxi/analise-rotas/motorista-modal", { params }),
-
-/**
- * detalhe de uma rota específica (debug / drill-down)
- */
-getAnaliseRotaById: (id) =>
-  api.get(`/analise_performaxxi/analise-rotas/by-id/${id}`),
-
-
-  // ========================
-  // ETIQUETAS
-  // ========================
+  // Etiquetas
   registrarImpressaoEtiquetas: (nr_pedido, data) =>
     api.post(`/etiquetas/${nr_pedido}/imprimir`, data),
 
