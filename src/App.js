@@ -7,7 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Cotacao from './pages/Cotacao';
 import Frete from './pages/Frete';
 import CargaLucrativa from './pages/CargaLucrativa';
-import KioskBalanca from './pages/KioskBalanca';
+// import KioskBalanca from './pages/KioskBalanca';
 import Projetos from './pages/Projetos';
 import Integrantes from './pages/Projetos/Integrantes';
 import ProjetoDetalhe from './pages/Projetos/ProjetoDetalhe';
@@ -133,7 +133,7 @@ const App = () => {
             />
           }
         />
-<Route path="/kiosk/balanca/:deviceId?" element={<KioskBalanca />} />
+{/* <Route path="/kiosk/balanca/:deviceId?" element={<KioskBalanca />} /> */}
 
         {/* Carga Lucrativa */}
         <Route
