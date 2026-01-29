@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Cotacao from './pages/Cotacao';
 import Frete from './pages/Frete';
 import CargaLucrativa from './pages/CargaLucrativa';
+import KioskBalanca from './pages/KioskBalanca';
 import Projetos from './pages/Projetos';
 import Integrantes from './pages/Projetos/Integrantes';
 import ProjetoDetalhe from './pages/Projetos/ProjetoDetalhe';
@@ -54,7 +55,7 @@ const App = () => {
 
   // 🔐 Autologout por inatividade (front < back)
   useInactivityLogout({
-    timeoutMs: 20 * 600 * 60 * 1000,
+    timeoutMs: 20 * 6000 * 60 * 1000,
     onTimeout: async () => {
       try { await apiLocal.authLogout(); } catch {}
       localStorage.removeItem('user');
@@ -132,6 +133,7 @@ const App = () => {
             />
           }
         />
+<Route path="/kiosk/balanca/:deviceId?" element={<KioskBalanca />} />
 
         {/* Carga Lucrativa */}
         <Route
