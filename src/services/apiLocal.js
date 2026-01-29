@@ -5,11 +5,11 @@ const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "https://projetoti-api-production.up.railway.app";
 
-  export const apiPublic = axios.create({
-  baseURL: API_URL.replace("http://", "https://"),
-  headers: { "Content-Type": "application/json" },
-  timeout: 30_000,
-});
+//   export const apiPublic = axios.create({
+//   baseURL: API_URL.replace("http://", "https://"),
+//   headers: { "Content-Type": "application/json" },
+//   timeout: 30_000,
+// });
 const api = axios.create({
   baseURL: API_URL.replace("http://", "https://"),
   headers: { "Content-Type": "application/json" },
