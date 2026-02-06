@@ -62,6 +62,20 @@ const DateInput = styled.input`
   background: white;
 `;
 
+const TurnoPill = styled.span`
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 10px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.78);
+`;
+
 const STATUS = {
   PROGRAMADA: "PROGRAMADA",
   EM_ANDAMENTO: "EM_ANDAMENTO",
@@ -101,6 +115,7 @@ function adaptDemandaToTaskLite(d) {
     placaCavalo: d?.placa_cavalo ?? null,
     placaCarreta: d?.placa_carreta ?? null,
   };
+
   const ocorrenciasArr = Array.isArray(d?.ocorrencias)
     ? d.ocorrencias
     : typeof d?.ocorrencias === "string" && d.ocorrencias.trim()
@@ -183,6 +198,37 @@ function safeArray(v) {
   return Array.isArray(v) ? v : [];
 }
 
+// ✅ Regras do turno (horário local do navegador):
+// Manhã: 08:00 - 18:00 (inclusive 18:00)
+// Tarde: 18:01 - 00:00
+// Noite: 00:01 - 07:59
+function getCurrentTurnoLabel(dateObj) {
+  const d = dateObj ? new Date(dateObj) : new Date();
+  const hh = d.getHours();
+  const mm = d.getMinutes();
+  const total = hh * 60 + mm;
+
+  const manhaIni = 8 * 60 + 0; // 08:00
+  const manhaFim = 18 * 60 + 0; // 18:00
+  const tardeIni = 18 * 60 + 1; // 18:01
+  const tardeFim = 24 * 60 + 0; // 24:00 (00:00 do dia seguinte, mas aqui é o mesmo dia no total=0 só em 00:00)
+
+  // 00:00 (0 min) é TARDE
+  if (total === 0) return "TARDE";
+
+  if (total >= manhaIni && total <= manhaFim) return "MANHA";
+  if (total >= tardeIni && total <= tardeFim) return "TARDE";
+  return "NOITE";
+}
+
+function normalizeTurnoValue(v) {
+  const t = String(v || "").trim().toUpperCase();
+  if (!t) return "";
+  if (t === "MANHÃ") return "MANHA";
+  if (t === "MANHÃ ") return "MANHA";
+  return t;
+}
+
 export default function ProdOperacaoPage() {
   const fetchDocByChave = useCallback(async (chave, docKind) => {
     const res = await apiLocal.getDocByChave(chave, docKind);
@@ -262,7 +308,6 @@ export default function ProdOperacaoPage() {
   const [selectedTask, setSelectedTask] = useState(null);
 
   const [query, setQuery] = useState("");
-  // ✅ pré-selecionado semana atual
   const [quickRange, setQuickRange] = useState("week");
 
   const [statusFilter, setStatusFilter] = useState("TODOS");
@@ -276,12 +321,30 @@ export default function ProdOperacaoPage() {
   const [listError, setListError] = useState("");
   const [clientesList, setClientesList] = useState([]);
 
+  // ✅ agora guardamos responsáveis COMPLETOS (com turno)
+  const [responsaveisOperacaoRows, setResponsaveisOperacaoRows] = useState([]);
+
+  // ✅ e também mantemos só nomes (pra não mexer no modal agora)
   const [operadoresOperacao, setOperadoresOperacao] = useState([]);
+
   const [placasList, setPlacasList] = useState([]);
   const [motoristasList, setMotoristasList] = useState([]);
 
-  // ✅ mantém: tarefas ativas para o painel de ociosos/disponíveis
   const [activeTasks, setActiveTasks] = useState([]);
+
+  // ===== TURNO ATUAL =====
+  const [turnoAtual, setTurnoAtual] = useState(() =>
+    getCurrentTurnoLabel(new Date()),
+  );
+
+  useEffect(() => {
+    // atualiza a cada 30s pra virar certinho 18:01 / 00:01 etc
+    const t = setInterval(() => {
+      setTurnoAtual(getCurrentTurnoLabel(new Date()));
+    }, 30 * 1000);
+    return () => clearInterval(t);
+  }, []);
+  // =======================
 
   // ===== DIRTY FLAG =====
   const dirtyRef = useRef(false);
@@ -314,7 +377,6 @@ export default function ProdOperacaoPage() {
     [isAdmin],
   );
 
-  // ✅ setQuick PRECISA vir antes do useEffect que chama ele
   const setQuick = useCallback((kind) => {
     const today = new Date();
 
@@ -369,7 +431,6 @@ export default function ProdOperacaoPage() {
       return;
     }
 
-    // clear
     setDateFrom("");
     setDateTo("");
   }, []);
@@ -397,7 +458,8 @@ export default function ProdOperacaoPage() {
         const resResp = await apiLocal.getResponsaveis();
         const rowsResp = safeArray(resResp?.data);
 
-        const ops = [];
+        // ✅ pega operação + guarda turno
+        const opsRows = [];
         for (let i = 0; i < rowsResp.length; i++) {
           const r = rowsResp[i] || {};
           const dep = String(r.departamento || "")
@@ -405,19 +467,30 @@ export default function ProdOperacaoPage() {
             .toLowerCase();
           const nome = String(r.nome || "").trim();
           if (!nome) continue;
-          if (dep === "operacao" || dep === "operação") ops.push(nome);
+          if (dep !== "operacao" && dep !== "operação") continue;
+
+          opsRows.push({
+            id: r.id,
+            nome,
+            turno: normalizeTurnoValue(r.turno || ""),
+          });
         }
 
-        const uniq = {};
-        const outOps = [];
-        for (let i = 0; i < ops.length; i++) {
-          const n = ops[i];
-          if (!uniq[n]) {
-            uniq[n] = true;
-            outOps.push(n);
-          }
+        // dedupe por nome
+        const seen = {};
+        const uniqRows = [];
+        for (let i = 0; i < opsRows.length; i++) {
+          const key = opsRows[i].nome.toLowerCase();
+          if (seen[key]) continue;
+          seen[key] = true;
+          uniqRows.push(opsRows[i]);
         }
-        outOps.sort((a, b) => a.localeCompare(b, "pt-BR"));
+        uniqRows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+        setResponsaveisOperacaoRows(uniqRows);
+
+        // lista de nomes (mantém modal funcionando)
+        const outOps = [];
+        for (let i = 0; i < uniqRows.length; i++) outOps.push(uniqRows[i].nome);
         setOperadoresOperacao(outOps);
 
         const resMot = await apiLocal.getMotoristas();
@@ -477,6 +550,7 @@ export default function ProdOperacaoPage() {
         setPlacasList(outPls);
       } catch (e) {
         setOperadoresOperacao([]);
+        setResponsaveisOperacaoRows([]);
         setPlacasList([]);
         toast.error("Falha ao carregar responsáveis/placas.");
       }
@@ -521,7 +595,6 @@ export default function ProdOperacaoPage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
 
-    // ✅ já nasce semana atual
     setQuickRange("week");
     setQuick("week");
 
@@ -675,9 +748,9 @@ export default function ProdOperacaoPage() {
     },
     [wrapLoading, markDirty, flushDirty],
   );
+
   const patchDemandaMeta = useCallback(
     async (taskId, meta) => {
-      // meta: { observacao?, tp_ocorren?, ocorren? }
       await wrapLoading(`meta:${taskId}`, async () => {
         await apiLocal.patchDemandaOpcMeta(taskId, meta);
       });
@@ -838,7 +911,49 @@ export default function ProdOperacaoPage() {
   const isBusyTop = anyLoading(["list", "search", "create", "meta", "active"]);
   const isBusyList = anyLoading(["list", "search"]);
   const queryIsDoc = looksLikeChave44(query) || looksLikeNF(query);
-  console.log(grouped);
+
+  // =========================
+  // ✅ DISPONÍVEIS POR TURNO
+  // regra: mostrar apenas pessoas do turno atual, e que NÃO estão em tarefas ativas
+  // =========================
+  const activePeopleSet = useMemo(() => {
+    const set = {};
+    for (let i = 0; i < activeTasks.length; i++) {
+      const r = safeArray(activeTasks[i]?.responsaveis);
+      for (let j = 0; j < r.length; j++) {
+        const name = String(r[j] || "").trim();
+        if (name) set[name.toLowerCase()] = true;
+      }
+    }
+    return set;
+  }, [activeTasks]);
+
+  const operadoresOperacaoTurno = useMemo(() => {
+    const turno = String(turnoAtual || "").toUpperCase();
+
+    const out = [];
+    for (let i = 0; i < responsaveisOperacaoRows.length; i++) {
+      const r = responsaveisOperacaoRows[i] || {};
+      const nome = String(r.nome || "").trim();
+      const t = normalizeTurnoValue(r.turno || "");
+
+      if (!nome) continue;
+
+      // se não tem turno cadastrado, não entra (pra não bagunçar)
+      if (!t) continue;
+
+      if (t !== turno) continue;
+
+      out.push(nome);
+    }
+    return out;
+  }, [responsaveisOperacaoRows, turnoAtual]);
+
+  const activeTasksTurno = useMemo(() => {
+    // tarefas ativas permanecem aparecendo (não filtramos as cards),
+    // o filtro de turno é SOMENTE para o painel de disponíveis.
+    return activeTasks;
+  }, [activeTasks]);
 
   return (
     <Page>
@@ -867,7 +982,18 @@ export default function ProdOperacaoPage() {
       />
 
       <TitleBar style={{ zIndex: 1100 }}>
-        <H1>Produtividade • Operação</H1>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <H1 style={{ margin: 0 }}>
+            Produtividade • Operação
+            <TurnoPill title="Turno atual calculado pelo horário do computador">
+              Turno: {turnoAtual === "MANHA"
+                ? "Manhã"
+                : turnoAtual === "TARDE"
+                  ? "Tarde"
+                  : "Noite"}
+            </TurnoPill>
+          </H1>
+        </div>
 
         <RightActions>
           <SearchWrap title="Buscar por id, tipo, cliente, observação ou responsável (ou NF/Chave)">
@@ -1081,7 +1207,13 @@ export default function ProdOperacaoPage() {
         })}
       </InfoBar>
 
-      <ListaIntegrantes operadores={operadoresOperacao} tasks={activeTasks} />
+      {/* ✅ Aqui é onde filtra os “disponíveis”: só o turno atual */}
+      <ListaIntegrantes
+        operadores={operadoresOperacaoTurno}
+        tasks={activeTasksTurno}
+        turnoAtual={turnoAtual}
+        activePeopleSet={activePeopleSet}
+      />
 
       {grouped.map(([tipo, list]) => (
         <div key={tipo} style={{ marginTop: 16 }}>
@@ -1099,9 +1231,7 @@ export default function ProdOperacaoPage() {
               <Loader /> Carregando tarefas...
             </EmptyState>
           ) : list.length === 0 ? (
-            <EmptyState>
-              Sem tarefas nesse grupo com os filtros atuais.
-            </EmptyState>
+            <EmptyState>Sem tarefas nesse grupo com os filtros atuais.</EmptyState>
           ) : (
             <CardGrid>
               {list.map((t) => (
