@@ -1,10 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { NavWrap, NavInner, NavItem, NavIcon, NavLabel, NavSpacer } from "./style";
 import {
-  FiHome,
-  FiFolder,
-  FiTruck,
+  NavWrap,
+  NavInner,
+  NavItem,
+  NavIcon,
+  NavLabel,
+  NavSpacer,
+} from "./style";
+import {
   FiMoon,
   FiSun,
   FiMap,
@@ -17,6 +21,10 @@ import {
   FiUsers,
   FiActivity,
   FiCpu,
+  FiBriefcase,
+  FiHash,
+  FiTruck,
+  FiFolder,
 } from "react-icons/fi";
 import apiLocal from "../../../../services/apiLocal";
 import Notifications from "./Notifications";
@@ -31,6 +39,8 @@ export default function NavBar() {
 
   const [confOpen, setConfOpen] = useState(false);
   const [frotaOpen, setFrotaOpen] = useState(false);
+  const [operacaoOpen, setOperacaoOpen] = useState(false);
+  const [cadOpen, setCadOpen] = useState(false); // ✅ NOVO dropdown Cadastros
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [dark, setDark] = useState(() => {
@@ -38,11 +48,35 @@ export default function NavBar() {
     return (localStorage.getItem("theme") || "") === "dark";
   });
 
+  const [allSectors, setAllSectors] = useState([]);
+  const [user, setUser] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  });
+
+  const userSafe = user || {};
+
+  // ✅ fecha dropdowns ao trocar rota
   useEffect(() => {
     setConfOpen(false);
     setFrotaOpen(false);
+    setOperacaoOpen(false);
+    setCadOpen(false); // ✅ NOVO
     setMobileOpen(false);
   }, [pathname]);
+
+  // ✅ fecha dropdowns quando o menu mobile fecha
+  useEffect(() => {
+    if (!mobileOpen) {
+      setConfOpen(false);
+      setFrotaOpen(false);
+      setOperacaoOpen(false);
+      setCadOpen(false); // ✅ NOVO
+    }
+  }, [mobileOpen]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -54,18 +88,6 @@ export default function NavBar() {
       localStorage.setItem("theme", "light");
     }
   }, [dark]);
-
-  const [allSectors, setAllSectors] = useState([]);
-  const [user, setUser] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("user") || "null");
-    } catch {
-      return null;
-    }
-  });
-
-  // ✅ userSafe evita condicional em hooks
-  const userSafe = user || {};
 
   useEffect(() => {
     (async () => {
@@ -130,6 +152,7 @@ export default function NavBar() {
   const isSetor16 = setorIds.includes(16);
   const isSetor25 = setorIds.includes(25);
   const isSetor14 = setorIds.includes(14);
+  const isSetor5 = setorIds.includes(5); // ✅ NOVO: acesso aos Cadastros
 
   const lowerSetores = Array.isArray(userSafe?.setores)
     ? userSafe.setores.map((s) => String(s).toLowerCase())
@@ -138,7 +161,9 @@ export default function NavBar() {
   const isFersa =
     isSetor23 ||
     lowerSetores.includes("fersa_cliente") ||
-    userSectorNames.some((n) => String(n || "").toLowerCase() === "fersa_cliente");
+    userSectorNames.some(
+      (n) => String(n || "").toLowerCase() === "fersa_cliente"
+    );
 
   const isColetores =
     isSetor25 ||
@@ -147,10 +172,15 @@ export default function NavBar() {
 
   const isRestrictedUser = isFersa || isColetores;
 
-  // ✅ usuário 26 por setor 26 OU id "26"
+  // ✅ usuário 26 (regra existente)
   const isUser26 = setorIds.includes(26) || String(userSafe?.id) === "26";
 
-  const avatarInitial = (userSafe?.email?.split("@")[0]?.slice(0, 2) || "U").toUpperCase();
+  // ✅ usuário 27: só vê Operação > Produtividade
+  const isUser27 = String(userSafe?.id) === "27";
+
+  const avatarInitial = (
+    userSafe?.email?.split("@")[0]?.slice(0, 2) || "U"
+  ).toUpperCase();
 
   const handleLogout = async () => {
     try {
@@ -179,15 +209,32 @@ export default function NavBar() {
     };
   }, []);
 
+  // ✅ itens base (default)
   const items = useMemo(() => {
     const base = [
       { key: "projetos", label: "Projetos", icon: <FiFolder />, to: "/projetos" },
-      { key: "frete", label: "Ir para o Frete", icon: <FiMap />, to: "/frete" },
-      { key: "sac", label: "Ir para o SAC", icon: <FiHeadphones />, to: "/sac" },
+      { key: "frete", label: "Frete", icon: <FiMap />, to: "/frete" },
+      { key: "sac", label: "SAC", icon: <FiHeadphones />, to: "/sac" },
     ];
 
+    // Operação dropdown (admin)
     if (isAdmin) {
-      base.unshift({ key: "geral", label: "Geral", icon: <FiHome />, to: "/" });
+      base.unshift({
+        key: "operacao",
+        type: "dropdown",
+        label: "Operação",
+        icon: <FiBriefcase />,
+      });
+    }
+
+    // ✅ NOVO: Cadastros dropdown (admin OU setor 5)
+    if (isAdmin || isSetor5) {
+      base.push({
+        key: "cadastros",
+        type: "dropdown",
+        label: "Cadastros",
+        icon: <FiUsers />,
+      });
     }
 
     if (isAdmin || isSetorTI) {
@@ -200,11 +247,80 @@ export default function NavBar() {
     }
 
     return base;
-  }, [isAdmin, isSetorTI]);
+  }, [isAdmin, isSetorTI, isSetor5]);
 
-  // ✅ agora pode retornar condicionalmente (depois de todos hooks)
   if (!user) return null;
 
+  // ======================
+  // VIEW: user 27 (somente Operação > Produtividade)
+  // ======================
+  if (isUser27) {
+    return (
+      <NavWrap ref={navWrapRef} data-open={mobileOpen}>
+        <button
+          className="nav-hamburger"
+          aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMobileOpen((v) => !v);
+          }}
+        >
+          <span className="line" />
+        </button>
+
+        <NavInner>
+          <NavItem
+            key="produtividade-operacao"
+            $active={pathname.toLowerCase() === "/Operacao/produtividade-operacao"}
+            onClick={() => {
+              setMobileOpen(false);
+              navigate("/Operacao/produtividade-operacao");
+            }}
+            title="Produtividade Operação"
+          >
+            <NavIcon>
+              <FiActivity />
+            </NavIcon>
+            <NavLabel>Produtividade</NavLabel>
+          </NavItem>
+
+          <NavSpacer />
+
+          <NavItem
+            role="button"
+            onClick={() => {
+              setMobileOpen(false);
+              handleLogout();
+            }}
+            title="Sair"
+          >
+            <NavIcon>
+              <FiLogOut />
+            </NavIcon>
+            <NavLabel>Sair</NavLabel>
+          </NavItem>
+
+          <NavItem
+            role="button"
+            onClick={() => {
+              setMobileOpen(false);
+              setDark((v) => !v);
+            }}
+            title={dark ? "Desativar Dark Mode" : "Ativar Dark Mode"}
+          >
+            <NavIcon>{dark ? <FiSun /> : <FiMoon />}</NavIcon>
+            <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
+          </NavItem>
+
+          <NavLabel>Versão 1.2.10</NavLabel>
+        </NavInner>
+      </NavWrap>
+    );
+  }
+
+  // ======================
+  // VIEW: user 26
+  // ======================
   if (isUser26) {
     return (
       <NavWrap ref={navWrapRef} data-open={mobileOpen}>
@@ -229,7 +345,9 @@ export default function NavBar() {
             }}
             title="Análise Performaxxi"
           >
-            <NavIcon><FiActivity /></NavIcon>
+            <NavIcon>
+              <FiActivity />
+            </NavIcon>
             <NavLabel>Análise Performaxxi</NavLabel>
           </NavItem>
 
@@ -243,7 +361,9 @@ export default function NavBar() {
             }}
             title="Sair"
           >
-            <NavIcon><FiLogOut /></NavIcon>
+            <NavIcon>
+              <FiLogOut />
+            </NavIcon>
             <NavLabel>Sair</NavLabel>
           </NavItem>
 
@@ -259,12 +379,15 @@ export default function NavBar() {
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
 
-          <NavLabel>Versão 1.2.9</NavLabel>
+          <NavLabel>Versão 1.2.10</NavLabel>
         </NavInner>
       </NavWrap>
     );
   }
 
+  // ======================
+  // VIEW: restricted users
+  // ======================
   if (isRestrictedUser) {
     return (
       <NavWrap ref={navWrapRef} data-open={mobileOpen}>
@@ -286,9 +409,15 @@ export default function NavBar() {
               $active={pathname.toLowerCase().startsWith("/conferencia")}
               onClick={() => setConfOpen((v) => !v)}
               title="Conferência"
-              style={{ width: "100%", display: "flex", justifyContent: "space-around" }}
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-around",
+              }}
             >
-              <NavIcon><FiPackage /></NavIcon>
+              <NavIcon>
+                <FiPackage />
+              </NavIcon>
               <NavLabel>Conferência</NavLabel>
               <NavIcon
                 style={{
@@ -327,7 +456,9 @@ export default function NavBar() {
                     title="Dashboard"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon><FiActivity /></NavIcon>
+                    <NavIcon>
+                      <FiActivity />
+                    </NavIcon>
                     <NavLabel>Dashboard</NavLabel>
                   </NavItem>
                 )}
@@ -342,7 +473,9 @@ export default function NavBar() {
                   title="Pedidos"
                   style={{ width: "100%" }}
                 >
-                  <NavIcon><FiClipboard /></NavIcon>
+                  <NavIcon>
+                    <FiClipboard />
+                  </NavIcon>
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
 
@@ -357,10 +490,28 @@ export default function NavBar() {
                     title="Relatório"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon><FaFileArchive /></NavIcon>
+                    <NavIcon>
+                      <FaFileArchive />
+                    </NavIcon>
                     <NavLabel>Relatório</NavLabel>
                   </NavItem>
                 )}
+
+                <NavItem
+                  $active={pathname === "/conferencia/cadastro-sku"}
+                  onClick={() => {
+                    setConfOpen(false);
+                    setMobileOpen(false);
+                    navigate("/conferencia/cadastro-sku");
+                  }}
+                  title="Cadastro SKU"
+                  style={{ width: "100%" }}
+                >
+                  <NavIcon>
+                    <FiHash />
+                  </NavIcon>
+                  <NavLabel>Cadastro SKU</NavLabel>
+                </NavItem>
               </div>
             )}
           </div>
@@ -375,7 +526,9 @@ export default function NavBar() {
             }}
             title="Sair"
           >
-            <NavIcon><FiLogOut /></NavIcon>
+            <NavIcon>
+              <FiLogOut />
+            </NavIcon>
             <NavLabel>Sair</NavLabel>
           </NavItem>
 
@@ -391,12 +544,15 @@ export default function NavBar() {
             <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
           </NavItem>
 
-          <NavLabel>Versão 1.2.9</NavLabel>
+          <NavLabel>Versão 1.2.10</NavLabel>
         </NavInner>
       </NavWrap>
     );
   }
 
+  // ======================
+  // VIEW: default
+  // ======================
   return (
     <NavWrap ref={navWrapRef} data-open={mobileOpen}>
       <button
@@ -411,20 +567,217 @@ export default function NavBar() {
       </button>
 
       <NavInner>
-        {items.map((it) => (
-          <NavItem
-            key={it.key}
-            $active={pathname.toLowerCase() === it.to.toLowerCase()}
-            onClick={() => {
-              setMobileOpen(false);
-              navigate(it.to);
-            }}
-            title={it.label}
-          >
-            <NavIcon>{it.icon}</NavIcon>
-            <NavLabel>{it.label}</NavLabel>
-          </NavItem>
-        ))}
+        {items.map((it) => {
+          // ✅ Operação dropdown (já existia)
+          if (it.type === "dropdown" && it.key === "operacao") {
+            return (
+              <div key="operacao-dd" style={{ position: "relative" }}>
+                <NavItem
+                  $active={
+                    pathname.toLowerCase().startsWith("/operacao") ||
+                    pathname.toLowerCase().startsWith("/operacao-fechamento") ||
+                    pathname.toLowerCase().startsWith("/Operacao/produtividade-operacao") ||
+                    pathname.toLowerCase().startsWith("/dashboard-produtividade")
+                  }
+                  onClick={() => setOperacaoOpen((v) => !v)}
+                  title="Operação"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-around",
+                  }}
+                >
+                  <NavIcon>{it.icon}</NavIcon>
+                  <NavLabel>Operação</NavLabel>
+                  <NavIcon
+                    style={{
+                      transition: "transform 0.2s ease",
+                      transform: operacaoOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  >
+                    <FiChevronDown />
+                  </NavIcon>
+                </NavItem>
+
+                {operacaoOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      background: "var(--nav-bg, #0f172a)",
+                      border: "1px solid rgba(255,255,255,.08)",
+                      borderRadius: 10,
+                      padding: 6,
+                      marginTop: 6,
+                      minWidth: "100%",
+                      boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+                      zIndex: 10,
+                    }}
+                  >
+                    <NavItem
+                      $active={pathname.toLowerCase() === "/operacao-fechamento"}
+                      onClick={() => {
+                        setOperacaoOpen(false);
+                        setMobileOpen(false);
+                        navigate("/operacao-fechamento");
+                      }}
+                      title="Operação (Fechamento)"
+                      style={{ width: "100%" }}
+                    >
+                      <NavIcon>
+                        <FiBriefcase />
+                      </NavIcon>
+                      <NavLabel>Fechamento</NavLabel>
+                    </NavItem>
+
+                    <NavItem
+                      $active={pathname.toLowerCase() === "/Operacao/produtividade-operacao"}
+                      onClick={() => {
+                        setOperacaoOpen(false);
+                        setMobileOpen(false);
+                        navigate("/Operacao/produtividade-operacao");
+                      }}
+                      title="Produtividade Operação"
+                      style={{ width: "100%" }}
+                    >
+                      <NavIcon>
+                        <FiActivity />
+                      </NavIcon>
+                      <NavLabel>Produtividade</NavLabel>
+                    </NavItem>
+
+                    {/* <NavItem
+                      $active={pathname.toLowerCase() === "/dashboard-produtividade"}
+                      onClick={() => {
+                        setOperacaoOpen(false);
+                        setMobileOpen(false);
+                        navigate("/dashboard-produtividade");
+                      }}
+                      title="Dashboard Produtividade"
+                      style={{ width: "100%" }}
+                    >
+                      <NavIcon>
+                        <FiActivity />
+                      </NavIcon>
+                      <NavLabel>Dashboard</NavLabel>
+                    </NavItem> */}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // ✅ NOVO: Cadastros dropdown
+          if (it.type === "dropdown" && it.key === "cadastros") {
+            return (
+              <div key="cadastros-dd" style={{ position: "relative" }}>
+                <NavItem
+                  $active={pathname.toLowerCase().startsWith("/cadastros")}
+                  onClick={() => setCadOpen((v) => !v)}
+                  title="Cadastros"
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "space-around",
+                  }}
+                >
+                  <NavIcon>{it.icon}</NavIcon>
+                  <NavLabel>Cadastros</NavLabel>
+                  <NavIcon
+                    style={{
+                      transition: "transform 0.2s ease",
+                      transform: cadOpen ? "rotate(180deg)" : "rotate(0deg)",
+                    }}
+                  >
+                    <FiChevronDown />
+                  </NavIcon>
+                </NavItem>
+
+                {cadOpen && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      left: 0,
+                      background: "var(--nav-bg, #0f172a)",
+                      border: "1px solid rgba(255,255,255,.08)",
+                      borderRadius: 10,
+                      padding: 6,
+                      marginTop: 6,
+                      minWidth: "100%",
+                      boxShadow: "0 10px 20px rgba(0,0,0,.3)",
+                      zIndex: 10,
+                    }}
+                  >
+                    <NavItem
+                      $active={pathname.toLowerCase() === "/cadastros/motoristas"}
+                      onClick={() => {
+                        setCadOpen(false);
+                        setMobileOpen(false);
+                        navigate("/cadastros/motoristas");
+                      }}
+                      title="Motoristas"
+                      style={{ width: "100%" }}
+                    >
+                      <NavIcon>
+                        <FiTruck />
+                      </NavIcon>
+                      <NavLabel>Motoristas</NavLabel>
+                    </NavItem>
+
+                    <NavItem
+                      $active={pathname.toLowerCase() === "/cadastros/responsaveis"}
+                      onClick={() => {
+                        setCadOpen(false);
+                        setMobileOpen(false);
+                        navigate("/cadastros/responsaveis");
+                      }}
+                      title="Responsáveis"
+                      style={{ width: "100%" }}
+                    >
+                      <NavIcon>
+                        <FiUsers />
+                      </NavIcon>
+                      <NavLabel>Responsáveis</NavLabel>
+                    </NavItem>
+                    <NavItem
+                      $active={pathname.toLowerCase() === "/cadastros/veiculos"}
+                      onClick={() => {
+                        setCadOpen(false);
+                        setMobileOpen(false);
+                        navigate("/cadastros/veiculos");
+                      }}
+                      title="Veiculos"
+                      style={{ width: "100%" }}
+                    >
+                      <NavIcon>
+                        <FiTruck />
+                      </NavIcon>
+                      <NavLabel>Veiculos</NavLabel>
+                    </NavItem>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // ✅ itens normais
+          return (
+            <NavItem
+              key={it.key}
+              $active={pathname.toLowerCase() === it.to.toLowerCase()}
+              onClick={() => {
+                setMobileOpen(false);
+                navigate(it.to);
+              }}
+              title={it.label}
+            >
+              <NavIcon>{it.icon}</NavIcon>
+              <NavLabel>{it.label}</NavLabel>
+            </NavItem>
+          );
+        })}
 
         {(isAdmin || isSetor14) && (
           <div style={{ position: "relative" }}>
@@ -433,9 +786,15 @@ export default function NavBar() {
               $active={pathname.toLowerCase().startsWith("/frota")}
               onClick={() => setFrotaOpen((v) => !v)}
               title="Frota"
-              style={{ width: "100%", display: "flex", justifyContent: "space-around" }}
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-around",
+              }}
             >
-              <NavIcon><FiTruck /></NavIcon>
+              <NavIcon>
+                <FiTruck />
+              </NavIcon>
               <NavLabel>Frota</NavLabel>
               <NavIcon
                 style={{
@@ -473,7 +832,9 @@ export default function NavBar() {
                   title="Análise HA"
                   style={{ width: "100%" }}
                 >
-                  <NavIcon><FiActivity /></NavIcon>
+                  <NavIcon>
+                    <FiActivity />
+                  </NavIcon>
                   <NavLabel>Análise HA</NavLabel>
                 </NavItem>
 
@@ -488,7 +849,9 @@ export default function NavBar() {
                   title="Análise Performaxxi"
                   style={{ width: "100%" }}
                 >
-                  <NavIcon><FiActivity /></NavIcon>
+                  <NavIcon>
+                    <FiActivity />
+                  </NavIcon>
                   <NavLabel>Análise Performaxxi</NavLabel>
                 </NavItem>
               </div>
@@ -496,16 +859,27 @@ export default function NavBar() {
           </div>
         )}
 
-        {(isSetor16 || isSetor7 || isSetor6 || isSetor9 || isSetor23 || isSetor25) && (
+        {(isSetor16 ||
+          isSetor7 ||
+          isSetor6 ||
+          isSetor9 ||
+          isSetor23 ||
+          isSetor25) && (
           <div style={{ position: "relative" }}>
             <NavItem
               key="conferencia"
               $active={pathname.toLowerCase().startsWith("/conferencia")}
               onClick={() => setConfOpen((v) => !v)}
               title="Conferência"
-              style={{ width: "100%", display: "flex", justifyContent: "space-around" }}
+              style={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-around",
+              }}
             >
-              <NavIcon><FiPackage /></NavIcon>
+              <NavIcon>
+                <FiPackage />
+              </NavIcon>
               <NavLabel>Conferência</NavLabel>
               <NavIcon
                 style={{
@@ -544,7 +918,9 @@ export default function NavBar() {
                     title="Dashboard"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon><FiActivity /></NavIcon>
+                    <NavIcon>
+                      <FiActivity />
+                    </NavIcon>
                     <NavLabel>Dashboard</NavLabel>
                   </NavItem>
                 )}
@@ -559,7 +935,9 @@ export default function NavBar() {
                   title="Pedidos"
                   style={{ width: "100%" }}
                 >
-                  <NavIcon><FiClipboard /></NavIcon>
+                  <NavIcon>
+                    <FiClipboard />
+                  </NavIcon>
                   <NavLabel>Pedidos</NavLabel>
                 </NavItem>
 
@@ -574,7 +952,9 @@ export default function NavBar() {
                     title="Integrantes"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon><FiUsers /></NavIcon>
+                    <NavIcon>
+                      <FiUsers />
+                    </NavIcon>
                     <NavLabel>Integrantes</NavLabel>
                   </NavItem>
                 )}
@@ -590,10 +970,28 @@ export default function NavBar() {
                     title="Relatorio"
                     style={{ width: "100%" }}
                   >
-                    <NavIcon><FaFileArchive /></NavIcon>
+                    <NavIcon>
+                      <FaFileArchive />
+                    </NavIcon>
                     <NavLabel>Relatório</NavLabel>
                   </NavItem>
                 )}
+
+                <NavItem
+                  $active={pathname === "/conferencia/cadastro-sku"}
+                  onClick={() => {
+                    setConfOpen(false);
+                    setMobileOpen(false);
+                    navigate("/conferencia/cadastro-sku");
+                  }}
+                  title="Cadastro SKU"
+                  style={{ width: "100%" }}
+                >
+                  <NavIcon>
+                    <FiHash />
+                  </NavIcon>
+                  <NavLabel>Cadastro SKU</NavLabel>
+                </NavItem>
               </div>
             )}
           </div>
@@ -609,28 +1007,46 @@ export default function NavBar() {
             }}
             title="Estoque TI"
           >
-            <NavIcon><FiCpu /></NavIcon>
+            <NavIcon>
+              <FiCpu />
+            </NavIcon>
             <NavLabel>Estoque TI</NavLabel>
           </NavItem>
         )}
 
         <NavSpacer />
 
-        <NavItem role="button" title="Notas de atualização" $active={false} onClick={(e) => e.stopPropagation()}>
+        <NavItem
+          role="button"
+          title="Notas de atualização"
+          $active={false}
+          onClick={(e) => e.stopPropagation()}
+        >
           <NavIcon style={{ position: "relative" }}>
-            <Notas version="1.2.9" />
+            <Notas version="1.2.10" />
           </NavIcon>
           <NavLabel>Notas nova versão</NavLabel>
         </NavItem>
 
-        <NavItem role="button" title="Notificações" $active={false} onClick={(e) => e.stopPropagation()}>
+        <NavItem
+          role="button"
+          title="Notificações"
+          $active={false}
+          onClick={(e) => e.stopPropagation()}
+        >
           <NavIcon style={{ position: "relative" }}>
-            <Notifications user={userSafe} navWidth={navWidth} onOpenProject={(pid) => navigate(`/projetos/${pid}`)} />
+            <Notifications
+              user={userSafe}
+              navWidth={navWidth}
+              onOpenProject={(pid) => navigate(`/projetos/${pid}`)}
+            />
           </NavIcon>
           <NavLabel>Notificações</NavLabel>
         </NavItem>
 
-        <NavItem title={userSectorNames.length ? userSectorNames.join(", ") : "Usuário"}>
+        <NavItem
+          title={userSectorNames.length ? userSectorNames.join(", ") : "Usuário"}
+        >
           <NavIcon>
             <span
               style={{
@@ -650,7 +1066,9 @@ export default function NavBar() {
               {avatarInitial}
             </span>
           </NavIcon>
-          <NavLabel>{userSectorNames.length ? userSectorNames[0] : userSafe?.email || "Usuário"}</NavLabel>
+          <NavLabel>
+            {userSectorNames.length ? userSectorNames[0] : userSafe?.email || "Usuário"}
+          </NavLabel>
         </NavItem>
 
         <NavItem
@@ -661,7 +1079,9 @@ export default function NavBar() {
           }}
           title="Sair"
         >
-          <NavIcon><FiLogOut /></NavIcon>
+          <NavIcon>
+            <FiLogOut />
+          </NavIcon>
           <NavLabel>Sair</NavLabel>
         </NavItem>
 
@@ -677,7 +1097,7 @@ export default function NavBar() {
           <NavLabel>{dark ? "Claro" : "Escuro"}</NavLabel>
         </NavItem>
 
-        <NavLabel>Versão 1.2.9</NavLabel>
+        <NavLabel>Versão 1.2.10</NavLabel>
       </NavInner>
     </NavWrap>
   );

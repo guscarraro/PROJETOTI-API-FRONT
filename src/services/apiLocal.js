@@ -467,6 +467,66 @@ const apiLocal = {
     api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
   getPedidosRelatorio: (params = {}) =>
     api.get("/pedidos/relatorio-pedidos", { params }),
+// Placas
+getPlacas: () => api.get("/placa/"),
+createOrUpdatePlaca: (data) => api.post("/placa/", data),
+deletePlaca: (id) => api.delete(`/placa/${id}`),
+
+// ========================
+// Demandas OPC (novo fluxo)
+getDemandasAtivasLite: () => api.get("/demandas-opc/lite/ativas"),
+// ========================
+createDemandaOpc: (payload) => api.post("/demandas-opc/", payload),
+patchDemandaOpcMeta: (demandaId, body) =>
+  api.patch(`/demandas-opc/${demandaId}/meta`, body),
+
+// ✅ NOVO: lista otimizada pros cards
+listDemandasOpcLite: (params = {}) => api.get("/demandas-opc/lite", { params }),
+
+/**
+ * (Opcional) manter o antigo:
+ * listDemandasOpc: (params = {}) => api.get("/demandas-opc/", { params }),
+ */
+
+// ✅ NOVO: detalhe otimizado pro ModalInfo
+getDemandaOpcInfo: (id) => api.get(`/demandas-opc/${id}/info`),
+
+/**
+ * (Opcional) manter o antigo:
+ * getDemandaOpcById: (id) => api.get(`/demandas-opc/${id}`),
+ */
+
+deleteDemandaOpc: (id) => api.delete(`/demandas-opc/${id}`),
+
+// updateNotasStatusByDemanda: (demandaId, body) =>
+//   api.post(`/demandas-opc/${demandaId}/status-notas`, body),
+
+getDocByChave: (chave, docKind) =>
+  api.get(`/nf-xml/chave/${chave}`, { params: docKind ? { doc_kind: docKind } : undefined }),
+
+
+addDocsToDemandaOpc: (demandaId, body) =>
+  api.post(`/demandas-opc/${demandaId}/docs`, body),
+
+removeDocFromDemandaOpc: (demandaId, nfId, params = {}) =>
+  api.delete(`/demandas-opc/${demandaId}/docs/${nfId}`, { params }),
+
+updateResponsaveisDemandaOpc: (demandaId, body) =>
+  api.put(`/demandas-opc/${demandaId}/responsaveis`, body),
+
+cancelDemandaOpc: (demandaId, body) =>
+  api.post(`/demandas-opc/${demandaId}/cancelar`, body),
+
+getVinculosSummary: (params = {}) =>
+  api.get(`/demandas-opc/vinculos/summary`, { params }),
+
+finishDemandaOpc: (demandaId, body) =>
+  api.post(`/demandas-opc/${demandaId}/finalizar`, body),
+
+startDemandaOpc: (demandaId, body) =>
+  api.post(`/demandas-opc/${demandaId}/iniciar`, body),
+
+searchDemandasOpc: (params = {}) => api.get("/demandas-opc/search", { params }),
 
   // Expedição
   expedirPedido: (data) => api.post("/expedicao/expedir", data),

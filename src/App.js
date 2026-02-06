@@ -23,6 +23,8 @@ import Projecao from "./pages/Projecao";
 import apiLocal from "./services/apiLocal";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import Frota from "./pages/Projetos/Frota";
+import ProdOperacao from "./pages/Projetos/ProdOperacao";
+import Cadastros from "./pages/Projetos/Cadastros";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -63,7 +65,7 @@ const App = () => {
     window.location.replace("/");
   }, []);
 
-  // ✅ Autologout por inatividade (20 min)
+  // ✅ Autologout por inatividade (20 h)
   useInactivityLogout({
     timeoutMs: 20 * 60 * 60 * 1000,
     onTimeout: handleTimeout,
@@ -227,6 +229,35 @@ const App = () => {
           element={
             <PrivateRoute
               element={<OperacaoFechamento />}
+              allowedSectors={[
+                SECTORS.OPERACAO,
+                SECTORS.ADMIN,
+                SECTORS.GERENTE_OPERACAO,
+                SECTORS.QUALIDADE,
+              ]}
+            />
+          }
+        />
+        <Route
+          path="/Operacao/produtividade-operacao"
+          element={
+            <PrivateRoute
+              element={<ProdOperacao />}
+              allowedSectors={[
+                SECTORS.OPERACAO,
+                SECTORS.ADMIN,
+                SECTORS.GERENTE_OPERACAO,
+                SECTORS.QUALIDADE,
+              ]}
+            />
+          }
+        />
+
+        <Route
+          path="/cadastros/*"
+          element={
+            <PrivateRoute
+              element={<Cadastros />}
               allowedSectors={[
                 SECTORS.OPERACAO,
                 SECTORS.ADMIN,
