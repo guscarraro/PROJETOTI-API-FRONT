@@ -526,7 +526,7 @@ finishDemandaOpc: (demandaId, body) =>
 startDemandaOpc: (demandaId, body) =>
   api.post(`/demandas-opc/${demandaId}/iniciar`, body),
 
-searchDemandasOpc: (params = {}) => api.get("/demandas-opc/search", { params }),
+searchDemandasOpc: (body) => api.post("/demandas-opc/search", body),
 
   // Expedição
   expedirPedido: (data) => api.post("/expedicao/expedir", data),
