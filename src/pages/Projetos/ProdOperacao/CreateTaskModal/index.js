@@ -1049,7 +1049,7 @@ export default function CreateTaskModal({
                             onChange={(e) => updateDocMetric(d.id, "volumes", Number(e.target.value || 0))}
                             placeholder="vol"
                           />
-                          <MiniInput
+                          {/* <MiniInput
                             style={{ width: 86 }}
                             type="number"
                             min="0"
@@ -1057,7 +1057,7 @@ export default function CreateTaskModal({
                             value={d.pallets}
                             onChange={(e) => updateDocMetric(d.id, "pallets", Number(e.target.value || 0))}
                             placeholder="pal"
-                          />
+                          /> */}
                           <MiniInput
                             style={{ width: 86 }}
                             type="number"

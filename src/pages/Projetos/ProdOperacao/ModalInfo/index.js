@@ -151,12 +151,12 @@ export default function ModalInfo({
 
         if (!alive) return;
         const occs = Array.isArray(demanda?.ocorrencias)
-  ? demanda.ocorrencias
-  : Array.isArray(task?.ocorrencias)
-    ? task.ocorrencias
-    : [];
+          ? demanda.ocorrencias
+          : Array.isArray(task?.ocorrencias)
+            ? task.ocorrencias
+            : [];
 
-const lastOcc = occs.length ? occs[occs.length - 1] : null;
+        const lastOcc = occs.length ? occs[occs.length - 1] : null;
 
         const clienteObj =
           demanda?.cliente && typeof demanda.cliente === "object"
@@ -223,7 +223,6 @@ const lastOcc = occs.length ? occs[occs.length - 1] : null;
           observacao: demanda?.observacao || task?.observacao || "",
           // ✅ ocorrência (novo)
           ocorrencias: occs,
-
 
           responsaveis: Array.isArray(demanda?.responsaveis)
             ? demanda.responsaveis
@@ -565,24 +564,26 @@ const lastOcc = occs.length ? occs[occs.length - 1] : null;
         by: actorName,
       });
 
-setLocal((prev) => {
-  if (!prev) return prev;
+      setLocal((prev) => {
+        if (!prev) return prev;
 
-  const nextOccs = Array.isArray(prev.ocorrencias) ? [...prev.ocorrencias] : [];
-  nextOccs.push({
-    tp,
-    just,
-    by: actorName,
-    at: new Date().toISOString(),
-  });
+        const nextOccs = Array.isArray(prev.ocorrencias)
+          ? [...prev.ocorrencias]
+          : [];
+        nextOccs.push({
+          tp,
+          just,
+          by: actorName,
+          at: new Date().toISOString(),
+        });
 
-  return {
-    ...prev,
-    ocorrencias: nextOccs,
-    tp_ocorren: tp,
-    ocorren: just,
-  };
-});
+        return {
+          ...prev,
+          ocorrencias: nextOccs,
+          tp_ocorren: tp,
+          ocorren: just,
+        };
+      });
 
       if (onDidChange) onDidChange();
 
@@ -660,7 +661,7 @@ setLocal((prev) => {
   }, [local, cancelReason, actorName, onDidChange, toggle]);
 
   const headerId = local?.id ? local.id : task?.id || "—";
-const occsUi = Array.isArray(local?.ocorrencias) ? local.ocorrencias : [];
+  const occsUi = Array.isArray(local?.ocorrencias) ? local.ocorrencias : [];
   return (
     <>
       <style>
@@ -778,8 +779,6 @@ const occsUi = Array.isArray(local?.ocorrencias) ? local.ocorrencias : [];
                     }}
                   >
                     <div style={{ fontSize: 12, opacity: 0.7 }}>Observação</div>
-
-           
                   </div>
 
                   <Input
@@ -790,15 +789,15 @@ const occsUi = Array.isArray(local?.ocorrencias) ? local.ocorrencias : [];
                     rows={3}
                     placeholder="Opcional: anote algo importante da tarefa..."
                   />
-                           <Button
-                      color="primary"
-                      size="sm"
-                      onClick={saveObservacao}
-                      disabled={!canEdit || loading || !local}
-                      style={{marginTop:5}}
-                    >
-                      Salvar obs
-                    </Button>
+                  <Button
+                    color="primary"
+                    size="sm"
+                    onClick={saveObservacao}
+                    disabled={!canEdit || loading || !local}
+                    style={{ marginTop: 5 }}
+                  >
+                    Salvar obs
+                  </Button>
                 </div>
                 <div
                   style={{
@@ -830,37 +829,45 @@ const occsUi = Array.isArray(local?.ocorrencias) ? local.ocorrencias : [];
 
                   {/* ✅ Exibição em destaque (se existir) */}
 
-
-{occsUi.length ? (
-  <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
-    {occsUi.slice().reverse().map((o, idx) => (
-      <div
-        key={`${o.at || "x"}-${idx}`}
-        style={{
-          padding: "10px 12px",
-          borderRadius: 12,
-          border: "1px solid rgba(185, 28, 28, 0.35)",
-          background: "rgba(220, 38, 38, 0.06)",
-        }}
-      >
-        <div style={{ fontSize: 12, fontWeight: 900, color: "rgba(185, 28, 28, 0.95)" }}>
-          {String(o.tp || "").toUpperCase()} • {o.by || "—"} •{" "}
-          <span style={{ opacity: 0.75 }}>
-            {o.at ? new Date(o.at).toLocaleString() : "—"}
-          </span>
-        </div>
-        <div style={{ marginTop: 6, fontSize: 13 }}>
-          {o.just || ""}
-        </div>
-      </div>
-    ))}
-  </div>
-) : (
-  <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
-    Sem ocorrência registrada.
-  </div>
-)}
-
+                  {occsUi.length ? (
+                    <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+                      {occsUi
+                        .slice()
+                        .reverse()
+                        .map((o, idx) => (
+                          <div
+                            key={`${o.at || "x"}-${idx}`}
+                            style={{
+                              padding: "10px 12px",
+                              borderRadius: 12,
+                              border: "1px solid rgba(185, 28, 28, 0.35)",
+                              background: "rgba(220, 38, 38, 0.06)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 900,
+                                color: "rgba(185, 28, 28, 0.95)",
+                              }}
+                            >
+                              {String(o.tp || "").toUpperCase()} • {o.by || "—"}{" "}
+                              •{" "}
+                              <span style={{ opacity: 0.75 }}>
+                                {o.at ? new Date(o.at).toLocaleString() : "—"}
+                              </span>
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: 13 }}>
+                              {o.just || ""}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
+                      Sem ocorrência registrada.
+                    </div>
+                  )}
 
                   {/* ✅ Form */}
                   {showOcForm && canEdit ? (
