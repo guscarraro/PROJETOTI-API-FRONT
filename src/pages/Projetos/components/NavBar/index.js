@@ -218,7 +218,7 @@ export default function NavBar() {
     ];
 
     // Operação dropdown (admin)
-    if (isAdmin) {
+    if (isAdmin || isSetor5) {
       base.unshift({
         key: "operacao",
         type: "dropdown",
