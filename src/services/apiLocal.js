@@ -31,7 +31,6 @@ api.interceptors.response.use(
     const url = String(err?.config?.url || "").toLowerCase();
 
     // (debug rápido: se quiser)
-    // console.log("[API ERROR]", { status, url, method: err?.config?.method });
 
     if (status === 401) {
       // ✅ não redireciona pra endpoints de auth (evita loop)
@@ -503,6 +502,7 @@ deleteDemandaOpc: (id) => api.delete(`/demandas-opc/${id}`),
 
 getDocByChave: (chave, docKind) =>
   api.get(`/nf-xml/chave/${chave}`, { params: docKind ? { doc_kind: docKind } : undefined }),
+
 
 
 addDocsToDemandaOpc: (demandaId, body) =>

@@ -124,6 +124,7 @@ function safeDateMs(v) {
     return 0;
   }
 }
+
 function normTp(v) {
   const x = String(v || "")
     .trim()
@@ -134,6 +135,11 @@ function normTp(v) {
   if (x === "SOBRA") return "S";
   if (x === "F" || x === "A" || x === "I" || x === "S") return x;
   return "";
+}
+
+function trunc17(s) {
+  const x = String(s || "");
+  return x.length > 17 ? `${x.slice(0, 17)}...` : x;
 }
 
 export default function TaskCard({
@@ -163,12 +169,22 @@ export default function TaskCard({
   const totalPallets = Number(task.totalPallets ?? task.pallets ?? 0);
 
   const rec = task.recebimento || null;
+  const exp = task.recebimento || {
+    motorista: task.motorista,
+    placaCavalo: task.placa_cavalo,
+    placaCarreta: task.placa_carreta,
+  };
+  // ✅ NOVO
 
   const isEffectivelyLocked = !!task.locked || isCancelled;
 
   const disableOpen = disabled || isOpening || isStarting || isFinishing;
   const disableStart = disableOpen || isEffectivelyLocked || !canStart;
   const disableFinish = disableOpen || isEffectivelyLocked || !canFinish;
+
+  const isExpedicao =
+    String(task?.tipo || "").toLowerCase() === "expedição" ||
+    String(task?.tipo || "").toLowerCase() === "expedicao";
 
   const cliente = useMemo(
     () => normalizeCliente(task?.cliente),
@@ -177,14 +193,23 @@ export default function TaskCard({
   const clienteTextRaw = cliente.cnpj
     ? `${cliente.nome} • ${cliente.cnpj}`
     : cliente.nome;
-  const clienteText =
-    String(clienteTextRaw || "").length > 17
-      ? `${String(clienteTextRaw).slice(0, 17)}...`
-      : String(clienteTextRaw || "");
+  const clienteText = useMemo(() => trunc17(clienteTextRaw), [clienteTextRaw]);
+
+  // ✅ título especial da expedição: motorista + veículo
+  const expMotorista = String(exp?.motorista || "").trim();
+  const expPlaca =
+    String(exp?.placaCavalo || exp?.placa_cavalo || "").trim() ||
+    String(exp?.placaCarreta || exp?.placa_carreta || "").trim();
+
+  const expedicaoTitle = useMemo(() => {
+    const m = expMotorista || "—";
+    const p = expPlaca || "—";
+    return trunc17(`${m} • ${p}`);
+  }, [expMotorista, expPlaca]);
+
   const ocorrenciasBadges = useMemo(() => {
     const arr = Array.isArray(task?.ocorrencias) ? task.ocorrencias : [];
 
-    // pega só tipos válidos e evita repetidas (F, A, I, S)
     const seen = {};
     const out = [];
 
@@ -198,10 +223,6 @@ export default function TaskCard({
       seen[tp] = true;
       out.push(tp);
     }
-    console.log(
-      "CARD OCC:",
-      task
-    );
 
     // fallback compat (se ainda vier só tp_ocorren/ocorren no lite)
     if (out.length === 0) {
@@ -210,7 +231,7 @@ export default function TaskCard({
       if (tp && just) out.push(tp);
     }
 
-    return out; // ex: ["F","A"]
+    return out;
   }, [task?.ocorrencias, task?.tp_ocorren, task?.tpOcorren, task?.ocorren]);
 
   const createdAt = task?.createdAt || task?.created_at || null;
@@ -312,10 +333,9 @@ export default function TaskCard({
             <Title title={String(task.id || "")}>Ordem: {task.id}</Title>
 
             <Sub>
-              <span style={{ fontWeight: 900 }}>{clienteText}</span>
-              {/* <span>•</span>
-              <span>{task.tipo}</span> */}
-              {/* <span>•</span> */}
+              <span style={{ fontWeight: 900 }}>
+                {isExpedicao ? expedicaoTitle : clienteText}
+              </span>
 
               <span
                 style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
@@ -327,6 +347,7 @@ export default function TaskCard({
                 )}
                 {paletizada ? "Paletizada" : "Não paletizada"}
               </span>
+
               {ocorrenciasBadges.length ? (
                 <span
                   style={{
@@ -349,7 +370,7 @@ export default function TaskCard({
                         fontSize: 11,
                         fontWeight: 900,
                         color: "white",
-                        background: "rgba(220, 38, 38, 0.95)", // vermelho
+                        background: "rgba(220, 38, 38, 0.95)",
                       }}
                     >
                       {tp}

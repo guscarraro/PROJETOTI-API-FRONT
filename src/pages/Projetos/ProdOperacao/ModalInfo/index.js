@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useRef,
+} from "react";
 import {
   Modal,
   ModalHeader,
@@ -9,6 +15,7 @@ import {
 } from "reactstrap";
 import { toast } from "react-toastify";
 import apiLocal from "../../../../services/apiLocal";
+import { FaPaperclip, FaXmark, FaImage } from "react-icons/fa6";
 
 function onlyDigits(s) {
   return String(s || "").replace(/\D/g, "");
@@ -63,11 +70,45 @@ function normalizeCliente(clienteAny) {
   return { nome: "—", cnpj: "" };
 }
 
+function normalizeOcType(v) {
+  const x = String(v || "")
+    .trim()
+    .toUpperCase();
+  if (x === "FALTA") return "F";
+  if (x === "AVARIA") return "A";
+  if (x === "INVERSAO" || x === "INVERSÃO") return "I";
+  if (x === "SOBRA") return "S";
+  if (x === "F" || x === "A" || x === "I" || x === "S") return x;
+  return "";
+}
+
+function isAllowedImageFile(file) {
+  const t = String(file?.type || "").toLowerCase(); // image/png, image/jpeg...
+  if (t === "image/png") return true;
+  if (t === "image/jpeg") return true; // jpg + jpeg
+  return false;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    try {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ""));
+      fr.onerror = () => reject(new Error("Falha ao ler arquivo"));
+      fr.readAsDataURL(file);
+    } catch (e) {
+      reject(e);
+    }
+  });
+}
+
 export default function ModalInfo({
   isOpen,
   toggle,
   task,
   operadores,
+  motoristas,
+  placas,
   actorName,
   onDidChange,
   onSaveMeta,
@@ -84,9 +125,48 @@ export default function ModalInfo({
 
   const [isDark, setIsDark] = useState(false);
   const [obsDraft, setObsDraft] = useState("");
+
   const [ocType, setOcType] = useState(""); // F/A/I/S
   const [ocJust, setOcJust] = useState("");
   const [showOcForm, setShowOcForm] = useState(false);
+
+  // ✅ foto da ocorrência (base64 via dataURL)
+  const [ocPhoto, setOcPhoto] = useState(""); // "data:image/jpeg;base64,..."
+  const [ocPhotoErr, setOcPhotoErr] = useState("");
+  const fileRef = useRef(null);
+
+  // ✅ modal de visualização de imagem (sem abrir outra guia)
+  const [imgOpen, setImgOpen] = useState(false);
+  const [imgSrc, setImgSrc] = useState("");
+  const [imgTitle, setImgTitle] = useState("");
+
+  const [motDraft, setMotDraft] = useState("");
+  const [placaCavDraft, setPlacaCavDraft] = useState("");
+  const [placaCarDraft, setPlacaCarDraft] = useState("");
+  const [chegadaDraft, setChegadaDraft] = useState(""); // yyyy-MM-ddThh:mm
+
+  const openImgModal = useCallback((src, title) => {
+    const s = String(src || "").trim();
+    if (!s) return;
+    setImgSrc(s);
+    setImgTitle(String(title || "Imagem"));
+    setImgOpen(true);
+  }, []);
+
+  const closeImgModal = useCallback(() => {
+    setImgOpen(false);
+    setImgSrc("");
+    setImgTitle("");
+  }, []);
+
+  const safeMotoristas = useMemo(
+    () => (Array.isArray(motoristas) ? motoristas : []),
+    [motoristas],
+  );
+  const safePlacas = useMemo(
+    () => (Array.isArray(placas) ? placas : []),
+    [placas],
+  );
 
   const safeOperadores = useMemo(
     () => (Array.isArray(operadores) ? operadores : []),
@@ -150,13 +230,12 @@ export default function ModalInfo({
             : [];
 
         if (!alive) return;
+
         const occs = Array.isArray(demanda?.ocorrencias)
           ? demanda.ocorrencias
           : Array.isArray(task?.ocorrencias)
             ? task.ocorrencias
             : [];
-
-        const lastOcc = occs.length ? occs[occs.length - 1] : null;
 
         const clienteObj =
           demanda?.cliente && typeof demanda.cliente === "object"
@@ -221,7 +300,6 @@ export default function ModalInfo({
 
           cliente: clienteObj,
           observacao: demanda?.observacao || task?.observacao || "",
-          // ✅ ocorrência (novo)
           ocorrencias: occs,
 
           responsaveis: Array.isArray(demanda?.responsaveis)
@@ -269,10 +347,12 @@ export default function ModalInfo({
       alive = false;
     };
   }, [isOpen, task?.id]);
+
   const responsaveis = useMemo(
     () => (Array.isArray(local?.responsaveis) ? local.responsaveis : []),
     [local],
   );
+
   useEffect(() => {
     if (!isOpen) return;
     if (!local) return;
@@ -281,7 +361,36 @@ export default function ModalInfo({
     setOcType(String(local.tp_ocorren || ""));
     setOcJust(String(local.ocorren || ""));
     setShowOcForm(false);
-  }, [isOpen, local?.id]);
+    const r = local.recebimento || {};
+    setMotDraft(String(r.motorista || ""));
+    setPlacaCavDraft(String(r.placaCavalo || ""));
+    setPlacaCarDraft(String(r.placaCarreta || ""));
+
+    const ch = String(r.chegadaAt || "");
+    if (ch) {
+      const dt = new Date(ch);
+      if (!isNaN(dt.getTime())) {
+        const yyyy = dt.getFullYear();
+        const mm = String(dt.getMonth() + 1).padStart(2, "0");
+        const dd = String(dt.getDate()).padStart(2, "0");
+        const hh = String(dt.getHours()).padStart(2, "0");
+        const mi = String(dt.getMinutes()).padStart(2, "0");
+        setChegadaDraft(`${yyyy}-${mm}-${dd}T${hh}:${mi}`);
+      } else {
+        setChegadaDraft("");
+      }
+    } else {
+      setChegadaDraft("");
+    }
+
+    // ✅ limpa anexo ao abrir/alternar task
+    setOcPhoto("");
+    setOcPhotoErr("");
+    if (fileRef.current) fileRef.current.value = "";
+
+    // ✅ fecha viewer ao trocar task
+    closeImgModal();
+  }, [isOpen, local?.id, closeImgModal]);
 
   const docs = useMemo(
     () => (Array.isArray(local?.docs) ? local.docs : []),
@@ -297,10 +406,14 @@ export default function ModalInfo({
     return true;
   }, [local]);
 
-  const responsaves = useMemo(
-    () => (Array.isArray(local?.responsaveis) ? local.responsaveis : []),
-    [local],
-  );
+  const canEditRecebimento = useMemo(() => {
+    if (!local) return false;
+    const t = String(local.tipo || "").toLowerCase();
+    const isAllowed =
+      t === "recebimento" || t === "expedição" || t === "expedicao";
+    return isAllowed && canEdit; // canEdit já bloqueia cancelada/concluída/locked
+  }, [local, canEdit]);
+
   const logs = useMemo(
     () => (Array.isArray(local?.logs) ? local.logs : []),
     [local],
@@ -500,6 +613,70 @@ export default function ModalInfo({
     }
   }, [local, actorName, onDidChange, toggle]);
 
+  const saveRecebimento = useCallback(async () => {
+    if (!local?.id) return;
+
+    if (!canEditRecebimento) {
+      toast.error("Edição de motorista/placas só em Recebimento ou Expedição.");
+      return;
+    }
+
+    const motorista = String(motDraft || "").trim() || null;
+    const placaCavalo =
+      String(placaCavDraft || "")
+        .trim()
+        .toUpperCase() || null;
+    const placaCarreta =
+      String(placaCarDraft || "")
+        .trim()
+        .toUpperCase() || null;
+
+    let chegadaAt = null;
+    if (String(chegadaDraft || "").trim()) {
+      const dt = new Date(chegadaDraft);
+      if (!isNaN(dt.getTime())) chegadaAt = dt.toISOString();
+    }
+
+    setLoading(true);
+    try {
+      await onSaveMeta(local.id, {
+        recebimento: { motorista, placaCavalo, placaCarreta, chegadaAt },
+        by: actorName,
+      });
+
+      setLocal((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          recebimento: {
+            ...(prev.recebimento || {}),
+            motorista,
+            placaCavalo,
+            placaCarreta,
+            chegadaAt,
+          },
+        };
+      });
+
+      if (onDidChange) onDidChange();
+      toast.success("Transporte salvo.");
+    } catch (e) {
+      toast.error(errMsg(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    local?.id,
+    canEditRecebimento,
+    motDraft,
+    placaCavDraft,
+    placaCarDraft,
+    chegadaDraft,
+    onSaveMeta,
+    actorName,
+    onDidChange,
+  ]);
+
   const saveObservacao = useCallback(async () => {
     if (!local?.id) return;
 
@@ -524,17 +701,50 @@ export default function ModalInfo({
       setLoading(false);
     }
   }, [local?.id, obsDraft, actorName, onSaveMeta, onDidChange]);
-  function normalizeOcType(v) {
-    const x = String(v || "")
-      .trim()
-      .toUpperCase();
-    if (x === "FALTA") return "F";
-    if (x === "AVARIA") return "A";
-    if (x === "INVERSAO" || x === "INVERSÃO") return "I";
-    if (x === "SOBRA") return "S";
-    if (x === "F" || x === "A" || x === "I" || x === "S") return x;
-    return "";
-  }
+
+  // ✅ anexo foto: clique no clipe -> abre file picker
+  const pickOcPhoto = useCallback(() => {
+    if (loading || !canEdit) return;
+    if (fileRef.current) fileRef.current.click();
+  }, [loading, canEdit]);
+
+  const onOcPhotoChange = useCallback(async (e) => {
+    const file = e?.target?.files?.[0] || null;
+    setOcPhotoErr("");
+
+    if (!file) return;
+
+    if (!isAllowedImageFile(file)) {
+      setOcPhoto("");
+      setOcPhotoErr("Formato inválido. Aceito: PNG e JPEG (JPG/JPEG).");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    // base64 explode fácil: limita
+    const maxBytes = 1.5 * 1024 * 1024; // 1.5MB
+    if (file.size > maxBytes) {
+      setOcPhoto("");
+      setOcPhotoErr("Imagem muito grande. Envie até ~1.5MB.");
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+
+    try {
+      const dataUrl = await fileToDataUrl(file);
+      setOcPhoto(dataUrl);
+    } catch (err) {
+      setOcPhoto("");
+      setOcPhotoErr("Falha ao ler a imagem.");
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }, []);
+
+  const removeOcPhoto = useCallback(() => {
+    setOcPhoto("");
+    setOcPhotoErr("");
+    if (fileRef.current) fileRef.current.value = "";
+  }, []);
 
   const lancarOcorrencia = useCallback(async () => {
     if (!local?.id) return;
@@ -551,6 +761,9 @@ export default function ModalInfo({
       return;
     }
 
+    const photo = String(ocPhoto || "").trim();
+    const hasPhoto = !!photo;
+
     setLoading(true);
     try {
       if (typeof onSaveMeta !== "function") {
@@ -561,6 +774,14 @@ export default function ModalInfo({
       await onSaveMeta(local.id, {
         tp_ocorren: tp,
         ocorren: just,
+        ocorrencia: {
+          tp,
+          just,
+          by: actorName,
+          at: new Date().toISOString(),
+          hasPhoto,
+          photo: hasPhoto ? photo : null,
+        },
         by: actorName,
       });
 
@@ -575,6 +796,8 @@ export default function ModalInfo({
           just,
           by: actorName,
           at: new Date().toISOString(),
+          hasPhoto,
+          photo: hasPhoto ? photo : null,
         });
 
         return {
@@ -589,12 +812,25 @@ export default function ModalInfo({
 
       toast.success("Ocorrência lançada.");
       setShowOcForm(false);
+
+      setOcType("");
+      setOcJust("");
+      removeOcPhoto();
     } catch (e) {
       toast.error(errMsg(e));
     } finally {
       setLoading(false);
     }
-  }, [local?.id, ocType, ocJust, actorName, onSaveMeta, onDidChange]);
+  }, [
+    local?.id,
+    ocType,
+    ocJust,
+    ocPhoto,
+    actorName,
+    onSaveMeta,
+    onDidChange,
+    removeOcPhoto,
+  ]);
 
   const confirmCancel = useCallback(async () => {
     if (!local?.id) return;
@@ -662,6 +898,7 @@ export default function ModalInfo({
 
   const headerId = local?.id ? local.id : task?.id || "—";
   const occsUi = Array.isArray(local?.ocorrencias) ? local.ocorrencias : [];
+
   return (
     <>
       <style>
@@ -710,9 +947,76 @@ export default function ModalInfo({
 .mi-modal-dark .mi-opitem:hover{
   background: rgba(255,255,255,.06);
 }
+.mi-clipbtn{
+  width: 44px;
+  height: 38px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(0,0,0,.03);
+  font-weight: 900;
+  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.mi-modal-dark .mi-clipbtn{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+  color: #e5e7eb;
+}
+.mi-clipbtn:hover{ filter: brightness(0.98); }
+.mi-ph-wrap{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin-top:8px;
+}
+.mi-ph-thumb{
+  width: 96px;
+  height: 72px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(0,0,0,.03);
+  overflow:hidden;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.mi-modal-dark .mi-ph-thumb{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.04);
+}
+.mi-ph-thumb img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.mi-ph-x{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.12);
+  background: rgba(0,0,0,.04);
+  font-weight: 900;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.mi-modal-dark .mi-ph-x{
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color:#e5e7eb;
+}
+.mi-imgviewer .modal-content{
+  border-radius: 14px;
+  overflow: hidden;
+}
         `}
       </style>
 
+      {/* ===== Modal principal ===== */}
       <Modal
         isOpen={isOpen}
         toggle={toggle}
@@ -799,6 +1103,140 @@ export default function ModalInfo({
                     Salvar obs
                   </Button>
                 </div>
+                {/* ===== Transporte (motorista/placas/chegada) ===== */}
+                {local &&
+                (String(local.tipo || "").toLowerCase() === "recebimento" ||
+                  String(local.tipo || "").toLowerCase() === "expedição" ||
+                  String(local.tipo || "").toLowerCase() === "expedicao") ? (
+                  <div
+                    style={{
+                      borderTop: "1px solid rgba(0,0,0,.08)",
+                      paddingTop: 10,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span>Transporte</span>
+                      <span style={{ fontSize: 12, opacity: 0.7 }}>
+                        {String(local.tipo || "").toLowerCase() ===
+                        "recebimento"
+                          ? "Recebimento"
+                          : "Expedição"}
+                      </span>
+                    </div>
+
+                    {canEditRecebimento ? (
+                      <>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1.4fr 1fr 1fr 1.2fr",
+                            gap: 10,
+                            marginTop: 8,
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 12, opacity: 0.7 }}>
+                              Motorista
+                            </div>
+                            <Input
+                              type="select"
+                              value={motDraft}
+                              onChange={(e) => setMotDraft(e.target.value)}
+                              disabled={loading}
+                            >
+                              <option value="">Selecione...</option>
+                              {safeMotoristas.map((m) => (
+                                <option key={m} value={m}>
+                                  {m}
+                                </option>
+                              ))}
+                            </Input>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: 12, opacity: 0.7 }}>
+                              Placa cavalo
+                            </div>
+                            <Input
+                              type="select"
+                              value={placaCavDraft}
+                              onChange={(e) => setPlacaCavDraft(e.target.value)}
+                              disabled={loading}
+                            >
+                              <option value="">Selecione...</option>
+                              {safePlacas.map((p) => (
+                                <option key={p} value={p}>
+                                  {p}
+                                </option>
+                              ))}
+                            </Input>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: 12, opacity: 0.7 }}>
+                              Placa carreta
+                            </div>
+                            <Input
+                              type="select"
+                              value={placaCarDraft}
+                              onChange={(e) => setPlacaCarDraft(e.target.value)}
+                              disabled={loading}
+                            >
+                              <option value="">Selecione...</option>
+                              {safePlacas.map((p) => (
+                                <option key={p} value={p}>
+                                  {p}
+                                </option>
+                              ))}
+                            </Input>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: 12, opacity: 0.7 }}>
+                              Chegada
+                            </div>
+                            <Input
+                              type="datetime-local"
+                              value={chegadaDraft}
+                              onChange={(e) => setChegadaDraft(e.target.value)}
+                              disabled={loading}
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          color="primary"
+                          size="sm"
+                          onClick={saveRecebimento}
+                          disabled={loading}
+                          style={{ marginTop: 8 }}
+                        >
+                          Salvar transporte
+                        </Button>
+                      </>
+                    ) : (
+                      <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
+                        {(() => {
+                          const r = local.recebimento || {};
+                          return `Motorista: ${r.motorista || "—"} • Cavalo: ${r.placaCavalo || "—"} • Carreta: ${r.placaCarreta || "—"} • Chegada: ${
+                            r.chegadaAt
+                              ? new Date(r.chegadaAt).toLocaleString()
+                              : "—"
+                          }`;
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {/* ===== Ocorrências ===== */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(0,0,0,.08)",
@@ -827,41 +1265,96 @@ export default function ModalInfo({
                     ) : null}
                   </div>
 
-                  {/* ✅ Exibição em destaque (se existir) */}
-
                   {occsUi.length ? (
                     <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                       {occsUi
                         .slice()
                         .reverse()
-                        .map((o, idx) => (
-                          <div
-                            key={`${o.at || "x"}-${idx}`}
-                            style={{
-                              padding: "10px 12px",
-                              borderRadius: 12,
-                              border: "1px solid rgba(185, 28, 28, 0.35)",
-                              background: "rgba(220, 38, 38, 0.06)",
-                            }}
-                          >
+                        .map((o, idx) => {
+                          const photo = String(
+                            o?.photo || o?.foto || "",
+                          ).trim();
+                          const hasPhoto =
+                            !!photo || !!o?.hasPhoto || !!o?.temFoto;
+
+                          return (
                             <div
+                              key={`${o.at || "x"}-${idx}`}
                               style={{
-                                fontSize: 12,
-                                fontWeight: 900,
-                                color: "rgba(185, 28, 28, 0.95)",
+                                padding: "10px 12px",
+                                borderRadius: 12,
+                                border: "1px solid rgba(185, 28, 28, 0.35)",
+                                background: "rgba(220, 38, 38, 0.06)",
                               }}
                             >
-                              {String(o.tp || "").toUpperCase()} • {o.by || "—"}{" "}
-                              •{" "}
-                              <span style={{ opacity: 0.75 }}>
-                                {o.at ? new Date(o.at).toLocaleString() : "—"}
-                              </span>
+                              <div
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: 900,
+                                  color: "rgba(185, 28, 28, 0.95)",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 10,
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <span>
+                                  {String(o.tp || "").toUpperCase()} •{" "}
+                                  {o.by || "—"} •{" "}
+                                  <span style={{ opacity: 0.75 }}>
+                                    {o.at
+                                      ? new Date(o.at).toLocaleString()
+                                      : "—"}
+                                  </span>
+                                </span>
+
+                                {hasPhoto ? (
+                                  <span
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: 6,
+                                      opacity: 0.95,
+                                    }}
+                                    title="Ocorrência com foto"
+                                  >
+                                    <FaImage /> Foto
+                                  </span>
+                                ) : null}
+                              </div>
+
+                              <div style={{ marginTop: 6, fontSize: 13 }}>
+                                {o.just || ""}
+                              </div>
+
+                              {photo ? (
+                                <div style={{ marginTop: 10 }}>
+                                  <div
+                                    role="button"
+                                    tabIndex={0}
+                                    className="mi-ph-thumb"
+                                    title="Clique para ver a imagem"
+                                    onClick={() =>
+                                      openImgModal(
+                                        photo,
+                                        `Ocorrência ${String(o.tp || "").toUpperCase()}`,
+                                      )
+                                    }
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter")
+                                        openImgModal(
+                                          photo,
+                                          `Ocorrência ${String(o.tp || "").toUpperCase()}`,
+                                        );
+                                    }}
+                                  >
+                                    <img src={photo} alt="Ocorrência" />
+                                  </div>
+                                </div>
+                              ) : null}
                             </div>
-                            <div style={{ marginTop: 6, fontSize: 13 }}>
-                              {o.just || ""}
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                     </div>
                   ) : (
                     <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
@@ -869,7 +1362,7 @@ export default function ModalInfo({
                     </div>
                   )}
 
-                  {/* ✅ Form */}
+                  {/* Form */}
                   {showOcForm && canEdit ? (
                     <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
                       <div
@@ -899,12 +1392,89 @@ export default function ModalInfo({
                           <div style={{ fontSize: 12, opacity: 0.7 }}>
                             Justificativa
                           </div>
-                          <Input
-                            value={ocJust}
-                            onChange={(e) => setOcJust(e.target.value)}
-                            disabled={loading}
-                            placeholder="Descreva o que aconteceu..."
-                          />
+
+                          <div style={{ display: "flex", gap: 8 }}>
+                            <Input
+                              value={ocJust}
+                              onChange={(e) => setOcJust(e.target.value)}
+                              disabled={loading}
+                              placeholder="Descreva o que aconteceu..."
+                            />
+
+                            <button
+                              type="button"
+                              className="mi-clipbtn"
+                              onClick={pickOcPhoto}
+                              disabled={loading}
+                              title="Anexar foto (PNG/JPG)"
+                            >
+                              <FaPaperclip />
+                            </button>
+
+                            <input
+                              ref={fileRef}
+                              type="file"
+                              accept="image/png,image/jpeg"
+                              style={{ display: "none" }}
+                              onChange={onOcPhotoChange}
+                            />
+                          </div>
+
+                          {ocPhotoErr ? (
+                            <div
+                              style={{
+                                marginTop: 6,
+                                fontSize: 12,
+                                color: "#c0392b",
+                              }}
+                            >
+                              {ocPhotoErr}
+                            </div>
+                          ) : null}
+
+                          {ocPhoto ? (
+                            <div className="mi-ph-wrap">
+                              <div
+                                role="button"
+                                tabIndex={0}
+                                className="mi-ph-thumb"
+                                title="Clique para ver"
+                                onClick={() =>
+                                  openImgModal(ocPhoto, "Prévia do anexo")
+                                }
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter")
+                                    openImgModal(ocPhoto, "Prévia do anexo");
+                                }}
+                              >
+                                <img src={ocPhoto} alt="Prévia" />
+                              </div>
+
+                              <button
+                                type="button"
+                                className="mi-ph-x"
+                                onClick={removeOcPhoto}
+                                disabled={loading}
+                                title="Remover foto"
+                              >
+                                <FaXmark />
+                              </button>
+
+                              <span style={{ fontSize: 12, opacity: 0.8 }}>
+                                Foto anexada
+                              </span>
+                            </div>
+                          ) : (
+                            <div
+                              style={{
+                                marginTop: 6,
+                                fontSize: 12,
+                                opacity: 0.7,
+                              }}
+                            >
+                              Opcional: anexe 1 foto (PNG/JPG). Vai como base64.
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -923,6 +1493,7 @@ export default function ModalInfo({
                             setShowOcForm(false);
                             setOcType(String(local?.tp_ocorren || ""));
                             setOcJust(String(local?.ocorren || ""));
+                            removeOcPhoto();
                           }}
                           disabled={loading}
                         >
@@ -933,6 +1504,7 @@ export default function ModalInfo({
                   ) : null}
                 </div>
 
+                {/* ===== Docs ===== */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(0,0,0,.08)",
@@ -979,7 +1551,6 @@ export default function ModalInfo({
                             : chave || "—";
 
                         const vol = Number(d.volumes || 0);
-                        const pal = Number(d.pallets || 0);
                         const kg = Number(d.pesoKg ?? d.peso_kg ?? 0);
 
                         return (
@@ -1020,6 +1591,7 @@ export default function ModalInfo({
                   </div>
                 </div>
 
+                {/* ===== Responsáveis ===== */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(0,0,0,.08)",
@@ -1058,6 +1630,7 @@ export default function ModalInfo({
                                 opacity: 0.7,
                                 color: "inherit",
                               }}
+                              title="Remover responsável"
                             >
                               ×
                             </button>
@@ -1107,6 +1680,7 @@ export default function ModalInfo({
                   </div>
                 </div>
 
+                {/* ===== Logs ===== */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(0,0,0,.08)",
@@ -1149,6 +1723,7 @@ export default function ModalInfo({
                   </div>
                 </div>
 
+                {/* ===== Cancelar ===== */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(0,0,0,.08)",
@@ -1215,6 +1790,50 @@ export default function ModalInfo({
             disabled={!canEdit || loading || !local}
           >
             Salvar alterações
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      {/* ===== Modal simples de imagem (viewer) ===== */}
+      <Modal
+        isOpen={imgOpen}
+        toggle={closeImgModal}
+        centered
+        size="lg"
+        modalClassName={isDark ? "mi-modal-dark mi-imgviewer" : "mi-imgviewer"}
+        contentClassName={isDark ? "mi-modal-dark" : ""}
+      >
+        <ModalHeader toggle={closeImgModal}>{imgTitle || "Imagem"}</ModalHeader>
+        <ModalBody style={{ padding: 0 }}>
+          <div
+            style={{
+              width: "100%",
+              background: isDark ? "#0b1220" : "#111827",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 12,
+            }}
+          >
+            {imgSrc ? (
+              <img
+                src={imgSrc}
+                alt="Imagem"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "70vh",
+                  objectFit: "contain",
+                  borderRadius: 10,
+                }}
+              />
+            ) : (
+              <div style={{ padding: 12, opacity: 0.8 }}>Sem imagem</div>
+            )}
+          </div>
+        </ModalBody>
+        <ModalFooter>
+          <Button color="secondary" onClick={closeImgModal}>
+            Fechar
           </Button>
         </ModalFooter>
       </Modal>

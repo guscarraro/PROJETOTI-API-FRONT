@@ -111,6 +111,22 @@ function safeArray(v) {
   return Array.isArray(v) ? v : [];
 }
 
+function uniqueClientsFromDocs(docs) {
+  const map = {};
+  const out = [];
+  const arr = Array.isArray(docs) ? docs : [];
+  for (let i = 0; i < arr.length; i++) {
+    const c = arr[i]?.cliente || null;
+    if (!c) continue;
+    const k = clientKey(c);
+    if (!k) continue;
+    if (map[k]) continue;
+    map[k] = true;
+    out.push({ nome: String(c.nome || ""), cnpj: String(c.cnpj || "") });
+  }
+  return out;
+}
+
 export default function CreateTaskModal({
   isOpen,
   toggle,
@@ -119,10 +135,10 @@ export default function CreateTaskModal({
   operadores, // somente Operação
   placas,
   motoristas, // todos
-  clientes, // ✅ lista de clientes cadastrados (para modo manual)
+  clientes, // lista de clientes cadastrados (para modo manual)
   onConfirm,
   fetchDocByChave,
-  isSubmitting, // opcional (se quiser usar do pai)
+  isSubmitting,
 }) {
   // ✅ blindagem
   const safeTipos = useMemo(() => safeArray(tipos), [tipos]);
@@ -132,7 +148,7 @@ export default function CreateTaskModal({
   const safeClientes = useMemo(() => safeArray(clientes), [clientes]);
 
   // ✅ processamento
-  const [busyKey, setBusyKey] = useState(""); // "", "import", "add-chave", "confirm"
+  const [busyKey, setBusyKey] = useState("");
   const busy = !!busyKey || !!isSubmitting;
 
   const runBusy = useCallback(
@@ -151,6 +167,7 @@ export default function CreateTaskModal({
   // RECEBIMENTO: usuário escolhe
   const [docKind, setDocKind] = useState("NFE");
   const [paletizada, setPaletizada] = useState(false);
+  const [paletizadaTouched, setPaletizadaTouched] = useState(false);
 
   const [tipo, setTipo] = useState(safeTipos?.[0] || "Recebimento");
   const [docs, setDocs] = useState([]);
@@ -181,11 +198,21 @@ export default function CreateTaskModal({
     placaCarreta: "",
   });
 
+  // ✅ NOVO: EXPEDIÇÃO (motorista + placa)
+  const [expedicao, setExpedicao] = useState({
+    motorista: "",
+    chegadaAt: "",
+    placaCavalo: "",
+    placaCarreta: "",
+  });
+
   const [logs, setLogs] = useState(() => [
     { at: nowIso(), by: "Sistema", action: "Modal aberto" },
   ]);
 
-  const isRecebimento = String(tipo || "").toLowerCase() === "recebimento";
+  const tipoNorm = normalizeText(tipo);
+  const isRecebimento = tipoNorm === "recebimento";
+  const isExpedicao = tipoNorm === "expedicao"; // "Expedição" vira "expedicao"
   const allowImport = isRecebimento;
 
   const pushLog = useCallback(
@@ -206,6 +233,7 @@ export default function CreateTaskModal({
     setDocKind("NFE");
     setTipo(safeTipos?.[0] || "Recebimento");
     setPaletizada(false);
+    setPaletizadaTouched(false);
 
     setDocs([]);
     setChaveInput("");
@@ -228,6 +256,14 @@ export default function CreateTaskModal({
       placaCavalo: "",
       placaCarreta: "",
     });
+
+    setExpedicao({
+      motorista: "",
+      chegadaAt: "",
+      placaCavalo: "",
+      placaCarreta: "",
+    });
+
     setLogs([{ at: nowIso(), by: "Sistema", action: "Modal aberto" }]);
   }, [isOpen, safeTipos]);
 
@@ -237,15 +273,32 @@ export default function CreateTaskModal({
 
     setDocs([]);
     setChaveInput("");
+
+    // ✅ regra do cliente: só trava para não-expedição
     setMixedClientError(false);
+
     setClienteManual(null);
     setTotalPalletsOverride(null);
 
+    // reset campos de receb/exped conforme troca de tipo (pra não vazar)
     if (!isRecebimento) {
+      setRecebimento({
+        motorista: "",
+        chegadaAt: "",
+        placaCavalo: "",
+        placaCarreta: "",
+      });
       setDocKind("NFE");
-      setPaletizada(false);
     }
-  }, [tipo, isOpen, isRecebimento]);
+    if (!isExpedicao) {
+      setExpedicao({
+        motorista: "",
+        chegadaAt: "",
+        placaCavalo: "",
+        placaCarreta: "",
+      });
+    }
+  }, [tipo, isOpen, isRecebimento, isExpedicao]);
 
   useEffect(() => {
     if (!paletizada) setTotalPalletsOverride(null);
@@ -253,7 +306,8 @@ export default function CreateTaskModal({
 
   const availableOps = useMemo(() => {
     const selected = {};
-    for (let i = 0; i < responsaveis.length; i++) selected[responsaveis[i]] = true;
+    for (let i = 0; i < responsaveis.length; i++)
+      selected[responsaveis[i]] = true;
 
     const q = normalizeText(respQuery);
     const out = [];
@@ -271,7 +325,8 @@ export default function CreateTaskModal({
     const n = String(name || "").trim();
     if (!n) return;
 
-    for (let i = 0; i < responsaveis.length; i++) if (responsaveis[i] === n) return;
+    for (let i = 0; i < responsaveis.length; i++)
+      if (responsaveis[i] === n) return;
 
     setResponsaveis((prev) => [...prev, n]);
     pushLog(`Responsável adicionado: ${n}`);
@@ -283,7 +338,8 @@ export default function CreateTaskModal({
     if (busy) return;
     setResponsaveis((prev) => {
       const next = [];
-      for (let i = 0; i < prev.length; i++) if (prev[i] !== name) next.push(prev[i]);
+      for (let i = 0; i < prev.length; i++)
+        if (prev[i] !== name) next.push(prev[i]);
       return next;
     });
     pushLog(`Responsável removido: ${name}`);
@@ -305,7 +361,10 @@ export default function CreateTaskModal({
   }, [docs]);
 
   // ✅ modo manual = recebimento + sem XML importado
-  const manualMode = useMemo(() => isRecebimento && !hasXmlDoc, [isRecebimento, hasXmlDoc]);
+  const manualMode = useMemo(
+    () => isRecebimento && !hasXmlDoc,
+    [isRecebimento, hasXmlDoc],
+  );
 
   const clienteDefinido = useMemo(() => {
     // ✅ se não tem docs e está no modo manual, usa o cliente selecionado
@@ -323,11 +382,17 @@ export default function CreateTaskModal({
     if (!c0) return null;
 
     for (let i = 1; i < docs.length; i++) {
-      if (!sameClient(c0, docs[i]?.cliente || null)) return { mixed: true, nome: "", cnpj: "" };
+      if (!sameClient(c0, docs[i]?.cliente || null)) {
+        // ✅ Expedição permite misturar
+        if (isExpedicao) {
+          return { mixed: true, nome: "", cnpj: "" };
+        }
+        return { mixed: true, nome: "", cnpj: "" };
+      }
     }
 
     return { mixed: false, nome: c0.nome || "", cnpj: c0.cnpj || "" };
-  }, [docs, manualMode, clienteManual]);
+  }, [docs, manualMode, clienteManual, isExpedicao]);
 
   const totalsFromDocs = useMemo(() => sumDocsTotals(docs), [docs]);
 
@@ -342,17 +407,23 @@ export default function CreateTaskModal({
     return fromDocs;
   }, [paletizada, totalPalletsOverride, totalsFromDocs]);
 
+  // ✅ regra de cliente: só trava mistura quando NÃO for expedição
   const tryAddDocToDemand = (doc) => {
     if (!doc) return { ok: false, reason: "doc_nulo" };
-    if (!doc.chave || String(doc.chave).length !== 44) return { ok: false, reason: "chave_invalida" };
+    if (!doc.chave || String(doc.chave).length !== 44)
+      return { ok: false, reason: "chave_invalida" };
 
     for (let i = 0; i < docs.length; i++) {
-      if (docs[i].chave === doc.chave) return { ok: false, reason: "duplicado" };
+      if (docs[i].chave === doc.chave)
+        return { ok: false, reason: "duplicado" };
     }
 
-    const targetClient = docs.length ? docs[0]?.cliente : null;
-    if (targetClient && !sameClient(targetClient, doc.cliente)) {
-      return { ok: false, reason: "cliente_diferente" };
+    // ✅ Expedição: pode ter múltiplos clientes
+    if (!isExpedicao) {
+      const targetClient = docs.length ? docs[0]?.cliente : null;
+      if (targetClient && !sameClient(targetClient, doc.cliente)) {
+        return { ok: false, reason: "cliente_diferente" };
+      }
     }
 
     const statusIni = isRecebimento ? "RECEBIDA" : "EM_PROCESSO";
@@ -372,7 +443,8 @@ export default function CreateTaskModal({
     if (busy) return;
     setDocs((prev) => {
       const next = [];
-      for (let i = 0; i < prev.length; i++) if (prev[i].id !== id) next.push(prev[i]);
+      for (let i = 0; i < prev.length; i++)
+        if (prev[i].id !== id) next.push(prev[i]);
       return next;
     });
     pushLog(`Documento removido: ${id}`);
@@ -432,8 +504,12 @@ export default function CreateTaskModal({
           }
         }
 
-        if (rejectedClient) pushLog(`⚠️ Rejeitado(s): ${rejectedClient} XML(s) (cliente diferente)`);
-        if (ignoredInvalid) pushLog(`Ignorado(s): ${ignoredInvalid} XML(s) inválido(s)`);
+        if (rejectedClient)
+          pushLog(
+            `⚠️ Rejeitado(s): ${rejectedClient} XML(s) (cliente diferente)`,
+          );
+        if (ignoredInvalid)
+          pushLog(`Ignorado(s): ${ignoredInvalid} XML(s) inválido(s)`);
         pushLog(`Importação concluída: ${inserted} doc(s) inserido(s)`);
 
         // ✅ se importou XML, trava cliente manual (fluxo bonito)
@@ -477,11 +553,16 @@ export default function CreateTaskModal({
 
           const meta = inferDocMetaFromDoc(found);
           setDocKind(meta.docKind);
-          setPaletizada(meta.paletizada);
+          if (!paletizadaTouched) {
+            setPaletizada(meta.paletizada);
+          }
 
           const r = tryAddDocToDemand(found);
           if (!r.ok) {
-            if (r.reason === "cliente_diferente") pushLog("Essa chave é de outro cliente. Não pode misturar.");
+            if (r.reason === "cliente_diferente")
+              pushLog(
+                "Essa chave é de outro cliente. Não pode misturar (exceto Expedição).",
+              );
             else if (r.reason === "duplicado") pushLog("Chave já adicionada.");
             else pushLog("Falha ao inserir chave.");
             return;
@@ -497,12 +578,16 @@ export default function CreateTaskModal({
 
       // Recebimento manual
       if (!allowManualReceb) {
-        pushLog("Selecione o cliente (manual) OU importe XML/ZIP antes de bipar.");
+        pushLog(
+          "Selecione o cliente (manual) OU importe XML/ZIP antes de bipar.",
+        );
         return;
       }
 
       const uuid =
-        typeof window !== "undefined" && window.crypto && window.crypto.randomUUID
+        typeof window !== "undefined" &&
+        window.crypto &&
+        window.crypto.randomUUID
           ? window.crypto.randomUUID()
           : `m-${Date.now()}-${Math.random()}`;
 
@@ -511,7 +596,7 @@ export default function CreateTaskModal({
         docKind,
         source: "manual",
         chave,
-        cliente: docs[0]?.cliente || clienteManual || null, // ✅ usa cliente manual se não tiver docs
+        cliente: docs[0]?.cliente || clienteManual || null,
         volumes: 0,
         pallets: 0,
         pesoKg: 0,
@@ -523,7 +608,8 @@ export default function CreateTaskModal({
       const r = tryAddDocToDemand(item);
       if (r.ok) pushLog(`Chave manual adicionada: ${chave}`);
       else if (r.reason === "duplicado") pushLog("Chave já adicionada.");
-      else if (r.reason === "cliente_diferente") pushLog("Chave pertence a outro cliente.");
+      else if (r.reason === "cliente_diferente")
+        pushLog("Chave pertence a outro cliente.");
       else pushLog("Não foi possível adicionar a chave.");
     });
   };
@@ -552,13 +638,23 @@ export default function CreateTaskModal({
     });
   };
 
+  const clientesListFromDocs = useMemo(
+    () => uniqueClientsFromDocs(docs),
+    [docs],
+  );
+
   const canConfirm = useMemo(() => {
     if (!tipo) return false;
     if (!Array.isArray(responsaveis) || responsaveis.length === 0) return false;
     if (!Array.isArray(docs) || docs.length === 0) return false;
 
-    if (!clienteDefinido || clienteDefinido.mixed) return false;
-    if (mixedClientError) return false;
+    // ✅ regra do cliente:
+    // - Expedição: permite múltiplos clientes
+    // - Outras: não permite misturar
+    if (!isExpedicao) {
+      if (!clienteDefinido || clienteDefinido.mixed) return false;
+      if (mixedClientError) return false;
+    }
 
     if (isRecebimento) {
       if (!String(recebimento.motorista || "").trim()) return false;
@@ -567,18 +663,24 @@ export default function CreateTaskModal({
       if (!String(recebimento.placaCarreta || "").trim()) return false;
     }
 
+    // ✅ Expedição: obrigatório motorista + placa (pra saber quem vai carregar)
+    if (isExpedicao) {
+      if (!String(expedicao.motorista || "").trim()) return false;
+      if (!String(expedicao.chegadaAt || "").trim()) return false;
+      if (!String(expedicao.placaCavalo || "").trim()) return false;
+      if (!String(expedicao.placaCarreta || "").trim()) return false;
+    }
+
     for (let i = 0; i < docs.length; i++) {
       if (!docs[i].chave || String(docs[i].chave).length !== 44) return false;
     }
 
     if (Number(totalsFromDocs.totalPesoKg) <= 0) return false;
 
-    if (isRecebimento) {
-      if (paletizada) {
-        if (Number(totalPalletsFinal) <= 0) return false;
-      } else {
-        if (Number(totalsFromDocs.totalVolumes) <= 0) return false;
-      }
+    if (paletizada) {
+      if (Number(totalPalletsFinal) <= 0) return false;
+    } else {
+      if (Number(totalsFromDocs.totalVolumes) <= 0) return false;
     }
 
     return true;
@@ -593,25 +695,54 @@ export default function CreateTaskModal({
     totalsFromDocs,
     paletizada,
     totalPalletsFinal,
+    isExpedicao,
+    expedicao,
   ]);
 
   const confirm = async () => {
     if (busy) return;
 
     await runBusy("confirm", async () => {
-      if (String(observacao || "").trim()) pushLog("Observação definida/atualizada");
+      if (String(observacao || "").trim())
+        pushLog("Observação definida/atualizada");
+
+      // ✅ cliente no payload:
+      // - Expedição (misto): manda "MÚLTIPLOS" e também lista "clientes"
+      // - Outros: manda o cliente único
+      let clientePayload = null;
+
+      if (isExpedicao) {
+        if (clientesListFromDocs.length > 1) {
+          clientePayload = { nome: "MÚLTIPLOS", cnpj: "" };
+        } else if (clientesListFromDocs.length === 1) {
+          clientePayload = {
+            nome: clientesListFromDocs[0].nome || "",
+            cnpj: clientesListFromDocs[0].cnpj || "",
+          };
+        } else {
+          // sem cliente nos docs (raro), mas não quebra
+          clientePayload = { nome: "", cnpj: "" };
+        }
+      } else {
+        clientePayload = {
+          nome: clienteDefinido?.nome || "",
+          cnpj: clienteDefinido?.cnpj || "",
+        };
+      }
 
       const payload = {
         docKind,
         tipo,
         paletizada,
 
-        cliente: {
-          nome: clienteDefinido?.nome || "",
-          cnpj: clienteDefinido?.cnpj || "",
-        },
+        cliente: clientePayload,
 
-        totalPalletsOverride: paletizada ? Number(totalPalletsFinal || 0) : null,
+        // ✅ útil pro back entender que expedição pode ser multi
+        clientes: isExpedicao ? clientesListFromDocs : null,
+
+        totalPalletsOverride: paletizada
+          ? Number(totalPalletsFinal || 0)
+          : null,
 
         docs: (Array.isArray(docs) ? docs : []).map((d) => ({
           docKind: d.docKind || docKind,
@@ -635,6 +766,16 @@ export default function CreateTaskModal({
               chegadaAt: recebimento.chegadaAt,
               placaCavalo: recebimento.placaCavalo,
               placaCarreta: recebimento.placaCarreta,
+            }
+          : null,
+
+        // ✅ NOVO: expedição
+        expedicao: isExpedicao
+          ? {
+              motorista: expedicao.motorista,
+              chegadaAt: expedicao.chegadaAt,
+              placaCavalo: expedicao.placaCavalo,
+              placaCarreta: expedicao.placaCarreta,
             }
           : null,
 
@@ -692,7 +833,9 @@ export default function CreateTaskModal({
                 <Hint>
                   {isRecebimento
                     ? "Recebimento: permite escolher NF/CT-e e carga, além de importar XML."
-                    : "Demais etapas: só bipa chave 44. Todo o resto vem automaticamente da nota."}
+                    : isExpedicao
+                      ? "Expedição: permite múltiplos clientes em notas diferentes + informar motorista/placa."
+                      : "Demais etapas: só bipa chave 44. Todo o resto vem automaticamente da nota."}
                 </Hint>
               </Field>
             </CompactTop3>
@@ -739,38 +882,9 @@ export default function CreateTaskModal({
                         CT-e
                       </Pill>
                     </Row>
-                    <Hint>NF-e: cliente = remetente • CT-e: cliente = tomador</Hint>
-                  </Field>
-
-                  <Field>
-                    <Label>Carga</Label>
-                    <Row style={{ gap: 6 }}>
-                      <Pill
-                        type="button"
-                        disabled={busy}
-                        $active={!paletizada}
-                        onClick={() => {
-                          if (busy) return;
-                          setPaletizada(false);
-                          pushLog("Carga: SOLTA");
-                        }}
-                      >
-                        Solta
-                      </Pill>
-                      <Pill
-                        type="button"
-                        disabled={busy}
-                        $active={paletizada}
-                        onClick={() => {
-                          if (busy) return;
-                          setPaletizada(true);
-                          pushLog("Carga: PALETIZADA");
-                        }}
-                      >
-                        Paletizada
-                      </Pill>
-                    </Row>
-                    <Hint>{paletizada ? "Total por pallets." : "Total por volumes."}</Hint>
+                    <Hint>
+                      NF-e: cliente = remetente • CT-e: cliente = tomador
+                    </Hint>
                   </Field>
                 </CompactTop3>
 
@@ -779,7 +893,13 @@ export default function CreateTaskModal({
                     <Label>Importar XML/ZIP</Label>
                     <DropCounter>
                       {busyKey === "import" ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
                           <Loader /> Lendo {readingCount || 0} arquivo(s)...
                         </span>
                       ) : isReading ? (
@@ -790,10 +910,134 @@ export default function CreateTaskModal({
                     </DropCounter>
                   </DropZoneTop>
 
-                  <DocImportDropzone disabled={busy} onFiles={(files) => importFiles(files)} />
+                  <DocImportDropzone
+                    disabled={busy}
+                    onFiles={(files) => importFiles(files)}
+                  />
                   <Hint>XML de cliente diferente é recusado e não entra.</Hint>
                 </Field>
               </>
+            ) : null}
+            <Field>
+              <Label>Carga</Label>
+              <Row style={{ gap: 6 }}>
+                <Pill
+                  type="button"
+                  disabled={busy}
+                  $active={!paletizada}
+                  onClick={() => {
+                    if (busy) return;
+                    setPaletizadaTouched(true);
+                    setPaletizada(false);
+                    pushLog("Carga: SOLTA");
+                  }}
+                >
+                  Solta
+                </Pill>
+
+                <Pill
+                  type="button"
+                  disabled={busy}
+                  $active={paletizada}
+                  onClick={() => {
+                    if (busy) return;
+                    setPaletizadaTouched(true);
+                    setPaletizada(true);
+                    pushLog("Carga: PALETIZADA");
+                  }}
+                >
+                  Paletizada
+                </Pill>
+              </Row>
+              <Hint>
+                {paletizada ? "Total por pallets." : "Total por volumes."}
+              </Hint>
+            </Field>
+            {/* ✅ NOVO: Expedição */}
+            {isExpedicao ? (
+              <Field style={{ gridColumn: "1 / -1" }}>
+                <SectionTitle>Expedição (quem vai carregar)</SectionTitle>
+
+                <CompactGrid4>
+                  <CompactField>
+                    <Label>Motorista *</Label>
+                    <MicroSelect
+                      value={expedicao.motorista || ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setExpedicao((p) => ({
+                          ...p,
+                          motorista: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Selecione...</option>
+                      {safeMotoristas.map((m) => (
+                        <option key={m} value={String(m)}>
+                          {String(m)}
+                        </option>
+                      ))}
+                    </MicroSelect>
+                  </CompactField>
+
+                  <CompactField>
+                    <Label>Chegada *</Label>
+                    <MiniInput
+                      disabled={busy}
+                      type="datetime-local"
+                      value={expedicao.chegadaAt || ""}
+                      onChange={(e) =>
+                        setExpedicao((p) => ({
+                          ...p,
+                          chegadaAt: e.target.value,
+                        }))
+                      }
+                    />
+                  </CompactField>
+
+                  <CompactField>
+                    <Label>Placa cavalo *</Label>
+                    <MicroSelect
+                      value={expedicao.placaCavalo || ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setExpedicao((p) => ({
+                          ...p,
+                          placaCavalo: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Selecione...</option>
+                      {safePlacas.map((pl) => (
+                        <option key={`exp-cav-${pl}`} value={String(pl)}>
+                          {String(pl)}
+                        </option>
+                      ))}
+                    </MicroSelect>
+                  </CompactField>
+
+                  <CompactField>
+                    <Label>Placa carreta *</Label>
+                    <MicroSelect
+                      value={expedicao.placaCarreta || ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setExpedicao((p) => ({
+                          ...p,
+                          placaCarreta: e.target.value,
+                        }))
+                      }
+                    >
+                      <option value="">Selecione...</option>
+                      {safePlacas.map((pl) => (
+                        <option key={`exp-car-${pl}`} value={String(pl)}>
+                          {String(pl)}
+                        </option>
+                      ))}
+                    </MicroSelect>
+                  </CompactField>
+                </CompactGrid4>
+              </Field>
             ) : null}
 
             {/* Cliente */}
@@ -827,23 +1071,38 @@ export default function CreateTaskModal({
                     {safeClientes.map((c) => (
                       <option key={clientKey(c) || c.nome} value={clientKey(c)}>
                         {String(c.nome || "—")}
-                        {String(c.cnpj || "").trim() ? ` • ${String(c.cnpj).trim()}` : ""}
+                        {String(c.cnpj || "").trim()
+                          ? ` • ${String(c.cnpj).trim()}`
+                          : ""}
                       </option>
                     ))}
                   </MicroSelect>
 
                   <Hint>
-                    Use isso apenas quando for bipar a chave (sem importar XML). Se importar XML/ZIP, o cliente vem automático.
+                    Use isso apenas quando for bipar a chave (sem importar XML).
+                    Se importar XML/ZIP, o cliente vem automático.
                   </Hint>
                 </>
               ) : null}
 
               {!docs.length ? (
                 <Hint>
-                  Sem documentos ainda. {isRecebimento ? "Importe XML/ZIP ou selecione cliente manual e bipa a chave." : "Bipe a chave 44."}
+                  Sem documentos ainda.{" "}
+                  {isRecebimento
+                    ? "Importe XML/ZIP ou selecione cliente manual e bipa a chave."
+                    : "Bipe a chave 44."}
                 </Hint>
               ) : clienteDefinido?.mixed || mixedClientError ? (
-                <Hint style={{ color: "#c0392b" }}>Múltiplos clientes detectados. Não pode misturar.</Hint>
+                isExpedicao ? (
+                  <Hint style={{ color: "#1f2937" }}>
+                    Múltiplos clientes detectados —{" "}
+                    <b>permitido na Expedição</b>.
+                  </Hint>
+                ) : (
+                  <Hint style={{ color: "#c0392b" }}>
+                    Múltiplos clientes detectados. Não pode misturar.
+                  </Hint>
+                )
               ) : (
                 <DocMetaBox>
                   <DocMetaRow>
@@ -855,46 +1114,53 @@ export default function CreateTaskModal({
             </Field>
 
             {/* Totais */}
-            {isRecebimento ? (
-              <>
-                <Field>
-                  <Label>Total Volumes</Label>
-                  <MiniInput type="number" value={totalsFromDocs.totalVolumes} readOnly disabled />
-                  <Hint>Imutável (vem das notas).</Hint>
-                </Field>
 
-                <Field>
-                  <Label>Total Pallets</Label>
-                  <MiniInput
-                    type="number"
-                    min="0"
-                    value={paletizada ? totalPalletsFinal : 0}
-                    disabled={busy || !paletizada}
-                    readOnly={!paletizada}
-                    onChange={(e) => {
-                      const v = Number(e.target.value || 0);
-                      setTotalPalletsOverride(v);
-                    }}
-                    onBlur={() => {
-                      if (paletizada) pushLog(`Total pallets ajustado: ${totalPalletsFinal}`);
-                    }}
-                    placeholder="0"
-                  />
-                  <Hint>{paletizada ? "Ajustável." : "Desativado para carga solta."}</Hint>
-                </Field>
+            <>
+              <Field>
+                <Label>Total Volumes</Label>
+                <MiniInput
+                  type="number"
+                  value={totalsFromDocs.totalVolumes}
+                  readOnly
+                  disabled
+                />
+                <Hint>Imutável (vem das notas).</Hint>
+              </Field>
 
-                <Field>
-                  <Label>Total Kg</Label>
-                  <MiniInput
-                    type="number"
-                    value={Number(totalsFromDocs.totalPesoKg || 0).toFixed(2)}
-                    readOnly
-                    disabled
-                  />
-                  <Hint>Imutável (vem das notas).</Hint>
-                </Field>
-              </>
-            ) : null}
+              <Field>
+                <Label>Total Pallets</Label>
+                <MiniInput
+                  type="number"
+                  min="0"
+                  value={paletizada ? totalPalletsFinal : 0}
+                  disabled={busy || !paletizada}
+                  readOnly={!paletizada}
+                  onChange={(e) => {
+                    const v = Number(e.target.value || 0);
+                    setTotalPalletsOverride(v);
+                  }}
+                  onBlur={() => {
+                    if (paletizada)
+                      pushLog(`Total pallets ajustado: ${totalPalletsFinal}`);
+                  }}
+                  placeholder="0"
+                />
+                <Hint>
+                  {paletizada ? "Ajustável." : "Desativado para carga solta."}
+                </Hint>
+              </Field>
+
+              <Field>
+                <Label>Total Kg</Label>
+                <MiniInput
+                  type="number"
+                  value={Number(totalsFromDocs.totalPesoKg || 0).toFixed(2)}
+                  readOnly
+                  disabled
+                />
+                <Hint>Imutável (vem das notas).</Hint>
+              </Field>
+            </>
 
             {/* Recebimento */}
             {isRecebimento ? (
@@ -907,7 +1173,12 @@ export default function CreateTaskModal({
                     <MicroSelect
                       value={recebimento.motorista || ""}
                       disabled={busy}
-                      onChange={(e) => setRecebimento((p) => ({ ...p, motorista: e.target.value }))}
+                      onChange={(e) =>
+                        setRecebimento((p) => ({
+                          ...p,
+                          motorista: e.target.value,
+                        }))
+                      }
                     >
                       <option value="">Selecione...</option>
                       {safeMotoristas.map((m) => (
@@ -925,7 +1196,12 @@ export default function CreateTaskModal({
                       disabled={busy}
                       type="datetime-local"
                       value={recebimento.chegadaAt}
-                      onChange={(e) => setRecebimento((p) => ({ ...p, chegadaAt: e.target.value }))}
+                      onChange={(e) =>
+                        setRecebimento((p) => ({
+                          ...p,
+                          chegadaAt: e.target.value,
+                        }))
+                      }
                     />
                   </CompactField>
 
@@ -934,7 +1210,12 @@ export default function CreateTaskModal({
                     <MicroSelect
                       value={recebimento.placaCavalo || ""}
                       disabled={busy}
-                      onChange={(e) => setRecebimento((p) => ({ ...p, placaCavalo: e.target.value }))}
+                      onChange={(e) =>
+                        setRecebimento((p) => ({
+                          ...p,
+                          placaCavalo: e.target.value,
+                        }))
+                      }
                     >
                       <option value="">Selecione...</option>
                       {safePlacas.map((pl) => (
@@ -951,7 +1232,12 @@ export default function CreateTaskModal({
                     <MicroSelect
                       value={recebimento.placaCarreta || ""}
                       disabled={busy}
-                      onChange={(e) => setRecebimento((p) => ({ ...p, placaCarreta: e.target.value }))}
+                      onChange={(e) =>
+                        setRecebimento((p) => ({
+                          ...p,
+                          placaCarreta: e.target.value,
+                        }))
+                      }
                     >
                       <option value="">Selecione...</option>
                       {safePlacas.map((pl) => (
@@ -970,7 +1256,11 @@ export default function CreateTaskModal({
 
             {/* Chave */}
             <Field style={{ gridColumn: "1 / -1" }}>
-              <Label>{isRecebimento ? "Inserção manual (último caso)" : "Bipar/Digitar chave 44"}</Label>
+              <Label>
+                {isRecebimento
+                  ? "Inserção manual (último caso)"
+                  : "Bipar/Digitar chave 44"}
+              </Label>
 
               <Inline2>
                 <MiniInput
@@ -993,7 +1283,9 @@ export default function CreateTaskModal({
                     setChaveInput("");
                     addByChave(raw);
                   }}
-                  title={busyKey === "add-chave" ? "Processando..." : "Adicionar"}
+                  title={
+                    busyKey === "add-chave" ? "Processando..." : "Adicionar"
+                  }
                 >
                   {busyKey === "add-chave" ? <Loader /> : "Add"}
                 </InlineBtn>
@@ -1002,14 +1294,23 @@ export default function CreateTaskModal({
               {isRecebimento ? (
                 !allowManualReceb ? (
                   <Hint>
-                    Para bipar manual: selecione o cliente acima (manual) OU importe XML/ZIP.
+                    Para bipar manual: selecione o cliente acima (manual) OU
+                    importe XML/ZIP.
                   </Hint>
                 ) : (
-                  <Hint>Manual aceita somente chave 44. (Métricas por nota manual.)</Hint>
+                  <Hint>
+                    Manual aceita somente chave 44. (Métricas por nota manual.)
+                  </Hint>
                 )
+              ) : isExpedicao ? (
+                <Hint>
+                  Expedição aceita múltiplos clientes. Bipe as chaves 44
+                  normalmente (NF-e/CT-e vem automático do banco).
+                </Hint>
               ) : (
                 <Hint>
-                  Ao bipar a chave, puxa tudo do banco (NF-e ou CT-e automaticamente). Não pode misturar cliente.
+                  Ao bipar a chave, puxa tudo do banco (NF-e ou CT-e
+                  automaticamente). Não pode misturar cliente.
                 </Hint>
               )}
             </Field>
@@ -1020,57 +1321,78 @@ export default function CreateTaskModal({
 
               {!docs.length ? (
                 <Hint>Nenhuma nota ainda (não salva sem nota).</Hint>
-              ) : clienteDefinido?.mixed || mixedClientError ? (
-                <Hint style={{ color: "#c0392b" }}>Lista oculta enquanto houver conflito de cliente.</Hint>
+              ) : (clienteDefinido?.mixed || mixedClientError) &&
+                !isExpedicao ? (
+                <Hint style={{ color: "#c0392b" }}>
+                  Lista oculta enquanto houver conflito de cliente.
+                </Hint>
               ) : (
                 <ChipsWrap>
                   {docs.map((d) => (
                     <Chip key={d.id} style={{ alignItems: "center", gap: 8 }}>
-                      <SourceBadge $src={d.source}>{String(d.source || "").toUpperCase()}</SourceBadge>
+                      <SourceBadge $src={d.source}>
+                        {String(d.source || "").toUpperCase()}
+                      </SourceBadge>
 
                       <span title={d.chave}>
-                        CHAVE {String(d.chave || "").slice(0, 6)}…{String(d.chave || "").slice(-4)}
+                        CHAVE {String(d.chave || "").slice(0, 6)}…
+                        {String(d.chave || "").slice(-4)}
                       </span>
 
                       {isRecebimento ? (
                         <span style={{ opacity: 0.75 }}>
-                          • Vol {Number(d.volumes || 0)} • Kg {Number(d.pesoKg || 0)}
+                          • Vol {Number(d.volumes || 0)} • Kg{" "}
+                          {Number(d.pesoKg || 0)}
                         </span>
                       ) : null}
 
                       {isRecebimento && d.source === "manual" ? (
-                        <span style={{ display: "inline-flex", gap: 6, marginLeft: 8 }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            gap: 6,
+                            marginLeft: 8,
+                          }}
+                        >
                           <MiniInput
                             style={{ width: 86 }}
                             type="number"
                             min="0"
                             disabled={busy}
                             value={d.volumes}
-                            onChange={(e) => updateDocMetric(d.id, "volumes", Number(e.target.value || 0))}
+                            onChange={(e) =>
+                              updateDocMetric(
+                                d.id,
+                                "volumes",
+                                Number(e.target.value || 0),
+                              )
+                            }
                             placeholder="vol"
                           />
-                          {/* <MiniInput
-                            style={{ width: 86 }}
-                            type="number"
-                            min="0"
-                            disabled={busy}
-                            value={d.pallets}
-                            onChange={(e) => updateDocMetric(d.id, "pallets", Number(e.target.value || 0))}
-                            placeholder="pal"
-                          /> */}
                           <MiniInput
                             style={{ width: 86 }}
                             type="number"
                             min="0"
                             disabled={busy}
                             value={d.pesoKg}
-                            onChange={(e) => updateDocMetric(d.id, "pesoKg", Number(e.target.value || 0))}
+                            onChange={(e) =>
+                              updateDocMetric(
+                                d.id,
+                                "pesoKg",
+                                Number(e.target.value || 0),
+                              )
+                            }
                             placeholder="kg"
                           />
                         </span>
                       ) : null}
 
-                      <ChipX type="button" disabled={busy} onClick={() => removeDoc(d.id)} title="Remover">
+                      <ChipX
+                        type="button"
+                        disabled={busy}
+                        onClick={() => removeDoc(d.id)}
+                        title="Remover"
+                      >
                         ×
                       </ChipX>
                     </Chip>
@@ -1078,7 +1400,13 @@ export default function CreateTaskModal({
                 </ChipsWrap>
               )}
 
-              <Hint>{isRecebimento ? "Notas do recebimento (XML/manual)." : "Notas puxadas automaticamente do banco."}</Hint>
+              <Hint>
+                {isRecebimento
+                  ? "Notas do recebimento (XML/manual)."
+                  : isExpedicao
+                    ? "Expedição: pode agrupar notas de clientes diferentes."
+                    : "Notas puxadas automaticamente do banco."}
+              </Hint>
             </Field>
 
             {/* Responsáveis */}
@@ -1121,7 +1449,12 @@ export default function CreateTaskModal({
                   {responsaveis.map((n) => (
                     <Chip key={n}>
                       {n}
-                      <ChipX type="button" disabled={busy} onClick={() => removeResponsavel(n)} title="Remover">
+                      <ChipX
+                        type="button"
+                        disabled={busy}
+                        onClick={() => removeResponsavel(n)}
+                        title="Remover"
+                      >
                         ×
                       </ChipX>
                     </Chip>
@@ -1154,7 +1487,9 @@ export default function CreateTaskModal({
                 <LogItem key={`${l.at}-${idx}`}>
                   <div>
                     <b>{l.by}</b> •{" "}
-                    <span style={{ opacity: 0.75 }}>{new Date(l.at).toLocaleString()}</span>
+                    <span style={{ opacity: 0.75 }}>
+                      {new Date(l.at).toLocaleString()}
+                    </span>
                   </div>
                   <div style={{ marginTop: 2 }}>{l.action}</div>
                 </LogItem>
@@ -1168,9 +1503,15 @@ export default function CreateTaskModal({
             {busy ? "Aguarde..." : "Cancelar"}
           </Button>
 
-          <Button color="primary" onClick={confirm} disabled={!canConfirm || busy}>
+          <Button
+            color="primary"
+            onClick={confirm}
+            disabled={!canConfirm || busy}
+          >
             {busyKey === "confirm" ? (
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+              >
                 <Loader /> Criando...
               </span>
             ) : (

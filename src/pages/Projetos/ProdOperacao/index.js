@@ -116,6 +116,13 @@ function adaptDemandaToTaskLite(d) {
     placaCarreta: d?.placa_carreta ?? null,
   };
 
+  const expedicao = {
+    motorista: d?.expedicao?.motorista ?? null,
+    chegadaAt: d?.expedicao?.chegadaAt ?? null,
+    placaCavalo: d?.expedicao?.placaCavalo ?? null,
+    placaCarreta: d?.expedicao?.placaCarreta ?? null,
+  };
+
   const ocorrenciasArr = Array.isArray(d?.ocorrencias)
     ? d.ocorrencias
     : typeof d?.ocorrencias === "string" && d.ocorrencias.trim()
@@ -150,7 +157,7 @@ function adaptDemandaToTaskLite(d) {
     locked: !!d?.locked,
 
     recebimento,
-
+    expedicao,
     cancelReason: d?.cancel_reason || d?.cancelReason || "",
     cancelledBy: d?.cancelled_by || d?.cancelledBy || "",
     cancelledAt: d?.cancelled_at || d?.cancelledAt || "",
@@ -222,7 +229,9 @@ function getCurrentTurnoLabel(dateObj) {
 }
 
 function normalizeTurnoValue(v) {
-  const t = String(v || "").trim().toUpperCase();
+  const t = String(v || "")
+    .trim()
+    .toUpperCase();
   if (!t) return "";
   if (t === "MANHÃ") return "MANHA";
   if (t === "MANHÃ ") return "MANHA";
@@ -752,10 +761,24 @@ export default function ProdOperacaoPage() {
   const patchDemandaMeta = useCallback(
     async (taskId, meta) => {
       await wrapLoading(`meta:${taskId}`, async () => {
-        await apiLocal.patchDemandaOpcMeta(taskId, meta);
+        const current =
+          selectedTask && String(selectedTask.id) === String(taskId)
+            ? selectedTask
+            : null;
+
+        const payload = { ...(meta || {}) };
+
+        if (current?.expedicao && !payload.expedicao) {
+          payload.expedicao = current.expedicao;
+        }
+        if (current?.recebimento && !payload.recebimento) {
+          payload.recebimento = current.recebimento;
+        }
+
+        await apiLocal.patchDemandaOpcMeta(taskId, payload);
       });
     },
-    [wrapLoading],
+    [wrapLoading, selectedTask],
   );
 
   const onStart = useCallback(
@@ -973,6 +996,8 @@ export default function ProdOperacaoPage() {
         toggle={closeTaskInfo}
         task={selectedTask}
         operadores={operadoresOperacao}
+        motoristas={motoristasList}
+        placas={placasList}
         actorName={actorName}
         onDidChange={markDirty}
         onSaveMeta={patchDemandaMeta}
@@ -986,7 +1011,8 @@ export default function ProdOperacaoPage() {
           <H1 style={{ margin: 0 }}>
             Produtividade • Operação
             <TurnoPill title="Turno atual calculado pelo horário do computador">
-              Turno: {turnoAtual === "MANHA"
+              Turno:{" "}
+              {turnoAtual === "MANHA"
                 ? "Manhã"
                 : turnoAtual === "TARDE"
                   ? "Tarde"
@@ -1231,7 +1257,9 @@ export default function ProdOperacaoPage() {
               <Loader /> Carregando tarefas...
             </EmptyState>
           ) : list.length === 0 ? (
-            <EmptyState>Sem tarefas nesse grupo com os filtros atuais.</EmptyState>
+            <EmptyState>
+              Sem tarefas nesse grupo com os filtros atuais.
+            </EmptyState>
           ) : (
             <CardGrid>
               {list.map((t) => (
