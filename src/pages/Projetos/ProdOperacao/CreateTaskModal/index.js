@@ -60,12 +60,17 @@ function sanitizeChave44(raw) {
 }
 function clientKey(c) {
   if (!c) return "";
-  const cnpj = String(c.cnpj || "").trim();
   const nome = String(c.nome || "").trim();
+  const cnpj = String(c.cnpj || "").trim();
+
+  // ✅ regra nova: nome manda (cliente pode ter vários CNPJs)
+  if (nome) return `NOME:${normalizeText(nome)}`;
+
+  // fallback
   if (cnpj) return `CNPJ:${cnpj}`;
-  if (nome) return `NOME:${nome.toLowerCase()}`;
   return "";
 }
+
 function sameClient(a, b) {
   const ka = clientKey(a);
   const kb = clientKey(b);
@@ -118,7 +123,8 @@ function uniqueClientsFromDocs(docs) {
   for (let i = 0; i < arr.length; i++) {
     const c = arr[i]?.cliente || null;
     if (!c) continue;
-    const k = clientKey(c);
+    const k = `${normalizeText(c.nome || "")}::${onlyDigits(c.cnpj || "")}`;
+
     if (!k) continue;
     if (map[k]) continue;
     map[k] = true;
@@ -660,7 +666,6 @@ export default function CreateTaskModal({
       if (!String(recebimento.motorista || "").trim()) return false;
       if (!String(recebimento.chegadaAt || "").trim()) return false;
       if (!String(recebimento.placaCavalo || "").trim()) return false;
-      if (!String(recebimento.placaCarreta || "").trim()) return false;
     }
 
     // ✅ Expedição: obrigatório motorista + placa (pra saber quem vai carregar)
@@ -668,7 +673,6 @@ export default function CreateTaskModal({
       if (!String(expedicao.motorista || "").trim()) return false;
       if (!String(expedicao.chegadaAt || "").trim()) return false;
       if (!String(expedicao.placaCavalo || "").trim()) return false;
-      if (!String(expedicao.placaCarreta || "").trim()) return false;
     }
 
     for (let i = 0; i < docs.length; i++) {
@@ -748,6 +752,14 @@ export default function CreateTaskModal({
           docKind: d.docKind || docKind,
           source: d.source,
           chave: d.chave,
+
+          // ✅ inclui cliente por doc
+          cliente: d.cliente
+            ? {
+                nome: String(d.cliente.nome || ""),
+                cnpj: String(d.cliente.cnpj || ""),
+              }
+            : null,
 
           volumes: Number(d.volumes || 0),
           pallets: Number(d.pallets || 0),
@@ -1104,12 +1116,18 @@ export default function CreateTaskModal({
                   </Hint>
                 )
               ) : (
-                <DocMetaBox>
-                  <DocMetaRow>
-                    <b>Cliente:</b> {clienteDefinido?.nome || "—"}{" "}
-                    {clienteDefinido?.cnpj ? `• ${clienteDefinido.cnpj}` : ""}
-                  </DocMetaRow>
-                </DocMetaBox>
+                <>
+                  {clientesListFromDocs.map((c, idx) => (
+                    <DocMetaBox key={`${c.nome}-${c.cnpj}-${idx}`}>
+                      <DocMetaRow>
+                        <b>Cliente:</b> {c.nome || "—"}
+                      </DocMetaRow>
+                      <DocMetaRow>
+                        <b>CNPJ:</b> {c.cnpj || "—"}
+                      </DocMetaRow>
+                    </DocMetaBox>
+                  ))}
+                </>
               )}
             </Field>
 
@@ -1228,7 +1246,7 @@ export default function CreateTaskModal({
                   </CompactField>
 
                   <CompactField>
-                    <Label>Placa carreta *</Label>
+                    <Label>Placa carreta</Label>
                     <MicroSelect
                       value={recebimento.placaCarreta || ""}
                       disabled={busy}
