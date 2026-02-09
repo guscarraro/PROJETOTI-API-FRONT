@@ -228,7 +228,7 @@ export default function NavBar() {
     }
 
     // ✅ NOVO: Cadastros dropdown (admin OU setor 5)
-    if (isAdmin || isSetor5) {
+    if (isAdmin || isSetor5 || isSetor7) {
       base.push({
         key: "cadastros",
         type: "dropdown",
@@ -247,7 +247,7 @@ export default function NavBar() {
     }
 
     return base;
-  }, [isAdmin, isSetorTI, isSetor5]);
+  }, [isAdmin, isSetorTI, isSetor5, isSetor7]);
 
   if (!user) return null;
 
