@@ -73,22 +73,28 @@ const App = () => {
 
   // ✅ valida sessão no servidor ao montar
   const bootOnceRef = useRef(false);
+
   useEffect(() => {
     if (bootOnceRef.current) return;
     bootOnceRef.current = true;
 
     (async () => {
       try {
-        const { data } = await apiLocal.authMe(); // 200 se cookie existir
+        const { data } = await apiLocal.authMe(); // 200 se cookie OU Bearer existir
         localStorage.setItem("user", JSON.stringify(data));
         setUser(data);
-      } catch {
-        localStorage.removeItem("user");
-        localStorage.removeItem("authToken");
-        setUser(null);
+      } catch (err) {
+        // ✅ só derruba login se for 401 (sem sessão mesmo)
+        const status = err?.response?.status;
 
-        if (window.location.pathname !== "/") {
-          window.location.replace("/");
+        if (status === 401) {
+          localStorage.removeItem("user");
+          localStorage.removeItem("authToken");
+          setUser(null);
+
+          if (window.location.pathname !== "/") {
+            window.location.replace("/");
+          }
         }
       } finally {
         setAuthChecked(true);
@@ -248,6 +254,8 @@ const App = () => {
                 SECTORS.ADMIN,
                 SECTORS.GERENTE_OPERACAO,
                 SECTORS.QUALIDADE,
+                SECTORS.SAC,
+                SECTORS.FRETE
               ]}
             />
           }
@@ -271,10 +279,7 @@ const App = () => {
         <Route
           path="/Cotacao"
           element={
-            <PrivateRoute
-              element={<Cotacao />}
-              allowedSectors={[SECTORS.ADMIN]}
-            />
+            <PrivateRoute element={<Cotacao />} allowedSectors={[SECTORS.ADMIN]} />
           }
         />
 

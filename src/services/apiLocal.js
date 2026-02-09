@@ -11,15 +11,33 @@ const api = axios.create({
   timeout: 100 * 60 * 1000,
   maxContentLength: Infinity,
   maxBodyLength: Infinity,
-  withCredentials: true, // ✅ sessão via cookie
+  withCredentials: true, // ✅ cookie
   paramsSerializer: (params) => qs.stringify(params, { arrayFormat: "repeat" }),
 });
 
 /**
- * ✅ Importante:
- * Se você usa sessão via COOKIE, NÃO injete Bearer automaticamente aqui.
- * Misturar cookie + token no header costuma causar 401 em loop dependendo do back.
+ * ✅ Bearer fallback (mobile / Safari / browsers que falham cookie cross-site)
+ * - Injeta Authorization: Bearer <authToken> se existir
+ * - NÃO injeta no /auth/login
  */
+api.interceptors.request.use(
+  (config) => {
+    if (typeof window === "undefined") return config;
+
+    const url = String(config?.url || "").toLowerCase();
+    if (url.includes("/auth/login")) return config;
+
+    const token = localStorage.getItem("authToken");
+    if (token) {
+      config.headers = config.headers || {};
+      if (!config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (err) => Promise.reject(err)
+);
 
 // 🔐 401 handler (anti-loop)
 let isRedirecting401 = false;
@@ -30,28 +48,23 @@ api.interceptors.response.use(
     const status = err?.response?.status;
     const url = String(err?.config?.url || "").toLowerCase();
 
-    // (debug rápido: se quiser)
-
     if (status === 401) {
       // ✅ não redireciona pra endpoints de auth (evita loop)
-      if (url.includes("/auth/login") || url.includes("/auth/me")) {
-        return Promise.reject(err);
-      }
+      if (url.includes("/auth/login")) return Promise.reject(err);
+
+      // ✅ Se /auth/me falhar, NÃO apaga token nem força redirect aqui
+      // (deixa o App decidir no boot)
+      if (url.includes("/auth/me")) return Promise.reject(err);
 
       if (typeof window !== "undefined") {
-        // ✅ se já está no login, não fica tentando redirecionar
-        if (window.location.pathname === "/") {
-          return Promise.reject(err);
-        }
+        if (window.location.pathname === "/") return Promise.reject(err);
 
         if (!isRedirecting401) {
           isRedirecting401 = true;
 
-          // limpa qualquer resíduo local
+          // limpa user; mantém authToken pra permitir fallback em /auth/me
           localStorage.removeItem("user");
-          localStorage.removeItem("authToken");
 
-          // ✅ replace evita histórico e reduz “flash”
           window.location.replace("/");
         }
       }
@@ -90,8 +103,7 @@ const apiLocal = {
   getOcorrencias: () => api.get("/ocorrencias/"),
   createOrUpdateOcorrencia: (data) => api.post("/ocorrencias/", data),
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
-  getOcorrenciasFiltradas: (filters) =>
-    api.post("/ocorrencias/filtrar", filters),
+  getOcorrenciasFiltradas: (filters) => api.post("/ocorrencias/filtrar", filters),
   updateCobrancaAdicional: (data) =>
     api.put("/ocorrencias/cobranca-adicional", data),
   decodeBarcodes: (imageDataUrl) =>
@@ -162,8 +174,7 @@ const apiLocal = {
   // Fechamento
   getFechamento: (params) => api.get("/fechamento_op/", { params }),
   getFechamentoPorMes: (mes) => api.get("/fechamento_op/", { params: { mes } }),
-  getFechamentoPorData: (data) =>
-    api.get("/fechamento_op/", { params: { data } }),
+  getFechamentoPorData: (data) => api.get("/fechamento_op/", { params: { data } }),
   uploadFechamentoExcel: (file, config = {}) => {
     const form = new FormData();
     form.append("file", file);
@@ -255,7 +266,6 @@ const apiLocal = {
     api.get("/projetos/", {
       params: visibleFor?.length ? { visible_for: visibleFor } : undefined,
     }),
-
   getProjetoById: (id, params = {}) => api.get(`/projetos/${id}`, { params }),
   createProjeto: (data) => api.post("/projetos/", data),
   updateProjeto: (id, data) => api.put(`/projetos/${id}`, data),
@@ -337,7 +347,6 @@ const apiLocal = {
 
   // Timeline
   listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
-
   addProjetoRow: (projectId, body) => api.post(`/projetos/${projectId}/rows`, body),
 
   updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
@@ -466,67 +475,49 @@ const apiLocal = {
     api.post(`/conferencias/${nr_pedido}/ocorrencias`, ocorrenciasArray),
   getPedidosRelatorio: (params = {}) =>
     api.get("/pedidos/relatorio-pedidos", { params }),
-// Placas
-getPlacas: () => api.get("/placa/"),
-createOrUpdatePlaca: (data) => api.post("/placa/", data),
-deletePlaca: (id) => api.delete(`/placa/${id}`),
 
-// ========================
-// Demandas OPC (novo fluxo)
-getDemandasAtivasLite: () => api.get("/demandas-opc/lite/ativas"),
-// ========================
-createDemandaOpc: (payload) => api.post("/demandas-opc/", payload),
-patchDemandaOpcMeta: (demandaId, body) =>
-  api.patch(`/demandas-opc/${demandaId}/meta`, body),
+  // Placas
+  getPlacas: () => api.get("/placa/"),
+  createOrUpdatePlaca: (data) => api.post("/placa/", data),
+  deletePlaca: (id) => api.delete(`/placa/${id}`),
 
-// ✅ NOVO: lista otimizada pros cards
-listDemandasOpcLite: (params = {}) => api.get("/demandas-opc/lite", { params }),
+  // ========================
+  // Demandas OPC (novo fluxo)
+  getDemandasAtivasLite: () => api.get("/demandas-opc/lite/ativas"),
+  createDemandaOpc: (payload) => api.post("/demandas-opc/", payload),
+  patchDemandaOpcMeta: (demandaId, body) =>
+    api.patch(`/demandas-opc/${demandaId}/meta`, body),
+  listDemandasOpcLite: (params = {}) => api.get("/demandas-opc/lite", { params }),
+  getDemandaOpcInfo: (id) => api.get(`/demandas-opc/${id}/info`),
+  deleteDemandaOpc: (id) => api.delete(`/demandas-opc/${id}`),
 
-/**
- * (Opcional) manter o antigo:
- * listDemandasOpc: (params = {}) => api.get("/demandas-opc/", { params }),
- */
+  getDocByChave: (chave, docKind) =>
+    api.get(`/nf-xml/chave/${chave}`, {
+      params: docKind ? { doc_kind: docKind } : undefined,
+    }),
 
-// ✅ NOVO: detalhe otimizado pro ModalInfo
-getDemandaOpcInfo: (id) => api.get(`/demandas-opc/${id}/info`),
+  addDocsToDemandaOpc: (demandaId, body) =>
+    api.post(`/demandas-opc/${demandaId}/docs`, body),
 
-/**
- * (Opcional) manter o antigo:
- * getDemandaOpcById: (id) => api.get(`/demandas-opc/${id}`),
- */
+  removeDocFromDemandaOpc: (demandaId, nfId, params = {}) =>
+    api.delete(`/demandas-opc/${demandaId}/docs/${nfId}`, { params }),
 
-deleteDemandaOpc: (id) => api.delete(`/demandas-opc/${id}`),
+  updateResponsaveisDemandaOpc: (demandaId, body) =>
+    api.put(`/demandas-opc/${demandaId}/responsaveis`, body),
 
-// updateNotasStatusByDemanda: (demandaId, body) =>
-//   api.post(`/demandas-opc/${demandaId}/status-notas`, body),
+  cancelDemandaOpc: (demandaId, body) =>
+    api.post(`/demandas-opc/${demandaId}/cancelar`, body),
 
-getDocByChave: (chave, docKind) =>
-  api.get(`/nf-xml/chave/${chave}`, { params: docKind ? { doc_kind: docKind } : undefined }),
+  getVinculosSummary: (params = {}) =>
+    api.get(`/demandas-opc/vinculos/summary`, { params }),
 
+  finishDemandaOpc: (demandaId, body) =>
+    api.post(`/demandas-opc/${demandaId}/finalizar`, body),
 
+  startDemandaOpc: (demandaId, body) =>
+    api.post(`/demandas-opc/${demandaId}/iniciar`, body),
 
-addDocsToDemandaOpc: (demandaId, body) =>
-  api.post(`/demandas-opc/${demandaId}/docs`, body),
-
-removeDocFromDemandaOpc: (demandaId, nfId, params = {}) =>
-  api.delete(`/demandas-opc/${demandaId}/docs/${nfId}`, { params }),
-
-updateResponsaveisDemandaOpc: (demandaId, body) =>
-  api.put(`/demandas-opc/${demandaId}/responsaveis`, body),
-
-cancelDemandaOpc: (demandaId, body) =>
-  api.post(`/demandas-opc/${demandaId}/cancelar`, body),
-
-getVinculosSummary: (params = {}) =>
-  api.get(`/demandas-opc/vinculos/summary`, { params }),
-
-finishDemandaOpc: (demandaId, body) =>
-  api.post(`/demandas-opc/${demandaId}/finalizar`, body),
-
-startDemandaOpc: (demandaId, body) =>
-  api.post(`/demandas-opc/${demandaId}/iniciar`, body),
-
-searchDemandasOpc: (body) => api.post("/demandas-opc/search", body),
+  searchDemandasOpc: (body) => api.post("/demandas-opc/search", body),
 
   // Expedição
   expedirPedido: (data) => api.post("/expedicao/expedir", data),
@@ -550,10 +541,9 @@ searchDemandasOpc: (body) => api.post("/demandas-opc/search", body),
 
   // Performaxxi — Análise de Rotas
   getAnaliseRotasAlertaAlmocoFinalizando: (params) =>
-    api.get(
-      "/analise_performaxxi/analise-rotas/alerta-almoco-finalizando",
-      { params }
-    ),
+    api.get("/analise_performaxxi/analise-rotas/alerta-almoco-finalizando", {
+      params,
+    }),
   getAnaliseRotasEficienciaPorRota: (params) =>
     api.get("/analise_performaxxi/analise-rotas/eficiencia-por-rota", { params }),
   getAnaliseRotasOpcoes: (params) =>
