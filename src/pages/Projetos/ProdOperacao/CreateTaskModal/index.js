@@ -1277,7 +1277,10 @@ export default function CreateTaskModal({
               <Label>
                 {isRecebimento
                   ? "Inserção manual (último caso)"
-                  : "Bipar/Digitar chave 44"}
+                  : "Bipar/Digitar chave 44"}{" "}
+                <span style={{ opacity: 0.7, fontWeight: 700 }}>
+                  ({Array.isArray(docs) ? docs.length : 0})
+                </span>
               </Label>
 
               <Inline2>

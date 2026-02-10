@@ -1512,7 +1512,10 @@ export default function ModalInfo({
                   }}
                 >
                   <div style={{ fontWeight: 800, marginBottom: 6 }}>
-                    Notas / Documentos
+                    Notas / Documentos{" "}
+                    <span style={{ opacity: 0.7, fontWeight: 700 }}>
+                      ({Array.isArray(docs) ? docs.length : 0})
+                    </span>
                   </div>
 
                   <div style={{ display: "flex", gap: 8 }}>
