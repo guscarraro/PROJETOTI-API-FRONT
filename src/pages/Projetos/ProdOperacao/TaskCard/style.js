@@ -34,6 +34,7 @@ export const Card = styled.div`
   border: 1px solid rgba(15, 23, 42, 0.18);
   border-left: 10px solid ${(p) => tipoColor(p.$tipo)};
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.09);
+  justify-content: space-between;
 
   ${(p) =>
     p.$over40 &&
@@ -65,7 +66,7 @@ export const Card = styled.div`
   [data-theme="dark"] & {
     background: ${(p) => `rgba(${hexToRgb(tipoColor(p.$tipo))}, .16)`};
     color: #e5e7eb;
-    border-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.1);
     border-left-color: ${(p) => tipoColor(p.$tipo)};
     box-shadow: 0 10px 28px rgba(2, 6, 23, 0.55);
 
@@ -80,7 +81,7 @@ export const Card = styled.div`
       p.$cancelled &&
       css`
         background: rgba(2, 6, 23, 0.62);
-        border-color: rgba(255, 255, 255, 0.10);
+        border-color: rgba(255, 255, 255, 0.1);
         border-left-color: #111827;
         box-shadow: 0 16px 44px rgba(0, 0, 0, 0.55);
         opacity: 1;
@@ -359,7 +360,7 @@ export const MetaItem = styled.div`
   border-radius: 12px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(15, 23, 42, 0.1);
 
   small {
     display: inline-flex;
@@ -380,7 +381,7 @@ export const MetaItem = styled.div`
 
   [data-theme="dark"] & {
     background: rgba(15, 23, 42, 0.38);
-    border-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.1);
 
     small {
       color: rgba(229, 231, 235, 0.85);
@@ -423,11 +424,11 @@ export const RecvBox = styled.div`
   border-radius: 12px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.62);
-  border: 1px solid rgba(15, 23, 42, 0.10);
+  border: 1px solid rgba(15, 23, 42, 0.1);
 
   [data-theme="dark"] & {
     background: rgba(15, 23, 42, 0.38);
-    border-color: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 `;
 
