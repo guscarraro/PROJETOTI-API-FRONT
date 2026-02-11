@@ -51,6 +51,16 @@ function sumDocsTotals(docs) {
 function errMsg(e) {
   return String(e?.response?.data?.detail || e?.message || e || "Erro");
 }
+function formatDateMinus3h(value) {
+  const s = String(value || "").trim();
+  if (!s) return "—";
+
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return "—";
+
+  const fixed = new Date(d.getTime() - 3 * 60 * 60 * 1000);
+  return fixed.toLocaleString();
+}
 
 function normalizeCliente(clienteAny) {
   if (!clienteAny) return { nome: "—", cnpj: "" };
@@ -1225,11 +1235,9 @@ export default function ModalInfo({
                       <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
                         {(() => {
                           const r = local.recebimento || {};
-                          return `Motorista: ${r.motorista || "—"} • Cavalo: ${r.placaCavalo || "—"} • Carreta: ${r.placaCarreta || "—"} • Chegada: ${
-                            r.chegadaAt
-                              ? new Date(r.chegadaAt).toLocaleString()
-                              : "—"
-                          }`;
+                          return `Motorista: ${r.motorista || "—"} • Cavalo: ${r.placaCavalo || "—"} • Carreta: ${r.placaCarreta || "—"} • Chegada: ${formatDateMinus3h(
+                            r.chegadaAt,
+                          )}`;
                         })()}
                       </div>
                     )}
@@ -1302,9 +1310,7 @@ export default function ModalInfo({
                                   {String(o.tp || "").toUpperCase()} •{" "}
                                   {o.by || "—"} •{" "}
                                   <span style={{ opacity: 0.75 }}>
-                                    {o.at
-                                      ? new Date(o.at).toLocaleString()
-                                      : "—"}
+                                    {formatDateMinus3h(o.at)}
                                   </span>
                                 </span>
 
@@ -1716,7 +1722,7 @@ export default function ModalInfo({
                           <div style={{ fontSize: 12 }}>
                             <b>{l.by}</b> •{" "}
                             <span style={{ opacity: 0.7 }}>
-                              {l.at ? new Date(l.at).toLocaleString() : "—"}
+                              {formatDateMinus3h(l.at)}
                             </span>
                           </div>
                           <div style={{ fontSize: 13 }}>{l.action}</div>
