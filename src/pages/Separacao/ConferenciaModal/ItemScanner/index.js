@@ -35,12 +35,15 @@ export default function ItemScanner({
     }, 0);
   }, []);
 
-  function onlyDigits(s) {
-    const txt = String(s || "");
+  // ✅ AGORA: permite letras e números (EAN alfanumérico)
+  function normalizeEAN(s) {
+    const txt = String(s || "").trim().toUpperCase();
     let out = "";
     for (let i = 0; i < txt.length; i++) {
       const c = txt[i];
-      if (c >= "0" && c <= "9") out += c;
+      const isNum = c >= "0" && c <= "9";
+      const isAlpha = c >= "A" && c <= "Z";
+      if (isNum || isAlpha) out += c;
     }
     return out;
   }
@@ -57,10 +60,19 @@ export default function ItemScanner({
     if (!val) return;
     if (bufLote) return; // com lote ativo, ignora EAN unitário
 
-    const normalized = onlyDigits(val).trim();
+    const normalized = normalizeEAN(val);
     if (!normalized) return;
 
-    const exists = expectedBars.some((b) => String(b).trim() === normalized);
+    // ✅ compara normalizando também o expectedBars
+    let exists = false;
+    for (let i = 0; i < expectedBars.length; i++) {
+      const b = normalizeEAN(expectedBars[i]);
+      if (b && b === normalized) {
+        exists = true;
+        break;
+      }
+    }
+
     play(exists ? beepOk : beepErr);
 
     setBufEANUnit("");
@@ -75,7 +87,7 @@ export default function ItemScanner({
 
   async function handleLoteFinalize(lote, ean, qtdStr) {
     const loteVal = String(lote || "").trim().toUpperCase();
-    const eanVal = onlyDigits(String(ean || "")).trim();
+    const eanVal = normalizeEAN(String(ean || ""));
     const qtdVal = String(qtdStr || "").trim();
     const qn = parseInt(qtdVal, 10);
 
@@ -119,7 +131,7 @@ export default function ItemScanner({
           onPaste={(e) => {
             e.preventDefault();
             const text = e.clipboardData?.getData("text") || "";
-            const val = onlyDigits(text).trim();
+            const val = normalizeEAN(text);
             if (!val) return;
 
             setBufEANUnit(val);
@@ -224,7 +236,7 @@ export default function ItemScanner({
             onPaste={(e) => {
               e.preventDefault();
               const text = e.clipboardData?.getData("text") || "";
-              const val = onlyDigits(text).trim();
+              const val = normalizeEAN(text);
               if (!val) return;
 
               setBufEANLote(val);
