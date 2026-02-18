@@ -159,8 +159,7 @@ export default function TaskCard({
   const statusVariant = useMemo(() => pickStatusVariant(status), [status]);
 
   const canStart = status === "PROGRAMADA" && !isCancelled;
-  const canFinish =
-    (status === "EM_ANDAMENTO" || status === "PAUSADA") && !isCancelled;
+  const canFinish = (status === "EM_ANDAMENTO" || status === "PAUSADA") && !isCancelled;
 
   const paletizada = !!task?.paletizada;
 
@@ -169,12 +168,13 @@ export default function TaskCard({
   const totalPallets = Number(task.totalPallets ?? task.pallets ?? 0);
 
   const rec = task.recebimento || null;
-  const exp = task.recebimento || {
+
+  // ✅ BUGFIX: exp estava usando recebimento
+  const exp = task.expedicao || {
     motorista: task.motorista,
     placaCavalo: task.placa_cavalo,
     placaCarreta: task.placa_carreta,
   };
-  // ✅ NOVO
 
   const isEffectivelyLocked = !!task.locked || isCancelled;
 
@@ -186,16 +186,10 @@ export default function TaskCard({
     String(task?.tipo || "").toLowerCase() === "expedição" ||
     String(task?.tipo || "").toLowerCase() === "expedicao";
 
-  const cliente = useMemo(
-    () => normalizeCliente(task?.cliente),
-    [task?.cliente],
-  );
-  const clienteTextRaw = cliente.cnpj
-    ? `${cliente.nome} • ${cliente.cnpj}`
-    : cliente.nome;
+  const cliente = useMemo(() => normalizeCliente(task?.cliente), [task?.cliente]);
+  const clienteTextRaw = cliente.cnpj ? `${cliente.nome} • ${cliente.cnpj}` : cliente.nome;
   const clienteText = useMemo(() => trunc17(clienteTextRaw), [clienteTextRaw]);
 
-  // ✅ título especial da expedição: motorista + veículo
   const expMotorista = String(exp?.motorista || "").trim();
   const expPlaca =
     String(exp?.placaCavalo || exp?.placa_cavalo || "").trim() ||
@@ -217,14 +211,12 @@ export default function TaskCard({
       const tp = normTp(
         arr[i]?.tp || arr[i]?.tipo || arr[i]?.tp_ocorren || arr[i]?.tpOcorren,
       );
-
       if (!tp) continue;
       if (seen[tp]) continue;
       seen[tp] = true;
       out.push(tp);
     }
 
-    // fallback compat (se ainda vier só tp_ocorren/ocorren no lite)
     if (out.length === 0) {
       const tp = normTp(task?.tp_ocorren || task?.tpOcorren);
       const just = String(task?.ocorren || "").trim();
@@ -242,7 +234,7 @@ export default function TaskCard({
   const chegadaAt = rec?.chegadaAt || rec?.chegada_at || null;
 
   // =========================
-  // ✅ CRONÔMETRO EM TEMPO REAL
+  // ✅ CRONÔMETRO EM TEMPO REAL + FALLBACK CONCLUÍDA
   // =========================
   const [tick, setTick] = useState(0);
 
@@ -260,21 +252,36 @@ export default function TaskCard({
     () => safeDateMs(task?.startedAt || task?.started_at),
     [task?.startedAt, task?.started_at],
   );
-  const baseElapsed = useMemo(
-    () => Number(task?.elapsedSeconds || 0),
-    [task?.elapsedSeconds],
+
+  const finishedMs = useMemo(
+    () => safeDateMs(task?.finishedAt || task?.finished_at),
+    [task?.finishedAt, task?.finished_at],
   );
 
+  const baseElapsed = useMemo(() => Number(task?.elapsedSeconds || 0), [task?.elapsedSeconds]);
+
+  // ✅ fallback quando vem CONCLUIDA mas elapsedSeconds vem 0
+  const computedElapsedIfMissing = useMemo(() => {
+    if (baseElapsed > 0) return baseElapsed;
+    if (!startedMs || !finishedMs) return baseElapsed;
+    const diffSec = Math.floor((finishedMs - startedMs) / 1000);
+    return diffSec > 0 ? diffSec : baseElapsed;
+  }, [baseElapsed, startedMs, finishedMs]);
+
   const displaySeconds = useMemo(() => {
-    if (status !== "EM_ANDAMENTO") return baseElapsed;
-    if (!startedMs) return baseElapsed;
+    if (status === "EM_ANDAMENTO") {
+      if (!startedMs) return baseElapsed;
 
-    const nowMs = Date.now();
-    const diffSec = Math.floor((nowMs - startedMs) / 1000);
-    if (diffSec < 0) return baseElapsed;
+      const nowMs = Date.now();
+      const diffSec = Math.floor((nowMs - startedMs) / 1000);
+      if (diffSec < 0) return baseElapsed;
 
-    return baseElapsed + diffSec;
-  }, [status, baseElapsed, startedMs, tick]);
+      return baseElapsed + diffSec;
+    }
+
+    // ✅ concluída/pausada/etc: usa fallback calculado
+    return computedElapsedIfMissing;
+  }, [status, baseElapsed, startedMs, tick, computedElapsedIfMissing]);
 
   const over40 = Number(displaySeconds || 0) >= 40 * 60;
 
@@ -337,25 +344,13 @@ export default function TaskCard({
                 {isExpedicao ? expedicaoTitle : clienteText}
               </span>
 
-              <span
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
-                {paletizada ? (
-                  <FaPallet title="Carga paletizada" />
-                ) : (
-                  <FaBoxOpen title="Carga solta" />
-                )}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                {paletizada ? <FaPallet title="Carga paletizada" /> : <FaBoxOpen title="Carga solta" />}
                 {paletizada ? "Paletizada" : "Não paletizada"}
               </span>
 
               {ocorrenciasBadges.length ? (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                   {ocorrenciasBadges.map((tp) => (
                     <span
                       key={tp}
@@ -381,9 +376,7 @@ export default function TaskCard({
             </Sub>
 
             <Sub style={{ marginTop: 10, opacity: 0.85, width: "200px" }}>
-              <span
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
-              >
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <FaCalendarDays />
                 Criada: <b>{fmtDt(createdAt)}</b>
               </span>
@@ -417,8 +410,7 @@ export default function TaskCard({
         <MetaLine>
           {paletizada ? <FaPallet /> : <FaBoxOpen />}
           <span>
-            <b>{paletizada ? totalPallets : totalVolumes}</b>{" "}
-            {paletizada ? "pallets" : "volumes"}
+            <b>{paletizada ? totalPallets : totalVolumes}</b> {paletizada ? "pallets" : "volumes"}
           </span>
         </MetaLine>
 

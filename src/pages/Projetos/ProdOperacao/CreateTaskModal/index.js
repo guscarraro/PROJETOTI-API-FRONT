@@ -119,6 +119,7 @@ function inferDocMetaFromDoc(doc) {
 function safeArray(v) {
   return Array.isArray(v) ? v : [];
 }
+
 function uniqueClientsFromDocs(docs) {
   const map = {};
   const out = [];
@@ -126,13 +127,51 @@ function uniqueClientsFromDocs(docs) {
   for (let i = 0; i < arr.length; i++) {
     const c = arr[i]?.cliente || null;
     if (!c) continue;
-    const k = `${normalizeText(c.nome || "")}::${onlyDigits(c.cnpj || "")}`;
+
+    const nome = String(c.nome || "").trim();
+    const cnpj = onlyDigits(c.cnpj || "");
+    const k = `${normalizeText(nome)}::${cnpj}`;
     if (!k) continue;
     if (map[k]) continue;
     map[k] = true;
-    out.push({ nome: String(c.nome || ""), cnpj: String(c.cnpj || "") });
+    out.push({ nome, cnpj });
   }
   return out;
+}
+
+// ✅ NOVO: extrai cliente mesmo se vier em formatos alternativos
+function extractCliente(doc) {
+  if (!doc) return null;
+
+  // 1) já veio no formato certo
+  if (doc.cliente && typeof doc.cliente === "object") {
+    const nome = String(doc.cliente.nome || doc.cliente.cliente_nome || "").trim();
+    const cnpj = onlyDigits(
+      doc.cliente.cnpj || doc.cliente.doc || doc.cliente.cliente_doc || "",
+    );
+    if (nome || cnpj) return { nome, cnpj };
+  }
+
+  // 2) veio “espalhado” no doc
+  const nome2 = String(doc.cliente_nome || doc.nome_cliente || "").trim();
+  const cnpj2 = onlyDigits(doc.cliente_cnpj || doc.cnpj_cliente || doc.cliente_doc || "");
+  if (nome2 || cnpj2) return { nome: nome2, cnpj: cnpj2 };
+
+  // 3) fallback: cliente como string
+  if (typeof doc.cliente === "string") {
+    const nome3 = String(doc.cliente || "").trim();
+    if (nome3) return { nome: nome3, cnpj: "" };
+  }
+
+  return null;
+}
+
+function normalizeDocWithCliente(doc) {
+  const c = extractCliente(doc);
+  return {
+    ...doc,
+    cliente: c ? { nome: String(c.nome || ""), cnpj: String(c.cnpj || "") } : null,
+  };
 }
 
 export default function CreateTaskModal({
@@ -363,18 +402,18 @@ export default function CreateTaskModal({
     }
 
     if (!Array.isArray(docs) || docs.length === 0) return null;
+
     const c0 = docs[0]?.cliente || null;
     if (!c0) return null;
 
     for (let i = 1; i < docs.length; i++) {
       if (!sameClient(c0, docs[i]?.cliente || null)) {
-        if (isExpedicao) return { mixed: true, nome: "", cnpj: "" };
         return { mixed: true, nome: "", cnpj: "" };
       }
     }
 
     return { mixed: false, nome: c0.nome || "", cnpj: c0.cnpj || "" };
-  }, [docs, manualMode, clienteManual, isExpedicao]);
+  }, [docs, manualMode, clienteManual]);
 
   const totalsFromDocs = useMemo(() => sumDocsTotals(docs), [docs]);
 
@@ -396,9 +435,11 @@ export default function CreateTaskModal({
       if (docs[i].chave === doc.chave) return { ok: false, reason: "duplicado" };
     }
 
+    const normalized = normalizeDocWithCliente(doc);
+
     if (!isExpedicao) {
       const targetClient = docs.length ? docs[0]?.cliente : null;
-      if (targetClient && !sameClient(targetClient, doc.cliente)) {
+      if (targetClient && !sameClient(targetClient, normalized.cliente)) {
         return { ok: false, reason: "cliente_diferente" };
       }
     }
@@ -406,10 +447,10 @@ export default function CreateTaskModal({
     const statusIni = isRecebimento ? "RECEBIDA" : "EM_PROCESSO";
 
     const item = {
-      ...doc,
-      status: doc.status || statusIni,
-      statusAt: doc.statusAt || nowIso(),
-      importedAt: doc.importedAt || nowIso(),
+      ...normalized,
+      status: normalized.status || statusIni,
+      statusAt: normalized.statusAt || nowIso(),
+      importedAt: normalized.importedAt || nowIso(),
     };
 
     setDocs((prev) => [...prev, item]);
@@ -520,13 +561,16 @@ export default function CreateTaskModal({
             return;
           }
 
-          const meta = inferDocMetaFromDoc(found);
+          const foundNorm = normalizeDocWithCliente(found);
+
+          const meta = inferDocMetaFromDoc(foundNorm);
           setDocKind(meta.docKind);
           if (!paletizadaTouched) setPaletizada(meta.paletizada);
 
-          const r = tryAddDocToDemand(found);
+          const r = tryAddDocToDemand(foundNorm);
           if (!r.ok) {
-            if (r.reason === "cliente_diferente") pushLog("Essa chave é de outro cliente. Não pode misturar (exceto Expedição).");
+            if (r.reason === "cliente_diferente")
+              pushLog("Essa chave é de outro cliente. Não pode misturar (exceto Expedição).");
             else if (r.reason === "duplicado") pushLog("Chave já adicionada.");
             else pushLog("Falha ao inserir chave.");
             return;
@@ -656,14 +700,38 @@ export default function CreateTaskModal({
     await runBusy("confirm", async () => {
       if (String(observacao || "").trim()) pushLog("Observação definida/atualizada");
 
-      let clientePayload = null;
+      // ✅ normaliza docs (garante cliente por doc)
+      const docsNormalized = (Array.isArray(docs) ? docs : []).map((d) =>
+        normalizeDocWithCliente(d),
+      );
+
+      // ✅ clientes únicos a partir dos docs normalizados
+      const clientesUnicos = uniqueClientsFromDocs(docsNormalized);
+
+      // ✅ cliente REAL do topo: só se for único
+      let clienteTop = null;
+
+      // ✅ resumo pra UI (pode virar "MÚLTIPLOS")
+      let clienteResumo = null;
 
       if (isExpedicao) {
-        if (clientesListFromDocs.length > 1) clientePayload = { nome: "MÚLTIPLOS", cnpj: "" };
-        else if (clientesListFromDocs.length === 1) clientePayload = { nome: clientesListFromDocs[0].nome || "", cnpj: clientesListFromDocs[0].cnpj || "" };
-        else clientePayload = { nome: "", cnpj: "" };
+        if (clientesUnicos.length === 1) {
+          clienteTop = {
+            nome: clientesUnicos[0].nome || "",
+            cnpj: clientesUnicos[0].cnpj || "",
+          };
+          clienteResumo = clienteTop;
+        } else if (clientesUnicos.length > 1) {
+          // ⚠️ NÃO mande "MÚLTIPLOS" como cliente REAL
+          clienteTop = null;
+          clienteResumo = { nome: "MÚLTIPLOS", cnpj: "" };
+        } else {
+          clienteTop = null;
+          clienteResumo = null;
+        }
       } else {
-        clientePayload = { nome: clienteDefinido?.nome || "", cnpj: clienteDefinido?.cnpj || "" };
+        clienteTop = { nome: clienteDefinido?.nome || "", cnpj: clienteDefinido?.cnpj || "" };
+        clienteResumo = clienteTop;
       }
 
       const payload = {
@@ -671,12 +739,19 @@ export default function CreateTaskModal({
         tipo,
         paletizada,
 
-        cliente: clientePayload,
-        clientes: isExpedicao ? clientesListFromDocs : null,
+        // ✅ cliente REAL (apenas se único)
+        cliente: clienteTop,
+
+        // ✅ resumo (para exibição / logs no front)
+        clienteResumo,
+
+        // ✅ lista de clientes (para exibição quando expedição)
+        clientes: isExpedicao ? clientesUnicos : null,
 
         totalPalletsOverride: paletizada ? Number(totalPalletsFinal || 0) : null,
 
-        docs: (Array.isArray(docs) ? docs : []).map((d) => ({
+        // ✅ cada doc com seu cliente correto (nome/cnpj)
+        docs: docsNormalized.map((d) => ({
           docKind: d.docKind || docKind,
           source: d.source,
           chave: d.chave,
@@ -824,7 +899,6 @@ export default function CreateTaskModal({
               safePlacas={safePlacas}
             />
 
-            {/* ✅ CHAVE com CÂMERA inline */}
             <ChaveEntrySection
               busy={busy}
               busyKey={busyKey}

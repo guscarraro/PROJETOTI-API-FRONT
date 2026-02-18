@@ -153,7 +153,10 @@ function adaptDemandaToTaskLite(d) {
 
     startedAt: d?.started_at || d?.startedAt || null,
     finishedAt: d?.finished_at || d?.finishedAt || null,
-    elapsedSeconds: Number(d?.elapsed_seconds || d?.elapsedSeconds || 0),
+
+    // ✅ importante: usar ?? pra não perder valores válidos
+    elapsedSeconds: Number(d?.elapsed_seconds ?? d?.elapsedSeconds ?? 0),
+
     locked: !!d?.locked,
 
     recebimento,
@@ -192,6 +195,22 @@ function toYMD(dateObj) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+// ✅ NOVO: range da semana (segunda a domingo) em YYYY-MM-DD
+function getWeekRangeYMD() {
+  const today = new Date();
+  const d = new Date(today);
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1) - day; // segunda
+  d.setDate(d.getDate() + diff);
+
+  const start = startOfDay(d);
+  const end = endOfDay(
+    new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6),
+  );
+
+  return { from: toYMD(start), to: toYMD(end) };
+}
+
 function looksLikeChave44(q) {
   const digits = String(q || "").replace(/\D/g, "");
   return digits.length === 44;
@@ -218,7 +237,7 @@ function getCurrentTurnoLabel(dateObj) {
   const manhaIni = 8 * 60 + 0; // 08:00
   const manhaFim = 18 * 60 + 0; // 18:00
   const tardeIni = 18 * 60 + 1; // 18:01
-  const tardeFim = 24 * 60 + 0; // 24:00 (00:00 do dia seguinte, mas aqui é o mesmo dia no total=0 só em 00:00)
+  const tardeFim = 24 * 60 + 0; // 24:00
 
   // 00:00 (0 min) é TARDE
   if (total === 0) return "TARDE";
@@ -229,9 +248,7 @@ function getCurrentTurnoLabel(dateObj) {
 }
 
 function normalizeTurnoValue(v) {
-  const t = String(v || "")
-    .trim()
-    .toUpperCase();
+  const t = String(v || "").trim().toUpperCase();
   if (!t) return "";
   if (t === "MANHÃ") return "MANHA";
   if (t === "MANHÃ ") return "MANHA";
@@ -260,23 +277,15 @@ export default function ProdOperacaoPage() {
 
   const actorEmail = useMemo(() => {
     const e = user?.email || user?.usuario || "";
-    return String(e || "")
-      .trim()
-      .toLowerCase();
+    return String(e || "").trim().toLowerCase();
   }, [user]);
 
-  const isAdmin = useMemo(
-    () => actorEmail === "admin@carraro.com",
-    [actorEmail],
-  );
+  const isAdmin = useMemo(() => actorEmail === "admin@carraro.com", [actorEmail]);
 
-  // ================= LOADING LOCAL (FIX) =================
+  // ================= LOADING LOCAL =================
   const [loadingKeys, setLoadingKeys] = useState({});
 
-  const isLoading = useCallback(
-    (key) => !!loadingKeys[String(key || "")],
-    [loadingKeys],
-  );
+  const isLoading = useCallback((key) => !!loadingKeys[String(key || "")], [loadingKeys]);
 
   const anyLoading = useCallback(
     (keys) => {
@@ -330,10 +339,7 @@ export default function ProdOperacaoPage() {
   const [listError, setListError] = useState("");
   const [clientesList, setClientesList] = useState([]);
 
-  // ✅ agora guardamos responsáveis COMPLETOS (com turno)
   const [responsaveisOperacaoRows, setResponsaveisOperacaoRows] = useState([]);
-
-  // ✅ e também mantemos só nomes (pra não mexer no modal agora)
   const [operadoresOperacao, setOperadoresOperacao] = useState([]);
 
   const [placasList, setPlacasList] = useState([]);
@@ -347,7 +353,6 @@ export default function ProdOperacaoPage() {
   );
 
   useEffect(() => {
-    // atualiza a cada 30s pra virar certinho 18:01 / 00:01 etc
     const t = setInterval(() => {
       setTurnoAtual(getCurrentTurnoLabel(new Date()));
     }, 30 * 1000);
@@ -402,25 +407,14 @@ export default function ProdOperacaoPage() {
       return;
     }
     if (kind === "week") {
-      const d = new Date(today);
-      const day = d.getDay();
-      const diff = (day === 0 ? -6 : 1) - day; // segunda
-      d.setDate(d.getDate() + diff);
-      const start = startOfDay(d);
-      const end = endOfDay(
-        new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6),
-      );
-      setDateFrom(toYMD(start));
-      setDateTo(toYMD(end));
+      const r = getWeekRangeYMD();
+      setDateFrom(r.from);
+      setDateTo(r.to);
       return;
     }
     if (kind === "month") {
-      const start = startOfDay(
-        new Date(today.getFullYear(), today.getMonth(), 1),
-      );
-      const end = endOfDay(
-        new Date(today.getFullYear(), today.getMonth() + 1, 0),
-      );
+      const start = startOfDay(new Date(today.getFullYear(), today.getMonth(), 1));
+      const end = endOfDay(new Date(today.getFullYear(), today.getMonth() + 1, 0));
       setDateFrom(toYMD(start));
       setDateTo(toYMD(end));
       return;
@@ -432,9 +426,7 @@ export default function ProdOperacaoPage() {
       d.setDate(d.getDate() + diff - 7);
 
       const start = startOfDay(d);
-      const end = endOfDay(
-        new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6),
-      );
+      const end = endOfDay(new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6));
       setDateFrom(toYMD(start));
       setDateTo(toYMD(end));
       return;
@@ -452,8 +444,7 @@ export default function ProdOperacaoPage() {
         const visible = applyCancelVisibility(rows);
 
         const mapped = [];
-        for (let i = 0; i < visible.length; i++)
-          mapped.push(adaptDemandaToTaskLite(visible[i]));
+        for (let i = 0; i < visible.length; i++) mapped.push(adaptDemandaToTaskLite(visible[i]));
         setActiveTasks(mapped);
       } catch (e) {
         setActiveTasks([]);
@@ -467,13 +458,10 @@ export default function ProdOperacaoPage() {
         const resResp = await apiLocal.getResponsaveis();
         const rowsResp = safeArray(resResp?.data);
 
-        // ✅ pega operação + guarda turno
         const opsRows = [];
         for (let i = 0; i < rowsResp.length; i++) {
           const r = rowsResp[i] || {};
-          const dep = String(r.departamento || "")
-            .trim()
-            .toLowerCase();
+          const dep = String(r.departamento || "").trim().toLowerCase();
           const nome = String(r.nome || "").trim();
           if (!nome) continue;
           if (dep !== "operacao" && dep !== "operação") continue;
@@ -485,7 +473,6 @@ export default function ProdOperacaoPage() {
           });
         }
 
-        // dedupe por nome
         const seen = {};
         const uniqRows = [];
         for (let i = 0; i < opsRows.length; i++) {
@@ -497,7 +484,6 @@ export default function ProdOperacaoPage() {
         uniqRows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
         setResponsaveisOperacaoRows(uniqRows);
 
-        // lista de nomes (mantém modal funcionando)
         const outOps = [];
         for (let i = 0; i < uniqRows.length; i++) outOps.push(uniqRows[i].nome);
         setOperadoresOperacao(outOps);
@@ -541,9 +527,7 @@ export default function ProdOperacaoPage() {
         const pls = [];
         for (let i = 0; i < rowsPl.length; i++) {
           const p = rowsPl[i] || {};
-          const placa = String(p.placa || "")
-            .trim()
-            .toUpperCase();
+          const placa = String(p.placa || "").trim().toUpperCase();
           if (placa) pls.push(placa);
         }
         const uniqP = {};
@@ -566,33 +550,36 @@ export default function ProdOperacaoPage() {
     });
   }, [wrapLoading]);
 
-  const loadDemandas = useCallback(async () => {
-    await wrapLoading("list", async () => {
-      setListError("");
-      try {
-        const params = {
-          include_docs: false,
-          date_from: normalizeYMD(dateFrom) || undefined,
-          date_to: normalizeYMD(dateTo) || undefined,
-        };
+  // ✅ ALTERADO: aceita override (pra aplicar semana no primeiro load)
+  const loadDemandas = useCallback(
+    async (fromOverride, toOverride) => {
+      await wrapLoading("list", async () => {
+        setListError("");
+        try {
+          const params = {
+            include_docs: false,
+            date_from: normalizeYMD(fromOverride || dateFrom) || undefined,
+            date_to: normalizeYMD(toOverride || dateTo) || undefined,
+          };
 
-        const res = await apiLocal.listDemandasOpcLite(params);
-        const rows = Array.isArray(res?.data) ? res.data : [];
-        const visible = applyCancelVisibility(rows);
+          const res = await apiLocal.listDemandasOpcLite(params);
+          const rows = Array.isArray(res?.data) ? res.data : [];
+          const visible = applyCancelVisibility(rows);
 
-        const mapped = [];
-        for (let i = 0; i < visible.length; i++)
-          mapped.push(adaptDemandaToTaskLite(visible[i]));
-        setTasks(mapped);
-      } catch (e) {
-        setListError(String(e?.response?.data?.detail || e?.message || e));
-        setTasks([]);
-      }
-    });
-  }, [wrapLoading, dateFrom, dateTo, applyCancelVisibility]);
+          const mapped = [];
+          for (let i = 0; i < visible.length; i++) mapped.push(adaptDemandaToTaskLite(visible[i]));
+          setTasks(mapped);
+        } catch (e) {
+          setListError(String(e?.response?.data?.detail || e?.message || e));
+          setTasks([]);
+        }
+      });
+    },
+    [wrapLoading, dateFrom, dateTo, applyCancelVisibility],
+  );
 
   useEffect(() => {
-    loadDemandasRef.current = loadDemandas;
+    loadDemandasRef.current = () => loadDemandas();
   }, [loadDemandas]);
 
   useEffect(() => {
@@ -604,13 +591,16 @@ export default function ProdOperacaoPage() {
     if (didInitRef.current) return;
     didInitRef.current = true;
 
+    // ✅ semana padrão aplicada de verdade no PRIMEIRO LOAD
+    const r = getWeekRangeYMD();
     setQuickRange("week");
-    setQuick("week");
+    setDateFrom(r.from);
+    setDateTo(r.to);
 
     loadMeta();
-    loadDemandas();
+    loadDemandas(r.from, r.to);
     loadActiveDemandas();
-  }, [loadMeta, loadDemandas, loadActiveDemandas, setQuick]);
+  }, [loadMeta, loadDemandas, loadActiveDemandas]);
 
   const normalize = useCallback((s) => {
     return String(s || "")
@@ -640,9 +630,7 @@ export default function ProdOperacaoPage() {
     if (!isDoc) return;
 
     if (typeof apiLocal.searchDemandasOpc !== "function") {
-      toast.error(
-        "Falta apiLocal.searchDemandasOpc / endpoint /demandas-opc/search",
-      );
+      toast.error("Falta apiLocal.searchDemandasOpc / endpoint /demandas-opc/search");
       return;
     }
 
@@ -659,21 +647,13 @@ export default function ProdOperacaoPage() {
         const visible = applyCancelVisibility(rows);
 
         const mapped = [];
-        for (let i = 0; i < visible.length; i++)
-          mapped.push(adaptDemandaToTaskLite(visible[i]));
+        for (let i = 0; i < visible.length; i++) mapped.push(adaptDemandaToTaskLite(visible[i]));
         setTasks(mapped);
       } catch (e) {
         setListError(String(e?.response?.data?.detail || e?.message || e));
       }
     });
-  }, [
-    query,
-    dateFrom,
-    dateTo,
-    wrapLoading,
-    loadDemandas,
-    applyCancelVisibility,
-  ]);
+  }, [query, dateFrom, dateTo, wrapLoading, loadDemandas, applyCancelVisibility]);
 
   const filteredTasks = useMemo(() => {
     let arr = tasks;
@@ -692,29 +672,25 @@ export default function ProdOperacaoPage() {
 
     if (!isAdmin) {
       const out = [];
-      for (let i = 0; i < arr.length; i++)
-        if (arr[i].status !== STATUS.CANCELADA) out.push(arr[i]);
+      for (let i = 0; i < arr.length; i++) if (arr[i].status !== STATUS.CANCELADA) out.push(arr[i]);
       arr = out;
     }
 
     if (statusFilter !== "TODOS") {
       const out = [];
-      for (let i = 0; i < arr.length; i++)
-        if (arr[i].status === statusFilter) out.push(arr[i]);
+      for (let i = 0; i < arr.length; i++) if (arr[i].status === statusFilter) out.push(arr[i]);
       arr = out;
     }
 
     if (tipoFilter !== "TODOS") {
       const out = [];
-      for (let i = 0; i < arr.length; i++)
-        if (arr[i].tipo === tipoFilter) out.push(arr[i]);
+      for (let i = 0; i < arr.length; i++) if (arr[i].tipo === tipoFilter) out.push(arr[i]);
       arr = out;
     }
 
     if (clienteFilter !== "TODOS") {
       const out = [];
-      for (let i = 0; i < arr.length; i++)
-        if (arr[i].cliente === clienteFilter) out.push(arr[i]);
+      for (let i = 0; i < arr.length; i++) if (arr[i].cliente === clienteFilter) out.push(arr[i]);
       arr = out;
     }
 
@@ -731,15 +707,7 @@ export default function ProdOperacaoPage() {
       if (ra !== rb) return ra - rb;
       return String(a.id).localeCompare(String(b.id), "pt-BR");
     });
-  }, [
-    tasks,
-    query,
-    statusFilter,
-    tipoFilter,
-    clienteFilter,
-    normalize,
-    isAdmin,
-  ]);
+  }, [tasks, query, statusFilter, tipoFilter, clienteFilter, normalize, isAdmin]);
 
   const onCreateTask = useCallback(
     async (payload) => {
@@ -762,18 +730,12 @@ export default function ProdOperacaoPage() {
     async (taskId, meta) => {
       await wrapLoading(`meta:${taskId}`, async () => {
         const current =
-          selectedTask && String(selectedTask.id) === String(taskId)
-            ? selectedTask
-            : null;
+          selectedTask && String(selectedTask.id) === String(taskId) ? selectedTask : null;
 
         const payload = { ...(meta || {}) };
 
-        if (current?.expedicao && !payload.expedicao) {
-          payload.expedicao = current.expedicao;
-        }
-        if (current?.recebimento && !payload.recebimento) {
-          payload.recebimento = current.recebimento;
-        }
+        if (current?.expedicao && !payload.expedicao) payload.expedicao = current.expedicao;
+        if (current?.recebimento && !payload.recebimento) payload.recebimento = current.recebimento;
 
         await apiLocal.patchDemandaOpcMeta(taskId, payload);
       });
@@ -844,8 +806,7 @@ export default function ProdOperacaoPage() {
 
   const finishingTask = useMemo(() => {
     if (!finishTaskId) return null;
-    for (let i = 0; i < tasks.length; i++)
-      if (tasks[i].id === finishTaskId) return tasks[i];
+    for (let i = 0; i < tasks.length; i++) if (tasks[i].id === finishTaskId) return tasks[i];
     return null;
   }, [finishTaskId, tasks]);
 
@@ -860,8 +821,7 @@ export default function ProdOperacaoPage() {
     }
 
     const out = [];
-    for (let i = 0; i < TIPOS.length; i++)
-      out.push([TIPOS[i], map[TIPOS[i]] || []]);
+    for (let i = 0; i < TIPOS.length; i++) out.push([TIPOS[i], map[TIPOS[i]] || []]);
     for (const k in map) if (TIPOS.indexOf(k) === -1) out.push([k, map[k]]);
     return out;
   }, [filteredTasks]);
@@ -870,29 +830,24 @@ export default function ProdOperacaoPage() {
     let base = tasks;
 
     const baseNoCancel = [];
-    for (let i = 0; i < base.length; i++) {
-      if (base[i]?.status !== STATUS.CANCELADA) baseNoCancel.push(base[i]);
-    }
+    for (let i = 0; i < base.length; i++) if (base[i]?.status !== STATUS.CANCELADA) baseNoCancel.push(base[i]);
     base = baseNoCancel;
 
     if (statusFilter !== "TODOS") {
       const out = [];
-      for (let i = 0; i < base.length; i++)
-        if (base[i].status === statusFilter) out.push(base[i]);
+      for (let i = 0; i < base.length; i++) if (base[i].status === statusFilter) out.push(base[i]);
       base = out;
     }
 
     if (tipoFilter !== "TODOS") {
       const out = [];
-      for (let i = 0; i < base.length; i++)
-        if (base[i].tipo === tipoFilter) out.push(base[i]);
+      for (let i = 0; i < base.length; i++) if (base[i].tipo === tipoFilter) out.push(base[i]);
       base = out;
     }
 
     if (clienteFilter !== "TODOS") {
       const out = [];
-      for (let i = 0; i < base.length; i++)
-        if (base[i].cliente === clienteFilter) out.push(base[i]);
+      for (let i = 0; i < base.length; i++) if (base[i].cliente === clienteFilter) out.push(base[i]);
       base = out;
     }
 
@@ -910,7 +865,7 @@ export default function ProdOperacaoPage() {
 
     for (let i = 0; i < base.length; i++) {
       const t = base[i];
-      if (!map[t.tipo])
+      if (!map[t.tipo]) {
         map[t.tipo] = {
           PROGRAMADA: 0,
           EM_ANDAMENTO: 0,
@@ -919,6 +874,7 @@ export default function ProdOperacaoPage() {
           CANCELADA: 0,
           TOTAL: 0,
         };
+      }
 
       map[t.tipo].TOTAL += 1;
 
@@ -937,7 +893,6 @@ export default function ProdOperacaoPage() {
 
   // =========================
   // ✅ DISPONÍVEIS POR TURNO
-  // regra: mostrar apenas pessoas do turno atual, e que NÃO estão em tarefas ativas
   // =========================
   const activePeopleSet = useMemo(() => {
     const set = {};
@@ -961,10 +916,7 @@ export default function ProdOperacaoPage() {
       const t = normalizeTurnoValue(r.turno || "");
 
       if (!nome) continue;
-
-      // se não tem turno cadastrado, não entra (pra não bagunçar)
       if (!t) continue;
-
       if (t !== turno) continue;
 
       out.push(nome);
@@ -972,11 +924,7 @@ export default function ProdOperacaoPage() {
     return out;
   }, [responsaveisOperacaoRows, turnoAtual]);
 
-  const activeTasksTurno = useMemo(() => {
-    // tarefas ativas permanecem aparecendo (não filtramos as cards),
-    // o filtro de turno é SOMENTE para o painel de disponíveis.
-    return activeTasks;
-  }, [activeTasks]);
+  const activeTasksTurno = useMemo(() => activeTasks, [activeTasks]);
 
   return (
     <Page>
@@ -1001,9 +949,7 @@ export default function ProdOperacaoPage() {
         actorName={actorName}
         onDidChange={markDirty}
         onSaveMeta={patchDemandaMeta}
-        isSavingMeta={
-          selectedTask?.id ? isLoading(`meta:${selectedTask.id}`) : false
-        }
+        isSavingMeta={selectedTask?.id ? isLoading(`meta:${selectedTask.id}`) : false}
       />
 
       <TitleBar style={{ zIndex: 1100 }}>
@@ -1038,24 +984,16 @@ export default function ProdOperacaoPage() {
           </SearchWrap>
 
           {queryIsDoc ? (
-            <Button
-              color="info"
-              onClick={searchByDocOrText}
-              disabled={isBusyTop}
-            >
+            <Button color="info" onClick={searchByDocOrText} disabled={isBusyTop}>
               {isLoading("search") ? <Loader /> : "Buscar NF/Chave"}
             </Button>
           ) : null}
 
-          <Button color="secondary" onClick={loadDemandas} disabled={isBusyTop}>
+          <Button color="secondary" onClick={() => loadDemandas()} disabled={isBusyTop}>
             {isLoading("list") ? <Loader /> : "Recarregar"}
           </Button>
 
-          <Button
-            color="primary"
-            onClick={() => setOpenCreate(true)}
-            disabled={isLoading("create")}
-          >
+          <Button color="primary" onClick={() => setOpenCreate(true)} disabled={isLoading("create")}>
             {isLoading("create") ? <Loader /> : "+ Criar tarefa"}
           </Button>
         </RightActions>
@@ -1079,29 +1017,19 @@ export default function ProdOperacaoPage() {
           >
             <Field>
               <Label>Status:</Label>
-              <FilterSelect
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                title="Status"
-              >
+              <FilterSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} title="Status">
                 <option value="TODOS">Todos</option>
                 <option value={STATUS.PROGRAMADA}>Programada</option>
                 <option value={STATUS.EM_ANDAMENTO}>Em andamento</option>
                 <option value={STATUS.PAUSADA}>Pausada</option>
                 <option value={STATUS.CONCLUIDA}>Concluída</option>
-                {isAdmin ? (
-                  <option value={STATUS.CANCELADA}>Cancelada</option>
-                ) : null}
+                {isAdmin ? <option value={STATUS.CANCELADA}>Cancelada</option> : null}
               </FilterSelect>
             </Field>
 
             <Field>
               <Label>Tipo demanda:</Label>
-              <FilterSelect
-                value={tipoFilter}
-                onChange={(e) => setTipoFilter(e.target.value)}
-                title="Tipo"
-              >
+              <FilterSelect value={tipoFilter} onChange={(e) => setTipoFilter(e.target.value)} title="Tipo">
                 <option value="TODOS">Todos</option>
                 {TIPOS.map((t) => (
                   <option key={t} value={t}>
@@ -1113,11 +1041,7 @@ export default function ProdOperacaoPage() {
 
             <Field>
               <Label>Cliente:</Label>
-              <FilterSelect
-                value={clienteFilter}
-                onChange={(e) => setClienteFilter(e.target.value)}
-                title="Cliente"
-              >
+              <FilterSelect value={clienteFilter} onChange={(e) => setClienteFilter(e.target.value)} title="Cliente">
                 <option value="TODOS">Todos</option>
                 {clientesDisponiveis.map((c) => (
                   <option key={c} value={c}>
@@ -1129,20 +1053,12 @@ export default function ProdOperacaoPage() {
 
             <Field>
               <Label>Data inicial</Label>
-              <DateInput
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
+              <DateInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             </Field>
 
             <Field>
               <Label>Data final</Label>
-              <DateInput
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
+              <DateInput type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </Field>
 
             <Field>
@@ -1166,7 +1082,7 @@ export default function ProdOperacaoPage() {
               </FilterSelect>
             </Field>
 
-            <Button color="primary" onClick={loadDemandas} disabled={isBusyTop}>
+            <Button color="primary" onClick={() => loadDemandas()} disabled={isBusyTop}>
               {isLoading("list") ? <Loader /> : "Buscar"}
             </Button>
           </div>
@@ -1197,9 +1113,7 @@ export default function ProdOperacaoPage() {
                   <Dot $v={tipo} />
                   <strong style={{ fontSize: 14 }}>{tipo}</strong>
                 </div>
-                <span style={{ fontWeight: 900, opacity: 0.75 }}>
-                  {row.TOTAL}
-                </span>
+                <span style={{ fontWeight: 900, opacity: 0.75 }}>{row.TOTAL}</span>
               </TypeStatsHeader>
 
               <TypeStatsRow>
@@ -1233,7 +1147,6 @@ export default function ProdOperacaoPage() {
         })}
       </InfoBar>
 
-      {/* ✅ Aqui é onde filtra os “disponíveis”: só o turno atual */}
       <ListaIntegrantes
         operadores={operadoresOperacaoTurno}
         tasks={activeTasksTurno}
@@ -1251,15 +1164,11 @@ export default function ProdOperacaoPage() {
           </GroupHeader>
 
           {isBusyList ? (
-            <EmptyState
-              style={{ display: "flex", gap: 10, alignItems: "center" }}
-            >
+            <EmptyState style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <Loader /> Carregando tarefas...
             </EmptyState>
           ) : list.length === 0 ? (
-            <EmptyState>
-              Sem tarefas nesse grupo com os filtros atuais.
-            </EmptyState>
+            <EmptyState>Sem tarefas nesse grupo com os filtros atuais.</EmptyState>
           ) : (
             <CardGrid>
               {list.map((t) => (
@@ -1273,12 +1182,7 @@ export default function ProdOperacaoPage() {
                   isStarting={isLoading(`start:${t.id}`)}
                   isFinishing={isLoading(`finish:${t.id}`)}
                   isOpening={false}
-                  disabled={anyLoading([
-                    "list",
-                    "search",
-                    `start:${t.id}`,
-                    `finish:${t.id}`,
-                  ])}
+                  disabled={anyLoading(["list", "search", `start:${t.id}`, `finish:${t.id}`])}
                 />
               ))}
             </CardGrid>
