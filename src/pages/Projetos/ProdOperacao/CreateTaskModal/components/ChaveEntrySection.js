@@ -34,20 +34,34 @@ export default function ChaveEntrySection({
 
     // chama o mesmo fluxo do enter
     addByChave(chave44);
-    pushLog(`Câmera detectou: ${String(chave44).slice(0, 6)}…${String(chave44).slice(-4)}`);
+    pushLog(
+      `Câmera detectou: ${String(chave44).slice(0, 6)}…${String(chave44).slice(-4)}`,
+    );
   };
 
   return (
     <Field style={{ gridColumn: "1 / -1" }}>
       <Label>
-        {isRecebimento ? "Inserção manual (último caso)" : "Bipar/Digitar chave 44"}{" "}
+        {isRecebimento
+          ? "Inserção manual (último caso)"
+          : "Bipar/Digitar chave 44"}{" "}
         <span style={{ opacity: 0.7, fontWeight: 700 }}>({docsCount})</span>
       </Label>
 
       <Inline2>
         <MiniInput
           value={chaveInput}
-          onChange={(e) => setChaveInput(e.target.value)}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setChaveInput(raw);
+
+            const d = String(raw || "").replace(/\D/g, "");
+            if (d.length === 44 && !busy) {
+              // limpa antes pra não duplicar se o scanner repetir
+              setChaveInput("");
+              addByChave(d);
+            }
+          }}
           onKeyDown={onChaveKeyDown}
           placeholder="Chave 44 dígitos + Enter"
           disabled={!canTypeOrScan}
@@ -70,7 +84,7 @@ export default function ChaveEntrySection({
         >
           {busyKey === "add-chave" ? <Loader /> : "Add"}
         </InlineBtn>
-{/* 
+        {/* 
         <InlineBtn
           type="button"
           disabled={!canTypeOrScan}
@@ -84,12 +98,18 @@ export default function ChaveEntrySection({
 
       {isRecebimento ? (
         !allowManualReceb ? (
-          <Hint>Para bipar manual: selecione o cliente (manual) OU importe XML/ZIP.</Hint>
+          <Hint>
+            Para bipar manual: selecione o cliente (manual) OU importe XML/ZIP.
+          </Hint>
         ) : (
-          <Hint>Agora dá pra digitar, colar ou usar a câmera. Sem modal, sem drama.</Hint>
+          <Hint>
+            Agora dá pra digitar, colar ou usar a câmera. Sem modal, sem drama.
+          </Hint>
         )
       ) : isExpedicao ? (
-        <Hint>Expedição aceita múltiplos clientes. Câmera adiciona uma por vez.</Hint>
+        <Hint>
+          Expedição aceita múltiplos clientes. Câmera adiciona uma por vez.
+        </Hint>
       ) : (
         <Hint>Ao bipar, puxa do banco (NF-e/CT-e). Sem misturar cliente.</Hint>
       )}

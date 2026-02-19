@@ -72,24 +72,35 @@ function sanitizeChave44(raw) {
   if (d.length !== 44) return "";
   return d;
 }
+
 function clientKey(c) {
   if (!c) return "";
   const nome = String(c.nome || "").trim();
-  const cnpj = String(c.cnpj || "").trim();
-  if (nome) return `NOME:${normalizeText(nome)}`;
+  const cnpj = onlyDigits(c.cnpj || "");
   if (cnpj) return `CNPJ:${cnpj}`;
+  if (nome) return `NOME:${normalizeText(nome)}`;
   return "";
 }
+
+// ✅ FIX: cliente “vazio” NÃO pode ser tratado como igual a qualquer um
 function sameClient(a, b) {
   const ka = clientKey(a);
   const kb = clientKey(b);
-  if (!ka || !kb) return true;
+
+  // ambos sem info => considera igual (não dá pra comparar)
+  if (!ka && !kb) return true;
+
+  // um tem info e o outro não => NÃO é igual
+  if (!ka || !kb) return false;
+
   return ka === kb;
 }
+
 function n2(v) {
   const x = Number(v || 0);
   return Math.round(x * 100) / 100;
 }
+
 function sumDocsTotals(docs) {
   let totalPeso = 0;
   let totalVol = 0;
@@ -109,6 +120,7 @@ function sumDocsTotals(docs) {
     totalPalletsFromDocs: Number(totalPal || 0),
   };
 }
+
 function inferDocMetaFromDoc(doc) {
   const dk = String(doc?.docKind || doc?.doc_kind || "").toUpperCase().trim();
   const docKind = dk === "CTE" ? "CTE" : "NFE";
@@ -116,48 +128,49 @@ function inferDocMetaFromDoc(doc) {
   const paletizada = pal > 0;
   return { docKind, paletizada };
 }
+
 function safeArray(v) {
   return Array.isArray(v) ? v : [];
 }
 
-function uniqueClientsFromDocs(docs) {
-  const map = {};
-  const out = [];
-  const arr = Array.isArray(docs) ? docs : [];
-  for (let i = 0; i < arr.length; i++) {
-    const c = arr[i]?.cliente || null;
-    if (!c) continue;
+// ✅ NÃO INVENTA “MÚLTIPLOS”; só normaliza o que já veio
+function normalizeClienteRaw(raw) {
+  if (!raw || typeof raw !== "object") return null;
 
-    const nome = String(c.nome || "").trim();
-    const cnpj = onlyDigits(c.cnpj || "");
-    const k = `${normalizeText(nome)}::${cnpj}`;
-    if (!k) continue;
-    if (map[k]) continue;
-    map[k] = true;
-    out.push({ nome, cnpj });
-  }
-  return out;
+  const nome = String(raw.nome || raw.cliente_nome || raw.nome_cliente || "").trim();
+  const cnpj = onlyDigits(
+    raw.cnpj ||
+      raw.doc ||
+      raw.cliente_cnpj ||
+      raw.cnpj_cliente ||
+      raw.cliente_doc ||
+      "",
+  );
+
+  // se não tiver nada, retorna null
+  if (!nome && !cnpj) return null;
+
+  return { nome, cnpj };
 }
 
-// ✅ NOVO: extrai cliente mesmo se vier em formatos alternativos
 function extractCliente(doc) {
   if (!doc) return null;
 
-  // 1) já veio no formato certo
+  // 1) formato padrão
   if (doc.cliente && typeof doc.cliente === "object") {
-    const nome = String(doc.cliente.nome || doc.cliente.cliente_nome || "").trim();
-    const cnpj = onlyDigits(
-      doc.cliente.cnpj || doc.cliente.doc || doc.cliente.cliente_doc || "",
-    );
-    if (nome || cnpj) return { nome, cnpj };
+    const c = normalizeClienteRaw(doc.cliente);
+    if (c) return c;
   }
 
-  // 2) veio “espalhado” no doc
-  const nome2 = String(doc.cliente_nome || doc.nome_cliente || "").trim();
-  const cnpj2 = onlyDigits(doc.cliente_cnpj || doc.cnpj_cliente || doc.cliente_doc || "");
-  if (nome2 || cnpj2) return { nome: nome2, cnpj: cnpj2 };
+  // 2) espalhado
+  const spread = {
+    nome: doc.cliente_nome || doc.nome_cliente || "",
+    cnpj: doc.cliente_cnpj || doc.cnpj_cliente || doc.cliente_doc || "",
+  };
+  const c2 = normalizeClienteRaw(spread);
+  if (c2) return c2;
 
-  // 3) fallback: cliente como string
+  // 3) cliente como string (mantém do jeito que veio)
   if (typeof doc.cliente === "string") {
     const nome3 = String(doc.cliente || "").trim();
     if (nome3) return { nome: nome3, cnpj: "" };
@@ -166,12 +179,59 @@ function extractCliente(doc) {
   return null;
 }
 
+// ✅ Garante SEMPRE dict no doc.cliente (pra não travar e pra não mandar null)
 function normalizeDocWithCliente(doc) {
-  const c = extractCliente(doc);
+  const extracted = extractCliente(doc);
+
+  let finalCliente = null;
+
+  if (extracted) {
+    finalCliente = {
+      nome: String(extracted.nome || "").trim(),
+      cnpj: String(extracted.cnpj || "").trim(),
+    };
+  } else if (doc && doc.cliente && typeof doc.cliente === "object") {
+    // caso bizarro: já tinha objeto mas não deu pra extrair
+    finalCliente = {
+      nome: String(doc.cliente.nome || "").trim(),
+      cnpj: String(onlyDigits(doc.cliente.cnpj || "")).trim(),
+    };
+  } else {
+    // legado (xml vazio / manipulação antiga) -> não trava
+    finalCliente = { nome: "NÃO INFORMADO", cnpj: "" };
+  }
+
   return {
     ...doc,
-    cliente: c ? { nome: String(c.nome || ""), cnpj: String(c.cnpj || "") } : null,
+    cliente: finalCliente,
   };
+}
+
+// ✅ Clientes únicos a partir dos docs, sem inventar nome.
+// Ignora cliente totalmente vazio (nome e cnpj vazios).
+function uniqueClientsFromDocs(docs) {
+  const map = {};
+  const out = [];
+  const arr = Array.isArray(docs) ? docs : [];
+
+  for (let i = 0; i < arr.length; i++) {
+    const c = arr[i]?.cliente || null;
+    if (!c) continue;
+
+    const nome = String(c.nome || "").trim();
+    const cnpj = onlyDigits(c.cnpj || "");
+
+    // ✅ se não tem nada, ignora
+    if (!nome && !cnpj) continue;
+
+    const k = `${normalizeText(nome)}::${cnpj}`;
+    if (map[k]) continue;
+
+    map[k] = true;
+    out.push({ nome, cnpj });
+  }
+
+  return out;
 }
 
 export default function CreateTaskModal({
@@ -601,7 +661,7 @@ export default function CreateTaskModal({
         docKind,
         source: "manual",
         chave,
-        cliente: docs[0]?.cliente || clienteManual || null,
+        cliente: docs[0]?.cliente || clienteManual || { nome: "NÃO INFORMADO", cnpj: "" },
         volumes: 0,
         pallets: 0,
         pesoKg: 0,
@@ -700,65 +760,53 @@ export default function CreateTaskModal({
     await runBusy("confirm", async () => {
       if (String(observacao || "").trim()) pushLog("Observação definida/atualizada");
 
-      // ✅ normaliza docs (garante cliente por doc)
-      const docsNormalized = (Array.isArray(docs) ? docs : []).map((d) =>
-        normalizeDocWithCliente(d),
-      );
-
-      // ✅ clientes únicos a partir dos docs normalizados
-      const clientesUnicos = uniqueClientsFromDocs(docsNormalized);
-
-      // ✅ cliente REAL do topo: só se for único
-      let clienteTop = null;
-
-      // ✅ resumo pra UI (pode virar "MÚLTIPLOS")
-      let clienteResumo = null;
-
-      if (isExpedicao) {
-        if (clientesUnicos.length === 1) {
-          clienteTop = {
-            nome: clientesUnicos[0].nome || "",
-            cnpj: clientesUnicos[0].cnpj || "",
-          };
-          clienteResumo = clienteTop;
-        } else if (clientesUnicos.length > 1) {
-          // ⚠️ NÃO mande "MÚLTIPLOS" como cliente REAL
-          clienteTop = null;
-          clienteResumo = { nome: "MÚLTIPLOS", cnpj: "" };
-        } else {
-          clienteTop = null;
-          clienteResumo = null;
+      // ✅ FIX: docsNormalized NÃO pode ser sempre []
+      const docsNormalized = [];
+      if (Array.isArray(docs)) {
+        for (let i = 0; i < docs.length; i++) {
+          docsNormalized.push(normalizeDocWithCliente(docs[i]));
         }
-      } else {
-        clienteTop = { nome: clienteDefinido?.nome || "", cnpj: clienteDefinido?.cnpj || "" };
-        clienteResumo = clienteTop;
       }
 
-      const payload = {
-        docKind,
-        tipo,
-        paletizada,
+      const clientesUnicos = uniqueClientsFromDocs(docsNormalized);
 
-        // ✅ cliente REAL (apenas se único)
-        cliente: clienteTop,
+      // ✅ cliente topo: SEMPRE dict (back não aceita null)
+      // Expedição multi: usa o primeiro doc como topo (apenas pra satisfazer schema).
+      let clienteTop = null;
 
-        // ✅ resumo (para exibição / logs no front)
-        clienteResumo,
+      if (isExpedicao) {
+        const firstDocCliente = docsNormalized.length ? docsNormalized[0]?.cliente : null;
+        if (firstDocCliente && typeof firstDocCliente === "object") {
+          clienteTop = {
+            nome: String(firstDocCliente.nome || "NÃO INFORMADO"),
+            cnpj: String(firstDocCliente.cnpj || ""),
+          };
+        } else {
+          clienteTop = { nome: "NÃO INFORMADO", cnpj: "" };
+        }
+      } else {
+        clienteTop = {
+          nome: String(clienteDefinido?.nome || "NÃO INFORMADO"),
+          cnpj: String(clienteDefinido?.cnpj || ""),
+        };
+      }
 
-        // ✅ lista de clientes (para exibição quando expedição)
-        clientes: isExpedicao ? clientesUnicos : null,
+      const docsPayload = [];
+      for (let i = 0; i < docsNormalized.length; i++) {
+        const d = docsNormalized[i];
 
-        totalPalletsOverride: paletizada ? Number(totalPalletsFinal || 0) : null,
+        const c =
+          d?.cliente && typeof d.cliente === "object"
+            ? { nome: String(d.cliente.nome || "NÃO INFORMADO"), cnpj: String(d.cliente.cnpj || "") }
+            : { nome: "NÃO INFORMADO", cnpj: "" };
 
-        // ✅ cada doc com seu cliente correto (nome/cnpj)
-        docs: docsNormalized.map((d) => ({
+        docsPayload.push({
           docKind: d.docKind || docKind,
           source: d.source,
           chave: d.chave,
 
-          cliente: d.cliente
-            ? { nome: String(d.cliente.nome || ""), cnpj: String(d.cliente.cnpj || "") }
-            : null,
+          // ✅ sempre dict; nunca inventa MULTIPLOS
+          cliente: c,
 
           volumes: Number(d.volumes || 0),
           pallets: Number(d.pallets || 0),
@@ -766,7 +814,26 @@ export default function CreateTaskModal({
 
           status: d.status || (isRecebimento ? "RECEBIDA" : "EM_PROCESSO"),
           statusAt: d.statusAt || nowIso(),
-        })),
+        });
+      }
+
+      const payload = {
+        docKind,
+        tipo,
+        paletizada,
+
+        // ✅ nunca null
+        cliente: clienteTop,
+
+        // se você usa isso só pra UI, mantém igual ao topo (sem MULTIPLOS)
+        clienteResumo: clienteTop,
+
+        // ✅ lista real (sem inventar)
+        clientes: isExpedicao ? clientesUnicos : null,
+
+        totalPalletsOverride: paletizada ? Number(totalPalletsFinal || 0) : null,
+
+        docs: docsPayload,
 
         observacao,
         responsaveis,

@@ -7,7 +7,12 @@ import SetupPhase from "./components/SetupPhase";
 import ScanPhase from "./components/ScanPhase";
 import DivergenciaModal from "./components/DivergenciaModal";
 
-export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm }) {
+export default function ConferenciaModal({
+  isOpen,
+  onClose,
+  pedido,
+  onConfirm,
+}) {
   const {
     phase,
     setPhase,
@@ -55,8 +60,8 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
     stopMediaStreamsIn,
     SKIP_BENCH_PHOTOS,
     setConferente,
-      totalScanUnitario,
-  totalScanLote,
+    totalScanUnitario,
+    totalScanLote,
   } = useConferenciaCore({ pedido, isOpen, onConfirm });
 
   return (
@@ -98,8 +103,8 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                 pendentes={pendentes}
                 totalLidos={totalLidos}
                 totalSolic={totalSolic}
-                    totalScanUnitario={totalScanUnitario}
-    totalScanLote={totalScanLote}
+                totalScanUnitario={totalScanUnitario}
+                totalScanLote={totalScanLote}
                 sinkRef={sinkRef}
                 onSinkKeyDown={onSinkKeyDown}
                 keepFocus={keepFocus}
@@ -116,6 +121,7 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                 onResolverOcorrencia={(occId) =>
                   resolverOcorrenciaById(occId, "Resolvido manualmente")
                 }
+                loteSemEan={true}
               />
             )}
           </Wrap>
@@ -161,8 +167,8 @@ export default function ConferenciaModal({ isOpen, onClose, pedido, onConfirm })
                 !podeSalvar100
                   ? "Pendências ainda abertas"
                   : temOcorrenciaAberta
-                  ? "Feche as ocorrências para concluir 100%"
-                  : "Salvar conferência (100%)"
+                    ? "Feche as ocorrências para concluir 100%"
+                    : "Salvar conferência (100%)"
               }
             >
               {savingSubmit ? "Lançando..." : "Salvar conferência (100%)"}

@@ -37,6 +37,7 @@ export default function ScanPhase({
   onResolverOcorrencia,
   totalScanUnitario,
   totalScanLote,
+  loteSemEan
 }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -98,6 +99,7 @@ export default function ScanPhase({
           expectedBars={expectedBars}
           onScanEan={onScanEan}
           onScanLoteQuantidade={onScanLoteQuantidade}
+          loteSemEan={loteSemEan}
         />
       </ScannerWrap>
 
