@@ -408,7 +408,7 @@ const App = () => {
         <Route
           path="/projecao"
           element={
-            <PrivateRoute element={<Projecao />} allowedSectors={[SECTORS.ADMIN]} />
+            <PrivateRoute element={<Projecao />} allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]} />
           }
         />
       </Routes>
