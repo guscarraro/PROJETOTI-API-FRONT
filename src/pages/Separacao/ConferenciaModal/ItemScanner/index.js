@@ -29,6 +29,16 @@ export default function ItemScanner({
   const [bufEANLote, setBufEANLote] = useState("");
   const [bufQTD, setBufQTD] = useState("");
 
+  // ✅ modo do fluxo em lote
+  const LOTE_MODES = {
+    LOTE: "LOTE",
+    EAN_QTD: "EAN_QTD",
+  };
+  const [loteMode, setLoteMode] = useState(LOTE_MODES.LOTE);
+
+  // ✅ tema (lê data-theme do DOM e reage a mudanças)
+  const [isDark, setIsDark] = useState(false);
+
   const unitTimerRef = useRef(null);
   const loteTimerRef = useRef(null);
   const eanLoteTimerRef = useRef(null);
@@ -36,6 +46,53 @@ export default function ItemScanner({
 
   const lastUnitRef = useRef({ v: "", at: 0 });
   const lastLoteFinalizeRef = useRef({ key: "", at: 0 });
+
+  function readThemeIsDark() {
+    try {
+      const root = document.documentElement;
+      const body = document.body;
+
+      const t1 = root?.getAttribute("data-theme");
+      if (t1) return String(t1).toLowerCase() === "dark";
+
+      const t2 = body?.getAttribute("data-theme");
+      if (t2) return String(t2).toLowerCase() === "dark";
+
+      return false;
+    } catch {
+      return false;
+    }
+  }
+
+  useEffect(() => {
+    setIsDark(readThemeIsDark());
+
+    let obsRoot = null;
+    let obsBody = null;
+
+    try {
+      obsRoot = new MutationObserver(() => setIsDark(readThemeIsDark()));
+      obsRoot.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["data-theme", "class"],
+      });
+    } catch {}
+
+    try {
+      obsBody = new MutationObserver(() => setIsDark(readThemeIsDark()));
+      obsBody.observe(document.body, {
+        attributes: true,
+        attributeFilter: ["data-theme", "class"],
+      });
+    } catch {}
+
+    return () => {
+      try {
+        obsRoot?.disconnect();
+        obsBody?.disconnect();
+      } catch {}
+    };
+  }, []);
 
   useEffect(() => {
     setTimeout(() => {
@@ -88,6 +145,38 @@ export default function ItemScanner({
     timerRef.current = setTimeout(fn, delayMs);
   }
 
+  // ✅ estilos (light/dark)
+  const colors = {
+    bg: isDark ? "#0b1220" : "#ffffff",
+    bgSoft: isDark ? "#0f172a" : "#f1f5f9",
+    text: isDark ? "#e5e7eb" : "#111827",
+    textSoft: isDark ? "#cbd5e1" : "#374151",
+    border: isDark ? "rgba(148, 163, 184, 0.45)" : "#94a3b8",
+    borderSoft: isDark ? "#334155" : "#cbd5e1",
+  };
+
+  const inputBaseStyle = {
+    width: "100%",
+    padding: 12,
+    borderRadius: 10,
+    border: `1px dashed ${colors.border}`,
+    background: colors.bg,
+    color: colors.text,
+    fontWeight: 600,
+    outline: "none",
+  };
+
+  const selectStyle = {
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: `1px dashed ${colors.border}`,
+    fontWeight: 700,
+    background: colors.bg,
+    color: colors.text,
+    minWidth: 220,
+    outline: "none",
+  };
+
   function handleEANUnit(code) {
     const val = String(code != null ? code : bufEANUnit || "").trim();
     if (!val) return;
@@ -122,36 +211,56 @@ export default function ItemScanner({
   }
 
   async function handleLoteFinalize(lote, ean, qtdStr) {
-    const loteVal = normalizeLote(lote);
-    const eanVal = loteSemEan ? "" : normalizeEAN(String(ean || ""));
+    const isEanQtd = loteMode === LOTE_MODES.EAN_QTD;
+
+    const loteVal = isEanQtd ? "__SEM_LOTE__" : normalizeLote(lote);
+
+    const eanVal = isEanQtd
+      ? normalizeEAN(String(ean || ""))
+      : loteSemEan
+        ? ""
+        : normalizeEAN(String(ean || ""));
+
     const qtdVal = String(qtdStr || "").trim();
     const qn = parseInt(qtdVal, 10);
 
-    // validação
-    if (!loteVal || !qn || isNaN(qn) || qn <= 0) {
+    if (!qn || isNaN(qn) || qn <= 0) {
       play(beepErr);
-      if (!loteVal) focusRef(loteRef);
-      else focusRef(qtdRef);
+      focusRef(qtdRef);
       return;
     }
 
-    // se NÃO for loteSemEan, aí sim exige ean
-    if (!loteSemEan && !eanVal) {
-      play(beepErr);
-      focusRef(eanLoteRef);
-      return;
+    if (isEanQtd) {
+      if (!eanVal) {
+        play(beepErr);
+        focusRef(eanLoteRef);
+        return;
+      }
+    } else {
+      if (!loteVal) {
+        play(beepErr);
+        focusRef(loteRef);
+        return;
+      }
+      if (!loteSemEan && !eanVal) {
+        play(beepErr);
+        focusRef(eanLoteRef);
+        return;
+      }
     }
 
-    const key = loteSemEan
-      ? `${loteVal}::${qn}`
-      : `${loteVal}::${eanVal}::${qn}`;
+    const key = isEanQtd
+      ? `${loteVal}::${eanVal}::${qn}`
+      : loteSemEan
+        ? `${loteVal}::${qn}`
+        : `${loteVal}::${eanVal}::${qn}`;
 
     const now = Date.now();
     if (lastLoteFinalizeRef.current.key === key && now - lastLoteFinalizeRef.current.at < 900) {
       setBufLote("");
       setBufEANLote("");
       setBufQTD("");
-      focusRef(loteRef);
+      focusRef(isEanQtd ? eanLoteRef : loteRef);
       return;
     }
     lastLoteFinalizeRef.current = { key, at: now };
@@ -166,7 +275,7 @@ export default function ItemScanner({
         ok = await Promise.resolve(
           onScanLoteQuantidade({
             lote: loteVal,
-            ean: eanVal, // "" quando loteSemEan=true
+            ean: eanVal,
             quantidade: qn,
           })
         );
@@ -176,7 +285,7 @@ export default function ItemScanner({
     }
     play(ok ? beepOk : beepErr);
 
-    focusRef(loteRef);
+    focusRef(isEanQtd ? eanLoteRef : loteRef);
   }
 
   const UNIT_MIN_LEN = 8;
@@ -188,7 +297,8 @@ export default function ItemScanner({
     <div style={{ display: "grid", gap: 10 }}>
       {/* ===== EAN UNITÁRIO ===== */}
       <div style={{ display: "grid", gap: 6 }}>
-        <SmallLabel>Leitura por EAN (unitária)</SmallLabel>
+        <SmallLabel color={colors.textSoft}>Leitura por EAN (unitária)</SmallLabel>
+
         <input
           ref={eanUnitRef}
           value={bufEANUnit}
@@ -239,15 +349,14 @@ export default function ItemScanner({
           }
           disabled={!!bufLote}
           style={{
-            width: "100%",
-            padding: 12,
-            borderRadius: 10,
-            border: `1px dashed ${bufLote ? "#cbd5e1" : "#94a3b8"}`,
-            background: bufLote ? "#f1f5f9" : "#fff",
-            fontWeight: 600,
+            ...inputBaseStyle,
+            border: `1px dashed ${bufLote ? colors.borderSoft : colors.border}`,
+            background: bufLote ? colors.bgSoft : colors.bg,
+            color: bufLote ? colors.textSoft : colors.text,
           }}
         />
-        <div style={{ fontSize: 12, opacity: 0.7 }}>
+
+        <div style={{ fontSize: 12, opacity: 0.8, color: colors.textSoft }}>
           EAN isolado abate <strong>1</strong>. Com LOTE ativo, este campo fica
           desabilitado até finalizar o lote.
         </div>
@@ -255,75 +364,51 @@ export default function ItemScanner({
 
       {/* ===== FLUXO LOTE ===== */}
       <div style={{ display: "grid", gap: 6 }}>
-        <SmallLabel>
-          Leitura por LOTE {loteSemEan ? "(somente LOTE + QTD)" : "(LOTE + EAN + QTD)"}
+        <SmallLabel color={colors.textSoft}>
+          Leitura em lote{" "}
+          {loteMode === LOTE_MODES.EAN_QTD
+            ? "(EAN + QTD, sem lote)"
+            : loteSemEan
+              ? "(LOTE + QTD)"
+              : "(LOTE + QTD)"}
         </SmallLabel>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: loteSemEan ? "1fr 140px" : "1fr 1fr 120px",
-            gap: 8,
-          }}
-        >
-          {/* LOTE */}
-          <input
-            ref={loteRef}
-            value={bufLote}
+        {/* ✅ SELECT */}
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <div style={{ fontSize: 12, opacity: 0.85, color: colors.textSoft }}>
+            Modo do lote:
+          </div>
+
+          <select
+            value={loteMode}
             onChange={(e) => {
-              const raw = e.target.value;
-              setBufLote(raw);
+              const v = e.target.value;
 
-              // reset do restante
+              setLoteMode(v);
+              setBufLote("");
               setBufEANLote("");
               setBufQTD("");
 
-              const val = normalizeLote(raw);
-              schedule(() => {
-                if (val && val.length >= LOTE_MIN_LEN) {
-                  // ✅ se for loteSemEan, pula direto pra QTD
-                  if (loteSemEan) focusRef(qtdRef);
-                  else focusRef(eanLoteRef);
-                }
-              }, loteTimerRef, 120);
+              if (v === LOTE_MODES.EAN_QTD) focusRef(eanLoteRef);
+              else focusRef(loteRef);
             }}
-            onPaste={(e) => {
-              e.preventDefault();
-              const text = e.clipboardData?.getData("text") || "";
-              const val = normalizeLote(text);
-              if (!val) return;
+            style={selectStyle}
+          >
+            <option value={LOTE_MODES.LOTE}>Lote: LOTE + QTD (ou LOTE + QTD)</option>
+            <option value={LOTE_MODES.EAN_QTD}>Sem lote: EAN + QTD</option>
+          </select>
+        </div>
 
-              setBufLote(val);
-              setBufEANLote("");
-              setBufQTD("");
-
-              if (loteSemEan) focusRef(qtdRef);
-              else focusRef(eanLoteRef);
-            }}
-            onKeyDown={(e) => {
-              if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-              if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-                const v = normalizeLote(bufLote);
-                if (!v) return;
-
-                if (loteSemEan) focusRef(qtdRef);
-                else focusRef(eanLoteRef);
-              }
-            }}
-            placeholder="Digite/cole ou bipe o LOTE..."
+        {/* ===== Inputs do modo selecionado ===== */}
+        {loteMode === LOTE_MODES.EAN_QTD ? (
+          <div
             style={{
-              width: "100%",
-              padding: 12,
-              borderRadius: 10,
-              border: "1px dashed #94a3b8",
-              fontWeight: 600,
+              display: "grid",
+              gridTemplateColumns: "1fr 120px",
+              gap: 8,
             }}
-          />
-
-          {/* EAN do lote (só se precisar) */}
-          {!loteSemEan && (
+          >
+            {/* EAN (sem lote) */}
             <input
               ref={eanLoteRef}
               value={bufEANLote}
@@ -355,77 +440,213 @@ export default function ItemScanner({
                   focusRef(qtdRef);
                 }
               }}
-              placeholder="Digite/cole ou bipe o EAN do lote..."
+              placeholder="Digite/cole ou bipe o EAN..."
+              style={inputBaseStyle}
+            />
+
+            {/* QTD */}
+            <input
+              ref={qtdRef}
+              value={bufQTD}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setBufQTD(raw);
+
+                const digits = String(raw || "").replace(/\D/g, "");
+
+                schedule(() => {
+                  const qn = parseInt(digits || "0", 10);
+                  if (qn > 0) {
+                    handleLoteFinalize("", bufEANLote, digits);
+                  }
+                }, qtdTimerRef, 140);
+
+                if (digits.length > QTD_MAX_LEN) {
+                  setBufQTD(digits.slice(0, QTD_MAX_LEN));
+                }
+              }}
+              placeholder="QTD"
+              inputMode="numeric"
+              onPaste={(e) => {
+                e.preventDefault();
+                const text = e.clipboardData?.getData("text") || "";
+                const digits = String(text || "").replace(/\D/g, "");
+                if (!digits) return;
+                setBufQTD(digits);
+
+                schedule(() => handleLoteFinalize("", bufEANLote, digits), qtdTimerRef, 0);
+              }}
+              onKeyDown={(e) => {
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  handleLoteFinalize("", bufEANLote, bufQTD);
+                }
+              }}
               style={{
-                width: "100%",
-                padding: 12,
-                borderRadius: 10,
-                border: "1px dashed #94a3b8",
-                fontWeight: 600,
+                ...inputBaseStyle,
+                fontWeight: 700,
+                textAlign: "center",
               }}
             />
-          )}
-
-          {/* QTD */}
-          <input
-            ref={qtdRef}
-            value={bufQTD}
-            onChange={(e) => {
-              const raw = e.target.value;
-              setBufQTD(raw);
-
-              const digits = String(raw || "").replace(/\D/g, "");
-
-              schedule(() => {
-                const qn = parseInt(digits || "0", 10);
-                if (qn > 0) {
-                  handleLoteFinalize(bufLote, bufEANLote, digits);
-                }
-              }, qtdTimerRef, 140);
-
-              if (digits.length > QTD_MAX_LEN) {
-                setBufQTD(digits.slice(0, QTD_MAX_LEN));
-              }
-            }}
-            placeholder="QTD"
-            inputMode="numeric"
-            onPaste={(e) => {
-              e.preventDefault();
-              const text = e.clipboardData?.getData("text") || "";
-              const digits = String(text || "").replace(/\D/g, "");
-              if (!digits) return;
-              setBufQTD(digits);
-
-              schedule(() => handleLoteFinalize(bufLote, bufEANLote, digits), qtdTimerRef, 0);
-            }}
-            onKeyDown={(e) => {
-              if (e.ctrlKey || e.metaKey || e.altKey) return;
-
-              if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-                handleLoteFinalize(bufLote, bufEANLote, bufQTD);
-              }
-            }}
+          </div>
+        ) : (
+          <div
             style={{
-              width: "100%",
-              padding: 12,
-              borderRadius: 10,
-              border: "1px dashed #94a3b8",
-              fontWeight: 700,
-              textAlign: "center",
+              display: "grid",
+              gridTemplateColumns: loteSemEan ? "1fr 140px" : "1fr 1fr 120px",
+              gap: 8,
             }}
-          />
-        </div>
+          >
+            {/* LOTE */}
+            <input
+              ref={loteRef}
+              value={bufLote}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setBufLote(raw);
 
-        <div style={{ fontSize: 12, opacity: 0.7 }}>
-          {loteSemEan ? (
+                setBufEANLote("");
+                setBufQTD("");
+
+                const val = normalizeLote(raw);
+                schedule(() => {
+                  if (val && val.length >= LOTE_MIN_LEN) {
+                    if (loteSemEan) focusRef(qtdRef);
+                    else focusRef(eanLoteRef);
+                  }
+                }, loteTimerRef, 120);
+              }}
+              onPaste={(e) => {
+                e.preventDefault();
+                const text = e.clipboardData?.getData("text") || "";
+                const val = normalizeLote(text);
+                if (!val) return;
+
+                setBufLote(val);
+                setBufEANLote("");
+                setBufQTD("");
+
+                if (loteSemEan) focusRef(qtdRef);
+                else focusRef(eanLoteRef);
+              }}
+              onKeyDown={(e) => {
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  const v = normalizeLote(bufLote);
+                  if (!v) return;
+
+                  if (loteSemEan) focusRef(qtdRef);
+                  else focusRef(eanLoteRef);
+                }
+              }}
+              placeholder="Digite/cole ou bipe o LOTE..."
+              style={inputBaseStyle}
+            />
+
+            {/* EAN do lote (só se precisar) */}
+            {!loteSemEan && (
+              <input
+                ref={eanLoteRef}
+                value={bufEANLote}
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  setBufEANLote(raw);
+
+                  const val = normalizeEAN(raw);
+                  schedule(() => {
+                    if (val && val.length >= EAN_LOTE_MIN_LEN) {
+                      focusRef(qtdRef);
+                    }
+                  }, eanLoteTimerRef, 120);
+                }}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  const text = e.clipboardData?.getData("text") || "";
+                  const val = normalizeEAN(text);
+                  if (!val) return;
+
+                  setBufEANLote(val);
+                  focusRef(qtdRef);
+                }}
+                onKeyDown={(e) => {
+                  if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                  if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    focusRef(qtdRef);
+                  }
+                }}
+                placeholder="Digite/cole ou bipe o EAN do lote..."
+                style={inputBaseStyle}
+              />
+            )}
+
+            {/* QTD */}
+            <input
+              ref={qtdRef}
+              value={bufQTD}
+              onChange={(e) => {
+                const raw = e.target.value;
+                setBufQTD(raw);
+
+                const digits = String(raw || "").replace(/\D/g, "");
+
+                schedule(() => {
+                  const qn = parseInt(digits || "0", 10);
+                  if (qn > 0) {
+                    handleLoteFinalize(bufLote, bufEANLote, digits);
+                  }
+                }, qtdTimerRef, 140);
+
+                if (digits.length > QTD_MAX_LEN) {
+                  setBufQTD(digits.slice(0, QTD_MAX_LEN));
+                }
+              }}
+              placeholder="QTD"
+              inputMode="numeric"
+              onPaste={(e) => {
+                e.preventDefault();
+                const text = e.clipboardData?.getData("text") || "";
+                const digits = String(text || "").replace(/\D/g, "");
+                if (!digits) return;
+                setBufQTD(digits);
+
+                schedule(() => handleLoteFinalize(bufLote, bufEANLote, digits), qtdTimerRef, 0);
+              }}
+              onKeyDown={(e) => {
+                if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+                if (e.key === "Enter" || e.key === "Tab") {
+                  e.preventDefault();
+                  handleLoteFinalize(bufLote, bufEANLote, bufQTD);
+                }
+              }}
+              style={{
+                ...inputBaseStyle,
+                fontWeight: 700,
+                textAlign: "center",
+              }}
+            />
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, opacity: 0.85, color: colors.textSoft }}>
+          {loteMode === LOTE_MODES.EAN_QTD ? (
             <>
-              Fluxo: <strong>LOTE</strong> → <strong>QTD</strong>. Ao parar de bipar/digitar em cada campo, ele avança e finaliza sozinho.
+              Fluxo: <strong>EAN</strong> → <strong>QTD</strong>. Finaliza sozinho ao parar de bipar/digitar.
+            </>
+          ) : loteSemEan ? (
+            <>
+              Fluxo: <strong>LOTE</strong> → <strong>QTD</strong>. Finaliza sozinho ao parar de bipar/digitar.
             </>
           ) : (
             <>
               Fluxo: 1) <strong>LOTE</strong> → 2) <strong>EAN do lote</strong> → 3{" "}
-              <strong>QTD</strong>. Ao parar de bipar/digitar em cada campo, ele avança sozinho.
+              <strong>QTD</strong>. Finaliza sozinho ao parar de bipar/digitar.
             </>
           )}
         </div>
@@ -434,6 +655,6 @@ export default function ItemScanner({
   );
 }
 
-function SmallLabel({ children }) {
-  return <div style={{ fontSize: 12, opacity: 0.8 }}>{children}</div>;
+function SmallLabel({ children, color }) {
+  return <div style={{ fontSize: 12, opacity: 0.9, color: color || "#64748b" }}>{children}</div>;
 }

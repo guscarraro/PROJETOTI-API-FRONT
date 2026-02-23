@@ -133,8 +133,8 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       const lotesArr = Array.isArray(it.lotes)
         ? it.lotes.map((x) => String(x || "").trim()).filter(Boolean)
         : it.lote
-        ? [String(it.lote).trim()]
-        : [];
+          ? [String(it.lote).trim()]
+          : [];
       arr.push({
         cod: String(it.cod_prod || "").trim(),
         bar: bc,
@@ -166,7 +166,9 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
     for (let i = 0; i < linhas.length; i++) {
       const lotes = Array.isArray(linhas[i].lotes) ? linhas[i].lotes : [];
       for (let j = 0; j < lotes.length; j++) {
-        const l = String(lotes[j] || "").trim().toUpperCase();
+        const l = String(lotes[j] || "")
+          .trim()
+          .toUpperCase();
         if (!l) continue;
         const arr = map.get(l) || [];
         arr.push(i);
@@ -180,7 +182,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
     if (!isOpen) return;
     setPhase("setup");
     const confInicial = String(
-      pedido?.conferente || pedido?.primeiraConferencia?.colaborador || ""
+      pedido?.conferente || pedido?.primeiraConferencia?.colaborador || "",
     ).trim();
     setConferente(confInicial);
     setBenchShots([]);
@@ -246,7 +248,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
 
   const pendentes = useMemo(
     () => Math.max(0, linhas.length - concluidos),
-    [linhas, concluidos]
+    [linhas, concluidos],
   );
 
   const allOk = useMemo(() => {
@@ -366,7 +368,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       modo === "erro"
         ? "Marcado como erro de bipagem."
         : "Material devolvido ao local.",
-      "info"
+      "info",
     );
   }
 
@@ -406,7 +408,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       ]);
       toast(
         "Produto fora da lista! Devolver material ou marcar erro de bipagem.",
-        "error"
+        "error",
       );
 
       registrarScanEvent({
@@ -449,8 +451,8 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
                   "Excedente lido. Devolver material.",
                 ],
               }
-            : r
-        )
+            : r,
+        ),
       );
 
       setOcorrencias((oc) => [
@@ -483,10 +485,8 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
 
     setLinhas((prev) =>
       prev.map((r, idx) =>
-        idx === targetIdx
-          ? { ...r, scanned: Number(r.scanned || 0) + 1 }
-          : r
-      )
+        idx === targetIdx ? { ...r, scanned: Number(r.scanned || 0) + 1 } : r,
+      ),
     );
 
     registrarScanEvent({
@@ -500,13 +500,200 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
   }
 
   // ========== LEITURA POR LOTE + QTD ==========
+  // ========== LEITURA POR LOTE + QTD ==========
   function handleScanLoteQuantidade({ lote, quantidade, ean }) {
-    const loteStr = String(lote || "").trim().toUpperCase();
+    const loteStr = String(lote || "")
+      .trim()
+      .toUpperCase();
     const qtdN = Number(quantidade || 0);
     const eanStr = String(ean || "").trim();
 
-    if (!loteStr || !qtdN || Number.isNaN(qtdN) || qtdN <= 0) {
-      toast("Lote/quantidade inválidos.", "error");
+    const IS_SEM_LOTE = loteStr === "__SEM_LOTE__";
+
+    // validações base
+    if (!qtdN || Number.isNaN(qtdN) || qtdN <= 0) {
+      toast("Quantidade inválida.", "error");
+      return false;
+    }
+
+    // ================================
+    // ✅ NOVO FLUXO: EAN + QTD (sem lote)
+    // ================================
+    if (IS_SEM_LOTE) {
+      if (!eanStr) {
+        toast("Informe o EAN para usar EAN + QTD.", "error");
+        return false;
+      }
+
+      const idxList = indexByBar.get(eanStr) || [];
+
+      // EAN não pertence ao pedido
+      if (idxList.length === 0) {
+        toast(`EAN ${eanStr} não pertence ao pedido.`, "error");
+        setOcorrencias((oc) => [
+          ...oc,
+          {
+            id: newOccId(),
+            tipo: "produto_divergente",
+            detalhe:
+              "EAN informado no fluxo (EAN + QTD) não pertence ao pedido.",
+            bar: eanStr,
+            lote: null,
+            quantidade: qtdN,
+            status: "aberta",
+          },
+        ]);
+
+        registrarScanEvent({
+          mode: "lote",
+          bar: eanStr,
+          lote: null,
+          quantidade: qtdN,
+          itemCod: null,
+          result: "fora_lista",
+        });
+
+        return false;
+      }
+
+      // escolhe um item com saldo (se tiver mais de um com mesmo EAN)
+      let targetIdx = null;
+      for (let k = 0; k < idxList.length; k++) {
+        const i = idxList[k];
+        const r = linhas[i];
+        const qtdSolic = Number(r.qtd || 0);
+        const atual = Number(r.scanned || 0);
+        if (atual < qtdSolic) {
+          targetIdx = i;
+          break;
+        }
+      }
+      if (targetIdx == null) targetIdx = idxList[0];
+
+      const linhaAlvo = linhas[targetIdx];
+      const qtdSolic = Number(linhaAlvo.qtd || 0);
+      const atual = Number(linhaAlvo.scanned || 0);
+
+      // se já está completo => excedente ignorado
+      if (atual >= qtdSolic) {
+        setLinhas((prev) =>
+          prev.map((r, idx) =>
+            idx === targetIdx
+              ? {
+                  ...r,
+                  warns: [
+                    ...(r.warns || []),
+                    "Tentativa de excedente via EAN+QTD. Devolver material.",
+                  ],
+                }
+              : r,
+          ),
+        );
+
+        setOcorrencias((oc) => [
+          ...oc,
+          {
+            id: newOccId(),
+            tipo: "excedente_lote",
+            detalhe: `Excedente via EAN+QTD (não abatido).`,
+            itemCod: linhaAlvo.cod,
+            bar: eanStr,
+            quantidade: qtdN,
+            status: "aberta",
+          },
+        ]);
+
+        toast(`Item ${linhaAlvo.cod} já completo. Excedente ignorado.`, "warn");
+
+        registrarScanEvent({
+          mode: "lote",
+          bar: eanStr,
+          lote: null,
+          quantidade: qtdN,
+          itemCod: linhaAlvo.cod || null,
+          result: "excedente_ignorado",
+        });
+
+        return false;
+      }
+
+      const disponivel = Math.max(0, qtdSolic - atual);
+      const abatido = Math.min(disponivel, qtdN);
+      const excedenteQtd = qtdN > disponivel ? qtdN - disponivel : 0;
+
+      // atualiza linhas: scanned + "loteScans" usando chave fixa SEM_LOTE
+      setLinhas((prev) => {
+        const next = prev.map((r) => ({ ...r }));
+        const r = next[targetIdx];
+
+        const novoLotes = { ...(r.loteScans || {}) };
+        const key = "SEM_LOTE";
+        const prevVal = Number(novoLotes[key] || 0);
+        novoLotes[key] = prevVal + abatido;
+
+        r.scanned = atual + abatido;
+        r.loteScans = novoLotes;
+
+        if (excedenteQtd > 0) {
+          r.warns = [
+            ...(r.warns || []),
+            "Excedente no EAN+QTD. Devolver material.",
+          ];
+        }
+
+        next[targetIdx] = r;
+        return next;
+      });
+
+      if (excedenteQtd > 0) {
+        setOcorrencias((oc) => [
+          ...oc,
+          {
+            id: newOccId(),
+            tipo: "excedente_lote",
+            detalhe: `Excedeu em ${excedenteQtd} un. via EAN+QTD.`,
+            itemCod: linhaAlvo.cod,
+            bar: eanStr,
+            quantidade: qtdN,
+            status: "aberta",
+          },
+        ]);
+        toast(
+          `Excedente no item ${linhaAlvo.cod}. Só ${abatido} contabilizados.`,
+          "warn",
+        );
+      }
+
+      if (abatido > 0) {
+        registrarScanEvent({
+          mode: "lote",
+          bar: eanStr,
+          lote: null,
+          quantidade: abatido,
+          itemCod: linhaAlvo.cod || null,
+          result: "ok",
+        });
+      }
+
+      if (excedenteQtd > 0) {
+        registrarScanEvent({
+          mode: "lote",
+          bar: eanStr,
+          lote: null,
+          quantidade: excedenteQtd,
+          itemCod: linhaAlvo.cod || null,
+          result: "excedente_ignorado",
+        });
+      }
+
+      return abatido > 0;
+    }
+
+    // ================================
+    // fluxo normal (com lote)
+    // ================================
+    if (!loteStr) {
+      toast("Lote inválido.", "error");
       return false;
     }
 
@@ -547,11 +734,11 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
 
       let candidatosValidos = idxList;
 
-      // *** NOVA REGRA: lote precisa existir para este pedido ***
+      // lote precisa existir
       if (candidatosLote.length === 0) {
         toast(
           `Lote ${loteStr} não está cadastrado para nenhum item deste pedido.`,
-          "error"
+          "error",
         );
         setOcorrencias((oc) => [
           ...oc,
@@ -579,7 +766,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
         return false;
       }
 
-      // se tem lote mapeado, faz interseção (confere se EAN pertence àquele lote)
+      // interseção lote x EAN
       const setCand = new Set(candidatosLote);
       const inter = [];
       for (let i = 0; i < idxList.length; i++) {
@@ -590,7 +777,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       if (candidatosValidos.length === 0) {
         toast(
           `EAN não faz parte do lote ${loteStr} para este pedido.`,
-          "error"
+          "error",
         );
         setOcorrencias((oc) => [
           ...oc,
@@ -618,7 +805,6 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
         return false;
       }
 
-      // escolhe item com saldo, se tiver mais de um
       for (let k = 0; k < candidatosValidos.length; k++) {
         const i = candidatosValidos[k];
         const r = linhas[i];
@@ -651,7 +837,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       if (candidatosLote.length > 1) {
         toast(
           `Lote ${loteStr} é usado por múltiplos itens. Bipe o EAN para desambiguar.`,
-          "warn"
+          "warn",
         );
         setOcorrencias((oc) => [
           ...oc,
@@ -683,7 +869,6 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
     const qtdSolic = Number(linhaAlvo.qtd || 0);
     const atual = Number(linhaAlvo.scanned || 0);
 
-    // excedente (nenhum saldo)
     if (atual >= qtdSolic) {
       setLinhas((prev) =>
         prev.map((r, idx) =>
@@ -695,8 +880,8 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
                   "Tentativa de excedente via lote. Devolver material.",
                 ],
               }
-            : r
-        )
+            : r,
+        ),
       );
 
       setOcorrencias((oc) => [
@@ -711,10 +896,7 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
           status: "aberta",
         },
       ]);
-      toast(
-        `Item ${linhaAlvo.cod} já completo. Excedente ignorado.`,
-        "warn"
-      );
+      toast(`Item ${linhaAlvo.cod} já completo. Excedente ignorado.`, "warn");
 
       registrarScanEvent({
         mode: "lote",
@@ -732,7 +914,6 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
     const abatido = Math.min(disponivel, qtdN);
     const excedenteQtd = qtdN > disponivel ? qtdN - disponivel : 0;
 
-    // atualiza linhas (scanned + loteScans + warns)
     setLinhas((prev) => {
       const next = prev.map((r) => ({ ...r }));
       const r = next[targetIdx];
@@ -746,17 +927,13 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       r.loteScans = novoLotes;
 
       if (excedenteQtd > 0) {
-        r.warns = [
-          ...(r.warns || []),
-          "Excedente no lote. Devolver material.",
-        ];
+        r.warns = [...(r.warns || []), "Excedente no lote. Devolver material."];
       }
 
       next[targetIdx] = r;
       return next;
     });
 
-    // se teve excedente nesse lote, gera ocorrência
     if (excedenteQtd > 0) {
       setOcorrencias((oc) => [
         ...oc,
@@ -772,20 +949,33 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
       ]);
       toast(
         `Excedente no item ${linhaAlvo.cod}. Só ${abatido} contabilizados.`,
-        "warn"
+        "warn",
       );
     }
 
-    registrarScanEvent({
-      mode: "lote",
-      bar: eanStr || linhaAlvo.bar || null,
-      lote: loteStr,
-      quantidade: qtdN,
-      itemCod: linhaAlvo.cod || null,
-      // Só é "ok" a parte que realmente abateu, mas pro log geral
-      // classificamos como ok se houve abatimento > 0
-      result: abatido > 0 && excedenteQtd === 0 ? "ok" : "excedente_ignorado",
-    });
+    // 1) registra a parte válida (abatida)
+    if (abatido > 0) {
+      registrarScanEvent({
+        mode: "lote",
+        bar: eanStr || linhaAlvo.bar || null,
+        lote: loteStr,
+        quantidade: abatido, // ✅ conta só o que realmente abateu
+        itemCod: linhaAlvo.cod || null,
+        result: "ok",
+      });
+    }
+
+    // 2) registra o excedente como evento separado (não conta no totalScanLote)
+    if (excedenteQtd > 0) {
+      registrarScanEvent({
+        mode: "lote",
+        bar: eanStr || linhaAlvo.bar || null,
+        lote: loteStr,
+        quantidade: excedenteQtd,
+        itemCod: linhaAlvo.cod || null,
+        result: "excedente_ignorado",
+      });
+    }
 
     return abatido > 0;
   }
@@ -803,8 +993,8 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
               ...r,
               warns: (r.warns || []).filter((w) => !/excedente/i.test(w)),
             }
-          : r
-      )
+          : r,
+      ),
     );
     setOcorrencias((oc) => {
       const out = [];
@@ -899,7 +1089,8 @@ export function useConferenciaCore({ pedido, isOpen, onConfirm }) {
   }
 
   const podeIrParaScan =
-    conferente.trim().length > 0 && (SKIP_BENCH_PHOTOS || benchShots.length > 0);
+    conferente.trim().length > 0 &&
+    (SKIP_BENCH_PHOTOS || benchShots.length > 0);
 
   const podeSalvar100 =
     conferente.trim().length > 0 && allOk && foraLista.length === 0;
