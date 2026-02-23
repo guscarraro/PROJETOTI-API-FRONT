@@ -11,13 +11,16 @@ export default function DocsChipsSection({
   removeDoc,
   updateDocMetric,
 }) {
+  // ✅ Opção A: recebimento também aceita multi
+  const allowMultiClient = isRecebimento || isExpedicao;
+
   return (
     <Field style={{ gridColumn: "1 / -1" }}>
       <Label>Documentos na demanda</Label>
 
       {!docs.length ? (
         <Hint>Nenhuma nota ainda (não salva sem nota).</Hint>
-      ) : (clienteDefinido?.mixed || mixedClientError) && !isExpedicao ? (
+      ) : (clienteDefinido?.mixed || mixedClientError) && !allowMultiClient ? (
         <Hint style={{ color: "#c0392b" }}>Lista oculta enquanto houver conflito de cliente.</Hint>
       ) : (
         <ChipsWrap>
@@ -70,7 +73,7 @@ export default function DocsChipsSection({
 
       <Hint>
         {isRecebimento
-          ? "Notas do recebimento (XML/manual)."
+          ? "Recebimento: pode agrupar notas de clientes diferentes."
           : isExpedicao
             ? "Expedição: pode agrupar notas de clientes diferentes."
             : "Notas puxadas automaticamente do banco."}

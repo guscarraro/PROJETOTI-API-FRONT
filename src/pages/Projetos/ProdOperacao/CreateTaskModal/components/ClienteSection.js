@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import {
   Field,
   SectionTitle,
@@ -24,6 +24,30 @@ export default function ClienteSection({
   clientesListFromDocs,
   clientKey,
 }) {
+  const allowMultiClient = isRecebimento || isExpedicao;
+
+  const hasMixed = !!(clienteDefinido?.mixed || mixedClientError);
+
+  const titleHint = useMemo(() => {
+    if (!docs.length) return null;
+
+    // se tem mixed e pode multi -> aviso neutro
+    if (hasMixed && allowMultiClient) {
+      return (
+        <Hint style={{ color: "#1f2937" }}>
+          Múltiplos clientes detectados — <b>permitido</b>. Vou listar todos abaixo.
+        </Hint>
+      );
+    }
+
+    // se tem mixed e não pode -> erro
+    if (hasMixed && !allowMultiClient) {
+      return <Hint style={{ color: "#c0392b" }}>Múltiplos clientes detectados. Não pode misturar.</Hint>;
+    }
+
+    return null;
+  }, [docs.length, hasMixed, allowMultiClient]);
+
   return (
     <Field style={{ gridColumn: "1 / -1" }}>
       <SectionTitle>Cliente da demanda</SectionTitle>
@@ -70,26 +94,27 @@ export default function ClienteSection({
           Sem documentos ainda.{" "}
           {isRecebimento ? "Importe XML/ZIP ou selecione cliente manual e bipa a chave." : "Bipe a chave 44."}
         </Hint>
-      ) : clienteDefinido?.mixed || mixedClientError ? (
-        isExpedicao ? (
-          <Hint style={{ color: "#1f2937" }}>
-            Múltiplos clientes detectados — <b>permitido na Expedição</b>.
-          </Hint>
-        ) : (
-          <Hint style={{ color: "#c0392b" }}>Múltiplos clientes detectados. Não pode misturar.</Hint>
-        )
       ) : (
         <>
-          {clientesListFromDocs.map((c, idx) => (
-            <DocMetaBox key={`${c.nome}-${c.cnpj}-${idx}`}>
-              <DocMetaRow>
-                <b>Cliente:</b> {c.nome || "—"}
-              </DocMetaRow>
-              <DocMetaRow>
-                <b>CNPJ:</b> {c.cnpj || "—"}
-              </DocMetaRow>
-            </DocMetaBox>
-          ))}
+          {titleHint}
+
+          {/* ✅ SEMPRE mostra a lista */}
+          {!clientesListFromDocs?.length ? (
+            <Hint>Nenhum cliente identificado nos documentos.</Hint>
+          ) : (
+            <>
+              {clientesListFromDocs.map((c, idx) => (
+                <DocMetaBox key={`${c.nome}-${c.cnpj}-${idx}`}>
+                  <DocMetaRow>
+                    <b>Cliente:</b> {c.nome || "—"}
+                  </DocMetaRow>
+                  <DocMetaRow>
+                    <b>CNPJ:</b> {c.cnpj || "—"}
+                  </DocMetaRow>
+                </DocMetaBox>
+              ))}
+            </>
+          )}
         </>
       )}
     </Field>

@@ -315,6 +315,9 @@ export default function CreateTaskModal({
   const isExpedicao = tipoNorm === "expedicao";
   const allowImport = isRecebimento;
 
+  // ✅ Opção A: Recebimento também pode ter múltiplos clientes
+  const allowMultiClient = isRecebimento || isExpedicao;
+
   const pushLog = useCallback(
     (action, by) => {
       setLogs((prev) => [
@@ -456,6 +459,7 @@ export default function CreateTaskModal({
   const manualMode = useMemo(() => isRecebimento && !hasXmlDoc, [isRecebimento, hasXmlDoc]);
 
   const clienteDefinido = useMemo(() => {
+    // manual (sem xml) mantém
     if ((!Array.isArray(docs) || docs.length === 0) && manualMode) {
       if (!clienteManual) return null;
       return { mixed: false, nome: clienteManual.nome || "", cnpj: clienteManual.cnpj || "" };
@@ -497,7 +501,8 @@ export default function CreateTaskModal({
 
     const normalized = normalizeDocWithCliente(doc);
 
-    if (!isExpedicao) {
+    // ✅ Opção A: só bloqueia mistura quando NÃO for multi
+    if (!allowMultiClient) {
       const targetClient = docs.length ? docs[0]?.cliente : null;
       if (targetClient && !sameClient(targetClient, normalized.cliente)) {
         return { ok: false, reason: "cliente_diferente" };
@@ -581,6 +586,7 @@ export default function CreateTaskModal({
           }
         }
 
+        // ✅ no modo multi, "rejectedClient" deve ficar 0. Se ficar >0, é outro bug.
         if (rejectedClient) pushLog(`⚠️ Rejeitado(s): ${rejectedClient} XML(s) (cliente diferente)`);
         if (ignoredInvalid) pushLog(`Ignorado(s): ${ignoredInvalid} XML(s) inválido(s)`);
         pushLog(`Importação concluída: ${inserted} doc(s) inserido(s)`);
@@ -595,7 +601,13 @@ export default function CreateTaskModal({
     });
   };
 
-  const allowManualReceb = !!clienteDefinido && !clienteDefinido.mixed;
+  // ✅ manual por chave no recebimento agora só faz sentido se tiver um cliente manual OU docs já adicionados
+  // (mantive sua regra: não deixa bipar "no escuro")
+  const allowManualReceb = useMemo(() => {
+    if (!isRecebimento) return false;
+    if (!manualMode) return true; // se já tem XML, ok
+    return !!clienteManual; // manual puro: precisa escolher cliente
+  }, [isRecebimento, manualMode, clienteManual]);
 
   const addByChave = async (raw) => {
     const chave = sanitizeChave44(raw);
@@ -630,7 +642,7 @@ export default function CreateTaskModal({
           const r = tryAddDocToDemand(foundNorm);
           if (!r.ok) {
             if (r.reason === "cliente_diferente")
-              pushLog("Essa chave é de outro cliente. Não pode misturar (exceto Expedição).");
+              pushLog("Essa chave é de outro cliente. Não pode misturar (exceto Expedição/Recebimento).");
             else if (r.reason === "duplicado") pushLog("Chave já adicionada.");
             else pushLog("Falha ao inserir chave.");
             return;
@@ -644,8 +656,9 @@ export default function CreateTaskModal({
         }
       }
 
+      // Recebimento
       if (!allowManualReceb) {
-        pushLog("Selecione o cliente (manual) OU importe XML/ZIP antes de bipar.");
+        pushLog("No recebimento manual: selecione o cliente OU importe XML/ZIP antes de bipar.");
         return;
       }
 
@@ -661,7 +674,10 @@ export default function CreateTaskModal({
         docKind,
         source: "manual",
         chave,
+
+        // ✅ se já tem docs, usa o cliente do primeiro doc (consistência). se não, usa manual.
         cliente: docs[0]?.cliente || clienteManual || { nome: "NÃO INFORMADO", cnpj: "" },
+
         volumes: 0,
         pallets: 0,
         pesoKg: 0,
@@ -709,7 +725,8 @@ export default function CreateTaskModal({
     if (!Array.isArray(responsaveis) || responsaveis.length === 0) return false;
     if (!Array.isArray(docs) || docs.length === 0) return false;
 
-    if (!isExpedicao) {
+    // ✅ Opção A: não trava por mixed quando multi é permitido
+    if (!allowMultiClient) {
       if (!clienteDefinido || clienteDefinido.mixed) return false;
       if (mixedClientError) return false;
     }
@@ -743,6 +760,7 @@ export default function CreateTaskModal({
     tipo,
     responsaveis,
     docs,
+    allowMultiClient,
     clienteDefinido,
     mixedClientError,
     isRecebimento,
@@ -760,7 +778,6 @@ export default function CreateTaskModal({
     await runBusy("confirm", async () => {
       if (String(observacao || "").trim()) pushLog("Observação definida/atualizada");
 
-      // ✅ FIX: docsNormalized NÃO pode ser sempre []
       const docsNormalized = [];
       if (Array.isArray(docs)) {
         for (let i = 0; i < docs.length; i++) {
@@ -770,24 +787,25 @@ export default function CreateTaskModal({
 
       const clientesUnicos = uniqueClientsFromDocs(docsNormalized);
 
-      // ✅ cliente topo: SEMPRE dict (back não aceita null)
-      // Expedição multi: usa o primeiro doc como topo (apenas pra satisfazer schema).
-      let clienteTop = null;
+      // ✅ topo: sempre dict (schema)
+      // - se multi, usa o primeiro doc só pra satisfazer schema
+      // - se single (manual sem docs), usa cliente manual
+      let clienteTop = { nome: "NÃO INFORMADO", cnpj: "" };
 
-      if (isExpedicao) {
-        const firstDocCliente = docsNormalized.length ? docsNormalized[0]?.cliente : null;
-        if (firstDocCliente && typeof firstDocCliente === "object") {
-          clienteTop = {
-            nome: String(firstDocCliente.nome || "NÃO INFORMADO"),
-            cnpj: String(firstDocCliente.cnpj || ""),
-          };
-        } else {
-          clienteTop = { nome: "NÃO INFORMADO", cnpj: "" };
-        }
-      } else {
+      if (docsNormalized.length && docsNormalized[0]?.cliente) {
         clienteTop = {
-          nome: String(clienteDefinido?.nome || "NÃO INFORMADO"),
-          cnpj: String(clienteDefinido?.cnpj || ""),
+          nome: String(docsNormalized[0].cliente.nome || "NÃO INFORMADO"),
+          cnpj: String(docsNormalized[0].cliente.cnpj || ""),
+        };
+      } else if (clienteManual) {
+        clienteTop = {
+          nome: String(clienteManual.nome || "NÃO INFORMADO"),
+          cnpj: String(clienteManual.cnpj || ""),
+        };
+      } else if (clienteDefinido && !clienteDefinido.mixed) {
+        clienteTop = {
+          nome: String(clienteDefinido.nome || "NÃO INFORMADO"),
+          cnpj: String(clienteDefinido.cnpj || ""),
         };
       }
 
@@ -805,8 +823,7 @@ export default function CreateTaskModal({
           source: d.source,
           chave: d.chave,
 
-          // ✅ sempre dict; nunca inventa MULTIPLOS
-          cliente: c,
+          cliente: c, // ✅ sempre dict
 
           volumes: Number(d.volumes || 0),
           pallets: Number(d.pallets || 0),
@@ -825,11 +842,10 @@ export default function CreateTaskModal({
         // ✅ nunca null
         cliente: clienteTop,
 
-        // se você usa isso só pra UI, mantém igual ao topo (sem MULTIPLOS)
         clienteResumo: clienteTop,
 
-        // ✅ lista real (sem inventar)
-        clientes: isExpedicao ? clientesUnicos : null,
+        // ✅ Opção A: Recebimento também manda lista de clientes reais
+        clientes: allowMultiClient ? clientesUnicos : null,
 
         totalPalletsOverride: paletizada ? Number(totalPalletsFinal || 0) : null,
 

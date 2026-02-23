@@ -92,7 +92,7 @@ export default function RecebimentoImportSection({
         </DropZoneTop>
 
         <DocImportDropzone disabled={busy} onFiles={(files) => importFiles(files)} />
-        <Hint>XML de cliente diferente é recusado e não entra.</Hint>
+        <Hint>Agora o recebimento aceita múltiplos clientes no mesmo ZIP.</Hint>
       </Field>
     </>
   );
