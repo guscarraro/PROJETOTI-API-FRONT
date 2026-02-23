@@ -218,7 +218,7 @@ export default function NavBar() {
     ];
 
     // Operação dropdown (admin)
-    if (isAdmin || isSetor5) {
+    if (isAdmin || isSetor5 || isSetor7) {
       base.unshift({
         key: "operacao",
         type: "dropdown",
@@ -575,7 +575,7 @@ export default function NavBar() {
                 <NavItem
                   $active={
                     pathname.toLowerCase().startsWith("/operacao") ||
-                    pathname.toLowerCase().startsWith("/operacao-fechamento") ||
+                    pathname.toLowerCase().startsWith("/Dashboard") ||
                     pathname.toLowerCase().startsWith("/Operacao/produtividade-operacao") ||
                     pathname.toLowerCase().startsWith("/dashboard-produtividade")
                   }
@@ -616,11 +616,11 @@ export default function NavBar() {
                     }}
                   >
                     <NavItem
-                      $active={pathname.toLowerCase() === "/operacao-fechamento"}
+                      $active={pathname.toLowerCase() === "/Dashboard"}
                       onClick={() => {
                         setOperacaoOpen(false);
                         setMobileOpen(false);
-                        navigate("/operacao-fechamento");
+                        navigate("/Operacao/Dashboard");
                       }}
                       title="Operação (Fechamento)"
                       style={{ width: "100%" }}
@@ -628,7 +628,7 @@ export default function NavBar() {
                       <NavIcon>
                         <FiBriefcase />
                       </NavIcon>
-                      <NavLabel>Fechamento</NavLabel>
+                      <NavLabel>Dashboard</NavLabel>
                     </NavItem>
 
                     <NavItem

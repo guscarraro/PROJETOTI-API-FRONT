@@ -19,6 +19,7 @@ import Separacao from "./pages/Separacao";
 import DashboardConferencia from "./pages/Separacao/DashboardConferencia";
 import RelatorioConferencia from "./pages/Projetos/RelatorioConferencia";
 import Projecao from "./pages/Projecao";
+import Projecao2 from "./pages/Projecao2";
 
 import apiLocal from "./services/apiLocal";
 import { useInactivityLogout } from "./hooks/useInactivityLogout";
@@ -409,6 +410,12 @@ const App = () => {
           path="/projecao"
           element={
             <PrivateRoute element={<Projecao />} allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]} />
+          }
+        />
+        <Route
+          path="/Operacao/Dashboard"
+          element={
+            <PrivateRoute element={<Projecao2 />} allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA, SECTORS.QUALIDADE]} />
           }
         />
       </Routes>
