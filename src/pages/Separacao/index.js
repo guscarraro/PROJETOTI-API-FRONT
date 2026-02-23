@@ -50,6 +50,8 @@ function canExpedir(user) {
     "felipe.lopes@carraro.com",
     "luiz.machado@carraro.com",
     "hilma@carraro.com",
+    "vinicius.ferreira@carraro.com",
+    "joao.cordeiro@carraro.com"
   ].includes(email);
 }
 
