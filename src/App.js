@@ -26,6 +26,7 @@ import { useInactivityLogout } from "./hooks/useInactivityLogout";
 import Frota from "./pages/Projetos/Frota";
 import ProdOperacao from "./pages/Projetos/ProdOperacao";
 import Cadastros from "./pages/Projetos/Cadastros";
+import CadastroProdutoPage from "./pages/Projetos/Produto";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -359,6 +360,22 @@ const App = () => {
           element={
             <PrivateRoute
               element={<Integrantes />}
+              allowedSectors={[
+                SECTORS.OPERACAO,
+                SECTORS.SAC,
+                SECTORS.GERENTE_OPERACAO,
+                SECTORS.ARMAZENAGEM,
+                SECTORS.ADMIN,
+                SECTORS.QUALIDADE,
+              ]}
+            />
+          }
+        />
+        <Route
+          path="/conferencia/cadastro-sku"
+          element={
+            <PrivateRoute
+              element={<CadastroProdutoPage />}
               allowedSectors={[
                 SECTORS.OPERACAO,
                 SECTORS.SAC,

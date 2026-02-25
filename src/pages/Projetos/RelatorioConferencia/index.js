@@ -62,7 +62,6 @@ function formatDuration(sec) {
   return `${minutos}m ${String(segundos).padStart(2, "0")}s`;
 }
 
-// Chip de duração: tudo em azul (dark-friendly)
 function getDurationChipStyle(sec) {
   const baseStyle = {
     borderRadius: 9999,
@@ -109,7 +108,6 @@ function buildParamsFromFilters(f) {
   return params;
 }
 
-// helper para formatar Date em yyyy-mm-dd (input date)
 function toDateInputValue(d) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -117,26 +115,22 @@ function toDateInputValue(d) {
   return `${year}-${month}-${day}`;
 }
 
-// range inicial = semana atual (segunda -> hoje)
 function getInitialWeekRange() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   const d = new Date(today);
-  const day = d.getDay(); // 0 = domingo, 1 = segunda, ...
-  const diffToMonday = day === 0 ? -6 : 1 - day; // segunda como início
+  const day = d.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(d);
   monday.setDate(d.getDate() + diffToMonday);
-  const start = monday;
-  const end = today;
 
   return {
-    dt_inicio: toDateInputValue(start),
-    dt_fim: toDateInputValue(end),
+    dt_inicio: toDateInputValue(monday),
+    dt_fim: toDateInputValue(today),
   };
 }
 
-// fallback: recalcular Δ criação → conf no front
 function calcTempoCriacaoAteConfSeg(p) {
   if (
     p.tempo_criacao_ate_conf_seg !== null &&
@@ -146,22 +140,17 @@ function calcTempoCriacaoAteConfSeg(p) {
     return p.tempo_criacao_ate_conf_seg;
   }
 
-  if (!p.created_at || !p.conferencia_finalizada_em) {
-    return null;
-  }
+  if (!p.created_at || !p.conferencia_finalizada_em) return null;
 
   const ini = new Date(p.created_at);
   const fim = new Date(p.conferencia_finalizada_em);
 
-  if (Number.isNaN(ini.getTime()) || Number.isNaN(fim.getTime())) {
-    return null;
-  }
+  if (Number.isNaN(ini.getTime()) || Number.isNaN(fim.getTime())) return null;
 
   const diffSec = Math.floor((fim.getTime() - ini.getTime()) / 1000);
   return diffSec > 0 ? diffSec : 0;
 }
 
-// fallback: recalcular Δ conf → expedição no front
 function calcTempoConfAteExpSeg(p) {
   if (
     p.tempo_pronto_ate_expedido_seg !== null &&
@@ -171,16 +160,12 @@ function calcTempoConfAteExpSeg(p) {
     return p.tempo_pronto_ate_expedido_seg;
   }
 
-  if (!p.conferencia_finalizada_em || !p.expedido_em) {
-    return null;
-  }
+  if (!p.conferencia_finalizada_em || !p.expedido_em) return null;
 
   const conf = new Date(p.conferencia_finalizada_em);
   const exp = new Date(p.expedido_em);
 
-  if (Number.isNaN(conf.getTime()) || Number.isNaN(exp.getTime())) {
-    return null;
-  }
+  if (Number.isNaN(conf.getTime()) || Number.isNaN(exp.getTime())) return null;
 
   const diffSec = Math.floor((exp.getTime() - conf.getTime()) / 1000);
   return diffSec > 0 ? diffSec : 0;
@@ -205,9 +190,7 @@ export default function RelatorioConferenciaPage() {
 
   const handleChange = useCallback((field, value) => {
     setFilters((prev) => ({ ...prev, [field]: value }));
-    if (field === "dt_inicio" || field === "dt_fim") {
-      setQuickRange("");
-    }
+    if (field === "dt_inicio" || field === "dt_fim") setQuickRange("");
   }, []);
 
   const clearFilters = useCallback(() => {
@@ -234,11 +217,7 @@ export default function RelatorioConferenciaPage() {
     setQuickRange(value);
 
     if (!value) {
-      setFilters((prev) => ({
-        ...prev,
-        dt_inicio: "",
-        dt_fim: "",
-      }));
+      setFilters((prev) => ({ ...prev, dt_inicio: "", dt_fim: "" }));
       return;
     }
 
@@ -267,29 +246,22 @@ export default function RelatorioConferenciaPage() {
     } else if (value === "mes_atual") {
       const year = today.getFullYear();
       const month = today.getMonth();
-      const first = new Date(year, month, 1);
-      const last = new Date(year, month + 1, 0);
-      start = first;
-      end = last;
+      start = new Date(year, month, 1);
+      end = new Date(year, month + 1, 0);
     } else if (value === "mes_passado") {
       const year = today.getFullYear();
       const month = today.getMonth();
       const prevMonth = month === 0 ? 11 : month - 1;
       const prevYear = month === 0 ? year - 1 : year;
-      const first = new Date(prevYear, prevMonth, 1);
-      const last = new Date(prevYear, prevMonth + 1, 0);
-      start = first;
-      end = last;
+      start = new Date(prevYear, prevMonth, 1);
+      end = new Date(prevYear, prevMonth + 1, 0);
     }
 
     if (start && end) {
-      const iniStr = toDateInputValue(start);
-      const fimStr = toDateInputValue(end);
-
       setFilters((prev) => ({
         ...prev,
-        dt_inicio: iniStr,
-        dt_fim: fimStr,
+        dt_inicio: toDateInputValue(start),
+        dt_fim: toDateInputValue(end),
       }));
     }
   }, []);
@@ -314,6 +286,39 @@ export default function RelatorioConferenciaPage() {
     if (s === "CONCLUIDO") return "EXPEDIDO";
     return s;
   }
+
+  const headers = [
+    "Criado em",
+    "Remessa",
+    "NF",
+    "Cliente",
+    "Status",
+    "Destino",
+    "Itens",
+    "Peso total (caixas)",
+    "Caixa01",
+    "Caixa02",
+    "Caixa03",
+    "Caixa04",
+    "Caixa Madeira",
+    "Caixa NKE H",
+    "Separador",
+    "Conferente",
+    "Transportador",
+    "Ocorrência",
+    "Conf. Finalizada",
+    "Δ Criação → Conf",
+    "Expedido em",
+    "Δ Conf → Expedição",
+    "Bipagens",
+
+    // ✅ NOVAS COLUNAS (no final)
+    "Total UN (calc)",
+    "Total Caixas (calc)",
+    "Total Pallets (calc)",
+    "UN Sobra (calc)",
+    "Itens sem cadastro",
+  ];
 
   const handleExportExcel = () => {
     if (!rows.length) return;
@@ -352,6 +357,13 @@ export default function RelatorioConferenciaPage() {
         "Total scan unitário": p.total_scan_unitario,
         "Total scan lote (qtde)": p.total_scan_lote_qtde,
         "Total scan lote (eventos)": p.total_scan_lote_eventos,
+
+        // ✅ NOVAS COLUNAS (no final)
+        "Total UN (calc)": p.total_un_pedido ?? 0,
+        "Total Caixas (calc)": p.total_caixas_calc ?? 0,
+        "Total Pallets (calc)": p.total_pallets_calc ?? 0,
+        "UN Sobra (calc)": p.total_un_sobra_calc ?? 0,
+        "Itens sem cadastro": p.itens_sem_cadastro ?? 0,
       };
     });
 
@@ -507,41 +519,11 @@ export default function RelatorioConferenciaPage() {
       </Section>
 
       <Section style={{ marginTop: 16 }}>
-        <TableWrap
-          style={{
-            maxHeight: "70vh",
-            overflowY: "auto",
-            overflowX: "auto",
-          }}
-        >
+        <TableWrap style={{ maxHeight: "70vh", overflowY: "auto", overflowX: "auto" }}>
           <Table>
             <thead>
               <tr>
-                {[
-                  "Criado em",
-                  "Remessa",
-                  "NF",
-                  "Cliente",
-                  "Status",
-                  "Destino",
-                  "Itens",
-                  "Peso total (caixas)",
-                  "Caixa01",
-                  "Caixa02",
-                  "Caixa03",
-                  "Caixa04",
-                  "Caixa Madeira",
-                  "Caixa NKE H",
-                  "Separador",
-                  "Conferente",
-                  "Transportador",
-                  "Ocorrência",
-                  "Conf. Finalizada",
-                  "Δ Criação → Conf",
-                  "Expedido em",
-                  "Δ Conf → Expedição",
-                  "Bipagens",
-                ].map((h, i) => (
+                {headers.map((h, i) => (
                   <Th
                     key={i}
                     style={{
@@ -618,7 +600,7 @@ export default function RelatorioConferenciaPage() {
                     <Caixa03Td style={{ textAlign: "right" }}>
                       {p.caixas_caixa03 ?? 0}
                     </Caixa03Td>
-                    
+
                     <Caixa04Td style={{ textAlign: "right" }}>
                       {p.caixas_caixa04 ?? 0}
                     </Caixa04Td>
@@ -631,16 +613,13 @@ export default function RelatorioConferenciaPage() {
                       {p.caixas_caixa_nke_h ?? 0}
                     </CaixaNkeHTd>
 
-
                     <TdCompact>{p.separador || "—"}</TdCompact>
                     <TdCompact>{p.conferente || "—"}</TdCompact>
                     <TdCompact>{p.transportador || "—"}</TdCompact>
 
                     <TdCompact>
                       {p.has_ocorrencia ? (
-                        <OccBadge>
-                          ⚠ Ocorrência ({p.qtd_ocorrencias_conferencia})
-                        </OccBadge>
+                        <OccBadge>⚠ Ocorrência ({p.qtd_ocorrencias_conferencia})</OccBadge>
                       ) : (
                         <span style={{ fontSize: 11, opacity: 0.6 }}>
                           Sem ocorrência
@@ -648,9 +627,7 @@ export default function RelatorioConferenciaPage() {
                       )}
                     </TdCompact>
 
-                    <TdCompact>
-                      {formatDateTime(p.conferencia_finalizada_em)}
-                    </TdCompact>
+                    <TdCompact>{formatDateTime(p.conferencia_finalizada_em)}</TdCompact>
 
                     <TdCompact>
                       <span style={getDurationChipStyle(tempoCriacaoConfSeg)}>
@@ -684,6 +661,27 @@ export default function RelatorioConferenciaPage() {
                         </LoteBox>
                       </div>
                     </TdCompact>
+
+                    {/* ✅ NOVAS COLUNAS (no final) */}
+                    <TdCompact style={{ textAlign: "right" }}>
+                      {p.total_un_pedido ?? 0}
+                    </TdCompact>
+
+                    <TdCompact style={{ textAlign: "right" }}>
+                      {p.total_caixas_calc ?? 0}
+                    </TdCompact>
+
+                    <TdCompact style={{ textAlign: "right" }}>
+                      {p.total_pallets_calc ?? 0}
+                    </TdCompact>
+
+                    <TdCompact style={{ textAlign: "right" }}>
+                      {p.total_un_sobra_calc ?? 0}
+                    </TdCompact>
+
+                    <TdCompact style={{ textAlign: "right" }}>
+                      {p.itens_sem_cadastro ?? 0}
+                    </TdCompact>
                   </tr>
                 );
               })}
@@ -691,12 +689,8 @@ export default function RelatorioConferenciaPage() {
               {!rows.length && !loading.any() && (
                 <tr>
                   <Td
-                    colSpan={23}
-                    style={{
-                      textAlign: "center",
-                      opacity: 0.7,
-                      padding: "6px",
-                    }}
+                    colSpan={headers.length}
+                    style={{ textAlign: "center", opacity: 0.7, padding: "6px" }}
                   >
                     Nenhum pedido encontrado.
                   </Td>

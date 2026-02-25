@@ -36,7 +36,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (err) => Promise.reject(err)
+  (err) => Promise.reject(err),
 );
 
 // 🔐 401 handler (anti-loop)
@@ -71,7 +71,7 @@ api.interceptors.response.use(
     }
 
     return Promise.reject(err);
-  }
+  },
 );
 
 const apiLocal = {
@@ -81,7 +81,24 @@ const apiLocal = {
   authLogin: (email, senha) => api.post("/auth/login", { email, senha }),
   authLogout: () => api.post("/auth/logout"),
   authMe: () => api.get("/auth/me"),
+  getProdutos: (params = {}) => api.get("/produto/", { params }),
+  createProduto: (data) => api.post("/produto/", data),
+  updateProduto: (id, data) => api.put(`/produto/${id}`, data),
+  deleteProduto: (id) => api.delete(`/produto/${id}`),
 
+  importProdutosCsv: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return api.post("/produto/import/csv", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
+
+  downloadModeloProdutosXlsx: () =>
+    api.get("/produto/import/modelo-xlsx", { responseType: "blob" }),
+
+  downloadModeloProdutosCsv: () =>
+    api.get("/produto/import/modelo", { responseType: "blob" }),
   // ========================
   // Motoristas / Clientes / ...
   // ========================
@@ -103,7 +120,8 @@ const apiLocal = {
   getOcorrencias: () => api.get("/ocorrencias/"),
   createOrUpdateOcorrencia: (data) => api.post("/ocorrencias/", data),
   deleteOcorrencia: (id) => api.delete(`/ocorrencias/${id}`),
-  getOcorrenciasFiltradas: (filters) => api.post("/ocorrencias/filtrar", filters),
+  getOcorrenciasFiltradas: (filters) =>
+    api.post("/ocorrencias/filtrar", filters),
   updateCobrancaAdicional: (data) =>
     api.put("/ocorrencias/cobranca-adicional", data),
 
@@ -172,7 +190,8 @@ const apiLocal = {
   // Fechamento
   getFechamento: (params) => api.get("/fechamento_op/", { params }),
   getFechamentoPorMes: (mes) => api.get("/fechamento_op/", { params: { mes } }),
-  getFechamentoPorData: (data) => api.get("/fechamento_op/", { params: { data } }),
+  getFechamentoPorData: (data) =>
+    api.get("/fechamento_op/", { params: { data } }),
   uploadFechamentoExcel: (file, config = {}) => {
     const form = new FormData();
     form.append("file", file);
@@ -294,7 +313,13 @@ const apiLocal = {
 
   getNotifFeed: (
     userId,
-    { projectId, unseenOnly = false, seenOnly = false, limit = 50, before } = {}
+    {
+      projectId,
+      unseenOnly = false,
+      seenOnly = false,
+      limit = 50,
+      before,
+    } = {},
   ) =>
     api.get("/projects/notifications/feed", {
       params: {
@@ -331,13 +356,13 @@ const apiLocal = {
   payParcela: (projectId, costId, parcelIndex, actorSectorId) =>
     api.post(
       `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/pagar`,
-      { actor_sector_id: Number(actorSectorId) }
+      { actor_sector_id: Number(actorSectorId) },
     ),
 
   unpayParcela: (projectId, costId, parcelIndex, actorSectorId) =>
     api.post(
       `/projetos/${projectId}/custos/${costId}/parcelas/${parcelIndex}/desmarcar`,
-      { actor_sector_id: Number(actorSectorId) }
+      { actor_sector_id: Number(actorSectorId) },
     ),
 
   getProjetoParcels: (projectId, costId) =>
@@ -345,7 +370,8 @@ const apiLocal = {
 
   // Timeline
   listProjetoRows: (projectId) => api.get(`/projetos/${projectId}/rows`),
-  addProjetoRow: (projectId, body) => api.post(`/projetos/${projectId}/rows`, body),
+  addProjetoRow: (projectId, body) =>
+    api.post(`/projetos/${projectId}/rows`, body),
 
   updateProjetoRow: (projectId, rowId, body, actor_sector_id) =>
     api.put(`/projetos/${projectId}/rows/${rowId}`, {
@@ -367,7 +393,7 @@ const apiLocal = {
     dayISO,
     commentId,
     actorSectorId,
-    actorUserId
+    actorUserId,
   ) =>
     api.delete(
       `/projetos/${projectId}/rows/${rowId}/cells/${dayISO}/comments/${commentId}`,
@@ -376,7 +402,7 @@ const apiLocal = {
           actor_sector_id: Number(actorSectorId),
           actor_user_id: String(actorUserId || ""),
         },
-      }
+      },
     ),
 
   upsertProjetoCell: (projectId, rowId, dayISO, body) =>
@@ -421,10 +447,12 @@ const apiLocal = {
   dashboardSummary: (params = {}) => api.get("/dashboard/summary", { params }),
   dashboardDailyConferencias: (params = {}) =>
     api.get("/dashboard/daily-conferencias", { params }),
-  dashboardRankings: (params = {}) => api.get("/dashboard/rankings", { params }),
+  dashboardRankings: (params = {}) =>
+    api.get("/dashboard/rankings", { params }),
   dashboardTopTransportadoras: (params = {}) =>
     api.get("/dashboard/top-transportadoras", { params }),
-  dashboardLeadTimes: (params = {}) => api.get("/dashboard/lead-times", { params }),
+  dashboardLeadTimes: (params = {}) =>
+    api.get("/dashboard/lead-times", { params }),
 
   // Pedidos
   getPedidos: (params = {}) => {
@@ -446,7 +474,8 @@ const apiLocal = {
   getPedidoByNr: (nr_pedido) => api.get(`/pedidos/${nr_pedido}`),
   createPedido: (data) => api.post("/pedidos/", data),
   updatePedido: (nr_pedido, data) => api.put(`/pedidos/${nr_pedido}`, data),
-  deletePedido: (id, payload) => api.delete(`/pedidos/${id}`, { data: payload }),
+  deletePedido: (id, payload) =>
+    api.delete(`/pedidos/${id}`, { data: payload }),
   updatePedidoBasics: (nr_pedido, data) =>
     api.put(`/pedidos/${nr_pedido}/basics`, data),
   updatePedidoNF: (nr_pedido, { nota, by }) =>
@@ -485,7 +514,8 @@ const apiLocal = {
   createDemandaOpc: (payload) => api.post("/demandas-opc/", payload),
   patchDemandaOpcMeta: (demandaId, body) =>
     api.patch(`/demandas-opc/${demandaId}/meta`, body),
-  listDemandasOpcLite: (params = {}) => api.get("/demandas-opc/lite", { params }),
+  listDemandasOpcLite: (params = {}) =>
+    api.get("/demandas-opc/lite", { params }),
   getDemandaOpcInfo: (id) => api.get(`/demandas-opc/${id}/info`),
   deleteDemandaOpc: (id) => api.delete(`/demandas-opc/${id}`),
 
@@ -530,8 +560,7 @@ const apiLocal = {
     api.get("/horario_almoco/horario-almoco/indicador-v3", { params }),
   getHorarioAlmocoInconsistencias: (params) =>
     api.get("/horario_almoco/horario-almoco/inconsistencias", { params }),
-  getHorarioAlmocoById: (id) =>
-    api.get(`/horario_almoco/horario-almoco/${id}`),
+  getHorarioAlmocoById: (id) => api.get(`/horario_almoco/horario-almoco/${id}`),
   updateHorarioAlmoco: (id, body, actor) =>
     api.put(`/horario_almoco/horario-almoco/${id}`, body, {
       params: { actor },
@@ -543,7 +572,9 @@ const apiLocal = {
       params,
     }),
   getAnaliseRotasEficienciaPorRota: (params) =>
-    api.get("/analise_performaxxi/analise-rotas/eficiencia-por-rota", { params }),
+    api.get("/analise_performaxxi/analise-rotas/eficiencia-por-rota", {
+      params,
+    }),
   getAnaliseRotasOpcoes: (params) =>
     api.get("/analise_performaxxi/analise-rotas/opcoes-filtros", { params }),
   getAnaliseRotasIndicadores: (params) =>
@@ -564,7 +595,7 @@ const apiLocal = {
   patchProjetoMeta: (
     id,
     { nome, setores, add_setores, setor_users } = {},
-    actor_sector_id
+    actor_sector_id,
   ) =>
     api.patch(`/projetos/${id}/meta`, {
       actor_sector_id: Number(actor_sector_id),
