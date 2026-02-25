@@ -1,5 +1,11 @@
 // src/pages/CadastroProduto/index.js
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Page,
   TitleBar,
@@ -180,9 +186,27 @@ function useToasts() {
 // Modelo XLSX local
 // --------------------
 function buildModeloProdutosXlsxBlob() {
-  const header = ["cliente", "sku", "ean", "un", "un_por_cx", "cx_por_pallet", "peso_kg", "m3"];
+  const header = [
+    "cliente",
+    "sku",
+    "ean",
+    "un",
+    "un_por_cx",
+    "cx_por_pallet",
+    "peso_kg",
+    "m3",
+  ];
 
-  const example = ["FERSA", "SKU-EXEMPLO-001", "7890000000000", "UN", 12, 40, 1.25, 0.012];
+  const example = [
+    "FERSA",
+    "SKU-EXEMPLO-001",
+    "7890000000000",
+    "UN",
+    12,
+    40,
+    1.25,
+    0.012,
+  ];
 
   const aoa = [header, example];
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -246,7 +270,8 @@ function scoreCompleteness(p) {
 
 function parseAoaToPayloads(aoa) {
   if (!aoa || !aoa.length) return { raw: [], warnings: ["Arquivo vazio."] };
-  if (!aoa[0] || !aoa[0].length) return { raw: [], warnings: ["Arquivo sem cabeçalho."] };
+  if (!aoa[0] || !aoa[0].length)
+    return { raw: [], warnings: ["Arquivo sem cabeçalho."] };
 
   const headerRow = aoa[0];
   const headers = [];
@@ -271,9 +296,15 @@ function parseAoaToPayloads(aoa) {
     const ean = getValueByAliases(obj, ["EAN", "BAR", "BARCODE"]);
     const un = getValueByAliases(obj, ["UN"]) || "UN";
 
-    const un_por_cx = _toIntOrNull(getValueByAliases(obj, ["UN_POR_CX", "UN/CX", "UN_CX", "UNPORCX"]));
-    const cx_por_pallet = _toIntOrNull(getValueByAliases(obj, ["CX_POR_PALLET", "CX/PALLET", "CXPORPALLET"]));
-    const peso_kg = _toNumberOrNull(getValueByAliases(obj, ["PESO_KG", "PESO", "PESO(KG)"]));
+    const un_por_cx = _toIntOrNull(
+      getValueByAliases(obj, ["UN_POR_CX", "UN/CX", "UN_CX", "UNPORCX"]),
+    );
+    const cx_por_pallet = _toIntOrNull(
+      getValueByAliases(obj, ["CX_POR_PALLET", "CX/PALLET", "CXPORPALLET"]),
+    );
+    const peso_kg = _toNumberOrNull(
+      getValueByAliases(obj, ["PESO_KG", "PESO", "PESO(KG)"]),
+    );
     const m3 = _toNumberOrNull(getValueByAliases(obj, ["M3", "M³"]));
 
     if (!_normText(cliente) || !_normText(sku)) {
@@ -293,7 +324,8 @@ function parseAoaToPayloads(aoa) {
     });
   }
 
-  if (!raw.length) warnings.push("Nenhuma linha válida encontrada (precisa cliente + sku).");
+  if (!raw.length)
+    warnings.push("Nenhuma linha válida encontrada (precisa cliente + sku).");
   return { raw, warnings };
 }
 
@@ -326,9 +358,17 @@ function validateImportPayload(p) {
   if (!_normText(p.cliente)) return "cliente obrigatório";
   if (!_normText(p.sku)) return "sku obrigatório";
 
-  if (p.un_por_cx === null || p.un_por_cx === undefined || Number(p.un_por_cx) <= 0)
+  if (
+    p.un_por_cx === null ||
+    p.un_por_cx === undefined ||
+    Number(p.un_por_cx) <= 0
+  )
     return "un_por_cx deve ser > 0";
-  if (p.cx_por_pallet === null || p.cx_por_pallet === undefined || Number(p.cx_por_pallet) <= 0)
+  if (
+    p.cx_por_pallet === null ||
+    p.cx_por_pallet === undefined ||
+    Number(p.cx_por_pallet) <= 0
+  )
     return "cx_por_pallet deve ser > 0";
 
   return "";
@@ -372,7 +412,10 @@ export default function CadastroProdutoPage() {
     setFilters((prev) => ({ ...prev, [field]: value }));
   }, []);
 
-  const clearFilters = useCallback(() => setFilters({ cliente: "", sku: "", ean: "" }), []);
+  const clearFilters = useCallback(
+    () => setFilters({ cliente: "", sku: "", ean: "" }),
+    [],
+  );
 
   const fetchList = useCallback(async () => {
     const params = {};
@@ -381,7 +424,9 @@ export default function CadastroProdutoPage() {
     if (filters.ean) params.ean = filters.ean;
 
     try {
-      const res = await loading.wrap("produtos-list", async () => apiLocal.getProdutos(params));
+      const res = await loading.wrap("produtos-list", async () =>
+        apiLocal.getProdutos(params),
+      );
       setRows(res.data || []);
     } catch (err) {
       console.error(err);
@@ -452,7 +497,8 @@ export default function CadastroProdutoPage() {
     setDropActive(false);
   };
 
-  const setFormField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }));
+  const setFormField = (field, value) =>
+    setForm((prev) => ({ ...prev, [field]: value }));
 
   const validateForm = () => {
     const cliente = _normText(form.cliente);
@@ -465,7 +511,8 @@ export default function CadastroProdutoPage() {
     const cxPorPallet = _toNumberOrNull(form.cx_por_pallet);
 
     if (unPorCx === null || unPorCx <= 0) return "UN/CX deve ser > 0";
-    if (cxPorPallet === null || cxPorPallet <= 0) return "CX/Pallet deve ser > 0";
+    if (cxPorPallet === null || cxPorPallet <= 0)
+      return "CX/Pallet deve ser > 0";
 
     return "";
   };
@@ -492,7 +539,9 @@ export default function CadastroProdutoPage() {
 
     try {
       const payload = buildPayload();
-      await loading.wrap("produto-create", async () => apiLocal.createProduto(payload));
+      await loading.wrap("produto-create", async () =>
+        apiLocal.createProduto(payload),
+      );
       toast.push("ok", "Sucesso", "Produto cadastrado ✅");
       setOpenCreate(false);
       await fetchList();
@@ -521,7 +570,9 @@ export default function CadastroProdutoPage() {
 
     try {
       const payload = buildPayload();
-      await loading.wrap("produto-update", async () => apiLocal.updateProduto(active.id, payload));
+      await loading.wrap("produto-update", async () =>
+        apiLocal.updateProduto(active.id, payload),
+      );
       toast.push("ok", "Sucesso", "Produto atualizado ✅");
       setOpenEdit(false);
       setActive(null);
@@ -544,7 +595,9 @@ export default function CadastroProdutoPage() {
     }
 
     try {
-      await loading.wrap("produto-delete", async () => apiLocal.deleteProduto(active.id));
+      await loading.wrap("produto-delete", async () =>
+        apiLocal.deleteProduto(active.id),
+      );
       toast.push("ok", "Sucesso", "Produto excluído ✅");
       setOpenDelete(false);
       setActive(null);
@@ -568,7 +621,59 @@ export default function CadastroProdutoPage() {
     fileInputRef.current.value = "";
     fileInputRef.current.click();
   };
+  const handleExportProdutosExcel = () => {
+    if (!filteredRows.length) {
+      toast.push("warn", "Exportação", "Nenhum produto para exportar.");
+      return;
+    }
 
+    const data = [];
+    for (let i = 0; i < filteredRows.length; i++) {
+      const r = filteredRows[i] || {};
+
+      data.push({
+        Cliente: r.cliente ?? "",
+        SKU: r.sku ?? "",
+        EAN: r.ean ?? "",
+        UN: r.un ?? "UN",
+        "UN/CX": r.un_por_cx ?? "",
+        "CX/Pallet": r.cx_por_pallet ?? "",
+        "UN/Pallet": r.un_por_pallet ?? "",
+        "Peso (kg)": r.peso_kg ?? "",
+        "m³": r.m3 ?? "",
+        "Criado em": r.created_at
+          ? new Date(r.created_at).toLocaleString("pt-BR")
+          : "",
+        "Atualizado em": r.updated_at
+          ? new Date(r.updated_at).toLocaleString("pt-BR")
+          : "",
+      });
+    }
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    ws["!cols"] = [
+      { wch: 14 },
+      { wch: 22 },
+      { wch: 22 },
+      { wch: 6 },
+      { wch: 10 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 12 },
+      { wch: 10 },
+      { wch: 20 },
+      { wch: 20 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "produtos");
+
+    XLSX.writeFile(
+      wb,
+      `produtos-cadastrados-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    );
+    toast.push("ok", "Exportação", "Excel gerado ✅");
+  };
   const handleDownloadModeloXlsx = (e) => {
     e.preventDefault();
     try {
@@ -648,9 +753,17 @@ export default function CadastroProdutoPage() {
       setImportPreview(prev);
 
       if (!valid.length) {
-        toast.push("warn", "Importação", "Nada válido para salvar (verifique un_por_cx e cx_por_pallet).");
+        toast.push(
+          "warn",
+          "Importação",
+          "Nada válido para salvar (verifique un_por_cx e cx_por_pallet).",
+        );
       } else {
-        toast.push("ok", "Importação", "Arquivo carregado. Agora clique em “Salvar importação”.");
+        toast.push(
+          "ok",
+          "Importação",
+          "Arquivo carregado. Agora clique em “Salvar importação”.",
+        );
       }
     } catch (err) {
       console.error(err);
@@ -701,7 +814,9 @@ export default function CadastroProdutoPage() {
       const p = importReady[i];
 
       try {
-        await loading.wrap(`produto-import-${i}`, async () => apiLocal.createProduto(p));
+        await loading.wrap(`produto-import-${i}`, async () =>
+          apiLocal.createProduto(p),
+        );
         ok += 1;
       } catch (err) {
         fail += 1;
@@ -710,7 +825,12 @@ export default function CadastroProdutoPage() {
     }
 
     if (ok) toast.push("ok", "Importação", `Salvos: ${ok}`);
-    if (fail) toast.push("warn", "Importação", `Falharam: ${fail} (provável SKU duplicado ou validação)`);
+    if (fail)
+      toast.push(
+        "warn",
+        "Importação",
+        `Falharam: ${fail} (provável SKU duplicado ou validação)`,
+      );
 
     await fetchList();
   };
@@ -748,9 +868,18 @@ export default function CadastroProdutoPage() {
 
       <ToastWrap>
         {toast.toasts.map((t) => (
-          <ToastItem key={t.id} $type={t.type} onClick={() => toast.remove(t.id)} title="Clique para fechar">
+          <ToastItem
+            key={t.id}
+            $type={t.type}
+            onClick={() => toast.remove(t.id)}
+            title="Clique para fechar"
+          >
             <div style={{ fontWeight: 900, fontSize: 12 }}>{t.title}</div>
-            {t.message ? <div style={{ marginTop: 4, fontSize: 12, opacity: 0.9 }}>{t.message}</div> : null}
+            {t.message ? (
+              <div style={{ marginTop: 4, fontSize: 12, opacity: 0.9 }}>
+                {t.message}
+              </div>
+            ) : null}
           </ToastItem>
         ))}
       </ToastWrap>
@@ -758,7 +887,21 @@ export default function CadastroProdutoPage() {
       <TitleBar>
         <H1>Cadastro de Produto</H1>
         <FiltersRight>
-          <FilterButton type="button" onClick={openCreateModal} disabled={loading.any()} style={{ marginRight: 8 }}>
+          <FilterButton
+            type="button"
+            onClick={handleExportProdutosExcel}
+            disabled={loading.any() || !filteredRows.length}
+            style={{ marginRight: 8, background: "#16a34a" }}
+            title={!filteredRows.length ? "Nenhum produto para exportar" : ""}
+          >
+            Exportar Excel
+          </FilterButton>
+          <FilterButton
+            type="button"
+            onClick={openCreateModal}
+            disabled={loading.any()}
+            style={{ marginRight: 8 }}
+          >
             + Novo
           </FilterButton>
           <CountPill>{filteredRows.length} itens</CountPill>
@@ -776,17 +919,29 @@ export default function CadastroProdutoPage() {
           <FiltersLeft>
             <FilterGroup>
               <FilterLabel>Cliente</FilterLabel>
-              <FilterInput value={filters.cliente} onChange={(e) => handleChangeFilter("cliente", e.target.value)} placeholder="Ex: FERSA" />
+              <FilterInput
+                value={filters.cliente}
+                onChange={(e) => handleChangeFilter("cliente", e.target.value)}
+                placeholder="Ex: FERSA"
+              />
             </FilterGroup>
 
             <FilterGroup>
               <FilterLabel>SKU</FilterLabel>
-              <FilterInput value={filters.sku} onChange={(e) => handleChangeFilter("sku", e.target.value)} placeholder="Ex: SKU-001" />
+              <FilterInput
+                value={filters.sku}
+                onChange={(e) => handleChangeFilter("sku", e.target.value)}
+                placeholder="Ex: SKU-001"
+              />
             </FilterGroup>
 
             <FilterGroup>
               <FilterLabel>EAN</FilterLabel>
-              <FilterInput value={filters.ean} onChange={(e) => handleChangeFilter("ean", e.target.value)} placeholder="Ex: 789..." />
+              <FilterInput
+                value={filters.ean}
+                onChange={(e) => handleChangeFilter("ean", e.target.value)}
+                placeholder="Ex: 789..."
+              />
             </FilterGroup>
           </FiltersLeft>
 
@@ -795,13 +950,17 @@ export default function CadastroProdutoPage() {
               Buscar
             </FilterButton>
 
-            <ClearButton type="button" disabled={loading.any()} onClick={() => clearFilters()}>
+            <ClearButton
+              type="button"
+              disabled={loading.any()}
+              onClick={() => clearFilters()}
+            >
               Limpar
             </ClearButton>
           </FiltersRight>
         </FiltersRow>
 
-        <HelperText>Modelo XLSX é gerado no front. Importação só salva quando você clicar. 😄</HelperText>
+
       </Section>
 
       <Section style={{ marginTop: 16 }}>
@@ -809,8 +968,21 @@ export default function CadastroProdutoPage() {
           <Table>
             <thead>
               <tr>
-                {["Cliente", "SKU", "EAN", "UN/CX", "CX/Pallet", "UN/Pallet", "Peso (kg)", "m³", "Ações"].map((h, i) => (
-                  <Th key={i} style={{ padding: "6px 8px", whiteSpace: "nowrap" }}>
+                {[
+                  "Cliente",
+                  "SKU",
+                  "EAN",
+                  "UN/CX",
+                  "CX/Pallet",
+                  "UN/Pallet",
+                  "Peso (kg)",
+                  "m³",
+                  "Ações",
+                ].map((h, i) => (
+                  <Th
+                    key={i}
+                    style={{ padding: "6px 8px", whiteSpace: "nowrap" }}
+                  >
                     {h}
                   </Th>
                 ))}
@@ -824,18 +996,36 @@ export default function CadastroProdutoPage() {
                     <strong>{r.sku ?? "—"}</strong>
                   </TdCompact>
                   <TdCompact>{r.ean ?? "—"}</TdCompact>
-                  <TdCompact style={{ textAlign: "right" }}>{r.un_por_cx ?? "—"}</TdCompact>
-                  <TdCompact style={{ textAlign: "right" }}>{r.cx_por_pallet ?? "—"}</TdCompact>
-                  <TdCompact style={{ textAlign: "right" }}>{r.un_por_pallet ?? "—"}</TdCompact>
-                  <TdCompact style={{ textAlign: "right" }}>{r.peso_kg ?? "—"}</TdCompact>
-                  <TdCompact style={{ textAlign: "right" }}>{r.m3 ?? "—"}</TdCompact>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {r.un_por_cx ?? "—"}
+                  </TdCompact>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {r.cx_por_pallet ?? "—"}
+                  </TdCompact>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {r.un_por_pallet ?? "—"}
+                  </TdCompact>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {r.peso_kg ?? "—"}
+                  </TdCompact>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {r.m3 ?? "—"}
+                  </TdCompact>
 
                   <TdCompact>
                     <ActionsRow>
-                      <ActionBtn type="button" onClick={() => openEditModal(r)} disabled={loading.any()}>
+                      <ActionBtn
+                        type="button"
+                        onClick={() => openEditModal(r)}
+                        disabled={loading.any()}
+                      >
                         Editar
                       </ActionBtn>
-                      <DangerBtn type="button" onClick={() => openDeleteModal(r)} disabled={loading.any()}>
+                      <DangerBtn
+                        type="button"
+                        onClick={() => openDeleteModal(r)}
+                        disabled={loading.any()}
+                      >
                         Excluir
                       </DangerBtn>
                     </ActionsRow>
@@ -862,10 +1052,20 @@ export default function CadastroProdutoPage() {
             <ModalTitle>Novo Produto</ModalTitle>
 
             <TabsRow>
-              <TabBtn type="button" $active={createTab === "manual"} onClick={() => setCreateTab("manual")} disabled={loading.any()}>
+              <TabBtn
+                type="button"
+                $active={createTab === "manual"}
+                onClick={() => setCreateTab("manual")}
+                disabled={loading.any()}
+              >
                 Manual
               </TabBtn>
-              <TabBtn type="button" $active={createTab === "import"} onClick={() => setCreateTab("import")} disabled={loading.any()}>
+              <TabBtn
+                type="button"
+                $active={createTab === "import"}
+                onClick={() => setCreateTab("import")}
+                disabled={loading.any()}
+              >
                 Importar (CSV / XLSX)
               </TabBtn>
             </TabsRow>
@@ -875,37 +1075,69 @@ export default function CadastroProdutoPage() {
                 <Grid2>
                   <div>
                     <FilterLabel>Cliente *</FilterLabel>
-                    <FilterInput value={form.cliente} onChange={(e) => setFormField("cliente", e.target.value)} placeholder="Ex: FERSA" />
+                    <FilterInput
+                      value={form.cliente}
+                      onChange={(e) => setFormField("cliente", e.target.value)}
+                      placeholder="Ex: FERSA"
+                    />
                   </div>
 
                   <div>
                     <FilterLabel>SKU *</FilterLabel>
-                    <FilterInput value={form.sku} onChange={(e) => setFormField("sku", e.target.value)} placeholder="Ex: SKU-001" />
+                    <FilterInput
+                      value={form.sku}
+                      onChange={(e) => setFormField("sku", e.target.value)}
+                      placeholder="Ex: SKU-001"
+                    />
                   </div>
 
                   <div>
                     <FilterLabel>EAN</FilterLabel>
-                    <FilterInput value={form.ean} onChange={(e) => setFormField("ean", e.target.value)} placeholder="Ex: 789..." />
+                    <FilterInput
+                      value={form.ean}
+                      onChange={(e) => setFormField("ean", e.target.value)}
+                      placeholder="Ex: 789..."
+                    />
                   </div>
 
                   <div>
                     <FilterLabel>UN/CX *</FilterLabel>
-                    <FilterInput value={form.un_por_cx} onChange={(e) => setFormField("un_por_cx", e.target.value)} placeholder="Ex: 12" />
+                    <FilterInput
+                      value={form.un_por_cx}
+                      onChange={(e) =>
+                        setFormField("un_por_cx", e.target.value)
+                      }
+                      placeholder="Ex: 12"
+                    />
                   </div>
 
                   <div>
                     <FilterLabel>CX/Pallet *</FilterLabel>
-                    <FilterInput value={form.cx_por_pallet} onChange={(e) => setFormField("cx_por_pallet", e.target.value)} placeholder="Ex: 40" />
+                    <FilterInput
+                      value={form.cx_por_pallet}
+                      onChange={(e) =>
+                        setFormField("cx_por_pallet", e.target.value)
+                      }
+                      placeholder="Ex: 40"
+                    />
                   </div>
 
                   <div>
                     <FilterLabel>Peso (kg)</FilterLabel>
-                    <FilterInput value={form.peso_kg} onChange={(e) => setFormField("peso_kg", e.target.value)} placeholder="Ex: 1.25" />
+                    <FilterInput
+                      value={form.peso_kg}
+                      onChange={(e) => setFormField("peso_kg", e.target.value)}
+                      placeholder="Ex: 1.25"
+                    />
                   </div>
 
                   <div>
                     <FilterLabel>m³</FilterLabel>
-                    <FilterInput value={form.m3} onChange={(e) => setFormField("m3", e.target.value)} placeholder="Ex: 0.012" />
+                    <FilterInput
+                      value={form.m3}
+                      onChange={(e) => setFormField("m3", e.target.value)}
+                      placeholder="Ex: 0.012"
+                    />
                   </div>
                 </Grid2>
               )}
@@ -920,7 +1152,8 @@ export default function CadastroProdutoPage() {
                       </DropLink>
                     </div>
                     <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
-                      Aceita <strong>.xlsx</strong> ou <strong>.csv</strong>. Não salva automaticamente: você carrega e depois clica em{" "}
+                      Aceita <strong>.xlsx</strong> ou <strong>.csv</strong>.
+                      Não salva automaticamente: você carrega e depois clica em{" "}
                       <strong>Salvar importação</strong>.
                     </div>
                   </ImportHint>
@@ -940,13 +1173,33 @@ export default function CadastroProdutoPage() {
                     <DropTitle>Arraste e solte aqui</DropTitle>
                     <DropSub>ou clique para selecionar um arquivo</DropSub>
 
-                    {pickedFileName ? <FileNamePill title={pickedFileName}>{pickedFileName}</FileNamePill> : null}
+                    {pickedFileName ? (
+                      <FileNamePill title={pickedFileName}>
+                        {pickedFileName}
+                      </FileNamePill>
+                    ) : null}
 
-                    <div style={{ marginTop: 10, display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-                      <DropBadge $kind="ok">Linhas lidas: {importRawCount}</DropBadge>
-                      <DropBadge $kind="warn">Duplicadas (SKU): {importDuplicates}</DropBadge>
-                      <DropBadge $kind="warn">Inválidas (ignoradas): {importInvalid}</DropBadge>
-                      <DropBadge $kind="ok">Prontas p/ salvar: {importReady.length}</DropBadge>
+                    <div
+                      style={{
+                        marginTop: 10,
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <DropBadge $kind="ok">
+                        Linhas lidas: {importRawCount}
+                      </DropBadge>
+                      <DropBadge $kind="warn">
+                        Duplicadas (SKU): {importDuplicates}
+                      </DropBadge>
+                      <DropBadge $kind="warn">
+                        Inválidas (ignoradas): {importInvalid}
+                      </DropBadge>
+                      <DropBadge $kind="ok">
+                        Prontas p/ salvar: {importReady.length}
+                      </DropBadge>
                     </div>
                   </DropZone>
 
@@ -960,13 +1213,26 @@ export default function CadastroProdutoPage() {
 
                   {!!importPreview.length && (
                     <PreviewWrap>
-                      <PreviewTitle>Prévia (primeiros {importPreview.length})</PreviewTitle>
-                      <SmallMuted>Dedup por SKU (global), mantém linha mais completa. EAN pode repetir.</SmallMuted>
+                      <PreviewTitle>
+                        Prévia (primeiros {importPreview.length})
+                      </PreviewTitle>
+                      <SmallMuted>
+                        Dedup por SKU (global), mantém linha mais completa. EAN
+                        pode repetir.
+                      </SmallMuted>
 
                       <PreviewTable>
                         <thead>
                           <tr>
-                            {["cliente", "sku", "ean", "un_por_cx", "cx_por_pallet", "peso_kg", "m3"].map((h) => (
+                            {[
+                              "cliente",
+                              "sku",
+                              "ean",
+                              "un_por_cx",
+                              "cx_por_pallet",
+                              "peso_kg",
+                              "m3",
+                            ].map((h) => (
                               <PreviewTh key={h}>{h}</PreviewTh>
                             ))}
                           </tr>
@@ -979,10 +1245,18 @@ export default function CadastroProdutoPage() {
                                 <strong>{p.sku}</strong>
                               </PreviewTd>
                               <PreviewTd>{p.ean || "—"}</PreviewTd>
-                              <PreviewTd style={{ textAlign: "right" }}>{p.un_por_cx}</PreviewTd>
-                              <PreviewTd style={{ textAlign: "right" }}>{p.cx_por_pallet}</PreviewTd>
-                              <PreviewTd style={{ textAlign: "right" }}>{p.peso_kg ?? "—"}</PreviewTd>
-                              <PreviewTd style={{ textAlign: "right" }}>{p.m3 ?? "—"}</PreviewTd>
+                              <PreviewTd style={{ textAlign: "right" }}>
+                                {p.un_por_cx}
+                              </PreviewTd>
+                              <PreviewTd style={{ textAlign: "right" }}>
+                                {p.cx_por_pallet}
+                              </PreviewTd>
+                              <PreviewTd style={{ textAlign: "right" }}>
+                                {p.peso_kg ?? "—"}
+                              </PreviewTd>
+                              <PreviewTd style={{ textAlign: "right" }}>
+                                {p.m3 ?? "—"}
+                              </PreviewTd>
                             </tr>
                           ))}
                         </tbody>
@@ -991,7 +1265,11 @@ export default function CadastroProdutoPage() {
                   )}
 
                   <ImportActionsRow>
-                    <ClearButton type="button" onClick={resetImportState} disabled={loading.any()}>
+                    <ClearButton
+                      type="button"
+                      onClick={resetImportState}
+                      disabled={loading.any()}
+                    >
                       Limpar importação
                     </ClearButton>
 
@@ -999,7 +1277,11 @@ export default function CadastroProdutoPage() {
                       type="button"
                       onClick={salvarImportacao}
                       disabled={loading.any() || !importReady.length}
-                      title={!importReady.length ? "Carregue um arquivo primeiro" : ""}
+                      title={
+                        !importReady.length
+                          ? "Carregue um arquivo primeiro"
+                          : ""
+                      }
                     >
                       Salvar importação
                     </FilterButton>
@@ -1009,16 +1291,28 @@ export default function CadastroProdutoPage() {
             </ModalBody>
 
             <ModalFooter>
-              <ClearButton type="button" onClick={closeAllModals} disabled={loading.any()}>
+              <ClearButton
+                type="button"
+                onClick={closeAllModals}
+                disabled={loading.any()}
+              >
                 Cancelar
               </ClearButton>
 
               {createTab === "manual" ? (
-                <FilterButton type="button" onClick={handleCreate} disabled={loading.any()}>
+                <FilterButton
+                  type="button"
+                  onClick={handleCreate}
+                  disabled={loading.any()}
+                >
                   Salvar
                 </FilterButton>
               ) : (
-                <FilterButton type="button" onClick={pickFile} disabled={loading.any()}>
+                <FilterButton
+                  type="button"
+                  onClick={pickFile}
+                  disabled={loading.any()}
+                >
                   Selecionar arquivo
                 </FilterButton>
               )}
@@ -1037,46 +1331,77 @@ export default function CadastroProdutoPage() {
               <Grid2>
                 <div>
                   <FilterLabel>Cliente *</FilterLabel>
-                  <FilterInput value={form.cliente} onChange={(e) => setFormField("cliente", e.target.value)} />
+                  <FilterInput
+                    value={form.cliente}
+                    onChange={(e) => setFormField("cliente", e.target.value)}
+                  />
                 </div>
 
                 <div>
                   <FilterLabel>SKU *</FilterLabel>
-                  <FilterInput value={form.sku} onChange={(e) => setFormField("sku", e.target.value)} />
+                  <FilterInput
+                    value={form.sku}
+                    onChange={(e) => setFormField("sku", e.target.value)}
+                  />
                 </div>
 
                 <div>
                   <FilterLabel>EAN</FilterLabel>
-                  <FilterInput value={form.ean} onChange={(e) => setFormField("ean", e.target.value)} />
+                  <FilterInput
+                    value={form.ean}
+                    onChange={(e) => setFormField("ean", e.target.value)}
+                  />
                 </div>
 
                 <div>
                   <FilterLabel>UN/CX *</FilterLabel>
-                  <FilterInput value={form.un_por_cx} onChange={(e) => setFormField("un_por_cx", e.target.value)} />
+                  <FilterInput
+                    value={form.un_por_cx}
+                    onChange={(e) => setFormField("un_por_cx", e.target.value)}
+                  />
                 </div>
 
                 <div>
                   <FilterLabel>CX/Pallet *</FilterLabel>
-                  <FilterInput value={form.cx_por_pallet} onChange={(e) => setFormField("cx_por_pallet", e.target.value)} />
+                  <FilterInput
+                    value={form.cx_por_pallet}
+                    onChange={(e) =>
+                      setFormField("cx_por_pallet", e.target.value)
+                    }
+                  />
                 </div>
 
                 <div>
                   <FilterLabel>Peso (kg)</FilterLabel>
-                  <FilterInput value={form.peso_kg} onChange={(e) => setFormField("peso_kg", e.target.value)} />
+                  <FilterInput
+                    value={form.peso_kg}
+                    onChange={(e) => setFormField("peso_kg", e.target.value)}
+                  />
                 </div>
 
                 <div>
                   <FilterLabel>m³</FilterLabel>
-                  <FilterInput value={form.m3} onChange={(e) => setFormField("m3", e.target.value)} />
+                  <FilterInput
+                    value={form.m3}
+                    onChange={(e) => setFormField("m3", e.target.value)}
+                  />
                 </div>
               </Grid2>
             </ModalBody>
 
             <ModalFooter>
-              <ClearButton type="button" onClick={closeAllModals} disabled={loading.any()}>
+              <ClearButton
+                type="button"
+                onClick={closeAllModals}
+                disabled={loading.any()}
+              >
                 Cancelar
               </ClearButton>
-              <FilterButton type="button" onClick={handleUpdate} disabled={loading.any()}>
+              <FilterButton
+                type="button"
+                onClick={handleUpdate}
+                disabled={loading.any()}
+              >
                 Salvar alterações
               </FilterButton>
             </ModalFooter>
@@ -1096,15 +1421,25 @@ export default function CadastroProdutoPage() {
                 <div style={{ marginTop: 10, fontWeight: 800 }}>
                   {active?.cliente} — {active?.sku}
                 </div>
-                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>Essa ação não tem “Ctrl+Z”, tá? 😅</div>
+                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
+                  Essa ação não tem “Ctrl+Z”, tá? 😅
+                </div>
               </div>
             </ModalBody>
 
             <ModalFooter>
-              <ClearButton type="button" onClick={closeAllModals} disabled={loading.any()}>
+              <ClearButton
+                type="button"
+                onClick={closeAllModals}
+                disabled={loading.any()}
+              >
                 Cancelar
               </ClearButton>
-              <DangerBtn type="button" onClick={handleDelete} disabled={loading.any()}>
+              <DangerBtn
+                type="button"
+                onClick={handleDelete}
+                disabled={loading.any()}
+              >
                 Excluir
               </DangerBtn>
             </ModalFooter>
