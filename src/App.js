@@ -383,6 +383,7 @@ const App = () => {
                 SECTORS.ARMAZENAGEM,
                 SECTORS.ADMIN,
                 SECTORS.QUALIDADE,
+                SECTORS.FERSA_CLIENTE
               ]}
             />
           }
