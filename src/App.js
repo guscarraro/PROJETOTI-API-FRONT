@@ -27,6 +27,9 @@ import Frota from "./pages/Projetos/Frota";
 import ProdOperacao from "./pages/Projetos/ProdOperacao";
 import Cadastros from "./pages/Projetos/Cadastros";
 import CadastroProdutoPage from "./pages/Projetos/Produto";
+import BaseReferenciaPage from "./pages/Projetos/AnaliseDRE/BaseReferencia";
+import CustosFixosProgramadosPage from "./pages/Projetos/AnaliseDRE/CustosFixosProgramados";
+import AnalisePage from "./pages/Projetos/AnaliseDRE/Analise";
 
 const ADMIN_UUID = "c1b389cb-7dee-4f91-9687-b1fad9acbf4c";
 
@@ -340,6 +343,48 @@ const App = () => {
           }
         />
 
+        <Route
+          path="/Controladoria/custos"
+          element={
+            <PrivateRoute
+              element={<CustosFixosProgramadosPage />}
+              allowedSectors={[
+                SECTORS.ADMIN,
+                SECTORS.FROTA,
+                SECTORS.TI,
+                SECTORS.RAIA,
+              ]}
+            />
+          }
+        />
+        <Route
+          path="/Controladoria/analise"
+          element={
+            <PrivateRoute
+              element={<AnalisePage />}
+              allowedSectors={[
+                SECTORS.ADMIN,
+                SECTORS.FROTA,
+                SECTORS.TI,
+                SECTORS.RAIA,
+              ]}
+            />
+          }
+        />
+        <Route
+          path="/Controladoria/treinamentoIA"
+          element={
+            <PrivateRoute
+              element={<BaseReferenciaPage />}
+              allowedSectors={[
+                SECTORS.ADMIN,
+                SECTORS.FROTA,
+                SECTORS.TI,
+                SECTORS.RAIA,
+              ]}
+            />
+          }
+        />
         <Route
           path="/Frota/Analise-Performaxxi"
           element={

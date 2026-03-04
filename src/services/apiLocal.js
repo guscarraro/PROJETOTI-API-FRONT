@@ -100,6 +100,78 @@ const apiLocal = {
   downloadModeloProdutosCsv: () =>
     api.get("/produto/import/modelo", { responseType: "blob" }),
   // ========================
+  // DRE
+  // ========================
+
+  // Aba 1 - Referência (Treinamento)
+  dreListPrestadores: (params = {}) =>
+    api.get("/dre/referencia/prestadores", { params }),
+
+  dreGetPrestadorDetail: (prestadorId) =>
+    api.get(`/dre/referencia/prestadores/${prestadorId}`),
+
+  dreUpsertPrestador: (data) =>
+    api.post("/dre/referencia/prestadores", data),
+
+  dreDeletePrestador: (prestadorId) =>
+    api.delete(`/dre/referencia/prestadores/${prestadorId}`),
+
+  dreUpsertRegra: (data) =>
+    api.post("/dre/referencia/regras", data),
+
+  dreBulkUpsertRegras: (payload) =>
+    api.post("/dre/referencia/regras/bulk", payload),
+
+  dreDeleteRegra: (regraId) =>
+    api.delete(`/dre/referencia/regras/${regraId}`),
+
+  // Aba 2 - Custos fixos/programados
+  dreListCustos: (params = {}) =>
+    api.get("/dre/custos", { params }),
+
+  dreUpsertCusto: (data) =>
+    api.post("/dre/custos", data),
+
+  dreDeleteCusto: (id) =>
+    api.delete(`/dre/custos/${id}`),
+
+  dreBulkInsertCustos: (items) =>
+    api.post("/dre/custos/bulk", items),
+
+  // Aba 3/4 - Relatórios importados
+  dreCreateRelatorio: (data) =>
+    api.post("/dre/relatorios/", data),
+
+  dreListRelatorios: (params = {}) =>
+    api.get("/dre/relatorios/", { params }),
+
+  dreGetRelatorio: (relatorioId) =>
+    api.get(`/dre/relatorios/${relatorioId}`),
+
+  dreDeleteRelatorio: (relatorioId) =>
+    api.delete(`/dre/relatorios/${relatorioId}`),
+
+  dreInsertItensBulk: (payload) =>
+    api.post("/dre/relatorios/itens/bulk", payload),
+
+  dreListItens: (relatorioId, params = {}) =>
+    api.get(`/dre/relatorios/${relatorioId}/itens`, { params }),
+
+  dreUpdateItem: (payload) =>
+    api.put("/dre/relatorios/itens", payload),
+
+  dreBulkUpdateItems: (payload) =>
+    api.put("/dre/relatorios/itens/bulk", payload),
+
+  dreAnalisar: (relatorioId) =>
+    api.post(`/dre/relatorios/${relatorioId}/analisar`),
+
+  dreKpis: (relatorioId) =>
+    api.get(`/dre/relatorios/${relatorioId}/kpis`),
+
+  dreConcluir: (relatorioId) =>
+    api.post(`/dre/relatorios/${relatorioId}/concluir`),
+  // ========================
   // Motoristas / Clientes / ...
   // ========================
   getMotoristas: () => api.get("/motoristas/"),
