@@ -1,16 +1,23 @@
 import styled from "styled-components";
 import { Page as BasePage, TitleBar as BaseTitleBar, H1 as BaseH1, Section as BaseSection } from "../../style";
 
-export const Page = BasePage;
+export const Page = styled(BasePage)`
+  --dre-text: #111827;
+  --dre-muted: rgba(17, 24, 39, 0.70);
+  --dre-tick: rgba(17, 24, 39, 0.70);
+  --dre-grid: rgba(148, 163, 184, 0.45);
+
+  [data-theme="dark"] & {
+    --dre-text: #e5e7eb;
+    --dre-muted: rgba(229, 231, 235, 0.72);
+    --dre-tick: rgba(229, 231, 235, 0.72);
+    --dre-grid: rgba(148, 163, 184, 0.20);
+  }
+`;
+
 export const TitleBar = BaseTitleBar;
 export const H1 = BaseH1;
 export const Section = BaseSection;
-
-export const MiniText = styled.div`
-  margin-top: 4px;
-  font-size: 12px;
-  opacity: 0.75;
-`;
 
 export const FiltersRow = styled.div`
   display: flex;
@@ -46,7 +53,7 @@ export const FilterGroup = styled.div`
 
 export const FilterLabel = styled.label`
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 1000;
   color: #4b5563;
 
   [data-theme="dark"] & {
@@ -76,13 +83,35 @@ export const FilterInput = styled.input`
   }
 `;
 
+export const FilterSelect = styled.select`
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 0 10px;
+  font-size: 13px;
+  background: #fff;
+  color: #111827;
+  outline: none;
+
+  &:focus {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
+  }
+
+  [data-theme="dark"] & {
+    background: #0b1220;
+    color: #e5e7eb;
+    border-color: #334155;
+  }
+`;
+
 export const FilterButton = styled.button`
   height: 34px;
   padding: 0 16px;
   border-radius: 999px;
   border: none;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 1000;
   cursor: pointer;
   background: #2563eb;
   color: #fff;
@@ -123,7 +152,7 @@ export const CountPill = styled.span`
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 1000;
   background: rgba(15, 23, 42, 0.06);
   color: #111827;
   border: 1px solid rgba(15, 23, 42, 0.14);
@@ -135,122 +164,12 @@ export const CountPill = styled.span`
   }
 `;
 
-export const Card = styled.div`
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  border-radius: 14px;
-  padding: 12px;
-
-  [data-theme="dark"] & {
-    background: #0b1220;
-    border-color: #334155;
-  }
-`;
-
-export const CardTitle = styled.div`
-  font-weight: 900;
-  margin-bottom: 10px;
-`;
-
-export const Inline = styled.div`
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-`;
-
-export const Grid2 = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-
-  @media (max-width: 1100px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-/* =========================
-   Textos auxiliares
-========================= */
 export const MutedText = styled.div`
   font-size: 12px;
   opacity: 0.75;
   line-height: 1.35;
 `;
 
-/* =========================
-   Grid de KPIs
-========================= */
-export const CardGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(6, minmax(180px, 1fr));
-  gap: 12px;
-
-  @media (max-width: 1400px) {
-    grid-template-columns: repeat(3, minmax(180px, 1fr));
-  }
-  @media (max-width: 900px) {
-    grid-template-columns: repeat(2, minmax(160px, 1fr));
-  }
-  @media (max-width: 520px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-export const KpiCard = styled.div`
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  border-radius: 14px;
-  padding: 12px;
-  cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
-  }
-
-  [data-theme="dark"] & {
-    background: #0b1220;
-    border-color: #334155;
-
-    &:hover {
-      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
-    }
-  }
-`;
-
-export const KpiTitle = styled.div`
-  font-size: 12px;
-  font-weight: 900;
-  color: #334155;
-
-  [data-theme="dark"] & {
-    color: #e5e7eb;
-  }
-`;
-
-export const KpiValue = styled.div`
-  margin-top: 6px;
-  font-size: 22px;
-  font-weight: 1000;
-  letter-spacing: -0.2px;
-  color: #111827;
-
-  [data-theme="dark"] & {
-    color: #fff;
-  }
-`;
-
-export const KpiSub = styled.div`
-  margin-top: 4px;
-  font-size: 12px;
-  opacity: 0.7;
-`;
-
-/* =========================
-   Import / Dropzone
-========================= */
 export const ActionsRow = styled.div`
   display: flex;
   justify-content: space-between;
@@ -287,15 +206,16 @@ export const DropArea = styled.div`
 export const DropTitle = styled.div`
   font-size: 14px;
   font-weight: 1000;
+  color: var(--dre-text);
 `;
 
 export const DropHint = styled.div`
   margin-top: 6px;
   font-size: 12px;
   opacity: 0.7;
+  color: var(--dre-text);
 `;
 
-/* Botão pequeno usado no header do import */
 export const SmallButton = styled.button`
   height: 34px;
   padding: 0 12px;
@@ -304,7 +224,7 @@ export const SmallButton = styled.button`
   background: #fff;
   color: #111827;
   font-size: 13px;
-  font-weight: 900;
+  font-weight: 1000;
   cursor: pointer;
   display: inline-flex;
   gap: 8px;
@@ -341,9 +261,6 @@ export const Divider = styled.div`
   }
 `;
 
-/* =========================
-   Tabela (preview + modal)
-========================= */
 export const TableWrap = styled.div`
   width: 100%;
   overflow: auto;
@@ -353,6 +270,7 @@ export const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+  color: var(--dre-text);
 `;
 
 export const Th = styled.th`
@@ -363,6 +281,7 @@ export const Th = styled.th`
   position: sticky;
   top: 0;
   z-index: 1;
+  color: var(--dre-text);
 
   [data-theme="dark"] & {
     background: #020617;
@@ -373,6 +292,7 @@ export const Th = styled.th`
 export const Td = styled.td`
   padding: 8px 10px;
   border-bottom: 1px solid #f3f4f6;
+  color: var(--dre-text);
 
   [data-theme="dark"] & {
     border-bottom-color: #111827;
@@ -386,9 +306,6 @@ export const TdCompact = styled(Td)`
   vertical-align: middle;
 `;
 
-/* =========================
-   Modal
-========================= */
 export const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
@@ -408,6 +325,8 @@ export const ModalCard = styled.div`
   border: 1px solid #e5e7eb;
   box-shadow: 0 18px 60px rgba(0, 0, 0, 0.25);
   overflow: hidden;
+
+  color: var(--dre-text);
 
   [data-theme="dark"] & {
     background: #0b1220;
@@ -440,28 +359,5 @@ export const ModalFooter = styled.div`
 
   [data-theme="dark"] & {
     border-top-color: #1e293b;
-  }
-`;
-
-// FALTANDO NO style.js (adicione só isso)
-export const FilterSelect = styled.select`
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  padding: 0 10px;
-  font-size: 13px;
-  background: #fff;
-  color: #111827;
-  outline: none;
-
-  &:focus {
-    border-color: #60a5fa;
-    box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.35);
-  }
-
-  [data-theme="dark"] & {
-    background: #0b1220;
-    color: #e5e7eb;
-    border-color: #334155;
   }
 `;

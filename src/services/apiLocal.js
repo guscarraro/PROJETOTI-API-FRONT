@@ -127,10 +127,10 @@ const apiLocal = {
 
   // Aba 2 - Custos fixos/programados
   dreListCustos: (params = {}) =>
-    api.get("/dre/custos", { params }),
+    api.get("/dre/custos/", { params }),
 
   dreUpsertCusto: (data) =>
-    api.post("/dre/custos", data),
+    api.post("/dre/custos/", data),
 
   dreDeleteCusto: (id) =>
     api.delete(`/dre/custos/${id}`),

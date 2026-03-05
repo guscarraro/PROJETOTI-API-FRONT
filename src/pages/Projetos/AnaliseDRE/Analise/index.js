@@ -1,26 +1,15 @@
-// src/pages/DRE/Analise/index.js
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
 import { FaFileImport, FaPlay, FaTrash, FaCheck, FaChartBar } from "react-icons/fa";
 
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  PieChart,
-  Pie,
-  Legend,
-} from "recharts";
-
 import apiLocal from "../../../../services/apiLocal";
 import useLoading from "../../../../hooks/useLoading";
 import NavBar from "../../../Projetos/components/NavBar";
-import { PageLoader } from "../../../Projetos/components/Loader";
+
+import AiSiriOverlay from "./components/AiSiriOverlay";
+import KpiGrid from "./components/KpiGrid";
+import DreCharts from "./components/DreCharts";
 
 import {
   Page,
@@ -43,11 +32,6 @@ import {
   TdCompact,
   CountPill,
   MutedText,
-  CardGrid,
-  KpiCard,
-  KpiTitle,
-  KpiValue,
-  KpiSub,
   DropArea,
   DropTitle,
   DropHint,
@@ -72,12 +56,7 @@ function parseMoneyBRL(value) {
   if (value === null || value === undefined) return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
 
-  const s = String(value)
-    .replace(/\s/g, "")
-    .replace("R$", "")
-    .replace(/\./g, "")
-    .replace(",", ".");
-
+  const s = String(value).replace(/\s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -92,7 +71,6 @@ function excelSerialToISO(serial) {
 
 function normalizeDateCell(v) {
   if (v === null || v === undefined || v === "") return null;
-
   if (typeof v === "number") return excelSerialToISO(v);
 
   const s = String(v).trim();
@@ -158,11 +136,11 @@ export default function DREAnalisePage() {
   const [codAgrupador, setCodAgrupador] = useState("");
   const [fileHash, setFileHash] = useState("");
 
-  const [relatorio, setRelatorio] = useState(null);
   const [itens, setItens] = useState([]);
   const [kpis, setKpis] = useState(null);
 
   const [isDragActive, setIsDragActive] = useState(false);
+  const [modal, setModal] = useState({ open: false, title: "", rows: [] });
 
   const now = useMemo(() => new Date(), []);
   const [createForm, setCreateForm] = useState(() => ({
@@ -170,8 +148,6 @@ export default function DREAnalisePage() {
     mes: String(now.getMonth() + 1).padStart(2, "0"),
     nome_arquivo: "",
   }));
-
-  const [modal, setModal] = useState({ open: false, title: "", rows: [] });
 
   const canImport = !!String(relatorioId || "").trim();
   const hasItens = itens.length > 0;
@@ -181,8 +157,6 @@ export default function DREAnalisePage() {
     async (id) => {
       const resp = await loading.wrap("dre-get-relatorio", () => apiLocal.dreGetRelatorio(id));
       const data = resp.data || null;
-      setRelatorio(data);
-
       const maybeCod = data?.cod_agrupador || "";
       const maybeHash = data?.file_hash || "";
       if (maybeCod) setCodAgrupador(maybeCod);
@@ -226,7 +200,6 @@ export default function DREAnalisePage() {
     toast.success("Relatório carregado!");
   }, [relatorioId, refreshAll]);
 
-  // ✅ criação no modelo do back
   const handleCreateRelatorio = useCallback(async () => {
     try {
       const anoNum = Number(createForm.ano);
@@ -265,7 +238,6 @@ export default function DREAnalisePage() {
       setCodAgrupador(cod);
       setFileHash(fakeHash);
 
-      setRelatorio(null);
       setItens([]);
       setKpis(null);
 
@@ -288,7 +260,6 @@ export default function DREAnalisePage() {
       setRelatorioId("");
       setCodAgrupador("");
       setFileHash("");
-      setRelatorio(null);
       setItens([]);
       setKpis(null);
     } catch (e) {
@@ -327,7 +298,6 @@ export default function DREAnalisePage() {
     }
   }, [loading, loadKpis, loadRelatorio, relatorioId]);
 
-  // ✅ AQUI ESTÁ A CORREÇÃO PRINCIPAL: nomes de campos = back (RelatorioItemInput)
   const parseAndUploadXlsx = useCallback(
     async (file) => {
       const rid = String(relatorioId || "").trim();
@@ -356,20 +326,16 @@ export default function DREAnalisePage() {
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
 
-          // Algumas planilhas (como a sua) NÃO têm Numero/Data doc/Tipo doc.
-          // Então esses campos vão ficar null mesmo (e tá tudo bem).
           const numeroDoc = pickRow(r, ["Numero", "Número", "Num", "Numero doc", "Número doc"]);
           const tipoDoc = pickRow(r, ["Tipo doc", "Tipo", "TipoDoc"]);
           const dataDoc = pickRow(r, ["Data doc", "Data", "DataDoc"]);
           const dataInclusao = pickRow(r, ["Inclusao", "Inclusão", "Inclusao doc", "Data inclusao", "Data inclusão"]);
 
-          // doc = CNPJ/CPF (só dígitos)
           const doc = pickRow(r, ["Cnpj / cpf", "Cnpj/cp", "CNPJ / CPF", "Cnpj / cp", "Doc"]);
 
           const pessoa = pickRow(r, ["Pessoa"]);
           const item = pickRow(r, ["Item"]);
 
-          // ✅ CFIn certo pro back:
           const cfinCodigo = pickRow(r, ["Estrutura cfin", "Estrutura CFIn", "CFIn", "CFIN", "cfin_codigo"]);
           const cfinNome = pickRow(r, ["Nome cfin", "Nome CFIn", "cfin_nome", "Nome"]);
 
@@ -379,16 +345,13 @@ export default function DREAnalisePage() {
 
           const abrangencia = pickRow(r, ["Abrangencia", "Abr", "Abrangência"]);
 
-          // pula linha lixo
           const hasSomething = safeStr(numeroDoc) || safeStr(item) || safeStr(doc) || safeStr(pessoa);
           if (!hasSomething) continue;
 
           itemsPayload.push({
-            // ✅ nomes EXATOS do RelatorioItemInput
             numero_doc: safeStr(numeroDoc),
             abrangencia: safeStr(abrangencia),
             tipo_doc: safeStr(tipoDoc),
-
             data_doc: normalizeDateCell(dataDoc),
             data_inclusao: normalizeDateCell(dataInclusao),
 
@@ -422,7 +385,6 @@ export default function DREAnalisePage() {
         );
 
         toast.success(`${itemsPayload.length} linhas importadas`);
-
         await loadItens(rid);
         await handleAnalisar();
       } catch (e) {
@@ -497,7 +459,14 @@ export default function DREAnalisePage() {
     if (fileInputRef.current) fileInputRef.current.click();
   }, [dropDisabled]);
 
-  // ✅ charts usando cfin_codigo e setor real
+  const formatBRL = useCallback(
+    (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    [],
+  );
+
+  const showDate = useCallback((r) => r.data_doc || r.data_inclusao || "—", []);
+
+  // charts (sem reduce)
   const chartByCfin = useMemo(() => {
     const map = {};
     for (let i = 0; i < itens.length; i++) {
@@ -509,7 +478,7 @@ export default function DREAnalisePage() {
     const arr = [];
     for (const k in map) arr.push({ name: k, value: map[k] });
     arr.sort((a, b) => b.value - a.value);
-    return arr.slice(0, 20);
+    return arr.slice(0, 16);
   }, [itens]);
 
   const chartBySetor = useMemo(() => {
@@ -523,7 +492,7 @@ export default function DREAnalisePage() {
     const arr = [];
     for (const k in map) arr.push({ name: k, value: map[k] });
     arr.sort((a, b) => b.value - a.value);
-    return arr;
+    return arr.slice(0, 10);
   }, [itens]);
 
   const totals = useMemo(() => {
@@ -535,12 +504,8 @@ export default function DREAnalisePage() {
     return { count: itens.length, totalValor };
   }, [itens]);
 
-  // ✅ modal filtrando pelos flags do back
   const openKpiModal = useCallback(
-    async (key) => {
-      const rid = String(relatorioId || "").trim();
-      if (!rid) return;
-
+    (key) => {
       let title = "";
       const rows = [];
 
@@ -566,20 +531,23 @@ export default function DREAnalisePage() {
 
       setModal({ open: true, title, rows });
     },
-    [itens, relatorioId],
+    [itens],
   );
 
-  useEffect(() => {}, []);
+  const overlayTitle = useMemo(() => {
+    if (!loading.any()) return "";
+    return hasItens ? "IA analisando seu DRE…" : "Preparando importação…";
+  }, [loading, hasItens]);
 
-  const formatBRL = (v) =>
-    Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-  // ✅ fallback de data: se data_doc não existir no XLSX, mostra data_inclusao
-  const showDate = (r) => r.data_doc || r.data_inclusao || "—";
+  const overlaySub = useMemo(() => {
+    if (!loading.any()) return "";
+    if (!hasItens) return "Lendo planilha e montando o modelo de análise";
+    return "Detectando divergências, duplicidades e itens sem setor";
+  }, [loading, hasItens]);
 
   return (
     <Page>
-      <PageLoader active={loading.any()} text="Carregando DRE..." />
+      <AiSiriOverlay active={loading.any()} title={overlayTitle} subtitle={overlaySub} />
       <NavBar />
 
       <TitleBar>
@@ -587,9 +555,7 @@ export default function DREAnalisePage() {
 
         <FiltersRight>
           <CountPill>
-            {relatorioId
-              ? `Relatório: ${codAgrupador || String(relatorioId).slice(0, 8) + "…"}`
-              : "Sem relatório"}
+            {relatorioId ? `Relatório: ${codAgrupador || String(relatorioId).slice(0, 8) + "…"}` : "Sem relatório"}
           </CountPill>
 
           {!!relatorioId && (
@@ -678,12 +644,7 @@ export default function DREAnalisePage() {
           </FiltersLeft>
 
           <FiltersRight>
-            <FilterButton
-              type="button"
-              onClick={handleCreateRelatorio}
-              disabled={loading.any()}
-              style={{ gap: 8 }}
-            >
+            <FilterButton type="button" onClick={handleCreateRelatorio} disabled={loading.any()} style={{ gap: 8 }}>
               <FaFileImport /> Criar relatório
             </FilterButton>
 
@@ -710,7 +671,7 @@ export default function DREAnalisePage() {
         <Section style={{ marginTop: 14 }}>
           <ActionsRow>
             <div>
-              <div style={{ fontWeight: 800, fontSize: 13 }}>Importar XLSX do sistema externo</div>
+              <div style={{ fontWeight: 1000, fontSize: 13 }}>Importar XLSX do sistema externo</div>
               <div style={{ fontSize: 12, opacity: 0.7 }}>
                 Arraste o arquivo ou clique na área. Após importar, a análise roda automaticamente.
               </div>
@@ -762,11 +723,7 @@ export default function DREAnalisePage() {
             }}
           >
             <DropTitle>
-              {loading.any()
-                ? "Processando…"
-                : isDragActive
-                  ? "Solta aqui 👇"
-                  : "Arraste e solte seu .xlsx aqui (ou clique)"}
+              {loading.any() ? "Processando…" : isDragActive ? "Solta aqui 👇" : "Arraste e solte seu .xlsx aqui (ou clique)"}
             </DropTitle>
             <DropHint>Dica: se o Excel vier com colunas levemente diferentes, o parser tenta se adaptar.</DropHint>
           </DropArea>
@@ -776,84 +733,21 @@ export default function DREAnalisePage() {
       {!!relatorioId && (
         <>
           <Section style={{ marginTop: 14 }}>
-            <CardGrid>
-              <KpiCard onClick={() => openKpiModal("all")} role="button">
-                <KpiTitle>Total de linhas</KpiTitle>
-                <KpiValue>{totals.count}</KpiValue>
-                <KpiSub>Itens importados</KpiSub>
-              </KpiCard>
+            <KpiGrid
+              kpis={kpis}
+              totals={totals}
+              loading={loading.any()}
+              onOpen={(key) => openKpiModal(key)}
+            />
+          </Section>
 
-              <KpiCard onClick={() => openKpiModal("all")} role="button">
-                <KpiTitle>Total (valor doc)</KpiTitle>
-                <KpiValue>{formatBRL(totals.totalValor)}</KpiValue>
-                <KpiSub>Somatório do valor_doc</KpiSub>
-              </KpiCard>
-
-              <KpiCard onClick={() => openKpiModal("sem_setor")} role="button">
-                <KpiTitle>Sem setor</KpiTitle>
-                <KpiValue>{kpis?.sem_setor ?? "—"}</KpiValue>
-                <KpiSub>Precisa classificar</KpiSub>
-              </KpiCard>
-
-              <KpiCard onClick={() => openKpiModal("cfin_divergente")} role="button">
-                <KpiTitle>CFIn divergente</KpiTitle>
-                <KpiValue>{kpis?.cfin_divergente ?? "—"}</KpiValue>
-                <KpiSub>Nome/código não bate</KpiSub>
-              </KpiCard>
-
-              <KpiCard onClick={() => openKpiModal("valor_divergente")} role="button">
-                <KpiTitle>Valor divergente</KpiTitle>
-                <KpiValue>{kpis?.valor_divergente ?? "—"}</KpiValue>
-                <KpiSub>Exige justificativa</KpiSub>
-              </KpiCard>
-
-              <KpiCard onClick={() => openKpiModal("duplicados")} role="button">
-                <KpiTitle>Duplicados</KpiTitle>
-                <KpiValue>{kpis?.duplicados ?? "—"}</KpiValue>
-                <KpiSub>Número + valor repetidos</KpiSub>
-              </KpiCard>
-            </CardGrid>
+          <Section style={{ marginTop: 14 }}>
+            <DreCharts chartByCfin={chartByCfin} chartBySetor={chartBySetor} formatBRL={formatBRL} />
           </Section>
 
           <Section style={{ marginTop: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ fontWeight: 900, fontSize: 13 }}>Top CFIn por valor</div>
-              <div style={{ fontSize: 12, opacity: 0.7 }}>Clique em “Ver itens” para abrir a tabela completa</div>
-            </div>
-
-            <Divider />
-
-            <div style={{ width: "100%", height: 320 }}>
-              <ResponsiveContainer>
-                <BarChart data={chartByCfin}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" hide />
-                  <YAxis />
-                  <Tooltip formatter={(value) => formatBRL(value)} />
-                  <Bar dataKey="value" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </Section>
-
-          <Section style={{ marginTop: 14 }}>
-            <div style={{ fontWeight: 900, fontSize: 13 }}>Distribuição por setor</div>
-            <Divider />
-
-            <div style={{ width: "100%", height: 320 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={chartBySetor} dataKey="value" nameKey="name" outerRadius={110} label={(d) => d.name} />
-                  <Tooltip formatter={(value) => formatBRL(value)} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </Section>
-
-          <Section style={{ marginTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ fontWeight: 900, fontSize: 13 }}>Preview (últimos 50)</div>
+              <div style={{ fontWeight: 1000, fontSize: 13 }}>Preview (últimos 50)</div>
               <CountPill>{itens.length} itens</CountPill>
             </div>
 
@@ -863,21 +757,8 @@ export default function DREAnalisePage() {
               <Table>
                 <thead>
                   <tr>
-                    {[
-                      "Número doc",
-                      "Data",
-                      "Doc (CNPJ/CPF)",
-                      "Pessoa",
-                      "Item",
-                      "CFIn cód",
-                      "CFIn nome",
-                      "Empresa",
-                      "Valor doc",
-                      "Setor",
-                    ].map((h) => (
-                      <Th key={h} style={{ whiteSpace: "nowrap", padding: "6px 8px" }}>
-                        {h}
-                      </Th>
+                    {["Número doc", "Data", "Doc", "Pessoa", "Item", "CFIn cód", "CFIn nome", "Empresa", "Valor doc", "Setor"].map((h) => (
+                      <Th key={h} style={{ whiteSpace: "nowrap", padding: "6px 8px" }}>{h}</Th>
                     ))}
                   </tr>
                 </thead>
@@ -918,7 +799,7 @@ export default function DREAnalisePage() {
         <ModalOverlay onClick={() => setModal({ open: false, title: "", rows: [] })}>
           <ModalCard onClick={(e) => e.stopPropagation()}>
             <ModalHeader>
-              <div style={{ fontWeight: 900 }}>{modal.title}</div>
+              <div style={{ fontWeight: 1000 }}>{modal.title}</div>
               <CountPill>{modal.rows.length} itens</CountPill>
             </ModalHeader>
 
@@ -927,20 +808,8 @@ export default function DREAnalisePage() {
                 <Table>
                   <thead>
                     <tr>
-                      {[
-                        "Número doc",
-                        "Data",
-                        "Doc",
-                        "Pessoa",
-                        "Item",
-                        "CFIn",
-                        "Empresa",
-                        "Valor doc",
-                        "Setor",
-                      ].map((h) => (
-                        <Th key={h} style={{ whiteSpace: "nowrap", padding: "6px 8px" }}>
-                          {h}
-                        </Th>
+                      {["Número doc", "Data", "Doc", "Pessoa", "Item", "CFIn", "Empresa", "Valor doc", "Setor"].map((h) => (
+                        <Th key={h} style={{ whiteSpace: "nowrap", padding: "6px 8px" }}>{h}</Th>
                       ))}
                     </tr>
                   </thead>
