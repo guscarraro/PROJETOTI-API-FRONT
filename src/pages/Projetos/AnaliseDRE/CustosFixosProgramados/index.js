@@ -36,17 +36,38 @@ const now = new Date();
 const defaultAno = now.getFullYear();
 const defaultMes = now.getMonth() + 1;
 
+// Helper para remover caracteres não numéricos
+const onlyDigits = (value) => {
+  if (!value) return "";
+  return value.replace(/\D/g, "");
+};
+
+// Helper para formatar CPF/CNPJ (opcional - só para exibição)
+const formatDoc = (value) => {
+  const digits = onlyDigits(value);
+  if (digits.length <= 11) {
+    // CPF: 000.000.000-00
+    return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+  } else {
+    // CNPJ: 00.000.000/0000-00
+    return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+  }
+};
+
 const emptyCusto = {
   id: null,
   ano: defaultAno,
   mes: defaultMes,
-  doc: "",
+  doc: "", // número da nota (opcional)
+  cnpj_cpf: "", // CPF/CNPJ do prestador (apenas números)
   nome_contains: "",
   item_contains: "",
   cfin_codigo: "",
   setor: "",
   valor_esperado: 0,
   tolerancia_percent: 0,
+  recorrencia: "MENSAL", // MENSAL ou UNICO
+  recorrencia_obs: "",
   ativo: true,
   obs: "",
 };
@@ -58,6 +79,7 @@ export default function CustosFixosProgramadosPage() {
   const [mes, setMes] = useState(String(defaultMes).padStart(2, "0"));
   const [q, setQ] = useState("");
   const [ativo, setAtivo] = useState("");
+  const [recorrencia, setRecorrencia] = useState("");
 
   const [rows, setRows] = useState([]);
   const [form, setForm] = useState({ ...emptyCusto });
@@ -68,10 +90,11 @@ export default function CustosFixosProgramadosPage() {
     if (mes) params.mes = Number(mes);
     if (q) params.q = q;
     if (ativo !== "") params.ativo = ativo === "true";
+    if (recorrencia) params.recorrencia = recorrencia;
 
     const res = await loading.wrap("dre-custos", () => apiLocal.dreListCustos(params));
     setRows(res.data || []);
-  }, [ano, mes, q, ativo, loading]);
+  }, [ano, mes, q, ativo, recorrencia, loading]);
 
   useEffect(() => {
     (async () => {
@@ -89,20 +112,26 @@ export default function CustosFixosProgramadosPage() {
         return;
       }
 
+      // Garantir que CPF/CNPJ tenha apenas números
+      const payload = {
+        ...form,
+        ano: Number(form.ano),
+        mes: Number(form.mes),
+        valor_esperado: Number(form.valor_esperado || 0),
+        tolerancia_percent: Number(form.tolerancia_percent || 0),
+        cnpj_cpf: onlyDigits(form.cnpj_cpf) || null, // Remove caracteres especiais
+        doc: form.doc || null,
+        nome_contains: form.nome_contains || null,
+        item_contains: form.item_contains || null,
+        cfin_codigo: form.cfin_codigo || null,
+        setor: form.setor || null,
+        recorrencia: form.recorrencia || "MENSAL",
+        recorrencia_obs: form.recorrencia_obs || null,
+        obs: form.obs || null,
+      };
+
       await loading.wrap("dre-upsert-custo", () =>
-        apiLocal.dreUpsertCusto({
-          ...form,
-          ano: Number(form.ano),
-          mes: Number(form.mes),
-          valor_esperado: Number(form.valor_esperado || 0),
-          tolerancia_percent: Number(form.tolerancia_percent || 0),
-          doc: form.doc || null,
-          nome_contains: form.nome_contains || null,
-          item_contains: form.item_contains || null,
-          cfin_codigo: form.cfin_codigo || null,
-          setor: form.setor || null,
-          obs: form.obs || null,
-        }),
+        apiLocal.dreUpsertCusto(payload),
       );
 
       toast.success(form.id ? "Atualizado!" : "Criado!");
@@ -120,12 +149,15 @@ export default function CustosFixosProgramadosPage() {
       ano: r.ano,
       mes: r.mes,
       doc: r.doc || "",
+      cnpj_cpf: r.cnpj_cpf || "", // CPF/CNPJ já vem só números do backend
       nome_contains: r.nome_contains || "",
       item_contains: r.item_contains || "",
       cfin_codigo: r.cfin_codigo || "",
       setor: r.setor || "",
       valor_esperado: r.valor_esperado ?? 0,
       tolerancia_percent: r.tolerancia_percent ?? 0,
+      recorrencia: r.recorrencia || "MENSAL",
+      recorrencia_obs: r.recorrencia_obs || "",
       ativo: r.ativo ?? true,
       obs: r.obs || "",
     });
@@ -148,6 +180,7 @@ export default function CustosFixosProgramadosPage() {
     setMes(String(defaultMes).padStart(2, "0"));
     setQ("");
     setAtivo("");
+    setRecorrencia("");
     await fetchRows();
   };
 
@@ -166,17 +199,29 @@ export default function CustosFixosProgramadosPage() {
           <FiltersLeft>
             <FilterGroup>
               <FilterLabel>Ano</FilterLabel>
-              <FilterInput value={ano} onChange={(e) => setAno(e.target.value)} />
+              <FilterInput 
+                value={ano} 
+                onChange={(e) => setAno(e.target.value)} 
+                placeholder="Ex: 2026"
+              />
             </FilterGroup>
 
             <FilterGroup>
               <FilterLabel>Mês</FilterLabel>
-              <FilterInput value={mes} onChange={(e) => setMes(e.target.value)} />
+              <FilterInput 
+                value={mes} 
+                onChange={(e) => setMes(e.target.value)} 
+                placeholder="Ex: 01"
+              />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Buscar (doc/item)</FilterLabel>
-              <FilterInput value={q} onChange={(e) => setQ(e.target.value)} />
+              <FilterLabel>Buscar</FilterLabel>
+              <FilterInput 
+                value={q} 
+                onChange={(e) => setQ(e.target.value)} 
+                placeholder="Doc, nome ou item..."
+              />
             </FilterGroup>
 
             <FilterGroup>
@@ -185,6 +230,15 @@ export default function CustosFixosProgramadosPage() {
                 <option value="">Todos</option>
                 <option value="true">Ativos</option>
                 <option value="false">Inativos</option>
+              </FilterSelect>
+            </FilterGroup>
+
+            <FilterGroup>
+              <FilterLabel>Recorrência</FilterLabel>
+              <FilterSelect value={recorrencia} onChange={(e) => setRecorrencia(e.target.value)}>
+                <option value="">Todas</option>
+                <option value="MENSAL">Mensal</option>
+                <option value="UNICO">Único</option>
               </FilterSelect>
             </FilterGroup>
           </FiltersLeft>
@@ -210,6 +264,7 @@ export default function CustosFixosProgramadosPage() {
               <FilterInput
                 value={String(form.ano)}
                 onChange={(e) => setForm((p) => ({ ...p, ano: e.target.value }))}
+                placeholder="Ex: 2026"
               />
             </FilterGroup>
 
@@ -218,55 +273,73 @@ export default function CustosFixosProgramadosPage() {
               <FilterInput
                 value={String(form.mes)}
                 onChange={(e) => setForm((p) => ({ ...p, mes: e.target.value }))}
+                placeholder="Ex: 01"
               />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Doc (opcional)</FilterLabel>
+              <FilterLabel>CPF/CNPJ</FilterLabel>
+              <FilterInput
+                value={form.cnpj_cpf}
+                onChange={(e) => setForm((p) => ({ ...p, cnpj_cpf: onlyDigits(e.target.value) }))}
+                placeholder="Apenas números - Ex: 04460527871"
+                maxLength={14}
+              />
+            </FilterGroup>
+
+            <FilterGroup>
+              <FilterLabel>Doc (Nº Nota)</FilterLabel>
               <FilterInput
                 value={form.doc}
                 onChange={(e) => setForm((p) => ({ ...p, doc: e.target.value }))}
+                placeholder="Número da nota (opcional)"
               />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Nome contém (opcional)</FilterLabel>
+              <FilterLabel>Nome contém</FilterLabel>
               <FilterInput
                 value={form.nome_contains}
                 onChange={(e) => setForm((p) => ({ ...p, nome_contains: e.target.value }))}
+                placeholder="Ex: ERASTO TEOBALDO"
               />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Item contém (opcional)</FilterLabel>
+              <FilterLabel>Item contém</FilterLabel>
               <FilterInput
                 value={form.item_contains}
                 onChange={(e) => setForm((p) => ({ ...p, item_contains: e.target.value }))}
+                placeholder="Ex: Adiantamento Salários"
               />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>CFIn código (opcional)</FilterLabel>
+              <FilterLabel>CFIn código</FilterLabel>
               <FilterInput
                 value={form.cfin_codigo}
                 onChange={(e) => setForm((p) => ({ ...p, cfin_codigo: e.target.value }))}
+                placeholder="Ex: 1.1.03.01.001"
               />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Setor (opcional)</FilterLabel>
+              <FilterLabel>Setor</FilterLabel>
               <FilterInput
                 value={form.setor}
                 onChange={(e) => setForm((p) => ({ ...p, setor: e.target.value }))}
+                placeholder="Ex: FRETE, RH, FISCAL"
               />
             </FilterGroup>
 
             <FilterGroup>
-              <FilterLabel>Valor esperado</FilterLabel>
+              <FilterLabel>Valor esperado (R$)</FilterLabel>
               <FilterInput
                 type="number"
+                step="0.01"
                 value={String(form.valor_esperado)}
                 onChange={(e) => setForm((p) => ({ ...p, valor_esperado: e.target.value }))}
+                placeholder="0.00"
               />
             </FilterGroup>
 
@@ -274,8 +347,30 @@ export default function CustosFixosProgramadosPage() {
               <FilterLabel>Tolerância %</FilterLabel>
               <FilterInput
                 type="number"
+                step="0.01"
                 value={String(form.tolerancia_percent)}
                 onChange={(e) => setForm((p) => ({ ...p, tolerancia_percent: e.target.value }))}
+                placeholder="0.00"
+              />
+            </FilterGroup>
+
+            <FilterGroup>
+              <FilterLabel>Recorrência</FilterLabel>
+              <FilterSelect
+                value={form.recorrencia}
+                onChange={(e) => setForm((p) => ({ ...p, recorrencia: e.target.value }))}
+              >
+                <option value="MENSAL">Mensal (todo mês)</option>
+                <option value="UNICO">Único (apenas este mês)</option>
+              </FilterSelect>
+            </FilterGroup>
+
+            <FilterGroup>
+              <FilterLabel>Obs. Recorrência</FilterLabel>
+              <FilterInput
+                value={form.recorrencia_obs}
+                onChange={(e) => setForm((p) => ({ ...p, recorrencia_obs: e.target.value }))}
+                placeholder="Ex: Contrato até dez/2026"
               />
             </FilterGroup>
 
@@ -291,10 +386,11 @@ export default function CustosFixosProgramadosPage() {
             </FilterGroup>
 
             <FilterGroup style={{ gridColumn: "1 / -1" }}>
-              <FilterLabel>Obs</FilterLabel>
+              <FilterLabel>Observações gerais</FilterLabel>
               <FilterInput
                 value={form.obs}
                 onChange={(e) => setForm((p) => ({ ...p, obs: e.target.value }))}
+                placeholder="Observações adicionais..."
               />
             </FilterGroup>
           </FormGrid>
@@ -322,13 +418,15 @@ export default function CustosFixosProgramadosPage() {
               <tr>
                 <Th>Ano</Th>
                 <Th>Mês</Th>
-                <Th>Doc</Th>
+                <Th>CPF/CNPJ</Th>
+                <Th>Doc (Nota)</Th>
                 <Th>Nome contém</Th>
                 <Th>Item contém</Th>
                 <Th>CFIn</Th>
                 <Th>Setor</Th>
                 <Th>Valor</Th>
                 <Th>Tol %</Th>
+                <Th>Recorrência</Th>
                 <Th>Ativo</Th>
                 <Th>Ações</Th>
               </tr>
@@ -338,6 +436,9 @@ export default function CustosFixosProgramadosPage() {
                 <tr key={r.id}>
                   <TdCompact>{r.ano}</TdCompact>
                   <TdCompact>{String(r.mes).padStart(2, "0")}</TdCompact>
+                  <TdCompact title={r.cnpj_cpf ? formatDoc(r.cnpj_cpf) : "—"}>
+                    {r.cnpj_cpf || "—"}
+                  </TdCompact>
                   <TdCompact>{r.doc || "—"}</TdCompact>
                   <TdCompact>{r.nome_contains || "—"}</TdCompact>
                   <TdCompact>{r.item_contains || "—"}</TdCompact>
@@ -345,17 +446,22 @@ export default function CustosFixosProgramadosPage() {
                   <TdCompact>{r.setor || "—"}</TdCompact>
                   <TdCompact style={{ textAlign: "right" }}>
                     {(Number(r.valor_esperado || 0)).toLocaleString("pt-BR", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
+                      style: "currency",
+                      currency: "BRL",
                     })}
                   </TdCompact>
                   <TdCompact style={{ textAlign: "right" }}>
                     {(Number(r.tolerancia_percent || 0)).toLocaleString("pt-BR", {
                       minimumFractionDigits: 2,
                       maximumFractionDigits: 2,
-                    })}
+                    })}%
                   </TdCompact>
-                  <TdCompact>{r.ativo ? "Sim" : "Não"}</TdCompact>
+                  <TdCompact>
+                    <span title={r.recorrencia_obs || ""}>
+                      {r.recorrencia === "MENSAL" ? "📅 Mensal" : "🔹 Único"}
+                    </span>
+                  </TdCompact>
+                  <TdCompact>{r.ativo ? "✅" : "❌"}</TdCompact>
                   <TdCompact>
                     <RowActions>
                       <ActionBtn type="button" onClick={() => onEdit(r)}>
@@ -371,7 +477,7 @@ export default function CustosFixosProgramadosPage() {
 
               {!rows.length && !loading.any() && (
                 <tr>
-                  <Td colSpan={11} style={{ textAlign: "center", opacity: 0.7 }}>
+                  <Td colSpan={13} style={{ textAlign: "center", opacity: 0.7 }}>
                     Nenhum custo encontrado.
                   </Td>
                 </tr>

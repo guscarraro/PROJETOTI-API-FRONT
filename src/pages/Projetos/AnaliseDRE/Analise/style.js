@@ -168,6 +168,7 @@ export const MutedText = styled.div`
   font-size: 12px;
   opacity: 0.75;
   line-height: 1.35;
+  color: var(--dre-text);
 `;
 
 export const ActionsRow = styled.div`
@@ -360,4 +361,114 @@ export const ModalFooter = styled.div`
   [data-theme="dark"] & {
     border-top-color: #1e293b;
   }
+`;
+
+// Novos estilos para os modais
+export const BatchUpdateContainer = styled.div`
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+
+  [data-theme="dark"] & {
+    background: #1e293b;
+    border-color: #334155;
+  }
+`;
+
+export const BatchUpdateTitle = styled.div`
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--dre-text);
+`;
+
+export const CheckboxButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #4b5563;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+
+  svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  &:hover {
+    color: #2563eb;
+  }
+
+  [data-theme="dark"] & {
+    color: #9ca3af;
+
+    &:hover {
+      color: #60a5fa;
+    }
+  }
+`;
+
+export const CfinAtualBox = styled.div`
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 2px solid #f57c00;
+  background: #fff3e0;
+  line-height: 1.25;
+  font-size: 12px;
+
+  strong {
+    font-weight: 700;
+    color: #e65100;
+  }
+
+  small {
+    color: #5a3b00;
+  }
+
+  [data-theme="dark"] & {
+    background: #3a2a12;
+    border-color: #fb8c00;
+
+    small {
+      color: #ffd7a6;
+    }
+  }
+`;
+
+export const CfinSugestaoBox = styled.div`
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 2px solid #1976d2;
+  background: #e3f2fd;
+  line-height: 1.25;
+  font-size: 12px;
+
+  strong {
+    font-weight: 700;
+    color: #3e75c9;
+  }
+
+  small {
+    color: #1e3a5f;
+  }
+
+  [data-theme="dark"] & {
+    background: #1e3a5f;
+    border-color: #42a5f5;
+
+    small {
+      color: #cfe6ff;
+    }
+  }
+`;
+
+export const JustificativaInput = styled(FilterInput)`
+  width: 200px;
+  padding: 4px 6px;
+  font-size: 12px;
 `;

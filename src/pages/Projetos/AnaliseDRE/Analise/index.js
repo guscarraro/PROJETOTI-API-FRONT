@@ -1,7 +1,14 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import * as XLSX from "xlsx";
-import { FaFileImport, FaPlay, FaTrash, FaCheck, FaChartBar } from "react-icons/fa";
+import {
+  FaFileImport,
+  FaPlay,
+  FaTrash,
+  FaCheck,
+  FaChartBar,
+} from "react-icons/fa";
+import { FiSave, FiX, FiCheckSquare, FiSquare } from "react-icons/fi";
 
 import apiLocal from "../../../../services/apiLocal";
 import useLoading from "../../../../hooks/useLoading";
@@ -10,6 +17,12 @@ import NavBar from "../../../Projetos/components/NavBar";
 import AiSiriOverlay from "./components/AiSiriOverlay";
 import KpiGrid from "./components/KpiGrid";
 import DreCharts from "./components/DreCharts";
+import {
+  CfinDivergenteModal,
+  ValorDivergenteModal,
+  SemSetorModal,
+  DuplicadosModal,
+} from "./components/Modals";
 
 import {
   Page,
@@ -56,7 +69,11 @@ function parseMoneyBRL(value) {
   if (value === null || value === undefined) return 0;
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
 
-  const s = String(value).replace(/\s/g, "").replace("R$", "").replace(/\./g, "").replace(",", ".");
+  const s = String(value)
+    .replace(/\s/g, "")
+    .replace("R$", "")
+    .replace(/\./g, "")
+    .replace(",", ".");
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -66,7 +83,9 @@ function excelSerialToISO(serial) {
   const ms = base.getTime() + Number(serial) * 24 * 60 * 60 * 1000;
   const d = new Date(ms);
   if (Number.isNaN(d.getTime())) return null;
-  return toDateInputValue(new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  return toDateInputValue(
+    new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
+  );
 }
 
 function normalizeDateCell(v) {
@@ -138,9 +157,9 @@ export default function DREAnalisePage() {
 
   const [itens, setItens] = useState([]);
   const [kpis, setKpis] = useState(null);
-
+const [itensVersion, setItensVersion] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
-  const [modal, setModal] = useState({ open: false, title: "", rows: [] });
+  const [modal, setModal] = useState({ open: false, modalType: "", rows: [] });
 
   const now = useMemo(() => new Date(), []);
   const [createForm, setCreateForm] = useState(() => ({
@@ -155,7 +174,9 @@ export default function DREAnalisePage() {
 
   const loadRelatorio = useCallback(
     async (id) => {
-      const resp = await loading.wrap("dre-get-relatorio", () => apiLocal.dreGetRelatorio(id));
+      const resp = await loading.wrap("dre-get-relatorio", () =>
+        apiLocal.dreGetRelatorio(id),
+      );
       const data = resp.data || null;
       const maybeCod = data?.cod_agrupador || "";
       const maybeHash = data?.file_hash || "";
@@ -165,21 +186,30 @@ export default function DREAnalisePage() {
     [loading],
   );
 
-  const loadItens = useCallback(
-    async (id) => {
-      const resp = await loading.wrap("dre-list-itens", () => apiLocal.dreListItens(id, { limit: 5000 }));
-      setItens(Array.isArray(resp.data) ? resp.data : []);
-    },
-    [loading],
-  );
+const loadItens = useCallback(
+  async (id) => {
+    const resp = await loading.wrap("dre-list-itens", () =>
+      apiLocal.dreListItens(id, { limit: 5000 }),
+    );
+    setItens(Array.isArray(resp.data) ? resp.data : []);
+    setItensVersion(v => v + 1); // Incrementa versão
+  },
+  [loading],
+);
 
-  const loadKpis = useCallback(
-    async (id) => {
-      const resp = await loading.wrap("dre-kpis", () => apiLocal.dreKpis(id));
-      setKpis(resp.data || null);
-    },
-    [loading],
-  );
+const loadKpis = useCallback(
+  async (id) => {
+    const resp = await loading.wrap("dre-kpis", () => apiLocal.dreKpis(id));
+    // Mescla os KPIs com as sugestões existentes
+    setKpis(prev => ({
+      ...(prev || {}),
+      ...(resp.data || {}),
+      // Preserva as sugestões se já existirem
+      suggestions: prev?.suggestions || []
+    }));
+  },
+  [loading],
+);
 
   const refreshAll = useCallback(
     async (id) => {
@@ -189,6 +219,13 @@ export default function DREAnalisePage() {
     },
     [loadRelatorio, loadItens, loadKpis],
   );
+
+  const handleModalUpdate = useCallback(async () => {
+    if (relatorioId) {
+      await loadItens(relatorioId);
+      await loadKpis(relatorioId);
+    }
+  }, [relatorioId, loadItens, loadKpis]);
 
   const handleCarregar = useCallback(async () => {
     const rid = String(relatorioId || "").trim();
@@ -222,10 +259,15 @@ export default function DREAnalisePage() {
         file_hash: fakeHash,
       };
 
-      const resp = await loading.wrap("dre-create-relatorio", () => apiLocal.dreCreateRelatorio(payload));
+      const resp = await loading.wrap("dre-create-relatorio", () =>
+        apiLocal.dreCreateRelatorio(payload),
+      );
 
       const created =
-        (resp?.data?.data && (Array.isArray(resp.data.data) ? resp.data.data[0] : resp.data.data)) ||
+        (resp?.data?.data &&
+          (Array.isArray(resp.data.data)
+            ? resp.data.data[0]
+            : resp.data.data)) ||
         (Array.isArray(resp?.data) ? resp.data[0] : resp?.data);
 
       const id = created?.id;
@@ -254,7 +296,9 @@ export default function DREAnalisePage() {
     if (!rid) return;
 
     try {
-      await loading.wrap("dre-delete-relatorio", () => apiLocal.dreDeleteRelatorio(rid));
+      await loading.wrap("dre-delete-relatorio", () =>
+        apiLocal.dreDeleteRelatorio(rid),
+      );
       toast.success("Relatório excluído");
 
       setRelatorioId("");
@@ -268,20 +312,36 @@ export default function DREAnalisePage() {
     }
   }, [loading, relatorioId]);
 
-  const handleAnalisar = useCallback(async () => {
-    const rid = String(relatorioId || "").trim();
-    if (!rid) return;
+const handleAnalisar = useCallback(async () => {
+  const rid = String(relatorioId || "").trim();
+  if (!rid) return;
 
-    try {
-      await loading.wrap("dre-analisar", () => apiLocal.dreAnalisar(rid));
-      toast.success("Análise executada");
-      await loadKpis(rid);
-      await loadItens(rid);
-    } catch (e) {
-      console.error(e);
-      toast.error("Erro ao analisar");
+  try {
+    // Chama a análise que retorna as sugestões e já aplica as atualizações automáticas
+    const response = await loading.wrap("dre-analisar", () => apiLocal.dreAnalisar(rid));
+    
+    // Salva as sugestões no estado kpis
+    if (response.data?.result) {
+      setKpis(response.data.result);
     }
-  }, [loading, loadItens, loadKpis, relatorioId]);
+    
+    // DEPOIS da análise, carrega os itens atualizados (com os setores já atribuídos)
+    await loadItens(rid);
+    
+    // Carrega os KPIs atualizados
+    const kpisResp = await apiLocal.dreKpis(rid);
+    setKpis(prev => ({
+      ...(prev || {}),
+      ...(kpisResp.data || {}),
+      suggestions: response.data?.result?.suggestions || []
+    }));
+    
+    toast.success("Análise executada");
+  } catch (e) {
+    console.error(e);
+    toast.error("Erro ao analisar");
+  }
+}, [loading, loadItens, relatorioId]);
 
   const handleConcluir = useCallback(async () => {
     const rid = String(relatorioId || "").trim();
@@ -326,18 +386,47 @@ export default function DREAnalisePage() {
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i];
 
-          const numeroDoc = pickRow(r, ["Numero", "Número", "Num", "Numero doc", "Número doc"]);
+          const numeroDoc = pickRow(r, [
+            "Numero",
+            "Número",
+            "Num",
+            "Numero doc",
+            "Número doc",
+          ]);
           const tipoDoc = pickRow(r, ["Tipo doc", "Tipo", "TipoDoc"]);
           const dataDoc = pickRow(r, ["Data doc", "Data", "DataDoc"]);
-          const dataInclusao = pickRow(r, ["Inclusao", "Inclusão", "Inclusao doc", "Data inclusao", "Data inclusão"]);
+          const dataInclusao = pickRow(r, [
+            "Inclusao",
+            "Inclusão",
+            "Inclusao doc",
+            "Data inclusao",
+            "Data inclusão",
+          ]);
 
-          const doc = pickRow(r, ["Cnpj / cpf", "Cnpj/cp", "CNPJ / CPF", "Cnpj / cp", "Doc"]);
+          const doc = pickRow(r, [
+            "Cnpj / cpf",
+            "Cnpj/cp",
+            "CNPJ / CPF",
+            "Cnpj / cp",
+            "Doc",
+          ]);
 
           const pessoa = pickRow(r, ["Pessoa"]);
           const item = pickRow(r, ["Item"]);
 
-          const cfinCodigo = pickRow(r, ["Estrutura cfin", "Estrutura CFIn", "CFIn", "CFIN", "cfin_codigo"]);
-          const cfinNome = pickRow(r, ["Nome cfin", "Nome CFIn", "cfin_nome", "Nome"]);
+          const cfinCodigo = pickRow(r, [
+            "Estrutura cfin",
+            "Estrutura CFIn",
+            "CFIn",
+            "CFIN",
+            "cfin_codigo",
+          ]);
+          const cfinNome = pickRow(r, [
+            "Nome cfin",
+            "Nome CFIn",
+            "cfin_nome",
+            "Nome",
+          ]);
 
           const empresa = pickRow(r, ["Empresa"]);
           const valorItem = pickRow(r, ["Valor item", "ValorItem"]);
@@ -345,7 +434,11 @@ export default function DREAnalisePage() {
 
           const abrangencia = pickRow(r, ["Abrangencia", "Abr", "Abrangência"]);
 
-          const hasSomething = safeStr(numeroDoc) || safeStr(item) || safeStr(doc) || safeStr(pessoa);
+          const hasSomething =
+            safeStr(numeroDoc) ||
+            safeStr(item) ||
+            safeStr(doc) ||
+            safeStr(pessoa);
           if (!hasSomething) continue;
 
           itemsPayload.push({
@@ -460,7 +553,11 @@ export default function DREAnalisePage() {
   }, [dropDisabled]);
 
   const formatBRL = useCallback(
-    (v) => Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+    (v) =>
+      Number(v || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      }),
     [],
   );
 
@@ -506,32 +603,43 @@ export default function DREAnalisePage() {
 
   const openKpiModal = useCallback(
     (key) => {
-      let title = "";
-      const rows = [];
+      let rows = [];
 
       if (key === "cfin_divergente") {
-        title = "CFIn divergente";
-        for (let i = 0; i < itens.length; i++) if (itens[i]?.flag_cfin_divergente) rows.push(itens[i]);
+        // Pega as sugestões do estado kpis
+        const sugestoes = kpis?.suggestions || [];
+
+        for (let i = 0; i < itens.length; i++) {
+          if (itens[i]?.flag_cfin_divergente) {
+            const item = { ...itens[i] };
+
+            // Encontra a sugestão para este item
+            const sugestao = sugestoes.find((s) => s.item_id === item.id);
+            if (sugestao) {
+              item.sugestao_cfin = sugestao.sugestao;
+            }
+
+            rows.push(item);
+          }
+        }
       } else if (key === "valor_divergente") {
-        title = "Valor divergente vs programado";
-        for (let i = 0; i < itens.length; i++) if (itens[i]?.flag_valor_divergente) rows.push(itens[i]);
+        for (let i = 0; i < itens.length; i++)
+          if (itens[i]?.flag_valor_divergente) rows.push(itens[i]);
       } else if (key === "duplicados") {
-        title = "Duplicados (número + valor)";
-        for (let i = 0; i < itens.length; i++) if (itens[i]?.flag_duplicado) rows.push(itens[i]);
+        for (let i = 0; i < itens.length; i++)
+          if (itens[i]?.flag_duplicado) rows.push(itens[i]);
       } else if (key === "sem_setor") {
-        title = "Sem setor";
         for (let i = 0; i < itens.length; i++) {
           const s = (itens[i]?.setor || "").trim();
           if (!s) rows.push(itens[i]);
         }
       } else {
-        title = "Itens";
-        for (let i = 0; i < itens.length; i++) rows.push(itens[i]);
+        rows = itens;
       }
 
-      setModal({ open: true, title, rows });
+      setModal({ open: true, modalType: key, rows });
     },
-    [itens],
+    [itens, kpis],
   );
 
   const overlayTitle = useMemo(() => {
@@ -547,7 +655,11 @@ export default function DREAnalisePage() {
 
   return (
     <Page>
-      <AiSiriOverlay active={loading.any()} title={overlayTitle} subtitle={overlaySub} />
+      <AiSiriOverlay
+        active={loading.any()}
+        title={overlayTitle}
+        subtitle={overlaySub}
+      />
       <NavBar />
 
       <TitleBar>
@@ -555,7 +667,9 @@ export default function DREAnalisePage() {
 
         <FiltersRight>
           <CountPill>
-            {relatorioId ? `Relatório: ${codAgrupador || String(relatorioId).slice(0, 8) + "…"}` : "Sem relatório"}
+            {relatorioId
+              ? `Relatório: ${codAgrupador || String(relatorioId).slice(0, 8) + "…"}`
+              : "Sem relatório"}
           </CountPill>
 
           {!!relatorioId && (
@@ -596,7 +710,8 @@ export default function DREAnalisePage() {
 
       <Section>
         <MutedText style={{ marginBottom: 10 }}>
-          Fluxo: criar/carregar → importar XLSX → analisar → corrigir → concluir.
+          Fluxo: criar/carregar → importar XLSX → analisar → corrigir →
+          concluir.
         </MutedText>
 
         <FiltersRow>
@@ -606,7 +721,9 @@ export default function DREAnalisePage() {
               <FilterInput
                 type="number"
                 value={createForm.ano}
-                onChange={(e) => setCreateForm((p) => ({ ...p, ano: e.target.value }))}
+                onChange={(e) =>
+                  setCreateForm((p) => ({ ...p, ano: e.target.value }))
+                }
               />
             </FilterGroup>
 
@@ -614,7 +731,9 @@ export default function DREAnalisePage() {
               <FilterLabel>Mês</FilterLabel>
               <FilterSelect
                 value={createForm.mes}
-                onChange={(e) => setCreateForm((p) => ({ ...p, mes: e.target.value }))}
+                onChange={(e) =>
+                  setCreateForm((p) => ({ ...p, mes: e.target.value }))
+                }
               >
                 {MESES.map((m) => (
                   <option key={m.value} value={m.value}>
@@ -637,14 +756,21 @@ export default function DREAnalisePage() {
               <FilterLabel>Nome do arquivo (opcional)</FilterLabel>
               <FilterInput
                 value={createForm.nome_arquivo}
-                onChange={(e) => setCreateForm((p) => ({ ...p, nome_arquivo: e.target.value }))}
+                onChange={(e) =>
+                  setCreateForm((p) => ({ ...p, nome_arquivo: e.target.value }))
+                }
                 placeholder="IMPORT_MANUAL.xlsx"
               />
             </FilterGroup>
           </FiltersLeft>
 
           <FiltersRight>
-            <FilterButton type="button" onClick={handleCreateRelatorio} disabled={loading.any()} style={{ gap: 8 }}>
+            <FilterButton
+              type="button"
+              onClick={handleCreateRelatorio}
+              disabled={loading.any()}
+              style={{ gap: 8 }}
+            >
               <FaFileImport /> Criar relatório
             </FilterButton>
 
@@ -660,7 +786,16 @@ export default function DREAnalisePage() {
         </FiltersRow>
 
         {!!relatorioId && (
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75, display: "flex", gap: 16, flexWrap: "wrap" }}>
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 12,
+              opacity: 0.75,
+              display: "flex",
+              gap: 16,
+              flexWrap: "wrap",
+            }}
+          >
             <div>cod_agrupador: {codAgrupador || "—"}</div>
             <div>file_hash: {fileHash || "—"}</div>
           </div>
@@ -671,9 +806,12 @@ export default function DREAnalisePage() {
         <Section style={{ marginTop: 14 }}>
           <ActionsRow>
             <div>
-              <div style={{ fontWeight: 1000, fontSize: 13 }}>Importar XLSX do sistema externo</div>
+              <div style={{ fontWeight: 1000, fontSize: 13 }}>
+                Importar XLSX do sistema externo
+              </div>
               <div style={{ fontSize: 12, opacity: 0.7 }}>
-                Arraste o arquivo ou clique na área. Após importar, a análise roda automaticamente.
+                Arraste o arquivo ou clique na área. Após importar, a análise
+                roda automaticamente.
               </div>
             </div>
 
@@ -701,7 +839,11 @@ export default function DREAnalisePage() {
                     e.target.value = "";
                   }}
                 />
-                <FilterButton as="span" role="button" style={{ cursor: "pointer", gap: 8 }}>
+                <FilterButton
+                  as="span"
+                  role="button"
+                  style={{ cursor: "pointer", gap: 8 }}
+                >
                   <FaFileImport /> Selecionar arquivo
                 </FilterButton>
               </label>
@@ -723,9 +865,16 @@ export default function DREAnalisePage() {
             }}
           >
             <DropTitle>
-              {loading.any() ? "Processando…" : isDragActive ? "Solta aqui 👇" : "Arraste e solte seu .xlsx aqui (ou clique)"}
+              {loading.any()
+                ? "Processando…"
+                : isDragActive
+                  ? "Solta aqui 👇"
+                  : "Arraste e solte seu .xlsx aqui (ou clique)"}
             </DropTitle>
-            <DropHint>Dica: se o Excel vier com colunas levemente diferentes, o parser tenta se adaptar.</DropHint>
+            <DropHint>
+              Dica: se o Excel vier com colunas levemente diferentes, o parser
+              tenta se adaptar.
+            </DropHint>
           </DropArea>
         </Section>
       )}
@@ -742,48 +891,127 @@ export default function DREAnalisePage() {
           </Section>
 
           <Section style={{ marginTop: 14 }}>
-            <DreCharts chartByCfin={chartByCfin} chartBySetor={chartBySetor} formatBRL={formatBRL} />
+            <DreCharts
+              chartByCfin={chartByCfin}
+              chartBySetor={chartBySetor}
+              formatBRL={formatBRL}
+            />
           </Section>
 
           <Section style={{ marginTop: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <div style={{ fontWeight: 1000, fontSize: 13 }}>Preview (últimos 50)</div>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ fontWeight: 1000, fontSize: 13 }}>
+                Preview (últimos 50)
+              </div>
               <CountPill>{itens.length} itens</CountPill>
             </div>
 
             <Divider />
 
-            <TableWrap style={{ maxHeight: "52vh", overflowY: "auto", overflowX: "auto" }}>
+            <TableWrap
+              style={{
+                maxHeight: "52vh",
+                overflowY: "auto",
+                overflowX: "auto",
+              }}
+            >
               <Table>
                 <thead>
                   <tr>
-                    {["Número doc", "Data", "Doc", "Pessoa", "Item", "CFIn cód", "CFIn nome", "Empresa", "Valor doc", "Setor"].map((h) => (
-                      <Th key={h} style={{ whiteSpace: "nowrap", padding: "6px 8px" }}>{h}</Th>
+                    {[
+                      "Número doc",
+                      "Data",
+                      "Doc",
+                      "Pessoa",
+                      "Item",
+                      "CFIn cód",
+                      "CFIn nome",
+                      "Empresa",
+                      "Valor doc",
+                      "Setor",
+                    ].map((h) => (
+                      <Th
+                        key={h}
+                        style={{ whiteSpace: "nowrap", padding: "6px 8px" }}
+                      >
+                        {h}
+                      </Th>
                     ))}
                   </tr>
                 </thead>
 
                 <tbody>
                   {itens.slice(Math.max(0, itens.length - 50)).map((r) => (
-                    <tr key={r.id}>
+                    <tr key={`${r.id}-${itensVersion}`}>
                       <TdCompact>{r.numero_doc || "—"}</TdCompact>
                       <TdCompact>{showDate(r)}</TdCompact>
                       <TdCompact>{r.doc || "—"}</TdCompact>
                       <TdCompact>{r.pessoa || "—"}</TdCompact>
-                      <TdCompact style={{ maxWidth: 320, overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <TdCompact
+                        style={{
+                          maxWidth: 320,
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
                         {r.item || "—"}
                       </TdCompact>
                       <TdCompact>{r.cfin_codigo || "—"}</TdCompact>
                       <TdCompact>{r.cfin_nome || "—"}</TdCompact>
                       <TdCompact>{r.empresa || "—"}</TdCompact>
-                      <TdCompact style={{ textAlign: "right" }}>{formatBRL(r.valor_doc)}</TdCompact>
-                      <TdCompact>{r.setor || "—"}</TdCompact>
+                      <TdCompact style={{ textAlign: "right" }}>
+                        {formatBRL(r.valor_doc)}
+                      </TdCompact>
+                      <TdCompact>
+                        <FilterSelect
+                          value={r.setor || ""}
+                          onChange={async (e) => {
+                            try {
+                              await apiLocal.dreUpdateItem({
+                                id: r.id,
+                                setor: e.target.value,
+                              });
+                              await loadItens(relatorioId);
+                              toast.success("Setor atualizado");
+                            } catch (error) {
+                              toast.error("Erro ao atualizar setor");
+                            }
+                          }}
+                          style={{
+                            padding: "2px 4px",
+                            fontSize: 12,
+                            width: 100,
+                          }}
+                        >
+                          <option value="">Selecione</option>
+                          <option value="Fiscal">Fiscal</option>
+                          <option value="Contábil">Contábil</option>
+                          <option value="Financeiro">Financeiro</option>
+                          <option value="RH">RH</option>
+                          <option value="Compras">Compras</option>
+                          <option value="Impostos">Impostos</option>
+                        </FilterSelect>
+                      </TdCompact>
                     </tr>
                   ))}
 
                   {!itens.length && !loading.any() && (
                     <tr>
-                      <Td colSpan={10} style={{ textAlign: "center", opacity: 0.7, padding: 10 }}>
+                      <Td
+                        colSpan={10}
+                        style={{
+                          textAlign: "center",
+                          opacity: 0.7,
+                          padding: 10,
+                        }}
+                      >
                         Nenhum item importado ainda.
                       </Td>
                     </tr>
@@ -796,52 +1024,142 @@ export default function DREAnalisePage() {
       )}
 
       {modal.open && (
-        <ModalOverlay onClick={() => setModal({ open: false, title: "", rows: [] })}>
-          <ModalCard onClick={(e) => e.stopPropagation()}>
-            <ModalHeader>
-              <div style={{ fontWeight: 1000 }}>{modal.title}</div>
-              <CountPill>{modal.rows.length} itens</CountPill>
-            </ModalHeader>
+        <ModalOverlay
+          onClick={() => setModal({ open: false, modalType: "", rows: [] })}
+        >
+          {modal.modalType === "cfin_divergente" && (
+            <CfinDivergenteModal
+              rows={modal.rows}
+              onClose={() => setModal({ open: false, modalType: "", rows: [] })}
+              onUpdate={handleModalUpdate}
+            />
+          )}
+          {modal.modalType === "valor_divergente" && (
+            <ValorDivergenteModal
+              rows={modal.rows}
+              onClose={() => setModal({ open: false, modalType: "", rows: [] })}
+              onUpdate={handleModalUpdate}
+            />
+          )}
+          {modal.modalType === "sem_setor" && (
+            <SemSetorModal
+              rows={modal.rows}
+              onClose={() => setModal({ open: false, modalType: "", rows: [] })}
+              onUpdate={handleModalUpdate}
+            />
+          )}
+          {modal.modalType === "duplicados" && (
+            <DuplicadosModal
+              rows={modal.rows}
+              onClose={() => setModal({ open: false, modalType: "", rows: [] })}
+              onUpdate={handleModalUpdate}
+            />
+          )}
+          {modal.modalType === "all" && (
+            <ModalCard onClick={(e) => e.stopPropagation()}>
+              <ModalHeader>
+                <div style={{ fontWeight: 1000 }}>Todos os Itens</div>
+                <CountPill>{modal.rows.length} itens</CountPill>
+              </ModalHeader>
 
-            <ModalBody>
-              <TableWrap style={{ maxHeight: "60vh", overflow: "auto" }}>
-                <Table>
-                  <thead>
-                    <tr>
-                      {["Número doc", "Data", "Doc", "Pessoa", "Item", "CFIn", "Empresa", "Valor doc", "Setor"].map((h) => (
-                        <Th key={h} style={{ whiteSpace: "nowrap", padding: "6px 8px" }}>{h}</Th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {modal.rows.map((r) => (
-                      <tr key={r.id}>
-                        <TdCompact>{r.numero_doc || "—"}</TdCompact>
-                        <TdCompact>{showDate(r)}</TdCompact>
-                        <TdCompact>{r.doc || "—"}</TdCompact>
-                        <TdCompact>{r.pessoa || "—"}</TdCompact>
-                        <TdCompact style={{ maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {r.item || "—"}
-                        </TdCompact>
-                        <TdCompact style={{ whiteSpace: "nowrap" }}>
-                          {r.cfin_codigo || "—"} — {r.cfin_nome || "—"}
-                        </TdCompact>
-                        <TdCompact>{r.empresa || "—"}</TdCompact>
-                        <TdCompact style={{ textAlign: "right" }}>{formatBRL(r.valor_doc)}</TdCompact>
-                        <TdCompact>{r.setor || "—"}</TdCompact>
+              <ModalBody>
+                <TableWrap style={{ maxHeight: "60vh", overflow: "auto" }}>
+                  <Table>
+                    <thead>
+                      <tr>
+                        {[
+                          "Número doc",
+                          "Data",
+                          "Doc",
+                          "Pessoa",
+                          "Item",
+                          "CFIn",
+                          "Empresa",
+                          "Valor doc",
+                          "Setor",
+                        ].map((h) => (
+                          <Th
+                            key={h}
+                            style={{ whiteSpace: "nowrap", padding: "6px 8px" }}
+                          >
+                            {h}
+                          </Th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </TableWrap>
-            </ModalBody>
+                    </thead>
+                    <tbody>
+                      {modal.rows.map((r) => (
+                        <tr key={r.id}>
+                          <TdCompact>{r.numero_doc || "—"}</TdCompact>
+                          <TdCompact>{showDate(r)}</TdCompact>
+                          <TdCompact>{r.doc || "—"}</TdCompact>
+                          <TdCompact>{r.pessoa || "—"}</TdCompact>
+                          <TdCompact
+                            style={{
+                              maxWidth: 360,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {r.item || "—"}
+                          </TdCompact>
+                          <TdCompact style={{ whiteSpace: "nowrap" }}>
+                            {r.cfin_codigo || "—"} — {r.cfin_nome || "—"}
+                          </TdCompact>
+                          <TdCompact>{r.empresa || "—"}</TdCompact>
+                          <TdCompact style={{ textAlign: "right" }}>
+                            {formatBRL(r.valor_doc)}
+                          </TdCompact>
+                          <TdCompact>
+                            <FilterSelect
+                              value={r.setor || ""}
+                              onChange={async (e) => {
+                                try {
+                                  await apiLocal.dreUpdateItem({
+                                    id: r.id,
+                                    setor: e.target.value,
+                                  });
+                                  await loadItens(relatorioId);
+                                  toast.success("Setor atualizado");
+                                  handleModalUpdate();
+                                } catch (error) {
+                                  toast.error("Erro ao atualizar setor");
+                                }
+                              }}
+                              style={{
+                                padding: "2px 4px",
+                                fontSize: 12,
+                                width: 100,
+                              }}
+                            >
+                              <option value="">Selecione</option>
+                              <option value="Fiscal">Fiscal</option>
+                              <option value="Contábil">Contábil</option>
+                              <option value="Financeiro">Financeiro</option>
+                              <option value="RH">RH</option>
+                              <option value="Compras">Compras</option>
+                              <option value="Impostos">Impostos</option>
+                            </FilterSelect>
+                          </TdCompact>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </Table>
+                </TableWrap>
+              </ModalBody>
 
-            <ModalFooter>
-              <SmallButton type="button" onClick={() => setModal({ open: false, title: "", rows: [] })}>
-                Fechar
-              </SmallButton>
-            </ModalFooter>
-          </ModalCard>
+              <ModalFooter>
+                <SmallButton
+                  type="button"
+                  onClick={() =>
+                    setModal({ open: false, modalType: "", rows: [] })
+                  }
+                >
+                  <FiX /> Fechar
+                </SmallButton>
+              </ModalFooter>
+            </ModalCard>
+          )}
         </ModalOverlay>
       )}
     </Page>

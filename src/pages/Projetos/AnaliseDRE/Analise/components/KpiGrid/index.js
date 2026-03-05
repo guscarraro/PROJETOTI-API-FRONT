@@ -9,10 +9,23 @@ import {
   FiSearch,
   FiCheckCircle,
 } from "react-icons/fi";
-import { Grid, KpiCard, KpiTop, KpiTitle, KpiValue, KpiHint, KpiBtnRow, KpiBtn, StatusPill } from "./style";
+import {
+  Grid,
+  KpiCard,
+  KpiTop,
+  KpiTitle,
+  KpiValue,
+  KpiHint,
+  KpiBtnRow,
+  KpiBtn,
+  StatusPill,
+} from "./style";
 
 function formatBRL(v) {
-  return Number(v || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return Number(v || 0).toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  });
 }
 
 export default function KpiGrid({ kpis, totals, onOpen, loading }) {
@@ -28,14 +41,22 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
     };
   }, [kpis, totals]);
 
-  const okAll = base.cfin_divergente === 0 && base.valor_divergente === 0 && base.duplicados === 0 && base.sem_setor === 0;
+  const okAll =
+    base.cfin_divergente === 0 &&
+    base.valor_divergente === 0 &&
+    base.duplicados === 0 &&
+    base.sem_setor === 0;
 
   return (
     <Grid>
       <KpiCard>
         <KpiTop>
-          <KpiTitle><FiList /> Total de linhas</KpiTitle>
-          <StatusPill $tone="info"><FiSearch /> Importado</StatusPill>
+          <KpiTitle>
+            <FiList /> Total de linhas
+          </KpiTitle>
+          <StatusPill $tone="info">
+            <FiSearch /> Importado
+          </StatusPill>
         </KpiTop>
         <KpiValue>{base.total_linhas}</KpiValue>
         <KpiHint>Itens reconhecidos na planilha</KpiHint>
@@ -43,8 +64,12 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
 
       <KpiCard>
         <KpiTop>
-          <KpiTitle><FiLayers /> Total (valor doc)</KpiTitle>
-          <StatusPill $tone="info"><FiDollarSign /> Consolidado</StatusPill>
+          <KpiTitle>
+            <FiLayers /> Total (valor doc)
+          </KpiTitle>
+          <StatusPill $tone="info">
+            <FiDollarSign /> Consolidado
+          </StatusPill>
         </KpiTop>
         <KpiValue>{formatBRL(base.total_valor)}</KpiValue>
         <KpiHint>Soma em cima de valor_doc</KpiHint>
@@ -52,7 +77,9 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
 
       <KpiCard $warn={base.cfin_divergente > 0}>
         <KpiTop>
-          <KpiTitle><FiAlertTriangle /> CFIn divergente</KpiTitle>
+          <KpiTitle>
+            <FiAlertTriangle /> CFIn divergente
+          </KpiTitle>
           <StatusPill $tone={base.cfin_divergente > 0 ? "warn" : "ok"}>
             {base.cfin_divergente > 0 ? <FiTag /> : <FiCheckCircle />}
             {base.cfin_divergente > 0 ? "Ação" : "OK"}
@@ -61,7 +88,10 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
         <KpiValue>{base.cfin_divergente}</KpiValue>
         <KpiHint>Nome/código não bate com o cadastro</KpiHint>
         <KpiBtnRow>
-          <KpiBtn disabled={loading || !base.cfin_divergente} onClick={() => onOpen("cfin_divergente")}>
+          <KpiBtn
+            disabled={loading || !base.cfin_divergente}
+            onClick={() => onOpen("cfin_divergente", kpis?.suggestions)}
+          >
             Ver itens
           </KpiBtn>
         </KpiBtnRow>
@@ -69,16 +99,25 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
 
       <KpiCard $warn={base.valor_divergente > 0}>
         <KpiTop>
-          <KpiTitle><FiDollarSign /> Valor divergente</KpiTitle>
+          <KpiTitle>
+            <FiDollarSign /> Valor divergente
+          </KpiTitle>
           <StatusPill $tone={base.valor_divergente > 0 ? "warn" : "ok"}>
-            {base.valor_divergente > 0 ? <FiAlertTriangle /> : <FiCheckCircle />}
+            {base.valor_divergente > 0 ? (
+              <FiAlertTriangle />
+            ) : (
+              <FiCheckCircle />
+            )}
             {base.valor_divergente > 0 ? "Justificar" : "OK"}
           </StatusPill>
         </KpiTop>
         <KpiValue>{base.valor_divergente}</KpiValue>
         <KpiHint>Fora do programado (tolerância)</KpiHint>
         <KpiBtnRow>
-          <KpiBtn disabled={loading || !base.valor_divergente} onClick={() => onOpen("valor_divergente")}>
+          <KpiBtn
+            disabled={loading || !base.valor_divergente}
+            onClick={() => onOpen("valor_divergente")}
+          >
             Justificar
           </KpiBtn>
         </KpiBtnRow>
@@ -86,7 +125,9 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
 
       <KpiCard $warn={base.duplicados > 0}>
         <KpiTop>
-          <KpiTitle><FiCopy /> Duplicados</KpiTitle>
+          <KpiTitle>
+            <FiCopy /> Duplicados
+          </KpiTitle>
           <StatusPill $tone={base.duplicados > 0 ? "warn" : "ok"}>
             {base.duplicados > 0 ? <FiAlertTriangle /> : <FiCheckCircle />}
             {base.duplicados > 0 ? "Revisar" : "OK"}
@@ -95,7 +136,10 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
         <KpiValue>{base.duplicados}</KpiValue>
         <KpiHint>Número + valor repetidos</KpiHint>
         <KpiBtnRow>
-          <KpiBtn disabled={loading || !base.duplicados} onClick={() => onOpen("duplicados")}>
+          <KpiBtn
+            disabled={loading || !base.duplicados}
+            onClick={() => onOpen("duplicados")}
+          >
             Ver
           </KpiBtn>
         </KpiBtnRow>
@@ -103,7 +147,9 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
 
       <KpiCard $warn={base.sem_setor > 0}>
         <KpiTop>
-          <KpiTitle><FiAlertTriangle /> Sem setor</KpiTitle>
+          <KpiTitle>
+            <FiAlertTriangle /> Sem setor
+          </KpiTitle>
           <StatusPill $tone={base.sem_setor > 0 ? "warn" : "ok"}>
             {base.sem_setor > 0 ? <FiAlertTriangle /> : <FiCheckCircle />}
             {base.sem_setor > 0 ? "Classificar" : "OK"}
@@ -112,7 +158,10 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
         <KpiValue>{base.sem_setor}</KpiValue>
         <KpiHint>Precisa atribuir setor</KpiHint>
         <KpiBtnRow>
-          <KpiBtn disabled={loading || !base.sem_setor} onClick={() => onOpen("sem_setor")}>
+          <KpiBtn
+            disabled={loading || !base.sem_setor}
+            onClick={() => onOpen("sem_setor")}
+          >
             Corrigir
           </KpiBtn>
         </KpiBtnRow>
@@ -120,14 +169,18 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
 
       <KpiCard $ok={okAll}>
         <KpiTop>
-          <KpiTitle><FiCheckCircle /> Saúde do relatório</KpiTitle>
+          <KpiTitle>
+            <FiCheckCircle /> Saúde do relatório
+          </KpiTitle>
           <StatusPill $tone={okAll ? "ok" : "warn"}>
             {okAll ? <FiCheckCircle /> : <FiAlertTriangle />}
             {okAll ? "Pronto" : "Pendências"}
           </StatusPill>
         </KpiTop>
         <KpiValue>{okAll ? "OK" : "Revisar"}</KpiValue>
-        <KpiHint>{okAll ? "Sem divergências detectadas" : "Corrija os cards com ação"}</KpiHint>
+        <KpiHint>
+          {okAll ? "Sem divergências detectadas" : "Corrija os cards com ação"}
+        </KpiHint>
       </KpiCard>
     </Grid>
   );
