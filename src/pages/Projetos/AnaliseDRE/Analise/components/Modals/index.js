@@ -51,14 +51,15 @@ function showDate(r) {
 
 // Modal para CFIN divergente
 // Modal para CFIN divergente
+// Modal para CFIN divergente com aceitação em lote
 export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchCfinCodigo, setBatchCfinCodigo] = useState("");
   const [batchCfinNome, setBatchCfinNome] = useState("");
   const [batchSetor, setBatchSetor] = useState("");
+  const [batchAceitarSugestao, setBatchAceitarSugestao] = useState(false);
   const [loading, setLoading] = useState(false);
   const [localRows, setLocalRows] = useState(rows);
-  const [multipleSuggestions, setMultipleSuggestions] = useState({}); // Para múltiplas sugestões
 
   const toggleSelectAll = () => {
     if (selectedIds.size === localRows.length) {
@@ -78,6 +79,64 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
     setSelectedIds(newSelected);
   };
 
+  // Função para aceitar sugestão em lote
+  const handleBatchAcceptSuggestions = async () => {
+    if (selectedIds.size === 0) {
+      toast.warn("Selecione pelo menos um item");
+      return;
+    }
+
+    // Filtra apenas os itens selecionados que têm sugestão
+    const itemsComSugestao = localRows.filter(
+      (row) => selectedIds.has(row.id) && row.sugestao_cfin
+    );
+
+    if (itemsComSugestao.length === 0) {
+      toast.warn("Nenhum item selecionado possui sugestão");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Aplica as sugestões uma a uma (ou poderia ser bulk com dados diferentes)
+      for (const item of itemsComSugestao) {
+        const sugestao = item.sugestao_cfin;
+        await apiLocal.dreUpdateItem({
+          id: item.id,
+          cfin_codigo: sugestao.cfin_codigo,
+          cfin_nome: sugestao.cfin_nome,
+          setor: sugestao.setor || item.setor,
+        });
+      }
+
+      // Atualiza localmente
+      const updatedRows = localRows.map((row) => {
+        if (selectedIds.has(row.id) && row.sugestao_cfin) {
+          const sugestao = row.sugestao_cfin;
+          return {
+            ...row,
+            cfin_codigo: sugestao.cfin_codigo,
+            cfin_nome: sugestao.cfin_nome,
+            setor: sugestao.setor || row.setor,
+          };
+        }
+        return row;
+      });
+
+      setLocalRows(updatedRows);
+      setSelectedIds(new Set());
+      setBatchAceitarSugestao(false);
+
+      toast.success(`${itemsComSugestao.length} sugestões aceitas`);
+      if (onUpdate) await onUpdate();
+    } catch (error) {
+      toast.error("Erro ao aceitar sugestões em lote");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleBatchUpdate = async () => {
     if (selectedIds.size === 0) {
       toast.warn("Selecione pelo menos um item");
@@ -89,8 +148,14 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
     if (batchCfinNome) patch.cfin_nome = batchCfinNome;
     if (batchSetor) patch.setor = batchSetor;
 
-    if (Object.keys(patch).length === 0) {
-      toast.warn("Preencha pelo menos um campo para atualizar");
+    if (Object.keys(patch).length === 0 && !batchAceitarSugestao) {
+      toast.warn("Preencha pelo menos um campo para atualizar ou ative 'Aceitar sugestão'");
+      return;
+    }
+
+    // Se marcou para aceitar sugestão, chama a função específica
+    if (batchAceitarSugestao) {
+      await handleBatchAcceptSuggestions();
       return;
     }
 
@@ -175,8 +240,6 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
 
   // Função para mostrar múltiplas opções de sugestão
   const showSuggestionOptions = (row) => {
-    // Aqui você pode buscar todas as regras do prestador
-    // Por enquanto, vamos assumir que vem no row.sugestoes
     const sugestoes = row.sugestoes || [row.sugestao_cfin].filter(Boolean);
 
     if (!sugestoes || sugestoes.length === 0) return null;
@@ -193,7 +256,6 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
       );
     }
 
-    // Múltiplas opções
     return (
       <FilterSelect
         value=""
@@ -264,6 +326,20 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
                 <option value="Compras">Compras</option>
               </FilterSelect>
             </FilterGroup>
+
+            <FilterGroup style={{ minWidth: 200, flexDirection: "row", alignItems: "center" }}>
+              <input
+                type="checkbox"
+                id="batchAceitarSugestao"
+                checked={batchAceitarSugestao}
+                onChange={(e) => setBatchAceitarSugestao(e.target.checked)}
+                style={{ marginRight: 8 }}
+              />
+              <FilterLabel htmlFor="batchAceitarSugestao" style={{ marginBottom: 0 }}>
+                Aceitar sugestão dos selecionados
+              </FilterLabel>
+            </FilterGroup>
+
             <SmallButton
               onClick={handleBatchUpdate}
               disabled={loading || selectedIds.size === 0}
@@ -306,6 +382,7 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
             <tbody>
               {localRows.map((r) => {
                 const sugestao = r.sugestao_cfin;
+                const temSugestao = !!sugestao;
                 return (
                   <tr key={r.id}>
                     <TdCompact>
@@ -372,7 +449,7 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
                       </FilterSelect>
                     </TdCompact>
                     <TdCompact>
-                      {sugestao && showSuggestionOptions(r)}
+                      {temSugestao && showSuggestionOptions(r)}
                     </TdCompact>
                   </tr>
                 );
@@ -390,7 +467,6 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
     </ModalCard>
   );
 }
-
 // Modal para Valores Divergentes - CORRIGIDA E COM ATUALIZAÇÃO EM LOTE
 export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
   const [selectedIds, setSelectedIds] = useState(new Set());

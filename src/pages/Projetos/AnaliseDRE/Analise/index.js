@@ -564,19 +564,38 @@ const handleAnalisar = useCallback(async () => {
   const showDate = useCallback((r) => r.data_doc || r.data_inclusao || "—", []);
 
   // charts (sem reduce)
-  const chartByCfin = useMemo(() => {
-    const map = {};
-    for (let i = 0; i < itens.length; i++) {
-      const it = itens[i] || {};
-      const key = (it.cfin_codigo || "SEM_CFIN").trim() || "SEM_CFIN";
-      const v = Number(it.valor_doc || 0);
-      map[key] = (map[key] || 0) + (Number.isFinite(v) ? v : 0);
+// charts (sem reduce)
+const chartByCfin = useMemo(() => {
+  const map = {};
+  for (let i = 0; i < itens.length; i++) {
+    const it = itens[i] || {};
+    const key = (it.cfin_codigo || "SEM_CFIN").trim() || "SEM_CFIN";
+    const nome = it.cfin_nome || key; // Pega o nome do CFIN
+    const v = Number(it.valor_doc || 0);
+    
+    if (!map[key]) {
+      map[key] = { 
+        value: 0, 
+        nome: nome,  // Guarda o nome
+        codigo: key  // Guarda o código
+      };
     }
-    const arr = [];
-    for (const k in map) arr.push({ name: k, value: map[k] });
-    arr.sort((a, b) => b.value - a.value);
-    return arr.slice(0, 16);
-  }, [itens]);
+    map[key].value += Number.isFinite(v) ? v : 0;
+  }
+  
+  const arr = [];
+  for (const k in map) {
+    arr.push({ 
+      name: k,  // Mantém para compatibilidade
+      codigo: map[k].codigo,
+      nome: map[k].nome,
+      value: map[k].value 
+    });
+  }
+  
+  arr.sort((a, b) => b.value - a.value);
+  return arr.slice(0, 16);
+}, [itens]);
 
   const chartBySetor = useMemo(() => {
     const map = {};
