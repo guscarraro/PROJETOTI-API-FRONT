@@ -8,6 +8,7 @@ import {
   FiTag,
   FiSearch,
   FiCheckCircle,
+  FiUserX,
 } from "react-icons/fi";
 import {
   Grid,
@@ -38,9 +39,11 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
       valor_divergente: Number(safe.valor_divergente || 0),
       duplicados: Number(safe.duplicados || 0),
       sem_setor: Number(safe.sem_setor || 0),
+      // Agora mostra quantidade de ITENS sem referência, não CPFs únicos
+      itens_sem_referencia: Number(safe.itens_sem_referencia || 0),
     };
   }, [kpis, totals]);
-
+console.log(base);
   const okAll =
     base.cfin_divergente === 0 &&
     base.valor_divergente === 0 &&
@@ -93,6 +96,32 @@ export default function KpiGrid({ kpis, totals, onOpen, loading }) {
             onClick={() => onOpen("cfin_divergente", kpis?.suggestions)}
           >
             Ver itens
+          </KpiBtn>
+        </KpiBtnRow>
+      </KpiCard>
+
+      <KpiCard $warn={base.itens_sem_referencia > 0}>
+        <KpiTop>
+          <KpiTitle>
+            <FiUserX /> Itens sem ref.
+          </KpiTitle>
+          <StatusPill $tone={base.itens_sem_referencia > 0 ? "warn" : "ok"}>
+            {base.itens_sem_referencia > 0 ? (
+              <FiAlertTriangle />
+            ) : (
+              <FiCheckCircle />
+            )}
+            {base.itens_sem_referencia > 0 ? "Cadastrar" : "OK"}
+          </StatusPill>
+        </KpiTop>
+        <KpiValue>{base.itens_sem_referencia}</KpiValue>
+        <KpiHint>Itens com CPF/CNPJ sem cadastro</KpiHint>
+        <KpiBtnRow>
+          <KpiBtn
+            disabled={loading || !base.itens_sem_referencia}
+            onClick={() => onOpen("sem_referencia")}
+          >
+            Ver
           </KpiBtn>
         </KpiBtnRow>
       </KpiCard>

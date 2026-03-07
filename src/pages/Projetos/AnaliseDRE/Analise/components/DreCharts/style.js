@@ -7,7 +7,7 @@ import styled from "styled-components";
  */
 export const Grid = styled.div`
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 9fr 3fr; 
   gap: 12px;
 
   @media (max-width: 1100px) {
@@ -89,13 +89,14 @@ export const Hint = styled.div`
 export const CustomTooltipContainer = styled.div`
   padding: 12px 16px;
   border-radius: 14px;
-  border: 1px solid rgba(148,163,184,0.35);
+  border: 1px solid rgba(148,163,184,0.75);
   background: rgba(2,6,23,0.55);
   color: #e5e7eb;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 18px 60px rgba(0,0,0,0.30);
   min-width: 200px;
+  z-index: 11000;
 `;
 
 export const TooltipTitle = styled.div`

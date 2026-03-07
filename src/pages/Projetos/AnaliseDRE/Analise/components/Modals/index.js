@@ -1,6 +1,12 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { toast } from "react-toastify";
-import { FiSave, FiX, FiCheckSquare, FiSquare } from "react-icons/fi";
+import {
+  FiSave,
+  FiX,
+  FiCheckSquare,
+  FiSquare,
+  FiAlertTriangle,
+} from "react-icons/fi";
 import styled from "styled-components";
 import {
   ModalCard,
@@ -24,6 +30,7 @@ import {
   JustificativaInput,
   CfinAtualBox,
   CfinSugestaoBox,
+  AlertMessage,
 } from "../../style";
 import apiLocal from "../../../../../../services/apiLocal";
 
@@ -88,7 +95,7 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
 
     // Filtra apenas os itens selecionados que têm sugestão
     const itemsComSugestao = localRows.filter(
-      (row) => selectedIds.has(row.id) && row.sugestao_cfin
+      (row) => selectedIds.has(row.id) && row.sugestao_cfin,
     );
 
     if (itemsComSugestao.length === 0) {
@@ -149,7 +156,9 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
     if (batchSetor) patch.setor = batchSetor;
 
     if (Object.keys(patch).length === 0 && !batchAceitarSugestao) {
-      toast.warn("Preencha pelo menos um campo para atualizar ou ative 'Aceitar sugestão'");
+      toast.warn(
+        "Preencha pelo menos um campo para atualizar ou ative 'Aceitar sugestão'",
+      );
       return;
     }
 
@@ -327,7 +336,13 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
               </FilterSelect>
             </FilterGroup>
 
-            <FilterGroup style={{ minWidth: 200, flexDirection: "row", alignItems: "center" }}>
+            <FilterGroup
+              style={{
+                minWidth: 200,
+                flexDirection: "row",
+                alignItems: "center",
+              }}
+            >
               <input
                 type="checkbox"
                 id="batchAceitarSugestao"
@@ -335,7 +350,10 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
                 onChange={(e) => setBatchAceitarSugestao(e.target.checked)}
                 style={{ marginRight: 8 }}
               />
-              <FilterLabel htmlFor="batchAceitarSugestao" style={{ marginBottom: 0 }}>
+              <FilterLabel
+                htmlFor="batchAceitarSugestao"
+                style={{ marginBottom: 0 }}
+              >
                 Aceitar sugestão dos selecionados
               </FilterLabel>
             </FilterGroup>
@@ -683,7 +701,7 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
                 </Th>
                 <Th>Número doc</Th>
                 <Th>Data</Th>
-                <Th>Pessoa</Th> 
+                <Th>Pessoa</Th>
                 <Th>Item</Th>
                 <Th>Empresa</Th>
                 <Th>Valor doc</Th>
@@ -695,7 +713,7 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
             </thead>
             <tbody>
               {localRows.map((r) => {
-                const diff = (r.valor_doc || 0) - (r.valor_programado || 0);
+                const diff = r.divergencia_valor || 0;
                 const valorProg = r.valor_programado || r.valor_esperado || 0;
                 return (
                   <tr key={r.id}>
@@ -727,8 +745,13 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
                     <TdCompact
                       style={{
                         textAlign: "right",
-                        color: Math.abs(diff) > 0.01 ? "#d32f2f" : "#388e3c",
-                        fontWeight: Math.abs(diff) > 0.01 ? "bold" : "normal",
+                        color:
+                          diff > 0
+                            ? "#388e3c"
+                            : diff < 0
+                              ? "#d32f2f"
+                              : "inherit",
+                        fontWeight: diff !== 0 ? "bold" : "normal",
                       }}
                     >
                       {formatBRL(diff)}
@@ -1150,6 +1173,113 @@ export function DuplicadosModal({ rows, onClose, onUpdate }) {
                   </TdCompact>
                 </tr>
               ))}
+            </tbody>
+          </Table>
+        </TableWrap>
+      </ModalBody>
+
+      <ModalFooter>
+        <SmallButton type="button" onClick={onClose}>
+          <FiX /> Fechar
+        </SmallButton>
+      </ModalFooter>
+    </ModalCard>
+  );
+}
+// Modal para CPF/CNPJ sem Referência
+// Modal para CPF/CNPJ sem Referência
+export function SemReferenciaModal({ rows, onClose, onUpdate }) {
+  const [loading, setLoading] = useState(false);
+  const [localRows, setLocalRows] = useState(rows);
+
+  // Agrupa os itens por CPF/CNPJ
+  const groupedRows = useMemo(() => {
+    const groups = {};
+    localRows.forEach((item) => {
+      const cpf = item.doc || "SEM_CPF";
+      if (!groups[cpf]) {
+        groups[cpf] = {
+          cpf,
+          pessoa: item.pessoa,
+          itens: [],
+          total: 0,
+        };
+      }
+      groups[cpf].itens.push(item);
+      groups[cpf].total += item.valor_doc || 0;
+    });
+    return Object.values(groups);
+  }, [localRows]);
+
+  return (
+    <ModalCard onClick={(e) => e.stopPropagation()} style={{ maxWidth: 1200 }}>
+      <ModalHeader>
+        <div style={{ fontWeight: 1000 }}>
+          CPF/CNPJ sem Cadastro na Referência
+        </div>
+        <CountPill>{localRows.length} itens</CountPill>{" "}
+        {/* Mostra total de itens */}
+      </ModalHeader>
+
+      <ModalBody>
+        <AlertMessage>
+          <p>
+            <FiAlertTriangle color="#f59e0b" />
+            Estes CPF/CNPJ não possuem cadastro de prestador. Cadastre-os na aba
+            "Referência" para melhorar a análise nas próximas importações.
+          </p>
+        </AlertMessage>
+
+        <TableWrap style={{ maxHeight: "60vh", overflow: "auto" }}>
+          <Table>
+            <thead>
+              <tr>
+                <Th>CPF/CNPJ</Th>
+                <Th>Pessoa</Th>
+                <Th>Quantidade de Itens</Th>
+                <Th>Valor Total</Th>
+                <Th>Ações</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {groupedRows.map((group) => (
+                <tr key={group.cpf}>
+                  <TdCompact>
+                    <strong>{group.cpf}</strong>
+                  </TdCompact>
+                  <TdCompact>{group.pessoa || "—"}</TdCompact>
+                  <TdCompact style={{ textAlign: "center" }}>
+                    {group.itens.length}
+                  </TdCompact>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {formatBRL(group.total)}
+                  </TdCompact>
+                  <TdCompact>
+                    <SmallButton
+                      onClick={() => {
+                        window.open(
+                          `/dre/referencia?doc=${group.cpf}`,
+                          "_blank",
+                        );
+                      }}
+                      style={{ padding: "2px 8px", fontSize: 11 }}
+                    >
+                      Cadastrar
+                    </SmallButton>
+                  </TdCompact>
+                </tr>
+              ))}
+
+              {groupedRows.length === 0 && (
+                <tr>
+                  <Td
+                    colSpan={5}
+                    style={{ textAlign: "center", opacity: 0.7, padding: 20 }}
+                  >
+                    Nenhum CPF/CNPJ sem referência encontrado.
+                  </Td>
+                </tr>
+              )}
             </tbody>
           </Table>
         </TableWrap>

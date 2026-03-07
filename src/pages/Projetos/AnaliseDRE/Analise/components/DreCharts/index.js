@@ -38,16 +38,36 @@ import {
 
 // Cores modernas para o gráfico de barras - gradiente suave
 const barColors = [
-  "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef",
-  "#ec4899", "#f43f5e", "#ef4444", "#f97316", "#eab308",
-  "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4",
-  "#0ea5e9"
+  "#3b82f6",
+  "#6366f1",
+  "#8b5cf6",
+  "#a855f7",
+  "#d946ef",
+  "#ec4899",
+  "#f43f5e",
+  "#ef4444",
+  "#f97316",
+  "#eab308",
+  "#84cc16",
+  "#22c55e",
+  "#10b981",
+  "#14b8a6",
+  "#06b6d4",
+  "#0ea5e9",
 ];
 
 // Cores para o gráfico de pizza - paleta profissional
 const pieColors = [
-  "#3b82f6", "#8b5cf6", "#10b981", "#f59e0b", "#ef4444",
-  "#6366f1", "#14b8a6", "#ec4899", "#f97316", "#6b7280"
+  "#3b82f6",
+  "#8b5cf6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#6366f1",
+  "#14b8a6",
+  "#ec4899",
+  "#f97316",
+  "#6b7280",
 ];
 
 function CustomBarTooltip({ active, payload, label, formatBRL }) {
@@ -100,16 +120,18 @@ const CustomLegend = ({ payload }) => {
   if (!payload || !payload.length) return null;
 
   return (
-    <div style={{
-      display: "flex",
-      flexWrap: "wrap",
-      justifyContent: "center",
-      gap: "12px 20px",
-      marginTop: 16,
-      padding: "8px 12px",
-      background: "rgba(148, 163, 184, 0.08)",
-      borderRadius: 12,
-    }}>
+    <div
+      style={{
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "center",
+        gap: "12px 20px",
+        marginTop: 16,
+        padding: "8px 12px",
+        background: "rgba(148, 163, 184, 0.08)",
+        borderRadius: 12,
+      }}
+    >
       {payload.map((entry, index) => (
         <div
           key={`legend-${index}`}
@@ -144,7 +166,7 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
       ...item,
       codigo: item.name,
       nome: item.nome || item.name,
-      fill: barColors[index % barColors.length]
+      fill: barColors[index % barColors.length],
     }));
   }, [chartByCfin]);
 
@@ -155,17 +177,19 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
       ...item,
       total,
       percent: ((item.value / total) * 100).toFixed(1),
-      fill: pieColors[index % pieColors.length]
+      fill: pieColors[index % pieColors.length],
     }));
   }, [chartBySetor]);
 
   // Calcula totais gerais
-  const totalGeralCFIN = useMemo(() => 
-    barData.reduce((acc, item) => acc + item.value, 0), [barData]
+  const totalGeralCFIN = useMemo(
+    () => barData.reduce((acc, item) => acc + item.value, 0),
+    [barData],
   );
-  
-  const totalGeralSetor = useMemo(() => 
-    pieData.reduce((acc, item) => acc + item.value, 0), [pieData]
+
+  const totalGeralSetor = useMemo(
+    () => pieData.reduce((acc, item) => acc + item.value, 0),
+    [pieData],
   );
 
   return (
@@ -184,7 +208,10 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
 
         <div style={{ width: "100%", height: 280, padding: "4px 8px" }}>
           <ResponsiveContainer>
-            <BarChart data={barData} margin={{ top: 16, right: 12, left: 0, bottom: 16 }}>
+            <BarChart
+              data={barData}
+              margin={{ top: 16, right: 12, left: 0, bottom: 16 }}
+            >
               <defs>
                 {barColors.map((color, index) => (
                   <linearGradient
@@ -207,38 +234,39 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
                 strokeDasharray="4 8"
                 vertical={false}
               />
-              
+
               <XAxis
                 dataKey="nome"
-                tick={{ fill: "var(--dre-tick)", fontSize: 10 }}
+                tick={{
+                  fill: "var(--dre-tick)",
+                  fontSize: 10,
+                  fontWeight: 500,
+                }}
                 interval={0}
-                angle={-15}
+                angle={-45}
                 textAnchor="end"
-                height={60}
+                height={100} // Aumentei ainda mais para garantir espaço
+                tickMargin={10} // Adiciona margem entre o texto e o eixo
                 tickFormatter={(value) => {
-                  if (value && value.length > 15) {
-                    return value.substring(0, 13) + "...";
+                  if (value && value.length > 25) {
+                    return value.substring(0, 22) + "...";
                   }
                   return value;
                 }}
               />
-              
+
               <YAxis
                 tick={{ fill: "var(--dre-tick)", fontSize: 11 }}
                 width={64}
-                tickFormatter={(value) => formatBRL(value).replace('R$', '')}
+                tickFormatter={(value) => formatBRL(value).replace("R$", "")}
               />
-              
+
               <Tooltip
                 content={<CustomBarTooltip formatBRL={formatBRL} />}
                 cursor={{ fill: "rgba(148, 163, 184, 0.1)" }}
               />
-              
-              <Bar
-                dataKey="value"
-                radius={[8, 8, 0, 0]}
-                barSize={24}
-              >
+
+              <Bar dataKey="value" radius={[8, 8, 0, 0]} barSize={24}>
                 {barData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
@@ -257,8 +285,8 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
               <tr>
                 <TableHeader>CFIN</TableHeader>
                 <TableHeader>Nome</TableHeader>
-                <TableHeader style={{ textAlign: 'right' }}>Valor</TableHeader>
-                <TableHeader style={{ textAlign: 'right' }}>%</TableHeader>
+                <TableHeader style={{ textAlign: "right" }}>Valor</TableHeader>
+                <TableHeader style={{ textAlign: "right" }}>%</TableHeader>
               </tr>
             </thead>
             <tbody>
@@ -276,7 +304,9 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
                 </TableRow>
               ))}
               <TotalRow>
-                <TableCell colSpan={2} style={{ fontWeight: 1000 }}>TOTAL GERAL</TableCell>
+                <TableCell colSpan={2} style={{ fontWeight: 1000 }}>
+                  TOTAL GERAL
+                </TableCell>
                 <TableCellRight style={{ fontWeight: 1000 }}>
                   {formatBRL(totalGeralCFIN)}
                 </TableCellRight>
@@ -304,10 +334,8 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
         <div style={{ width: "100%", height: 280, padding: "8px" }}>
           <ResponsiveContainer>
             <PieChart>
-              <Tooltip
-                content={<CustomPieTooltip formatBRL={formatBRL} />}
-              />
-              
+              <Tooltip content={<CustomPieTooltip formatBRL={formatBRL} />} />
+
               <Pie
                 data={pieData}
                 dataKey="value"
@@ -337,8 +365,8 @@ export default function DreCharts({ chartByCfin, chartBySetor, formatBRL }) {
             <thead>
               <tr>
                 <TableHeader>Setor</TableHeader>
-                <TableHeader style={{ textAlign: 'right' }}>Valor</TableHeader>
-                <TableHeader style={{ textAlign: 'right' }}>%</TableHeader>
+                <TableHeader style={{ textAlign: "right" }}>Valor</TableHeader>
+                <TableHeader style={{ textAlign: "right" }}>%</TableHeader>
               </tr>
             </thead>
             <tbody>

@@ -157,7 +157,7 @@ export default function DREAnalisePage() {
 
   const [itens, setItens] = useState([]);
   const [kpis, setKpis] = useState(null);
-const [itensVersion, setItensVersion] = useState(0);
+  const [itensVersion, setItensVersion] = useState(0);
   const [isDragActive, setIsDragActive] = useState(false);
   const [modal, setModal] = useState({ open: false, modalType: "", rows: [] });
 
@@ -186,30 +186,30 @@ const [itensVersion, setItensVersion] = useState(0);
     [loading],
   );
 
-const loadItens = useCallback(
-  async (id) => {
-    const resp = await loading.wrap("dre-list-itens", () =>
-      apiLocal.dreListItens(id, { limit: 5000 }),
-    );
-    setItens(Array.isArray(resp.data) ? resp.data : []);
-    setItensVersion(v => v + 1); // Incrementa versão
-  },
-  [loading],
-);
+  const loadItens = useCallback(
+    async (id) => {
+      const resp = await loading.wrap("dre-list-itens", () =>
+        apiLocal.dreListItens(id, { limit: 5000 }),
+      );
+      setItens(Array.isArray(resp.data) ? resp.data : []);
+      setItensVersion((v) => v + 1); // Incrementa versão
+    },
+    [loading],
+  );
 
-const loadKpis = useCallback(
-  async (id) => {
-    const resp = await loading.wrap("dre-kpis", () => apiLocal.dreKpis(id));
-    // Mescla os KPIs com as sugestões existentes
-    setKpis(prev => ({
-      ...(prev || {}),
-      ...(resp.data || {}),
-      // Preserva as sugestões se já existirem
-      suggestions: prev?.suggestions || []
-    }));
-  },
-  [loading],
-);
+  const loadKpis = useCallback(
+    async (id) => {
+      const resp = await loading.wrap("dre-kpis", () => apiLocal.dreKpis(id));
+      // Mescla os KPIs com as sugestões existentes
+      setKpis((prev) => ({
+        ...(prev || {}),
+        ...(resp.data || {}),
+        // Preserva as sugestões se já existirem
+        suggestions: prev?.suggestions || [],
+      }));
+    },
+    [loading],
+  );
 
   const refreshAll = useCallback(
     async (id) => {
@@ -312,36 +312,38 @@ const loadKpis = useCallback(
     }
   }, [loading, relatorioId]);
 
-const handleAnalisar = useCallback(async () => {
-  const rid = String(relatorioId || "").trim();
-  if (!rid) return;
+  const handleAnalisar = useCallback(async () => {
+    const rid = String(relatorioId || "").trim();
+    if (!rid) return;
 
-  try {
-    // Chama a análise que retorna as sugestões e já aplica as atualizações automáticas
-    const response = await loading.wrap("dre-analisar", () => apiLocal.dreAnalisar(rid));
-    
-    // Salva as sugestões no estado kpis
-    if (response.data?.result) {
-      setKpis(response.data.result);
+    try {
+      // Chama a análise que retorna as sugestões e já aplica as atualizações automáticas
+      const response = await loading.wrap("dre-analisar", () =>
+        apiLocal.dreAnalisar(rid),
+      );
+
+      // Salva as sugestões no estado kpis
+      if (response.data?.result) {
+        setKpis(response.data.result);
+      }
+
+      // DEPOIS da análise, carrega os itens atualizados (com os setores já atribuídos)
+      await loadItens(rid);
+
+      // Carrega os KPIs atualizados
+      const kpisResp = await apiLocal.dreKpis(rid);
+      setKpis((prev) => ({
+        ...(prev || {}),
+        ...(kpisResp.data || {}),
+        suggestions: response.data?.result?.suggestions || [],
+      }));
+
+      toast.success("Análise executada");
+    } catch (e) {
+      console.error(e);
+      toast.error("Erro ao analisar");
     }
-    
-    // DEPOIS da análise, carrega os itens atualizados (com os setores já atribuídos)
-    await loadItens(rid);
-    
-    // Carrega os KPIs atualizados
-    const kpisResp = await apiLocal.dreKpis(rid);
-    setKpis(prev => ({
-      ...(prev || {}),
-      ...(kpisResp.data || {}),
-      suggestions: response.data?.result?.suggestions || []
-    }));
-    
-    toast.success("Análise executada");
-  } catch (e) {
-    console.error(e);
-    toast.error("Erro ao analisar");
-  }
-}, [loading, loadItens, relatorioId]);
+  }, [loading, loadItens, relatorioId]);
 
   const handleConcluir = useCallback(async () => {
     const rid = String(relatorioId || "").trim();
@@ -564,38 +566,40 @@ const handleAnalisar = useCallback(async () => {
   const showDate = useCallback((r) => r.data_doc || r.data_inclusao || "—", []);
 
   // charts (sem reduce)
-// charts (sem reduce)
-const chartByCfin = useMemo(() => {
-  const map = {};
-  for (let i = 0; i < itens.length; i++) {
-    const it = itens[i] || {};
-    const key = (it.cfin_codigo || "SEM_CFIN").trim() || "SEM_CFIN";
-    const nome = it.cfin_nome || key; // Pega o nome do CFIN
-    const v = Number(it.valor_doc || 0);
-    
-    if (!map[key]) {
-      map[key] = { 
-        value: 0, 
-        nome: nome,  // Guarda o nome
-        codigo: key  // Guarda o código
-      };
+  // charts (sem reduce)
+  const chartByCfin = useMemo(() => {
+    const map = {};
+    for (let i = 0; i < itens.length; i++) {
+      const it = itens[i] || {};
+      const key = (it.cfin_codigo || "SEM_CFIN").trim() || "SEM_CFIN";
+      const nome = it.cfin_nome || key;
+      const v = Number(it.valor_doc || 0);
+
+      if (!map[key]) {
+        map[key] = {
+          value: 0,
+          nomes: new Set(),
+          codigo: key,
+        };
+      }
+      map[key].value += Number.isFinite(v) ? v : 0;
+      map[key].nomes.add(nome);
     }
-    map[key].value += Number.isFinite(v) ? v : 0;
-  }
-  
-  const arr = [];
-  for (const k in map) {
-    arr.push({ 
-      name: k,  // Mantém para compatibilidade
-      codigo: map[k].codigo,
-      nome: map[k].nome,
-      value: map[k].value 
-    });
-  }
-  
-  arr.sort((a, b) => b.value - a.value);
-  return arr.slice(0, 16);
-}, [itens]);
+
+    const arr = [];
+    for (const k in map) {
+      const nomesList = Array.from(map[k].nomes).join(", ");
+      arr.push({
+        name: k,
+        codigo: map[k].codigo,
+        nome: nomesList,
+        value: map[k].value,
+      });
+    }
+
+    arr.sort((a, b) => b.value - a.value);
+    return arr;
+  }, [itens]);
 
   const chartBySetor = useMemo(() => {
     const map = {};

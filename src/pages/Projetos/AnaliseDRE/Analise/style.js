@@ -472,3 +472,26 @@ export const JustificativaInput = styled(FilterInput)`
   padding: 4px 6px;
   font-size: 12px;
 `;
+
+export const AlertMessage = styled.div`
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  color: #111827;
+
+  [data-theme="dark"] & {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e5e7eb;
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+`;
