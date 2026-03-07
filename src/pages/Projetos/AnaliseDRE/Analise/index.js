@@ -8,7 +8,7 @@ import {
   FaCheck,
   FaChartBar,
 } from "react-icons/fa";
-import { FiSave, FiX, FiCheckSquare, FiSquare } from "react-icons/fi";
+import { FiX } from "react-icons/fi";
 
 import apiLocal from "../../../../services/apiLocal";
 import useLoading from "../../../../hooks/useLoading";
@@ -66,14 +66,33 @@ function toDateInputValue(d) {
 }
 
 function parseMoneyBRL(value) {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (value === null || value === undefined || value === "") return 0;
 
-  const s = String(value)
-    .replace(/\s/g, "")
-    .replace("R$", "")
-    .replace(/\./g, "")
-    .replace(",", ".");
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  let s = String(value).trim();
+  s = s.replace(/\s/g, "").replace("R$", "");
+
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
+
+    if (lastDot > lastComma) {
+      s = s.replace(/,/g, "");
+    } else {
+      s = s.replace(/\./g, "").replace(",", ".");
+    }
+  } else if (hasComma) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else {
+    s = s.replace(/,/g, "");
+  }
+
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
@@ -189,10 +208,10 @@ export default function DREAnalisePage() {
   const loadItens = useCallback(
     async (id) => {
       const resp = await loading.wrap("dre-list-itens", () =>
-        apiLocal.dreListItens(id, { limit: 5000 }),
+        apiLocal.dreListItens(id),
       );
       setItens(Array.isArray(resp.data) ? resp.data : []);
-      setItensVersion((v) => v + 1); // Incrementa versão
+      setItensVersion((v) => v + 1);
     },
     [loading],
   );
@@ -200,11 +219,9 @@ export default function DREAnalisePage() {
   const loadKpis = useCallback(
     async (id) => {
       const resp = await loading.wrap("dre-kpis", () => apiLocal.dreKpis(id));
-      // Mescla os KPIs com as sugestões existentes
       setKpis((prev) => ({
         ...(prev || {}),
         ...(resp.data || {}),
-        // Preserva as sugestões se já existirem
         suggestions: prev?.suggestions || [],
       }));
     },
@@ -279,7 +296,6 @@ export default function DREAnalisePage() {
       setRelatorioId(id);
       setCodAgrupador(cod);
       setFileHash(fakeHash);
-
       setItens([]);
       setKpis(null);
 
@@ -317,20 +333,16 @@ export default function DREAnalisePage() {
     if (!rid) return;
 
     try {
-      // Chama a análise que retorna as sugestões e já aplica as atualizações automáticas
       const response = await loading.wrap("dre-analisar", () =>
         apiLocal.dreAnalisar(rid),
       );
 
-      // Salva as sugestões no estado kpis
       if (response.data?.result) {
         setKpis(response.data.result);
       }
 
-      // DEPOIS da análise, carrega os itens atualizados (com os setores já atribuídos)
       await loadItens(rid);
 
-      // Carrega os KPIs atualizados
       const kpisResp = await apiLocal.dreKpis(rid);
       setKpis((prev) => ({
         ...(prev || {}),
@@ -433,7 +445,6 @@ export default function DREAnalisePage() {
           const empresa = pickRow(r, ["Empresa"]);
           const valorItem = pickRow(r, ["Valor item", "ValorItem"]);
           const valorDoc = pickRow(r, ["Valor doc", "ValorDoc"]);
-
           const abrangencia = pickRow(r, ["Abrangencia", "Abr", "Abrangência"]);
 
           const hasSomething =
@@ -441,6 +452,7 @@ export default function DREAnalisePage() {
             safeStr(item) ||
             safeStr(doc) ||
             safeStr(pessoa);
+
           if (!hasSomething) continue;
 
           itemsPayload.push({
@@ -449,18 +461,14 @@ export default function DREAnalisePage() {
             tipo_doc: safeStr(tipoDoc),
             data_doc: normalizeDateCell(dataDoc),
             data_inclusao: normalizeDateCell(dataInclusao),
-
             doc: onlyDigits(doc),
             pessoa: safeStr(pessoa),
-
             item: safeStr(item),
             cfin_codigo: safeStr(cfinCodigo),
             cfin_nome: safeStr(cfinNome),
-
             empresa: safeStr(empresa),
             valor_item: parseMoneyBRL(valorItem),
             valor_doc: parseMoneyBRL(valorDoc),
-
             sheet_name: safeStr(firstSheetName),
             row_index: i + 2,
           });
@@ -565,8 +573,6 @@ export default function DREAnalisePage() {
 
   const showDate = useCallback((r) => r.data_doc || r.data_inclusao || "—", []);
 
-  // charts (sem reduce)
-  // charts (sem reduce)
   const chartByCfin = useMemo(() => {
     const map = {};
     for (let i = 0; i < itens.length; i++) {
@@ -629,28 +635,36 @@ export default function DREAnalisePage() {
       let rows = [];
 
       if (key === "cfin_divergente") {
-        // Pega as sugestões do estado kpis
         const sugestoes = kpis?.suggestions || [];
 
         for (let i = 0; i < itens.length; i++) {
           if (itens[i]?.flag_cfin_divergente) {
             const item = { ...itens[i] };
-
-            // Encontra a sugestão para este item
             const sugestao = sugestoes.find((s) => s.item_id === item.id);
             if (sugestao) {
               item.sugestao_cfin = sugestao.sugestao;
             }
-
             rows.push(item);
           }
         }
-      } else if (key === "valor_divergente") {
-        for (let i = 0; i < itens.length; i++)
-          if (itens[i]?.flag_valor_divergente) rows.push(itens[i]);
+            } else if (key === "valor_divergente") {
+        for (let i = 0; i < itens.length; i++) {
+          const item = itens[i];
+          if (!item?.flag_valor_divergente) continue;
+
+          const cobranca = item?.cobranca_de_acordo;
+          const justificativa = item?.justificativa_divergencia;
+
+          const pendente =
+            cobranca == null ||
+            (cobranca === "N" && (!justificativa || !String(justificativa).trim()));
+
+          if (pendente) rows.push(item);
+        }
       } else if (key === "duplicados") {
-        for (let i = 0; i < itens.length; i++)
+        for (let i = 0; i < itens.length; i++) {
           if (itens[i]?.flag_duplicado) rows.push(itens[i]);
+        }
       } else if (key === "sem_setor") {
         for (let i = 0; i < itens.length; i++) {
           const s = (itens[i]?.setor || "").trim();
@@ -691,7 +705,7 @@ export default function DREAnalisePage() {
         <FiltersRight>
           <CountPill>
             {relatorioId
-              ? `Relatório: ${codAgrupador || String(relatorioId).slice(0, 8) + "…"}`
+              ? `Relatório: ${codAgrupador || `${String(relatorioId).slice(0, 8)}…`}`
               : "Sem relatório"}
           </CountPill>
 
@@ -1002,8 +1016,10 @@ export default function DREAnalisePage() {
                                 setor: e.target.value,
                               });
                               await loadItens(relatorioId);
+                              await loadKpis(relatorioId);
                               toast.success("Setor atualizado");
                             } catch (error) {
+                              console.error(error);
                               toast.error("Erro ao atualizar setor");
                             }
                           }}
@@ -1057,6 +1073,7 @@ export default function DREAnalisePage() {
               onUpdate={handleModalUpdate}
             />
           )}
+
           {modal.modalType === "valor_divergente" && (
             <ValorDivergenteModal
               rows={modal.rows}
@@ -1064,6 +1081,7 @@ export default function DREAnalisePage() {
               onUpdate={handleModalUpdate}
             />
           )}
+
           {modal.modalType === "sem_setor" && (
             <SemSetorModal
               rows={modal.rows}
@@ -1071,6 +1089,7 @@ export default function DREAnalisePage() {
               onUpdate={handleModalUpdate}
             />
           )}
+
           {modal.modalType === "duplicados" && (
             <DuplicadosModal
               rows={modal.rows}
@@ -1078,6 +1097,7 @@ export default function DREAnalisePage() {
               onUpdate={handleModalUpdate}
             />
           )}
+
           {modal.modalType === "all" && (
             <ModalCard onClick={(e) => e.stopPropagation()}>
               <ModalHeader>
@@ -1110,6 +1130,7 @@ export default function DREAnalisePage() {
                         ))}
                       </tr>
                     </thead>
+
                     <tbody>
                       {modal.rows.map((r) => (
                         <tr key={r.id}>
@@ -1142,10 +1163,10 @@ export default function DREAnalisePage() {
                                     id: r.id,
                                     setor: e.target.value,
                                   });
-                                  await loadItens(relatorioId);
+                                  await handleModalUpdate();
                                   toast.success("Setor atualizado");
-                                  handleModalUpdate();
                                 } catch (error) {
+                                  console.error(error);
                                   toast.error("Erro ao atualizar setor");
                                 }
                               }}

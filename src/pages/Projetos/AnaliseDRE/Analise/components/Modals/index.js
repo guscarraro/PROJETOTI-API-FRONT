@@ -207,11 +207,11 @@ export function CfinDivergenteModal({ rows, onClose, onUpdate }) {
       const updatedRows = localRows.map((r) =>
         r.id === row.id
           ? {
-              ...r,
-              cfin_codigo: sugestao.cfin_codigo,
-              cfin_nome: sugestao.cfin_nome,
-              setor: sugestao.setor || r.setor,
-            }
+            ...r,
+            cfin_codigo: sugestao.cfin_codigo,
+            cfin_nome: sugestao.cfin_nome,
+            setor: sugestao.setor || r.setor,
+          }
           : r,
       );
       setLocalRows(updatedRows);
@@ -491,7 +491,31 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
   const [batchCobranca, setBatchCobranca] = useState("");
   const [batchJustificativa, setBatchJustificativa] = useState("");
   const [loading, setLoading] = useState(false);
-  const [localRows, setLocalRows] = useState(rows);
+    const [localRows, setLocalRows] = useState(() => {
+    const ordered = [...rows];
+
+    ordered.sort((a, b) => {
+      const notaA = String(a?.numero_doc || "");
+      const notaB = String(b?.numero_doc || "");
+
+      const notaCompare = notaA.localeCompare(notaB, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      if (notaCompare !== 0) return notaCompare;
+
+      const itemA = String(a?.item || "");
+      const itemB = String(b?.item || "");
+
+      return itemA.localeCompare(itemB, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
+
+    return ordered;
+  });
 
   const toggleSelectAll = () => {
     if (selectedIds.size === localRows.length) {
@@ -758,13 +782,14 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
                     </TdCompact>
                     <TdCompact>
                       <FilterSelect
-                        value={r.cobranca_de_acordo || "S"}
+                        value={r.cobranca_de_acordo || ""}
                         onChange={(e) =>
                           handleUpdateCobranca(r.id, e.target.value)
                         }
                         style={{ padding: "2px 4px", width: 90 }}
                         disabled={loading}
                       >
+                        <option value="">Pendente</option>
                         <option value="S">Sim</option>
                         <option value="N">Não</option>
                       </FilterSelect>
@@ -812,7 +837,31 @@ export function SemSetorModal({ rows, onClose, onUpdate }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchSetor, setBatchSetor] = useState("");
   const [loading, setLoading] = useState(false);
-  const [localRows, setLocalRows] = useState(rows);
+  const [localRows, setLocalRows] = useState(() => {
+    const ordered = [...rows];
+
+    ordered.sort((a, b) => {
+      const notaA = String(a?.numero_doc || "");
+      const notaB = String(b?.numero_doc || "");
+
+      const notaCompare = notaA.localeCompare(notaB, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      if (notaCompare !== 0) return notaCompare;
+
+      const itemA = String(a?.item || "");
+      const itemB = String(b?.item || "");
+
+      return itemA.localeCompare(itemB, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
+
+    return ordered;
+  });
 
   const toggleSelectAll = () => {
     if (selectedIds.size === localRows.length) {
@@ -1001,7 +1050,31 @@ export function DuplicadosModal({ rows, onClose, onUpdate }) {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [batchSetor, setBatchSetor] = useState("");
   const [loading, setLoading] = useState(false);
-  const [localRows, setLocalRows] = useState(rows);
+    const [localRows, setLocalRows] = useState(() => {
+    const ordered = [...rows];
+
+    ordered.sort((a, b) => {
+      const notaA = String(a?.numero_doc || "");
+      const notaB = String(b?.numero_doc || "");
+
+      const notaCompare = notaA.localeCompare(notaB, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+
+      if (notaCompare !== 0) return notaCompare;
+
+      const itemA = String(a?.item || "");
+      const itemB = String(b?.item || "");
+
+      return itemA.localeCompare(itemB, "pt-BR", {
+        numeric: true,
+        sensitivity: "base",
+      });
+    });
+
+    return ordered;
+  });
 
   const toggleSelectAll = () => {
     if (selectedIds.size === localRows.length) {

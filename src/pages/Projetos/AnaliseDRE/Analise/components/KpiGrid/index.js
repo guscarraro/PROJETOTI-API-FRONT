@@ -32,23 +32,26 @@ function formatBRL(v) {
 export default function KpiGrid({ kpis, totals, onOpen, loading }) {
   const base = useMemo(() => {
     const safe = kpis || {};
+
     return {
-      total_linhas: Number(totals?.count || 0),
-      total_valor: Number(totals?.totalValor || 0),
+      total_linhas: Number(safe.total_linhas ?? totals?.count ?? 0),
+      total_valor: Number(safe.total_valor ?? totals?.totalValor ?? 0),
       cfin_divergente: Number(safe.cfin_divergente || 0),
       valor_divergente: Number(safe.valor_divergente || 0),
       duplicados: Number(safe.duplicados || 0),
       sem_setor: Number(safe.sem_setor || 0),
-      // Agora mostra quantidade de ITENS sem referência, não CPFs únicos
       itens_sem_referencia: Number(safe.itens_sem_referencia || 0),
+      pendentes_justificativa: Number(safe.pendentes_justificativa || 0),
+      de_acordo: Number(safe.de_acordo || 0),
     };
   }, [kpis, totals]);
-console.log(base);
+
   const okAll =
     base.cfin_divergente === 0 &&
-    base.valor_divergente === 0 &&
     base.duplicados === 0 &&
-    base.sem_setor === 0;
+    base.sem_setor === 0 &&
+    base.itens_sem_referencia === 0 &&
+    base.pendentes_justificativa === 0;
 
   return (
     <Grid>
@@ -100,7 +103,7 @@ console.log(base);
         </KpiBtnRow>
       </KpiCard>
 
-      <KpiCard $warn={base.itens_sem_referencia > 0}>
+      {/* <KpiCard $warn={base.itens_sem_referencia > 0}>
         <KpiTop>
           <KpiTitle>
             <FiUserX /> Itens sem ref.
@@ -124,27 +127,29 @@ console.log(base);
             Ver
           </KpiBtn>
         </KpiBtnRow>
-      </KpiCard>
+      </KpiCard> */}
 
-      <KpiCard $warn={base.valor_divergente > 0}>
+      <KpiCard $warn={base.pendentes_justificativa > 0}>
         <KpiTop>
           <KpiTitle>
-            <FiDollarSign /> Valor divergente
+            <FiDollarSign /> Pendências de valor
           </KpiTitle>
-          <StatusPill $tone={base.valor_divergente > 0 ? "warn" : "ok"}>
-            {base.valor_divergente > 0 ? (
+          <StatusPill $tone={base.pendentes_justificativa > 0 ? "warn" : "ok"}>
+            {base.pendentes_justificativa > 0 ? (
               <FiAlertTriangle />
             ) : (
               <FiCheckCircle />
             )}
-            {base.valor_divergente > 0 ? "Justificar" : "OK"}
+            {base.pendentes_justificativa > 0 ? "Justificar" : "OK"}
           </StatusPill>
         </KpiTop>
-        <KpiValue>{base.valor_divergente}</KpiValue>
-        <KpiHint>Fora do programado (tolerância)</KpiHint>
+        <KpiValue>{base.pendentes_justificativa}</KpiValue>
+        <KpiHint>
+          Divergentes ainda não tratados. Total divergente: {base.valor_divergente}
+        </KpiHint>
         <KpiBtnRow>
           <KpiBtn
-            disabled={loading || !base.valor_divergente}
+            disabled={loading || !base.pendentes_justificativa}
             onClick={() => onOpen("valor_divergente")}
           >
             Justificar
