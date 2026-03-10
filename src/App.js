@@ -46,6 +46,7 @@ const SECTORS = {
   FROTA: 14,
   ARMAZENAGEM: 9,
   RAIA: 26,
+  CONTROLADORIA: 12,
 };
 
 const App = () => {
@@ -260,7 +261,7 @@ const App = () => {
                 SECTORS.GERENTE_OPERACAO,
                 SECTORS.QUALIDADE,
                 SECTORS.SAC,
-                SECTORS.FRETE
+                SECTORS.FRETE,
               ]}
             />
           }
@@ -284,7 +285,10 @@ const App = () => {
         <Route
           path="/Cotacao"
           element={
-            <PrivateRoute element={<Cotacao />} allowedSectors={[SECTORS.ADMIN]} />
+            <PrivateRoute
+              element={<Cotacao />}
+              allowedSectors={[SECTORS.ADMIN]}
+            />
           }
         />
 
@@ -298,7 +302,10 @@ const App = () => {
           }
         />
 
-        <Route path="/Projetos" element={<PrivateRoute element={<Projetos />} />} />
+        <Route
+          path="/Projetos"
+          element={<PrivateRoute element={<Projetos />} />}
+        />
         <Route
           path="/Projetos/:id"
           element={<PrivateRoute element={<ProjetoDetalhe />} />}
@@ -349,10 +356,8 @@ const App = () => {
             <PrivateRoute
               element={<CustosFixosProgramadosPage />}
               allowedSectors={[
-                SECTORS.ADMIN,
-                SECTORS.FROTA,
-                SECTORS.TI,
-                SECTORS.RAIA,
+               SECTORS.ADMIN,
+                SECTORS.CONTROLADORIA,
               ]}
             />
           }
@@ -362,12 +367,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<AnalisePage />}
-              allowedSectors={[
-                SECTORS.ADMIN,
-                SECTORS.FROTA,
-                SECTORS.TI,
-                SECTORS.RAIA,
-              ]}
+              allowedSectors={[SECTORS.ADMIN, SECTORS.CONTROLADORIA]}
             />
           }
         />
@@ -376,12 +376,7 @@ const App = () => {
           element={
             <PrivateRoute
               element={<BaseReferenciaPage />}
-              allowedSectors={[
-                SECTORS.ADMIN,
-                SECTORS.FROTA,
-                SECTORS.TI,
-                SECTORS.RAIA,
-              ]}
+              allowedSectors={[SECTORS.ADMIN, SECTORS.CONTROLADORIA]}
             />
           }
         />
@@ -428,7 +423,7 @@ const App = () => {
                 SECTORS.ARMAZENAGEM,
                 SECTORS.ADMIN,
                 SECTORS.QUALIDADE,
-                SECTORS.FERSA_CLIENTE
+                SECTORS.FERSA_CLIENTE,
               ]}
             />
           }
@@ -472,13 +467,19 @@ const App = () => {
         <Route
           path="/projecao"
           element={
-            <PrivateRoute element={<Projecao />} allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]} />
+            <PrivateRoute
+              element={<Projecao />}
+              allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA]}
+            />
           }
         />
         <Route
           path="/Operacao/Dashboard"
           element={
-            <PrivateRoute element={<Projecao2 />} allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA, SECTORS.QUALIDADE]} />
+            <PrivateRoute
+              element={<Projecao2 />}
+              allowedSectors={[SECTORS.ADMIN, SECTORS.FROTA, SECTORS.QUALIDADE]}
+            />
           }
         />
       </Routes>
