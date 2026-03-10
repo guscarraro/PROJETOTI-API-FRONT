@@ -265,6 +265,36 @@ export const Divider = styled.div`
 export const TableWrap = styled.div`
   width: 100%;
   overflow: auto;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  max-height: 60vh; /* Aumentei a altura */
+
+  /* Garante que o scroll horizontal funcione */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+  }
+
+  [data-theme="dark"] & {
+    border-color: #334155;
+    
+    &::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #475569;
+    }
+  }
 `;
 
 export const Table = styled.table`
@@ -272,6 +302,8 @@ export const Table = styled.table`
   border-collapse: collapse;
   font-size: 13px;
   color: var(--dre-text);
+  table-layout: auto; /* Mudei de 'fixed' para 'auto' */
+  min-width: 100%;
 `;
 
 export const Th = styled.th`
@@ -306,6 +338,13 @@ export const TdCompact = styled(Td)`
   line-height: 1;
   vertical-align: middle;
 `;
+export const TdEllipsis = styled(TdCompact)`
+  max-width: ${(p) => p.$maxWidth || "180px"};
+  width: ${(p) => p.$maxWidth || "180px"};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
 
 export const ModalOverlay = styled.div`
   position: fixed;
@@ -319,8 +358,8 @@ export const ModalOverlay = styled.div`
 `;
 
 export const ModalCard = styled.div`
-  width: min(1100px, 96vw);
-  max-height: 88vh;
+  width: min(1400px, 96vw);  /* Aumentei de 1100px para 1400px */
+  max-height: 90vh;           /* Aumentei um pouco a altura também */
   background: #fff;
   border-radius: 16px;
   border: 1px solid #e5e7eb;

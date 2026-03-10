@@ -31,6 +31,7 @@ import {
   CfinAtualBox,
   CfinSugestaoBox,
   AlertMessage,
+  TdEllipsis,
 } from "../../style";
 import apiLocal from "../../../../../../services/apiLocal";
 
@@ -493,7 +494,7 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
   const [loading, setLoading] = useState(false);
     const [localRows, setLocalRows] = useState(() => {
     const ordered = [...rows];
-
+      
     ordered.sort((a, b) => {
       const notaA = String(a?.numero_doc || "");
       const notaB = String(b?.numero_doc || "");
@@ -504,19 +505,19 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
       });
 
       if (notaCompare !== 0) return notaCompare;
-
+      
       const itemA = String(a?.item || "");
       const itemB = String(b?.item || "");
-
+      
       return itemA.localeCompare(itemB, "pt-BR", {
         numeric: true,
         sensitivity: "base",
       });
     });
-
+    
     return ordered;
   });
-
+  
   const toggleSelectAll = () => {
     if (selectedIds.size === localRows.length) {
       setSelectedIds(new Set());
@@ -755,10 +756,10 @@ export function ValorDivergenteModal({ rows, onClose, onUpdate }) {
                     </TdCompact>
                     <TdCompact>{r.numero_doc || "—"}</TdCompact>
                     <TdCompact>{showDate(r)}</TdCompact>
-                    <TdCompact>{r.pessoa || "—"}</TdCompact>
-                    <TdCompact style={{ maxWidth: 200 }}>
-                      {r.item || "—"}
-                    </TdCompact>
+                    <TdEllipsis title={r.pessoa || "—"} $maxWidth="200px">{r.pessoa || "—"}</TdEllipsis>
+                    <TdEllipsis title={r.item || "—"} $maxWidth="200px">
+                    {r.item || "—"}
+                  </TdEllipsis>
                     <TdCompact>{r.empresa || "—"}</TdCompact>
                     <TdCompact style={{ textAlign: "right" }}>
                       {formatBRL(r.valor_doc)}
@@ -1007,9 +1008,9 @@ export function SemSetorModal({ rows, onClose, onUpdate }) {
                   </TdCompact>
                   <TdCompact>{r.numero_doc || "—"}</TdCompact>
                   <TdCompact>{showDate(r)}</TdCompact>
-                  <TdCompact style={{ maxWidth: 200 }}>
+                  <TdEllipsis title={r.item || "—"} $maxWidth="200px">
                     {r.item || "—"}
-                  </TdCompact>
+                  </TdEllipsis>
                   <TdCompact>{r.empresa || "—"}</TdCompact>
                   <TdCompact style={{ textAlign: "right" }}>
                     {formatBRL(r.valor_doc)}
@@ -1204,7 +1205,8 @@ export function DuplicadosModal({ rows, onClose, onUpdate }) {
                 <Th>Item</Th>
                 <Th>Doc</Th>
                 <Th>Pessoa</Th>
-                <Th>Valor</Th>
+                <Th>Valor Item</Th>
+                <Th>Valor Total</Th>
                 <Th>Setor</Th>
               </tr>
             </thead>
@@ -1221,11 +1223,14 @@ export function DuplicadosModal({ rows, onClose, onUpdate }) {
                   </TdCompact>
                   <TdCompact>{r.numero_doc || "—"}</TdCompact>
                   <TdCompact>{showDate(r)}</TdCompact>
-                  <TdCompact style={{ maxWidth: 200 }}>
+                  <TdEllipsis title={r.item || "—"} $maxWidth="200px">
                     {r.item || "—"}
-                  </TdCompact>
+                  </TdEllipsis>
                   <TdCompact>{r.doc || "—"}</TdCompact>
-                  <TdCompact>{r.pessoa || "—"}</TdCompact>
+                  <TdEllipsis title={r.pessoa || "—"}  $maxWidth="250px">{r.pessoa || "—"}</TdEllipsis>
+                  <TdCompact style={{ textAlign: "right" }}>
+                    {formatBRL(r.valor_item)}
+                  </TdCompact>
                   <TdCompact style={{ textAlign: "right" }}>
                     {formatBRL(r.valor_doc)}
                   </TdCompact>
