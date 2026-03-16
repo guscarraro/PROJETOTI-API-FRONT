@@ -5,7 +5,6 @@ import AdminNavbar from "./components/AdminNavbar";
 import Dashboard from "./pages/Dashboard";
 import Cotacao from "./pages/Cotacao";
 import Frete from "./pages/Frete";
-import CargaLucrativa from "./pages/CargaLucrativa";
 import Projetos from "./pages/Projetos";
 import Integrantes from "./pages/Projetos/Integrantes";
 import ProjetoDetalhe from "./pages/Projetos/ProjetoDetalhe";
@@ -167,74 +166,10 @@ const App = () => {
           }
         />
 
-        <Route
-          path="/gerar-viagem"
-          element={
-            <PrivateRoute
-              element={<CargaLucrativa />}
-              allowedSectors={[
-                SECTORS.FRETE,
-                SECTORS.ADMIN,
-                SECTORS.GERENTE_OPERACAO,
-              ]}
-            />
-          }
-        />
-        <Route
-          path="/gerar-viagem/:numero_viagem"
-          element={
-            <PrivateRoute
-              element={<CargaLucrativa />}
-              allowedSectors={[
-                SECTORS.FRETE,
-                SECTORS.ADMIN,
-                SECTORS.GERENTE_OPERACAO,
-                SECTORS.QUALIDADE,
-              ]}
-            />
-          }
-        />
-        <Route
-          path="/gerar-viagem/dashboard"
-          element={
-            <PrivateRoute
-              element={<CargaLucrativa />}
-              allowedSectors={[
-                SECTORS.FRETE,
-                SECTORS.ADMIN,
-                SECTORS.GERENTE_OPERACAO,
-                SECTORS.QUALIDADE,
-              ]}
-            />
-          }
-        />
-        <Route
-          path="/gerar-viagem/custos"
-          element={
-            <PrivateRoute
-              element={<CargaLucrativa />}
-              allowedSectors={[
-                SECTORS.FRETE,
-                SECTORS.ADMIN,
-                SECTORS.GERENTE_OPERACAO,
-              ]}
-            />
-          }
-        />
-        <Route
-          path="/gerar-viagem/relatorio"
-          element={
-            <PrivateRoute
-              element={<CargaLucrativa />}
-              allowedSectors={[
-                SECTORS.FRETE,
-                SECTORS.ADMIN,
-                SECTORS.GERENTE_OPERACAO,
-                SECTORS.QUALIDADE,
-              ]}
-            />
-          }
-        />
+
+
+
+
 
         <Route
           path="/Operacao"
