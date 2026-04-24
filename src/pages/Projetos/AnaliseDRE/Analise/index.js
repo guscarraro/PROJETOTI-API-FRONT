@@ -66,35 +66,23 @@ function toDateInputValue(d) {
 }
 
 function parseMoneyBRL(value) {
-  if (value === null || value === undefined || value === "") return 0;
+  if (!value) return 0;
 
   if (typeof value === "number") {
-    return Number.isFinite(value) ? value : 0;
+    return value;
   }
 
-  let s = String(value).trim();
-  s = s.replace(/\s/g, "").replace("R$", "");
+  let s = String(value);
 
-  const hasComma = s.includes(",");
-  const hasDot = s.includes(".");
+  // remove tudo que não é número, vírgula ou ponto
+  s = s.replace(/[^\d,.-]/g, "");
 
-  if (hasComma && hasDot) {
-    const lastComma = s.lastIndexOf(",");
-    const lastDot = s.lastIndexOf(".");
+  // padrão BR: 1.234,56 → 1234.56
+  s = s.replace(/\./g, "").replace(",", ".");
 
-    if (lastDot > lastComma) {
-      s = s.replace(/,/g, "");
-    } else {
-      s = s.replace(/\./g, "").replace(",", ".");
-    }
-  } else if (hasComma) {
-    s = s.replace(/\./g, "").replace(",", ".");
-  } else {
-    s = s.replace(/,/g, "");
-  }
+  const n = parseFloat(s);
 
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
+  return isNaN(n) ? 0 : n;
 }
 
 function excelSerialToISO(serial) {
@@ -647,7 +635,7 @@ export default function DREAnalisePage() {
             rows.push(item);
           }
         }
-            } else if (key === "valor_divergente") {
+      } else if (key === "valor_divergente") {
         for (let i = 0; i < itens.length; i++) {
           const item = itens[i];
           if (!item?.flag_valor_divergente) continue;
@@ -657,7 +645,8 @@ export default function DREAnalisePage() {
 
           const pendente =
             cobranca == null ||
-            (cobranca === "N" && (!justificativa || !String(justificativa).trim()));
+            (cobranca === "N" &&
+              (!justificativa || !String(justificativa).trim()));
 
           if (pendente) rows.push(item);
         }
